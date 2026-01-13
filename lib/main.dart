@@ -350,6 +350,131 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     _onHotspotsChanged(updatedHotspots);
   }
 
+  /// Show dialog for creating or editing a hotspot
+  Future<HotspotModel?> _showHotspotDialog({
+    HotspotModel? existingHotspot,
+    double? x,
+    double? y,
+    double? width,
+    double? height,
+  }) async {
+    final bool isEditing = existingHotspot != null;
+    
+    final TextEditingController titleController = TextEditingController(
+      text: existingHotspot?.id ?? '',
+    );
+    final TextEditingController linkController = TextEditingController(
+      text: existingHotspot?.link ?? '',
+    );
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    return showDialog<HotspotModel>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(isEditing ? 'Edit Goal' : 'Add Goal'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Goal Title',
+                      hintText: 'Enter your goal',
+                      border: OutlineInputBorder(),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Goal title is required';
+                      }
+                      return null;
+                    },
+                    autofocus: !isEditing,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: linkController,
+                    decoration: const InputDecoration(
+                      labelText: 'Link URL (Optional)',
+                      hintText: 'https://example.com',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.url,
+                    textCapitalization: TextCapitalization.none,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  final String title = titleController.text.trim();
+                  final String? link = linkController.text.trim().isEmpty
+                      ? null
+                      : linkController.text.trim();
+
+                  HotspotModel hotspot;
+                  if (isEditing && existingHotspot != null) {
+                    // Update existing hotspot
+                    hotspot = existingHotspot.copyWith(
+                      id: title,
+                      link: link,
+                    );
+                  } else {
+                    // Create new hotspot
+                    hotspot = HotspotModel(
+                      x: x!,
+                      y: y!,
+                      width: width!,
+                      height: height!,
+                      id: title,
+                      link: link,
+                    );
+                  }
+
+                  Navigator.of(dialogContext).pop(hotspot);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Handle hotspot creation after drawing
+  Future<HotspotModel?> _onHotspotCreated(
+    double x,
+    double y,
+    double width,
+    double height,
+  ) async {
+    return _showHotspotDialog(
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+    );
+  }
+
+  /// Handle hotspot edit when tapped in edit mode
+  Future<HotspotModel?> _onHotspotEdit(HotspotModel hotspot) async {
+    return _showHotspotDialog(existingHotspot: hotspot);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -387,7 +512,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
             padding: const EdgeInsets.all(16.0),
             color: _isEditing ? Colors.orange.shade100 : Colors.green.shade100,
             child: Row(
-              children: [
+          children: [
                 Icon(
                   _isEditing ? Icons.edit : Icons.visibility,
                   color: _isEditing ? Colors.orange.shade900 : Colors.green.shade900,
@@ -403,13 +528,13 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
                   ),
                 ),
                 const Spacer(),
-                Text(
+            Text(
                   'Hotspots: ${_hotspots.length}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
             ),
-          ),
+          ],
+        ),
+      ),
 
           // Vision Board Hotspot Builder
           Expanded(
@@ -418,6 +543,8 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
               hotspots: _hotspots,
               onHotspotsChanged: _onHotspotsChanged,
               onHotspotDelete: _onHotspotDelete,
+              onHotspotCreated: _onHotspotCreated,
+              onHotspotEdit: _onHotspotEdit,
               isEditing: _isEditing,
             ),
           ),
@@ -439,6 +566,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
                 const SizedBox(height: 8),
                 if (_isEditing) ...[
                   const Text('• Tap and drag on the image to draw a rectangular zone'),
+                  const Text('• Tap a zone to edit its title and link'),
                   const Text('• Long press a zone to delete it'),
                   const Text('• Use pinch to zoom and pan to navigate'),
                   const Text('• Zones are saved with normalized coordinates (0.0-1.0)'),

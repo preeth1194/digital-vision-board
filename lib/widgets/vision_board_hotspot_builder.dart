@@ -21,6 +21,13 @@ class VisionBoardHotspotBuilder extends StatefulWidget {
   /// Callback when a hotspot should be deleted
   final ValueChanged<HotspotModel>? onHotspotDelete;
 
+  /// Callback when a new hotspot is created (after drawing)
+  /// Passes the coordinates and expects a HotspotModel to be returned (or null to cancel)
+  final Future<HotspotModel?> Function(double x, double y, double width, double height)? onHotspotCreated;
+
+  /// Callback when a hotspot should be edited (tapped in edit mode)
+  final Future<HotspotModel?> Function(HotspotModel hotspot)? onHotspotEdit;
+
   /// Whether the widget is in editing mode
   final bool isEditing;
 
@@ -39,6 +46,8 @@ class VisionBoardHotspotBuilder extends StatefulWidget {
     required this.hotspots,
     this.onHotspotsChanged,
     this.onHotspotDelete,
+    this.onHotspotCreated,
+    this.onHotspotEdit,
     this.isEditing = true,
     this.hotspotBorderColor = const Color(0xFF39FF14), // Neon Green
     this.hotspotFillColor = const Color(0x1A39FF14), // Neon Green with ~10% opacity
@@ -227,7 +236,7 @@ class _VisionBoardHotspotBuilderState
     }
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  Future<void> _onPanEnd(DragEndDetails details) async {
     if (!widget.isEditing || _dragStart == null || _dragEnd == null) return;
 
     // Calculate normalized rectangle
@@ -236,31 +245,77 @@ class _VisionBoardHotspotBuilderState
     final double width = (_dragStart!.dx - _dragEnd!.dx).abs();
     final double height = (_dragStart!.dy - _dragEnd!.dy).abs();
 
-    // Only create hotspot if it has meaningful size
-    if (width > 0.01 && height > 0.01) {
-      final HotspotModel newHotspot = HotspotModel(
-        x: x,
-        y: y,
-        width: width,
-        height: height,
-      );
-
-      final List<HotspotModel> updatedHotspots = [
-        ...widget.hotspots,
-        newHotspot,
-      ];
-
-      widget.onHotspotsChanged?.call(updatedHotspots);
-    }
-
+    // Clear the drawing state first
     setState(() {
       _dragStart = null;
       _dragEnd = null;
     });
+
+    // Only create hotspot if it has meaningful size
+    if (width > 0.01 && height > 0.01) {
+      // If there's a callback for creating hotspots, use it
+      if (widget.onHotspotCreated != null) {
+        final HotspotModel? newHotspot = await widget.onHotspotCreated!(x, y, width, height);
+        
+        // If the dialog was cancelled (returns null), don't add the hotspot
+        if (newHotspot != null) {
+          final List<HotspotModel> updatedHotspots = [
+            ...widget.hotspots,
+            newHotspot,
+          ];
+          widget.onHotspotsChanged?.call(updatedHotspots);
+        }
+      } else {
+        // Fallback: create hotspot without dialog (for backward compatibility)
+        final HotspotModel newHotspot = HotspotModel(
+          x: x,
+          y: y,
+          width: width,
+          height: height,
+        );
+
+        final List<HotspotModel> updatedHotspots = [
+          ...widget.hotspots,
+          newHotspot,
+        ];
+
+        widget.onHotspotsChanged?.call(updatedHotspots);
+      }
+    }
   }
 
   Future<void> _onHotspotTap(HotspotModel hotspot, BuildContext context) async {
-    if (widget.isEditing) return;
+    if (widget.isEditing) {
+      // In edit mode, show edit dialog
+      if (widget.onHotspotEdit != null) {
+        final HotspotModel? updatedHotspot = await widget.onHotspotEdit!(hotspot);
+        
+        if (updatedHotspot != null) {
+          // Update the existing hotspot in the list
+          // Find the hotspot to update by matching coordinates and current values
+          final List<HotspotModel> updatedHotspots = widget.hotspots.map((h) {
+            // Match by coordinates (with small tolerance for floating point)
+            final bool coordinatesMatch = 
+                (h.x - hotspot.x).abs() < 0.0001 &&
+                (h.y - hotspot.y).abs() < 0.0001 &&
+                (h.width - hotspot.width).abs() < 0.0001 &&
+                (h.height - hotspot.height).abs() < 0.0001;
+            
+            // Also match by id and link if they exist (for more reliable matching)
+            final bool idMatch = h.id == hotspot.id || (h.id == null && hotspot.id == null);
+            final bool linkMatch = h.link == hotspot.link || (h.link == null && hotspot.link == null);
+            
+            if (coordinatesMatch && idMatch && linkMatch) {
+              return updatedHotspot;
+            }
+            return h;
+          }).toList();
+          
+          widget.onHotspotsChanged?.call(updatedHotspots);
+        }
+      }
+      return;
+    }
 
     // Check if hotspot has a valid link
     if (hotspot.link != null && hotspot.link!.isNotEmpty) {

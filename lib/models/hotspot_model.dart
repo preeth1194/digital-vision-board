@@ -16,12 +16,16 @@ class HotspotModel {
   /// Optional identifier for the hotspot
   final String? id;
 
+  /// Optional URL link associated with the hotspot
+  final String? link;
+
   const HotspotModel({
     required this.x,
     required this.y,
     required this.width,
     required this.height,
     this.id,
+    this.link,
   });
 
   /// Creates a copy of this hotspot with optional field overrides
@@ -31,6 +35,7 @@ class HotspotModel {
     double? width,
     double? height,
     String? id,
+    String? link,
   }) {
     return HotspotModel(
       x: x ?? this.x,
@@ -38,6 +43,7 @@ class HotspotModel {
       width: width ?? this.width,
       height: height ?? this.height,
       id: id ?? this.id,
+      link: link ?? this.link,
     );
   }
 
@@ -49,6 +55,7 @@ class HotspotModel {
       'width': width,
       'height': height,
       'id': id,
+      'link': link,
     };
   }
 
@@ -60,11 +67,12 @@ class HotspotModel {
       width: (json['width'] as num).toDouble(),
       height: (json['height'] as num).toDouble(),
       id: json['id'] as String?,
+      link: json['link'] as String?,
     );
   }
 
   @override
   String toString() {
-    return 'HotspotModel(x: $x, y: $y, width: $width, height: $height, id: $id)';
+    return 'HotspotModel(x: $x, y: $y, width: $width, height: $height, id: $id, link: $link)';
   }
 }

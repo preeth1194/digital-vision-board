@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/hotspot_model.dart';
 
 /// A robust, reusable widget for building vision board hotspots.
@@ -16,6 +17,9 @@ class VisionBoardHotspotBuilder extends StatefulWidget {
 
   /// Callback when hotspots change
   final ValueChanged<List<HotspotModel>>? onHotspotsChanged;
+
+  /// Callback when a hotspot should be deleted
+  final ValueChanged<HotspotModel>? onHotspotDelete;
 
   /// Whether the widget is in editing mode
   final bool isEditing;
@@ -34,6 +38,7 @@ class VisionBoardHotspotBuilder extends StatefulWidget {
     required this.imageProvider,
     required this.hotspots,
     this.onHotspotsChanged,
+    this.onHotspotDelete,
     this.isEditing = true,
     this.hotspotBorderColor = const Color(0xFF39FF14), // Neon Green
     this.hotspotFillColor = const Color(0x1A39FF14), // Neon Green with ~10% opacity
@@ -254,9 +259,73 @@ class _VisionBoardHotspotBuilderState
     });
   }
 
-  void _onHotspotTap(HotspotModel hotspot) {
+  Future<void> _onHotspotTap(HotspotModel hotspot, BuildContext context) async {
     if (widget.isEditing) return;
-    print('Zone Tapped: ${hotspot.id ?? 'No ID'}');
+
+    // Check if hotspot has a valid link
+    if (hotspot.link != null && hotspot.link!.isNotEmpty) {
+      try {
+        final Uri url = Uri.parse(hotspot.link!);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not launch URL'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid URL: $e'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No link associated with this hotspot.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onHotspotLongPress(HotspotModel hotspot, BuildContext context) async {
+    if (!widget.isEditing) return;
+
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Hotspot'),
+          content: const Text('Delete this hotspot?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true && widget.onHotspotDelete != null) {
+      widget.onHotspotDelete!(hotspot);
+    }
   }
 
   @override
@@ -311,8 +380,8 @@ class _VisionBoardHotspotBuilderState
                 width: screenRect.width,
                 height: screenRect.height,
                 child: widget.isEditing
-                    ? _buildHotspotView(hotspot)
-                    : _buildClickableHotspot(hotspot),
+                    ? _buildHotspotView(hotspot, context)
+                    : _buildClickableHotspot(hotspot, context),
               );
             }),
 
@@ -325,21 +394,9 @@ class _VisionBoardHotspotBuilderState
     );
   }
 
-  Widget _buildHotspotView(HotspotModel hotspot) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: widget.hotspotBorderColor,
-          width: widget.hotspotBorderWidth,
-        ),
-        color: widget.hotspotFillColor,
-      ),
-    );
-  }
-
-  Widget _buildClickableHotspot(HotspotModel hotspot) {
-    return InkWell(
-      onTap: () => _onHotspotTap(hotspot),
+  Widget _buildHotspotView(HotspotModel hotspot, BuildContext context) {
+    return GestureDetector(
+      onLongPress: () => _onHotspotLongPress(hotspot, context),
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
@@ -348,6 +405,45 @@ class _VisionBoardHotspotBuilderState
           ),
           color: widget.hotspotFillColor,
         ),
+      ),
+    );
+  }
+
+  Widget _buildClickableHotspot(HotspotModel hotspot, BuildContext context) {
+    final bool hasLink = hotspot.link != null && hotspot.link!.isNotEmpty;
+
+    return InkWell(
+      onTap: () => _onHotspotTap(hotspot, context),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: widget.hotspotBorderColor,
+                width: widget.hotspotBorderWidth,
+              ),
+              color: widget.hotspotFillColor,
+            ),
+          ),
+          // Show external link icon if hotspot has a valid link
+          if (hasLink)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.open_in_new,
+                  size: 12,
+                  color: Color(0xFF39FF14), // Neon Green
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

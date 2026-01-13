@@ -88,6 +88,20 @@ class _VisionBoardHotspotBuilderState
     stream.addListener(_imageStreamListener!);
   }
 
+  /// Helper function to transform an Offset using a Matrix4
+  Offset _transformPoint(Matrix4 matrix, Offset point) {
+    // Transform a 2D point (x, y) using a 4x4 matrix
+    // Treat as homogeneous coordinates (x, y, 0, 1)
+    final double x = point.dx;
+    final double y = point.dy;
+    
+    // Matrix multiplication: result = matrix * [x, y, 0, 1]^T
+    final double resultX = matrix[0] * x + matrix[4] * y + matrix[12];
+    final double resultY = matrix[1] * x + matrix[5] * y + matrix[13];
+    
+    return Offset(resultX, resultY);
+  }
+
   /// Calculate the actual displayed image bounds considering BoxFit.contain
   Rect _getImageBounds(Size containerSize, Size imageSize) {
     final double imageAspectRatio = imageSize.width / imageSize.height;
@@ -124,12 +138,7 @@ class _VisionBoardHotspotBuilderState
     if (transform != null && !transform.isIdentity()) {
       // Invert the transformation to get the point in the InteractiveViewer's coordinate space
       final Matrix4 inverted = Matrix4.inverted(transform);
-      final Vector3 transformed = inverted.transform3(Vector3(
-        screenPoint.dx,
-        screenPoint.dy,
-        0,
-      ));
-      screenPoint = Offset(transformed.x, transformed.y);
+      screenPoint = _transformPoint(inverted, screenPoint);
     }
 
     // Check if point is within image bounds (after transformation)
@@ -166,10 +175,10 @@ class _VisionBoardHotspotBuilderState
     // Apply InteractiveViewer transformation
     final Matrix4? transform = _transformationController.value;
     if (transform != null && !transform.isIdentity()) {
-      final Offset topLeft = transform.transform3(Vector3(screenX, screenY, 0)).toOffset();
-      final Offset topRight = transform.transform3(Vector3(screenX + screenWidth, screenY, 0)).toOffset();
-      final Offset bottomLeft = transform.transform3(Vector3(screenX, screenY + screenHeight, 0)).toOffset();
-      final Offset bottomRight = transform.transform3(Vector3(screenX + screenWidth, screenY + screenHeight, 0)).toOffset();
+      final Offset topLeft = _transformPoint(transform, Offset(screenX, screenY));
+      final Offset topRight = _transformPoint(transform, Offset(screenX + screenWidth, screenY));
+      final Offset bottomLeft = _transformPoint(transform, Offset(screenX, screenY + screenHeight));
+      final Offset bottomRight = _transformPoint(transform, Offset(screenX + screenWidth, screenY + screenHeight));
 
       final double minX = math.min(math.min(topLeft.dx, topRight.dx), math.min(bottomLeft.dx, bottomRight.dx));
       final double maxX = math.max(math.max(topLeft.dx, topRight.dx), math.max(bottomLeft.dx, bottomRight.dx));
@@ -364,10 +373,10 @@ class _VisionBoardHotspotBuilderState
     // Apply transformation
     final Matrix4? transform = _transformationController.value;
     if (transform != null && !transform.isIdentity()) {
-      final Offset topLeft = transform.transform3(Vector3(left, top, 0)).toOffset();
-      final Offset topRight = transform.transform3(Vector3(left + width, top, 0)).toOffset();
-      final Offset bottomLeft = transform.transform3(Vector3(left, top + height, 0)).toOffset();
-      final Offset bottomRight = transform.transform3(Vector3(left + width, top + height, 0)).toOffset();
+      final Offset topLeft = _transformPoint(transform, Offset(left, top));
+      final Offset topRight = _transformPoint(transform, Offset(left + width, top));
+      final Offset bottomLeft = _transformPoint(transform, Offset(left, top + height));
+      final Offset bottomRight = _transformPoint(transform, Offset(left + width, top + height));
 
       final double minX = math.min(math.min(topLeft.dx, topRight.dx), math.min(bottomLeft.dx, bottomRight.dx));
       final double maxX = math.max(math.max(topLeft.dx, topRight.dx), math.max(bottomLeft.dx, bottomRight.dx));
@@ -407,9 +416,4 @@ class _VisionBoardHotspotBuilderState
       ),
     );
   }
-}
-
-/// Extension to convert Vector3 to Offset
-extension Vector3Extension on Vector3 {
-  Offset toOffset() => Offset(x, y);
 }

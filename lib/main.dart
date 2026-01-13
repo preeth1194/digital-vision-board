@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'models/hotspot_model.dart';
+import 'widgets/vision_board_hotspot_builder.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,115 +10,152 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Vision Board Hotspot Builder',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const VisionBoardExamplePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class VisionBoardExamplePage extends StatefulWidget {
+  const VisionBoardExamplePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<VisionBoardExamplePage> createState() => _VisionBoardExamplePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
+  List<HotspotModel> _hotspots = [];
+  bool _isEditing = true;
 
-  void _incrementCounter() {
+  // Example: Using a network image
+  // Replace with your actual image source (FileImage, AssetImage, NetworkImage, etc.)
+  final ImageProvider _imageProvider = const NetworkImage(
+    'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
+  );
+
+  // Alternative examples:
+  // final ImageProvider _imageProvider = AssetImage('assets/images/vision_board.jpg');
+  // final ImageProvider _imageProvider = FileImage(File('/path/to/image.jpg'));
+
+  void _onHotspotsChanged(List<HotspotModel> hotspots) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _hotspots = hotspots;
     });
+    print('Hotspots updated: ${hotspots.length} total');
+    for (var hotspot in hotspots) {
+      print('  - $hotspot');
+    }
+  }
+
+  void _toggleEditMode() {
+    setState(() {
+      _isEditing = !_isEditing;
+    });
+  }
+
+  void _clearHotspots() {
+    setState(() {
+      _hotspots = [];
+    });
+    _onHotspotsChanged(_hotspots);
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
+        title: const Text('Vision Board Hotspot Builder'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
+            tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
+            onPressed: _toggleEditMode,
+          ),
+          if (_hotspots.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear_all),
+              tooltip: 'Clear All Hotspots',
+              onPressed: _clearHotspots,
             ),
-          ],
-        ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      body: Column(
+        children: [
+          // Status bar
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: _isEditing ? Colors.orange.shade100 : Colors.green.shade100,
+            child: Row(
+              children: [
+                Icon(
+                  _isEditing ? Icons.edit : Icons.visibility,
+                  color: _isEditing ? Colors.orange.shade900 : Colors.green.shade900,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isEditing
+                      ? 'Edit Mode: Tap and drag to draw zones'
+                      : 'View Mode: Tap zones to interact',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _isEditing ? Colors.orange.shade900 : Colors.green.shade900,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Hotspots: ${_hotspots.length}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+
+          // Vision Board Hotspot Builder
+          Expanded(
+            child: VisionBoardHotspotBuilder(
+              imageProvider: _imageProvider,
+              hotspots: _hotspots,
+              onHotspotsChanged: _onHotspotsChanged,
+              isEditing: _isEditing,
+            ),
+          ),
+
+          // Instructions
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.grey.shade100,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isEditing ? 'Edit Mode Instructions:' : 'View Mode Instructions:',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_isEditing) ...[
+                  const Text('• Tap and drag on the image to draw a rectangular zone'),
+                  const Text('• Use pinch to zoom and pan to navigate'),
+                  const Text('• Zones are saved with normalized coordinates (0.0-1.0)'),
+                  const Text('• Switch to View Mode to interact with zones'),
+                ] else ...[
+                  const Text('• Tap any zone to see "Zone Tapped" in console'),
+                  const Text('• Switch to Edit Mode to add or modify zones'),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

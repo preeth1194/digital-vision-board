@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -5,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/hotspot_model.dart';
-import 'widgets/vision_board_hotspot_builder.dart';
+import 'models/vision_component.dart';
 import 'widgets/habits_list_page.dart';
 import 'widgets/global_insights_page.dart';
+import 'widgets/habit_tracker_sheet.dart';
+import 'widgets/vision_board_builder.dart';
 
 // Conditional import: File is not available on web
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
@@ -84,20 +87,24 @@ class _OrientationLockState extends State<_OrientationLock> {
 }
 
 class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
-  List<HotspotModel> _hotspots = [];
-  Set<HotspotModel> _selectedHotspots = {};
+  List<VisionComponent> _components = [];
+  String? _selectedComponentId;
+  List<HotspotModel> _legacyHotspots = [];
   bool _isEditing = true;
   bool _isLoading = true;
-  bool _showLabels = true;
   int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Insights
 
-  static const String _hotspotsKey = 'vision_board_hotspots';
-  static const String _imagePathKey = 'vision_board_image_path';
+  static const String _componentsKey = 'vision_board_components';
+  static const String _hotspotsKey = 'vision_board_hotspots'; // legacy
+  static const String _imagePathKey = 'vision_board_image_path'; // used as background image
+  static const String _backgroundColorKey = 'vision_board_background_color';
   SharedPreferences? _prefs;
   
   final ImagePicker _imagePicker = ImagePicker();
   dynamic _selectedImageFile; // File on mobile, null on web
   ImageProvider? _imageProvider;
+  Size? _backgroundImageSize;
+  Color _backgroundColor = const Color(0xFFF7F7FA);
 
   @override
   void initState() {
@@ -130,21 +137,43 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           print('Error loading file: $e');
         }
       } else {
-        // Use default network image if no saved image
+        // Default: empty canvas with a solid background color
         setState(() {
-          _imageProvider = const NetworkImage(
-            'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
-          );
+          _imageProvider = null;
         });
+      }
+
+      if (_imageProvider != null) {
+        _backgroundImageSize = await _resolveImageSize(_imageProvider!);
+        if (mounted) setState(() {});
       }
     } catch (e) {
       print('Error loading saved image: $e');
-      // Fallback to default image
+      // Fallback: empty canvas
       setState(() {
-        _imageProvider = const NetworkImage(
-          'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
-        );
+        _imageProvider = null;
       });
+      _backgroundImageSize = null;
+    }
+  }
+
+  Future<Size?> _resolveImageSize(ImageProvider provider) async {
+    try {
+      final ImageStream stream = provider.resolve(const ImageConfiguration());
+      final completer = Completer<ImageInfo>();
+      late final ImageStreamListener listener;
+      listener = ImageStreamListener((ImageInfo info, bool _) {
+        completer.complete(info);
+        stream.removeListener(listener);
+      }, onError: (dynamic error, StackTrace? stackTrace) {
+        completer.completeError(error, stackTrace);
+        stream.removeListener(listener);
+      });
+      stream.addListener(listener);
+      final info = await completer.future;
+      return Size(info.image.width.toDouble(), info.image.height.toDouble());
+    } catch (_) {
+      return null;
     }
   }
 
@@ -196,6 +225,12 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           } catch (e) {
             print('Error creating File: $e');
           }
+        }
+
+        if (_imageProvider != null) {
+          _backgroundImageSize = await _resolveImageSize(_imageProvider!);
+          await _maybeMigrateLegacyHotspots();
+          if (mounted) setState(() {});
         }
         
         if (mounted) {
@@ -279,7 +314,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
         _prefs = await SharedPreferences.getInstance();
       }
       
-      await _loadHotspots();
+      await _loadComponents();
     } catch (e, stackTrace) {
       print('Error initializing storage: $e');
       print('Stack trace: $stackTrace');
@@ -291,8 +326,8 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     }
   }
 
-  /// Load hotspots from local storage
-  Future<void> _loadHotspots() async {
+  /// Load components (and legacy hotspots) from local storage.
+  Future<void> _loadComponents() async {
     try {
       if (!mounted) return;
       
@@ -312,25 +347,28 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
       if (_prefs == null) {
         _prefs = prefs;
       }
-      
-      // Try to get the value
-      final String? hotspotsJson = prefs.getString(_hotspotsKey);
-      
-      if (hotspotsJson != null && hotspotsJson.isNotEmpty) {
+
+      final bg = prefs.getInt(_backgroundColorKey);
+      if (bg != null) {
+        _backgroundColor = Color(bg);
+      }
+
+      final String? componentsJson = prefs.getString(_componentsKey);
+      if (componentsJson != null && componentsJson.isNotEmpty) {
         try {
-          final List<dynamic> decoded = jsonDecode(hotspotsJson) as List<dynamic>;
-          final List<HotspotModel> loadedHotspots = decoded
-              .map((json) => HotspotModel.fromJson(json as Map<String, dynamic>))
+          final List<dynamic> decoded = jsonDecode(componentsJson) as List<dynamic>;
+          final List<VisionComponent> loaded = decoded
+              .map((j) => VisionComponent.fromJson(j as Map<String, dynamic>))
               .toList();
-          
           if (mounted) {
             setState(() {
-              _hotspots = loadedHotspots;
+              _components = loaded;
+              _legacyHotspots = [];
               _isLoading = false;
             });
           }
         } catch (e, stackTrace) {
-          print('✗ Error parsing JSON: $e');
+          print('✗ Error parsing components JSON: $e');
           print('Stack trace: $stackTrace');
           if (mounted) {
             setState(() {
@@ -339,14 +377,35 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           }
         }
       } else {
+        // Legacy: load hotspots so we can migrate once we know background image size.
+        final String? hotspotsJson = prefs.getString(_hotspotsKey);
+        if (hotspotsJson != null && hotspotsJson.isNotEmpty) {
+          try {
+            final List<dynamic> decoded = jsonDecode(hotspotsJson) as List<dynamic>;
+            final List<HotspotModel> loadedHotspots = decoded
+                .map((json) => HotspotModel.fromJson(json as Map<String, dynamic>))
+                .toList();
+            if (mounted) {
+              setState(() {
+                _legacyHotspots = loadedHotspots;
+              });
+            }
+          } catch (e, stackTrace) {
+            print('✗ Error parsing legacy hotspots JSON: $e');
+            print('Stack trace: $stackTrace');
+          }
+        }
+
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
         }
       }
+
+      await _maybeMigrateLegacyHotspots();
     } catch (e, stackTrace) {
-      print('✗ Error loading hotspots: $e');
+      print('✗ Error loading components: $e');
       print('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
@@ -356,27 +415,37 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     }
   }
 
-  /// Save hotspots to local storage
-  Future<void> _saveHotspots() async {
-    // Don't save while loading to prevent overwriting with empty list
-    if (_isLoading) {
-      print('Skipping save - still loading...');
-      return;
-    }
-    
+  Future<void> _maybeMigrateLegacyHotspots() async {
+    if (_components.isNotEmpty) return;
+    if (_legacyHotspots.isEmpty) return;
+    if (_backgroundImageSize == null) return;
+
+    final converted = _legacyHotspots
+        .map((h) => convertHotspotToComponent(h, _backgroundImageSize!))
+        .toList();
+
+    if (!mounted) return;
+    setState(() {
+      _components = converted;
+      _legacyHotspots = [];
+    });
+    await _saveComponents();
+  }
+
+  /// Save components to local storage
+  Future<void> _saveComponents() async {
+    if (_isLoading) return;
     try {
       // Use cached instance or get new one
       final prefs = _prefs ?? await SharedPreferences.getInstance();
       if (_prefs == null) {
         _prefs = prefs;
       }
-      
-      final List<Map<String, dynamic>> hotspotsJson = 
-          _hotspots.map((hotspot) => hotspot.toJson()).toList();
-      final String jsonString = jsonEncode(hotspotsJson);
-      
-      // Save using SharedPreferences
-      await prefs.setString(_hotspotsKey, jsonString);
+
+      final List<Map<String, dynamic>> componentsJson =
+          _components.map((c) => c.toJson()).toList();
+      await prefs.setString(_componentsKey, jsonEncode(componentsJson));
+      await prefs.setInt(_backgroundColorKey, _backgroundColor.value);
       
       // On web, add a delay and force a commit
       if (kIsWeb) {
@@ -387,20 +456,20 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
         _prefs = await SharedPreferences.getInstance();
       }
     } catch (e, stackTrace) {
-      print('✗ Error saving hotspots: $e');
+      print('✗ Error saving components: $e');
       print('Stack trace: $stackTrace');
     }
   }
 
-  void _onHotspotsChanged(List<HotspotModel> hotspots) {
+  void _onComponentsChanged(List<VisionComponent> components) {
     setState(() {
-      _hotspots = hotspots;
+      _components = components;
     });
     
-    // Automatically save whenever hotspots change (but not while loading)
+    // Automatically save whenever components change (but not while loading)
     if (!_isLoading) {
       Future.delayed(const Duration(milliseconds: 100), () {
-        _saveHotspots();
+        _saveComponents();
       });
     }
   }
@@ -409,7 +478,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     setState(() {
       _isEditing = !_isEditing;
       // Clear selection when switching modes
-      _selectedHotspots.clear();
+      _selectedComponentId = null;
       // Reset view mode to Vision Board when switching modes
       if (_isEditing) {
         _viewModeIndex = 0;
@@ -417,231 +486,210 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     });
   }
 
-  Future<void> _clearHotspots() async {
+  Future<void> _clearComponents() async {
     setState(() {
-      _hotspots = [];
-      _selectedHotspots.clear();
+      _components = [];
+      _selectedComponentId = null;
     });
     // Save the cleared state
-    await _saveHotspots();
+    await _saveComponents();
   }
 
-  void _onHotspotDelete(HotspotModel hotspot) {
-    final List<HotspotModel> updatedHotspots = List.from(_hotspots)..remove(hotspot);
-    _onHotspotsChanged(updatedHotspots);
-    setState(() {
-      _selectedHotspots.remove(hotspot);
-    });
-  }
-
-  void _deleteSelectedHotspots() {
-    if (_selectedHotspots.isEmpty) return;
-
-    final List<HotspotModel> updatedHotspots = List.from(_hotspots)
-      ..removeWhere((h) => _selectedHotspots.contains(h));
-    
-    _onHotspotsChanged(updatedHotspots);
-    setState(() {
-      _selectedHotspots.clear();
-    });
-  }
-
-  void _onHotspotSelectionToggled(HotspotModel hotspot) {
-    setState(() {
-      // Check if we can find this hotspot in the selection using coordinate matching
-      // (in case object references changed)
-      final existing = _selectedHotspots.lookup(hotspot);
-      if (existing != null) {
-        _selectedHotspots.remove(existing);
-      } else {
-        // Also try manual iteration if lookup fails
-        bool found = false;
-        for (final s in _selectedHotspots) {
-          if ((s.x - hotspot.x).abs() < 0.0001 &&
-              (s.y - hotspot.y).abs() < 0.0001 &&
-              (s.width - hotspot.width).abs() < 0.0001 &&
-              (s.height - hotspot.height).abs() < 0.0001) {
-            _selectedHotspots.remove(s);
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          _selectedHotspots.add(hotspot);
-        }
-      }
-    });
-  }
-
-  /// Show overlay for creating or editing a hotspot
-  Future<HotspotModel?> _showHotspotDialog({
-    HotspotModel? existingHotspot,
-    double? x,
-    double? y,
-    double? width,
-    double? height,
-  }) async {
-    final bool isEditing = existingHotspot != null;
-    
-    final TextEditingController titleController = TextEditingController(
-      text: existingHotspot?.id ?? '',
+  void _deleteSelectedComponent() {
+    if (_selectedComponentId == null) return;
+    _onComponentsChanged(
+      _components.where((c) => c.id != _selectedComponentId).toList(),
     );
-    final TextEditingController linkController = TextEditingController(
-      text: existingHotspot?.link ?? '',
-    );
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    setState(() => _selectedComponentId = null);
+  }
 
-    // Using showModalBottomSheet for overlay style as requested
-    return showModalBottomSheet<HotspotModel>(
+  Future<void> _openHabitTrackerForComponent(VisionComponent component) async {
+    if (!mounted) return;
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                isEditing ? 'Edit Goal' : 'Add Goal',
-                style: Theme.of(sheetContext).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Form(
-                key: formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Goal Title',
-                        hintText: 'Enter your goal',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.flag),
-                      ),
-                      textCapitalization: TextCapitalization.words,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Goal title is required';
-                        }
-                        return null;
-                      },
-                      autofocus: !isEditing,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: linkController,
-                      decoration: const InputDecoration(
-                        labelText: 'Link URL (Optional)',
-                        hintText: 'https://example.com',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.link),
-                      ),
-                      keyboardType: TextInputType.url,
-                      textCapitalization: TextCapitalization.none,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          final String title = titleController.text.trim();
-                          final String? link = linkController.text.trim().isEmpty
-                              ? null
-                              : linkController.text.trim();
-
-                          HotspotModel hotspot;
-                          if (isEditing && existingHotspot != null) {
-                            // Update existing hotspot
-                            hotspot = existingHotspot.copyWith(
-                              id: title,
-                              link: link,
-                            );
-                          } else {
-                            // Create new hotspot
-                            hotspot = HotspotModel(
-                              x: x!,
-                              y: y!,
-                              width: width!,
-                              height: height!,
-                              id: title,
-                              link: link,
-                            );
-                          }
-
-                          Navigator.of(sheetContext).pop(hotspot);
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
+        return HabitTrackerSheet(
+          component: component,
+          onComponentUpdated: (updated) {
+            final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
+            _onComponentsChanged(next);
+          },
         );
       },
     );
   }
 
-  /// Handle hotspot creation after drawing
-  Future<HotspotModel?> _onHotspotCreated(
-    double x,
-    double y,
-    double width,
-    double height,
-  ) async {
-    return _showHotspotDialog(
-      x: x,
-      y: y,
-      width: width,
-      height: height,
-    );
+  String _newId(String prefix) =>
+      '${prefix}_${DateTime.now().millisecondsSinceEpoch}';
+
+  int _nextZ() {
+    if (_components.isEmpty) return 0;
+    return _components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  /// Handle hotspot edit when tapped in edit mode
-  Future<HotspotModel?> _onHotspotEdit(HotspotModel hotspot) async {
-    return _showHotspotDialog(existingHotspot: hotspot);
+  Future<void> _addTextComponent() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Text'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Type something...',
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (result == null || result.isEmpty) return;
+
+    final c = TextComponent(
+      id: _newId('text'),
+      position: const Offset(120, 120),
+      size: const Size(260, 90),
+      rotation: 0,
+      scale: 1,
+      zIndex: _nextZ(),
+      text: result,
+      style: const TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        color: Colors.black,
+      ),
+    );
+
+    _onComponentsChanged([..._components, c]);
+    setState(() => _selectedComponentId = c.id);
+  }
+
+  Future<void> _addImageComponent() async {
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add Image is not supported on web yet.')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+      );
+      if (pickedFile == null) return;
+
+      final c = ImageComponent(
+        id: _newId('image'),
+        position: const Offset(120, 120),
+        size: const Size(320, 220),
+        rotation: 0,
+        scale: 1,
+        zIndex: _nextZ(),
+        imagePath: pickedFile.path,
+      );
+
+      _onComponentsChanged([..._components, c]);
+      setState(() => _selectedComponentId = c.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding image: $e')),
+      );
+    }
+  }
+
+  Future<void> _showBackgroundOptions() async {
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final colors = <Color>[
+          const Color(0xFFF7F7FA),
+          Colors.white,
+          const Color(0xFF111827),
+          const Color(0xFF0EA5E9),
+          const Color(0xFF10B981),
+          const Color(0xFFF59E0B),
+          const Color(0xFFEF4444),
+          const Color(0xFF8B5CF6),
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Background',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: colors.map((c) {
+                    return InkWell(
+                      onTap: () {
+                        setState(() => _backgroundColor = c);
+                        _saveComponents();
+                      },
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: c,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    setState(() {
+                      _imageProvider = null;
+                      _selectedImageFile = null;
+                      _backgroundImageSize = null;
+                    });
+                    await _saveImagePath(null);
+                    if (mounted) Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.hide_image_outlined),
+                  label: const Text('Clear background image'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -658,7 +706,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           // Image picker button
           IconButton(
             icon: const Icon(Icons.image),
-            tooltip: 'Upload Image',
+            tooltip: 'Background',
             onPressed: _showImageSourceDialog,
           ),
           // REMOVED: Refresh Icon
@@ -668,20 +716,6 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
             onPressed: _toggleEditMode,
           ),
-          
-          // Tag Visibility Icon - Available in BOTH modes if viewing the board
-          if (_isEditing || (_viewModeIndex == 0 && !_isEditing))
-            IconButton(
-              icon: Icon(_showLabels ? Icons.label : Icons.label_off),
-              tooltip: 'Toggle Labels',
-              onPressed: () {
-                setState(() {
-                  _showLabels = !_showLabels;
-                });
-              },
-            ),
-          
-          // REMOVED: Clear All Hotspots (Delete All) Button
         ],
       ),
       body: _buildBody(),
@@ -690,50 +724,45 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   }
 
   Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (_isEditing) {
-      // Edit Mode - Always Vision Board
-      return _imageProvider != null
-          ? VisionBoardHotspotBuilder(
-              imageProvider: _imageProvider!,
-              hotspots: _hotspots,
-              onHotspotsChanged: _onHotspotsChanged,
-              onHotspotDelete: _onHotspotDelete,
-              onHotspotCreated: _onHotspotCreated,
-              onHotspotEdit: _onHotspotEdit,
-              isEditing: true,
-              selectedHotspots: _selectedHotspots,
-              onHotspotSelected: _onHotspotSelectionToggled,
-              showLabels: _showLabels,
-            )
-          : const Center(child: CircularProgressIndicator());
-    } else {
-      // View Mode - Based on _viewModeIndex
-      switch (_viewModeIndex) {
-        case 1:
-          return HabitsListPage(
-            hotspots: _hotspots,
-            onHotspotsUpdated: _onHotspotsChanged,
-          );
-        case 2:
-          // Global Insights Page (IMPLEMENTED)
-          return GlobalInsightsPage(hotspots: _hotspots);
-        case 0:
-        default:
-          return _imageProvider != null
-              ? VisionBoardHotspotBuilder(
-                  imageProvider: _imageProvider!,
-                  hotspots: _hotspots,
-                  onHotspotsChanged: _onHotspotsChanged,
-                  onHotspotDelete: _onHotspotDelete,
-                  onHotspotCreated: _onHotspotCreated,
-                  onHotspotEdit: _onHotspotEdit,
-                  isEditing: false,
-                  selectedHotspots: const {},
-                  onHotspotSelected: null,
-                  showLabels: _showLabels,
-                )
-              : const Center(child: CircularProgressIndicator());
-      }
+      return VisionBoardBuilder(
+        components: _components,
+        isEditing: true,
+        selectedComponentId: _selectedComponentId,
+        onSelectedComponentIdChanged: (id) => setState(() => _selectedComponentId = id),
+        onComponentsChanged: _onComponentsChanged,
+        onOpenComponent: _openHabitTrackerForComponent,
+        backgroundColor: _backgroundColor,
+        backgroundImage: _imageProvider,
+        backgroundImageSize: _backgroundImageSize,
+      );
+    }
+
+    switch (_viewModeIndex) {
+      case 1:
+        return HabitsListPage(
+          components: _components,
+          onComponentsUpdated: _onComponentsChanged,
+        );
+      case 2:
+        return GlobalInsightsPage(components: _components);
+      case 0:
+      default:
+        return VisionBoardBuilder(
+          components: _components,
+          isEditing: false,
+          selectedComponentId: null,
+          onSelectedComponentIdChanged: (_) {},
+          onComponentsChanged: _onComponentsChanged,
+          onOpenComponent: _openHabitTrackerForComponent,
+          backgroundColor: _backgroundColor,
+          backgroundImage: _imageProvider,
+          backgroundImageSize: _backgroundImageSize,
+        );
     }
   }
 
@@ -748,48 +777,27 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  tooltip: 'Add Image',
+                  onPressed: _addImageComponent,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.text_fields),
+                  tooltip: 'Add Text',
+                  onPressed: _addTextComponent,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_paint_outlined),
+                  tooltip: 'Background',
+                  onPressed: _showBackgroundOptions,
+                ),
                 // Delete Selected
                 IconButton(
                   icon: const Icon(Icons.delete),
                   tooltip: 'Delete Selected',
-                  color: _selectedHotspots.isNotEmpty ? Colors.red : null,
-                  onPressed: _selectedHotspots.isNotEmpty ? _deleteSelectedHotspots : null,
-                ),
-                // Toggle Labels (Also in AppBar, but kept here for convenience if needed, though redundant if in AppBar)
-                IconButton(
-                  icon: Icon(_showLabels ? Icons.label : Icons.label_off),
-                  tooltip: 'Toggle Labels',
-                  onPressed: () {
-                    setState(() {
-                      _showLabels = !_showLabels;
-                    });
-                  },
-                ),
-                // Edit Properties (Only if 1 is selected)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Edit Properties',
-                  onPressed: _selectedHotspots.length == 1
-                      ? () async {
-                          final hotspot = _selectedHotspots.first;
-                          final HotspotModel? updated = await _onHotspotEdit(hotspot);
-                          if (updated != null && mounted) {
-                            // Update the hotspot in the list
-                            final index = _hotspots.indexOf(hotspot);
-                            if (index != -1) {
-                              final updatedHotspots = List<HotspotModel>.from(_hotspots);
-                              updatedHotspots[index] = updated;
-                              _onHotspotsChanged(updatedHotspots);
-                              
-                              // Update selection
-                              setState(() {
-                                _selectedHotspots.remove(hotspot);
-                                _selectedHotspots.add(updated);
-                              });
-                            }
-                          }
-                        }
-                      : null,
+                  color: _selectedComponentId != null ? Colors.red : null,
+                  onPressed: _selectedComponentId != null ? _deleteSelectedComponent : null,
                 ),
               ],
             ),

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../models/hotspot_model.dart';
 import '../models/habit_item.dart';
+import '../models/vision_component.dart';
 
 class HabitsListPage extends StatefulWidget {
-  final List<HotspotModel> hotspots;
-  final ValueChanged<List<HotspotModel>> onHotspotsUpdated;
+  final List<VisionComponent> components;
+  final ValueChanged<List<VisionComponent>> onComponentsUpdated;
 
   const HabitsListPage({
     super.key,
-    required this.hotspots,
-    required this.onHotspotsUpdated,
+    required this.components,
+    required this.onComponentsUpdated,
   });
 
   @override
@@ -17,37 +17,32 @@ class HabitsListPage extends StatefulWidget {
 }
 
 class _HabitsListPageState extends State<HabitsListPage> {
-  void _toggleHabit(HotspotModel hotspot, HabitItem habit) {
+  void _toggleHabit(VisionComponent component, HabitItem habit) {
     final updatedHabit = habit.toggleToday();
     
     // Create updated habits list for this hotspot
-    final updatedHabits = hotspot.habits.map((h) {
+    final updatedHabits = component.habits.map((h) {
       return h.id == habit.id ? updatedHabit : h;
     }).toList();
 
-    // Create updated hotspot
-    final updatedHotspot = hotspot.copyWith(habits: updatedHabits);
+    // Create updated component
+    final updatedComponent = component.copyWithCommon(habits: updatedHabits);
 
-    // Update the list of hotspots
-    final updatedHotspots = widget.hotspots.map((h) {
-      // Use coordinate comparison or ID if available
-      // Here we assume hotspot references might have changed, so we find by ID or identity
-      if (h == hotspot) return updatedHotspot;
-      // Fallback coordinate check if object identity fails (though map uses current objects)
-      if (h.x == hotspot.x && h.y == hotspot.y && h.width == hotspot.width && h.height == hotspot.height) {
-        return updatedHotspot;
-      }
-      return h;
+    // Update the list of components
+    final updatedComponents = widget.components.map((c) {
+      if (c.id == component.id) return updatedComponent;
+      return c;
     }).toList();
 
-    widget.onHotspotsUpdated(updatedHotspots);
+    widget.onComponentsUpdated(updatedComponents);
   }
 
   @override
   Widget build(BuildContext context) {
-    final hotspotsWithHabits = widget.hotspots.where((h) => h.habits.isNotEmpty).toList();
+    final componentsWithHabits =
+        widget.components.where((c) => c.habits.isNotEmpty).toList();
 
-    if (hotspotsWithHabits.isEmpty) {
+    if (componentsWithHabits.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -75,9 +70,9 @@ class _HabitsListPageState extends State<HabitsListPage> {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: hotspotsWithHabits.length,
+        itemCount: componentsWithHabits.length,
         itemBuilder: (context, index) {
-          final hotspot = hotspotsWithHabits[index];
+          final component = componentsWithHabits[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
@@ -94,7 +89,7 @@ class _HabitsListPageState extends State<HabitsListPage> {
                   ),
                   width: double.infinity,
                   child: Text(
-                    hotspot.id ?? 'Untitled Zone',
+                    component.id,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -103,12 +98,12 @@ class _HabitsListPageState extends State<HabitsListPage> {
                   ),
                 ),
                 // Habits List
-                ...hotspot.habits.map((habit) {
+                ...component.habits.map((habit) {
                   final bool isCompleted = habit.isCompletedOnDate(DateTime.now());
                   return ListTile(
                     leading: Checkbox(
                       value: isCompleted,
-                      onChanged: (_) => _toggleHabit(hotspot, habit),
+                      onChanged: (_) => _toggleHabit(component, habit),
                     ),
                     title: Text(
                       habit.name,

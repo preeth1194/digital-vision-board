@@ -3,18 +3,18 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../models/hotspot_model.dart';
 import '../models/habit_item.dart';
+import '../models/vision_component.dart';
 
-/// Modal bottom sheet for tracking habits associated with a hotspot
+/// Modal bottom sheet for tracking habits associated with a canvas component.
 class HabitTrackerSheet extends StatefulWidget {
-  final HotspotModel hotspot;
-  final ValueChanged<HotspotModel> onHotspotUpdated;
+  final VisionComponent component;
+  final ValueChanged<VisionComponent> onComponentUpdated;
 
   const HabitTrackerSheet({
     super.key,
-    required this.hotspot,
-    required this.onHotspotUpdated,
+    required this.component,
+    required this.onComponentUpdated,
   });
 
   @override
@@ -30,7 +30,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   @override
   void initState() {
     super.initState();
-    _habits = List<HabitItem>.from(widget.hotspot.habits);
+    _habits = List<HabitItem>.from(widget.component.habits);
   }
 
   @override
@@ -39,9 +39,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     super.dispose();
   }
 
-  void _updateHotspot() {
-    final updatedHotspot = widget.hotspot.copyWith(habits: _habits);
-    widget.onHotspotUpdated(updatedHotspot);
+  void _updateComponent() {
+    final updatedComponent = widget.component.copyWithCommon(habits: _habits);
+    widget.onComponentUpdated(updatedComponent);
   }
 
   void _toggleHabitCompletion(HabitItem habit) {
@@ -49,7 +49,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       final int index = _habits.indexWhere((h) => h.id == habit.id);
       if (index != -1) {
         _habits[index] = habit.toggleToday();
-        _updateHotspot();
+        _updateComponent();
       }
     });
   }
@@ -66,14 +66,14 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         completedDates: [],
       ));
       _newHabitController.clear();
-      _updateHotspot();
+      _updateComponent();
     });
   }
 
   void _deleteHabit(HabitItem habit) {
     setState(() {
       _habits.removeWhere((h) => h.id == habit.id);
-      _updateHotspot();
+      _updateComponent();
     });
   }
 
@@ -161,17 +161,19 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.hotspot.id ?? 'Untitled Goal',
+                              widget.component.id,
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                             ),
-                            if (widget.hotspot.link != null &&
-                                widget.hotspot.link!.isNotEmpty)
+                            if (widget.component is ZoneComponent &&
+                                (widget.component as ZoneComponent).link != null &&
+                                (widget.component as ZoneComponent).link!.isNotEmpty)
                               TextButton.icon(
                                 onPressed: () async {
                                   try {
-                                    final Uri url = Uri.parse(widget.hotspot.link!);
+                                    final Uri url =
+                                        Uri.parse((widget.component as ZoneComponent).link!);
                                     if (await canLaunchUrl(url)) {
                                       await launchUrl(url,
                                           mode: LaunchMode.externalApplication);

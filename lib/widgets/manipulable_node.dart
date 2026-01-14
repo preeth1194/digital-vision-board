@@ -75,8 +75,12 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (!widget.isSelected) return;
     if (_isResizing) return;
 
+    // When a component is scaled up/down, raw pointer deltas are in screen space.
+    // Convert to canvas space so dragging stays smooth and doesn't "overshoot".
+    final Offset dragDelta = details.focalPointDelta / widget.component.scale;
+
     final next = widget.component.copyWithCommon(
-      position: widget.component.position + details.focalPointDelta,
+      position: widget.component.position + dragDelta,
       scale: (_startScale * details.scale).clamp(0.2, 8.0),
       rotation: _startRotation + details.rotation,
     );

@@ -94,6 +94,10 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   bool _isLoading = true;
   int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Insights
 
+  // Image pick/compress settings (shared for background + image components)
+  static const double _pickedImageMaxSide = 2048;
+  static const int _pickedImageQuality = 92; // 0-100 (higher = better quality, larger file)
+
   static const String _componentsKey = 'vision_board_components';
   static const String _hotspotsKey = 'vision_board_hotspots'; // legacy
   static const String _imagePathKey = 'vision_board_image_path'; // used as background image
@@ -199,9 +203,9 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     try {
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: source,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 85,
+        maxWidth: _pickedImageMaxSide,
+        maxHeight: _pickedImageMaxSide,
+        imageQuality: _pickedImageQuality,
       );
 
       if (pickedFile != null) {
@@ -608,9 +612,9 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     try {
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 85,
+        maxWidth: _pickedImageMaxSide,
+        maxHeight: _pickedImageMaxSide,
+        imageQuality: _pickedImageQuality,
       );
       if (pickedFile == null) return;
       if (!mounted) return;
@@ -618,7 +622,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
       // Ask for name
       final String? name = await showDialog<String>(
         context: context,
-        builder: (context) => const _AddNameDialog(title: 'Name this Image'),
+        builder: (context) => const _AddNameDialog(title: 'Your Vision/Goal'),
       );
       
       if (name == null || name.isEmpty) return;
@@ -670,6 +674,18 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
                 const Text(
                   'Background',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    // Close this sheet first, then open the image source picker
+                    Navigator.of(context).pop();
+                    await Future.delayed(const Duration(milliseconds: 150));
+                    if (!mounted) return;
+                    await _showImageSourceDialog();
+                  },
+                  icon: const Icon(Icons.image_outlined),
+                  label: const Text('Upload background image'),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -802,33 +818,17 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           }
           Navigator.of(context).pop();
         },
-        onReorder: (oldIndex, newIndex) {
-          // Work with the actual _components list, but sorted by zIndex
-          // The sheet provides indices in the sorted list
-          final sorted = List<VisionComponent>.from(_components)
-            ..sort((a, b) => b.zIndex.compareTo(a.zIndex));
-          
-          // Adjust newIndex for removal
-          if (oldIndex < newIndex) {
-            newIndex -= 1;
-          }
-          
-          // Reorder the sorted list
-          final item = sorted.removeAt(oldIndex);
-          sorted.insert(newIndex, item);
-          
-          // Now assign new z-indexes based on the new order
-          // Index 0 (top of list) = highest z-index
-          final count = sorted.length;
+        onReorder: (newOrderTopToBottom) {
+          // Assign z-indexes based on the new order (top of list = front).
+          final count = newOrderTopToBottom.length;
           final updated = <VisionComponent>[];
-          
+
           for (int i = 0; i < count; i++) {
-            // Find the component in _components and update its z-index
-            final component = sorted[i];
+            final component = newOrderTopToBottom[i];
             final existing = _components.firstWhere((c) => c.id == component.id);
             updated.add(existing.copyWithCommon(zIndex: count - 1 - i));
           }
-          
+
           _onComponentsChanged(updated);
         },
         onSelect: (id) {
@@ -925,6 +925,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
   late Color _textColor;
   late FontWeight _fontWeight;
   late TextAlign _textAlign;
+  late final VoidCallback _textListener;
 
   @override
   void initState() {
@@ -934,10 +935,18 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
     _textColor = widget.initialStyle.color ?? Colors.black;
     _fontWeight = widget.initialStyle.fontWeight ?? FontWeight.w600;
     _textAlign = TextAlign.left; // TextStyle doesn't support textAlign
+
+    // Live preview updates while typing.
+    _textListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _textController.addListener(_textListener);
   }
 
   @override
   void dispose() {
+    _textController.removeListener(_textListener);
     _textController.dispose();
     super.dispose();
   }
@@ -975,6 +984,25 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+              // Preview (above text box)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: Text(
+                  _textController.text.isEmpty ? 'Preview' : _textController.text,
+                  style: TextStyle(
+                    fontSize: _fontSize,
+                    color: _textColor,
+                    fontWeight: _fontWeight,
+                  ),
+                  textAlign: _textAlign,
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _textController,
                 decoration: const InputDecoration(
@@ -1005,44 +1033,84 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              // Font Weight
-              Row(
-                children: [
-                  const Text('Weight: '),
-                  Expanded(
-                    child: SegmentedButton<FontWeight>(
-                      segments: const [
-                        ButtonSegment(value: FontWeight.normal, label: Text('Normal')),
-                        ButtonSegment(value: FontWeight.w600, label: Text('Bold')),
-                        ButtonSegment(value: FontWeight.w300, label: Text('Light')),
-                      ],
-                      selected: {_fontWeight},
-                      onSelectionChanged: (Set<FontWeight> newSelection) {
-                        setState(() => _fontWeight = newSelection.first);
-                      },
-                    ),
+              // Weight + Align
+              // Formatting dropdown (always shown)
+              SizedBox(
+                width: double.infinity,
+                child: Theme(
+                  // Remove default ExpansionTile divider/padding to keep it compact.
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    key: const ValueKey('formatting_dropdown'),
+                    initiallyExpanded: false,
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(top: 8),
+                    title: const Text('Formatting'),
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<FontWeight>(
+                          segments: const [
+                            ButtonSegment(
+                              value: FontWeight.w300,
+                              label: Icon(Icons.format_size),
+                              tooltip: 'Light',
+                            ),
+                            ButtonSegment(
+                              value: FontWeight.normal,
+                              label: Icon(Icons.text_fields),
+                              tooltip: 'Normal',
+                            ),
+                            ButtonSegment(
+                              value: FontWeight.w600,
+                              label: Icon(Icons.format_bold),
+                              tooltip: 'Bold',
+                            ),
+                          ],
+                          selected: {_fontWeight},
+                          style: const ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onSelectionChanged: (Set<FontWeight> newSelection) {
+                            setState(() => _fontWeight = newSelection.first);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<TextAlign>(
+                          segments: const [
+                            ButtonSegment(
+                              value: TextAlign.left,
+                              label: Icon(Icons.format_align_left),
+                              tooltip: 'Left',
+                            ),
+                            ButtonSegment(
+                              value: TextAlign.center,
+                              label: Icon(Icons.format_align_center),
+                              tooltip: 'Center',
+                            ),
+                            ButtonSegment(
+                              value: TextAlign.right,
+                              label: Icon(Icons.format_align_right),
+                              tooltip: 'Right',
+                            ),
+                          ],
+                          selected: {_textAlign},
+                          style: const ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onSelectionChanged: (Set<TextAlign> newSelection) {
+                            setState(() => _textAlign = newSelection.first);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Text Alignment
-              Row(
-                children: [
-                  const Text('Align: '),
-                  Expanded(
-                    child: SegmentedButton<TextAlign>(
-                      segments: const [
-                        ButtonSegment(value: TextAlign.left, label: Icon(Icons.format_align_left)),
-                        ButtonSegment(value: TextAlign.center, label: Icon(Icons.format_align_center)),
-                        ButtonSegment(value: TextAlign.right, label: Icon(Icons.format_align_right)),
-                      ],
-                      selected: {_textAlign},
-                      onSelectionChanged: (Set<TextAlign> newSelection) {
-                        setState(() => _textAlign = newSelection.first);
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 16),
               // Color Picker
@@ -1068,24 +1136,6 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                     );
                   }),
                 ],
-              ),
-              const SizedBox(height: 20),
-              // Preview
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _textController.text.isEmpty ? 'Preview' : _textController.text,
-                  style: TextStyle(
-                    fontSize: _fontSize,
-                    color: _textColor,
-                    fontWeight: _fontWeight,
-                  ),
-                  textAlign: _textAlign,
-                ),
               ),
               const SizedBox(height: 20),
               // Buttons
@@ -1186,7 +1236,7 @@ class _AddNameDialogState extends State<_AddNameDialog> {
 class _LayersSheet extends StatefulWidget {
   final List<VisionComponent> components;
   final String? selectedId;
-  final Function(int oldIndex, int newIndex) onReorder;
+  final ValueChanged<List<VisionComponent>> onReorder;
   final ValueChanged<String> onSelect;
   final ValueChanged<String> onDelete;
 
@@ -1242,8 +1292,8 @@ class _LayersSheetState extends State<_LayersSheet> {
                 final item = _list.removeAt(oldIndex);
                 _list.insert(newIndex, item);
               });
-              // Pass the adjusted newIndex to parent
-              widget.onReorder(oldIndex, oldIndex < newIndex ? newIndex : newIndex + 1);
+              // Pass the full reordered list to parent for immediate z-index update.
+              widget.onReorder(List<VisionComponent>.from(_list));
             },
             children: [
               for (int i = 0; i < _list.length; i++)

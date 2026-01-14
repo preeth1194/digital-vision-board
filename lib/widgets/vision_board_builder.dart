@@ -7,7 +7,7 @@ import 'manipulable_node.dart';
 /// Freeform, Canva-style vision board builder.
 ///
 /// Renders a pan/zoom canvas with a stack of [VisionComponent]s.
-class VisionBoardBuilder extends StatelessWidget {
+class VisionBoardBuilder extends StatefulWidget {
   final List<VisionComponent> components;
   final bool isEditing;
 
@@ -34,9 +34,16 @@ class VisionBoardBuilder extends StatelessWidget {
     required this.backgroundImageSize,
   });
 
+  @override
+  State<VisionBoardBuilder> createState() => _VisionBoardBuilderState();
+}
+
+class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
+  Size? _viewportSize;
+
   void _updateComponent(VisionComponent updated) {
-    // Constrain position and size to stay within canvas bounds
-    final bgSize = backgroundImageSize;
+    // Use viewport size if available, otherwise fall back to canvas size
+    final bgSize = widget.backgroundImageSize;
     final canvasSize = bgSize != null
         ? Size(
             bgSize.width < 2000 ? 2000 : bgSize.width,
@@ -44,23 +51,33 @@ class VisionBoardBuilder extends StatelessWidget {
           )
         : const Size(2000, 2000);
     
-    // Account for scale when calculating effective size
-    final effectiveWidth = updated.size.width * updated.scale;
-    final effectiveHeight = updated.size.height * updated.scale;
+    // Use viewport size for constraints (visible area), not canvas size
+    // If viewport size not set yet, use a reasonable default based on screen
+    final constraintSize = _viewportSize;
+    if (constraintSize == null) {
+      // Viewport not initialized yet, skip constraint for now
+      final next = widget.components.map((c) => c.id == updated.id ? updated : c).toList();
+      widget.onComponentsChanged(next);
+      return;
+    }
     
-    // Constrain size to not exceed canvas (minimum size is 40)
+    // Constrain size to not exceed viewport (minimum size is 40)
     const minSize = 40.0;
-    final constrainedWidth = updated.size.width.clamp(minSize, canvasSize.width);
-    final constrainedHeight = updated.size.height.clamp(minSize, canvasSize.height);
+    final constrainedWidth = updated.size.width.clamp(minSize, constraintSize.width);
+    final constrainedHeight = updated.size.height.clamp(minSize, constraintSize.height);
     
     // Calculate max position based on constrained size and scale
+    // The effective size accounts for scale transformation
     final effectiveWidth = constrainedWidth * updated.scale;
     final effectiveHeight = constrainedHeight * updated.scale;
     
-    final maxX = (canvasSize.width - effectiveWidth).clamp(0.0, canvasSize.width);
-    final maxY = (canvasSize.height - effectiveHeight).clamp(0.0, canvasSize.height);
+    // Calculate maximum allowed position so component stays within viewport
+    // Right edge: position.x + effectiveWidth <= constraintSize.width
+    // Bottom edge: position.y + effectiveHeight <= constraintSize.height
+    final maxX = (constraintSize.width - effectiveWidth).clamp(0.0, constraintSize.width);
+    final maxY = (constraintSize.height - effectiveHeight).clamp(0.0, constraintSize.height);
     
-    // Clamp position to ensure component stays within canvas
+    // Clamp position to ensure component stays within viewport
     final constrainedPosition = Offset(
       updated.position.dx.clamp(0.0, maxX),
       updated.position.dy.clamp(0.0, maxY),
@@ -70,21 +87,21 @@ class VisionBoardBuilder extends StatelessWidget {
       position: constrainedPosition,
       size: Size(constrainedWidth, constrainedHeight),
     );
-    final next = components.map((c) => c.id == updated.id ? constrained : c).toList();
-    onComponentsChanged(next);
+    final next = widget.components.map((c) => c.id == updated.id ? constrained : c).toList();
+    widget.onComponentsChanged(next);
   }
 
   void _bringToFront(VisionComponent component) {
-    final maxZ = components.isEmpty ? 0 : components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b);
+    final maxZ = widget.components.isEmpty ? 0 : widget.components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b);
     if (component.zIndex >= maxZ) return;
     _updateComponent(component.copyWithCommon(zIndex: maxZ + 1));
   }
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...components]..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+    final sorted = [...widget.components]..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
-    final bgSize = backgroundImageSize;
+    final bgSize = widget.backgroundImageSize;
     final canvasSize = bgSize != null
         ? Size(
             bgSize.width < 2000 ? 2000 : bgSize.width,
@@ -92,16 +109,35 @@ class VisionBoardBuilder extends StatelessWidget {
           )
         : const Size(2000, 2000);
 
+    // Get actual screen size for viewport constraints
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    // Account for app bar and bottom bar (approximately)
+    // App bar is typically 56, bottom bar is 80
+    final viewportHeight = screenSize.height - 56 - 80; // Approximate, will be refined in LayoutBuilder
+    final viewportSize = Size(screenSize.width, viewportHeight);
+
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Store actual viewport size - use the smaller of constraints or screen size
+        // This ensures we constrain to the visible area
+        final mediaQuery = MediaQuery.of(context);
+        final screenSize = mediaQuery.size;
+        // Use constraints.biggest which is the actual available space in the body
+        // This already accounts for app bar and bottom bar
+        _viewportSize = Size(
+          constraints.biggest.width > 0 ? constraints.biggest.width : screenSize.width,
+          constraints.biggest.height > 0 ? constraints.biggest.height : screenSize.height,
+        );
+        
         return InteractiveViewer(
           minScale: 0.2,
           maxScale: 6.0,
-          panEnabled: !isEditing || selectedComponentId == null,
+          panEnabled: !widget.isEditing || widget.selectedComponentId == null,
           scaleEnabled: true,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: isEditing ? () => onSelectedComponentIdChanged(null) : null,
+            onTap: widget.isEditing ? () => widget.onSelectedComponentIdChanged(null) : null,
             child: SizedBox(
               width: canvasSize.width,
               height: canvasSize.height,
@@ -109,9 +145,9 @@ class VisionBoardBuilder extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Positioned.fill(
-                    child: Container(color: backgroundColor),
+                    child: Container(color: widget.backgroundColor),
                   ),
-                  if (backgroundImage != null)
+                  if (widget.backgroundImage != null)
                     Positioned(
                       left: 0,
                       top: 0,
@@ -119,13 +155,13 @@ class VisionBoardBuilder extends StatelessWidget {
                       height: bgSize?.height ?? canvasSize.height,
                       child: IgnorePointer(
                         child: Image(
-                          image: backgroundImage!,
+                          image: widget.backgroundImage!,
                           fit: bgSize != null ? BoxFit.fill : BoxFit.cover,
                         ),
                       ),
                     ),
                   ...sorted.map((c) {
-                    final isSelected = selectedComponentId == c.id;
+                    final isSelected = widget.selectedComponentId == c.id;
 
                     Widget child;
                     switch (c) {
@@ -156,14 +192,14 @@ class VisionBoardBuilder extends StatelessWidget {
                     return ManipulableNode(
                       component: c,
                       isSelected: isSelected,
-                      gesturesEnabled: isEditing,
+                      gesturesEnabled: widget.isEditing,
                       child: child,
                       onSelected: () {
-                        onSelectedComponentIdChanged(c.id);
+                        widget.onSelectedComponentIdChanged(c.id);
                         _bringToFront(c);
                       },
-                      onOpen: (!isEditing && c is! TextComponent) 
-                          ? () => onOpenComponent(c) 
+                      onOpen: (!widget.isEditing && c is! TextComponent) 
+                          ? () => widget.onOpenComponent(c) 
                           : null,
                       onChanged: _updateComponent,
                     );

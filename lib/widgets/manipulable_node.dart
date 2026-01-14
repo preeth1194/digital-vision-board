@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/vision_components.dart';
+import 'manipulable/resize_handle.dart';
+import 'manipulable/resize_logic.dart';
 
 typedef ComponentChanged = void Function(VisionComponent component);
 
@@ -33,7 +35,6 @@ class ManipulableNode extends StatefulWidget {
 
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
-  static const double _handleSize = 14;
 
   bool _isResizing = false;
 
@@ -92,90 +93,23 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     setState(() => _isResizing = v);
   }
 
-  void _resize(_HandlePosition handle, DragUpdateDetails details) {
+  void _resize(HandlePosition handle, DragUpdateDetails details) {
     if (!widget.gesturesEnabled) return;
     if (!widget.isSelected) return;
 
     final delta = details.delta / widget.component.scale;
-    var pos = widget.component.position;
-    var size = widget.component.size;
+    final resized = applyResizeDelta(
+      position: widget.component.position,
+      size: widget.component.size,
+      handle: handle,
+      delta: delta,
+      minSize: _minSize,
+    );
 
-    double newW = size.width;
-    double newH = size.height;
-
-    Offset posDelta = Offset.zero;
-
-    switch (handle) {
-      case _HandlePosition.topLeft:
-        newW = size.width - delta.dx;
-        newH = size.height - delta.dy;
-        posDelta = Offset(delta.dx, delta.dy);
-        break;
-      case _HandlePosition.topRight:
-        newW = size.width + delta.dx;
-        newH = size.height - delta.dy;
-        posDelta = Offset(0, delta.dy);
-        break;
-      case _HandlePosition.bottomLeft:
-        newW = size.width - delta.dx;
-        newH = size.height + delta.dy;
-        posDelta = Offset(delta.dx, 0);
-        break;
-      case _HandlePosition.bottomRight:
-        newW = size.width + delta.dx;
-        newH = size.height + delta.dy;
-        posDelta = Offset.zero;
-        break;
-    }
-
-    // Clamp size and adjust position deltas accordingly.
-    if (newW < _minSize) {
-      final diff = _minSize - newW;
-      newW = _minSize;
-      if (handle == _HandlePosition.topLeft || 
-          handle == _HandlePosition.bottomLeft) {
-        posDelta = Offset(posDelta.dx - diff, posDelta.dy);
-      }
-    }
-    if (newH < _minSize) {
-      final diff = _minSize - newH;
-      newH = _minSize;
-      if (handle == _HandlePosition.topLeft || 
-          handle == _HandlePosition.topRight) {
-        posDelta = Offset(posDelta.dx, posDelta.dy - diff);
-      }
-    }
-
-    pos += posDelta;
-
-    _emit(widget.component.copyWithCommon(position: pos, size: Size(newW, newH)));
-  }
-
-  Widget _handle(_HandlePosition handle, Alignment alignment) {
-    return Align(
-      alignment: alignment,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) => _setResizing(true),
-        onPanEnd: (_) => _setResizing(false),
-        onPanCancel: () => _setResizing(false),
-        onPanUpdate: (d) => _resize(handle, d),
-        child: Container(
-          width: _handleSize,
-          height: _handleSize,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
-            borderRadius: BorderRadius.circular(4), // Slightly rounder
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 2,
-                spreadRadius: 0,
-              )
-            ],
-          ),
-        ),
+    _emit(
+      widget.component.copyWithCommon(
+        position: resized.position,
+        size: resized.size,
       ),
     );
   }
@@ -193,20 +127,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (!widget.gesturesEnabled) {
-            widget.onOpen?.call();
-            return;
-          }
-
+          if (!widget.gesturesEnabled) return widget.onOpen?.call();
           widget.onSelected();
-          if (!_isResizing) {
-            // In edit mode, we don't call onOpen anymore, just select.
-            // widget.onOpen?.call(); 
-            // Wait, the requirement says "while in editing mode i should not get habbit tracker popup on clicking image".
-            // So I should disable onOpen in edit mode here OR in the parent. 
-            // Better to respect the passed onOpen. If parent passes null, it won't be called.
-            widget.onOpen?.call();
-          }
         },
         onScaleStart: _onScaleStart,
         onScaleUpdate: _onScaleUpdate,
@@ -229,10 +151,30 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                     ),
                   ),
                 ),
-                _handle(_HandlePosition.topLeft, Alignment.topLeft),
-                _handle(_HandlePosition.topRight, Alignment.topRight),
-                _handle(_HandlePosition.bottomLeft, Alignment.bottomLeft),
-                _handle(_HandlePosition.bottomRight, Alignment.bottomRight),
+                ResizeHandle(
+                  alignment: Alignment.topLeft,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topLeft, d),
+                ),
+                ResizeHandle(
+                  alignment: Alignment.topRight,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topRight, d),
+                ),
+                ResizeHandle(
+                  alignment: Alignment.bottomLeft,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomLeft, d),
+                ),
+                ResizeHandle(
+                  alignment: Alignment.bottomRight,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
+                ),
               ],
             ],
           ),
@@ -240,10 +182,5 @@ class _ManipulableNodeState extends State<ManipulableNode> {
       ),
     );
   }
-}
-
-enum _HandlePosition { 
-  topLeft, topRight, 
-  bottomLeft, bottomRight 
 }
 

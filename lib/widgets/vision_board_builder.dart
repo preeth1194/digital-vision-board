@@ -35,7 +35,42 @@ class VisionBoardBuilder extends StatelessWidget {
   });
 
   void _updateComponent(VisionComponent updated) {
-    final next = components.map((c) => c.id == updated.id ? updated : c).toList();
+    // Constrain position and size to stay within canvas bounds
+    final bgSize = backgroundImageSize;
+    final canvasSize = bgSize != null
+        ? Size(
+            bgSize.width < 2000 ? 2000 : bgSize.width,
+            bgSize.height < 2000 ? 2000 : bgSize.height,
+          )
+        : const Size(2000, 2000);
+    
+    // Account for scale when calculating effective size
+    final effectiveWidth = updated.size.width * updated.scale;
+    final effectiveHeight = updated.size.height * updated.scale;
+    
+    // Constrain size to not exceed canvas (minimum size is 40)
+    const minSize = 40.0;
+    final constrainedWidth = updated.size.width.clamp(minSize, canvasSize.width);
+    final constrainedHeight = updated.size.height.clamp(minSize, canvasSize.height);
+    
+    // Calculate max position based on constrained size and scale
+    final effectiveWidth = constrainedWidth * updated.scale;
+    final effectiveHeight = constrainedHeight * updated.scale;
+    
+    final maxX = (canvasSize.width - effectiveWidth).clamp(0.0, canvasSize.width);
+    final maxY = (canvasSize.height - effectiveHeight).clamp(0.0, canvasSize.height);
+    
+    // Clamp position to ensure component stays within canvas
+    final constrainedPosition = Offset(
+      updated.position.dx.clamp(0.0, maxX),
+      updated.position.dy.clamp(0.0, maxY),
+    );
+    
+    final constrained = updated.copyWithCommon(
+      position: constrainedPosition,
+      size: Size(constrainedWidth, constrainedHeight),
+    );
+    final next = components.map((c) => c.id == updated.id ? constrained : c).toList();
     onComponentsChanged(next);
   }
 
@@ -127,7 +162,9 @@ class VisionBoardBuilder extends StatelessWidget {
                         onSelectedComponentIdChanged(c.id);
                         _bringToFront(c);
                       },
-                      onOpen: () => onOpenComponent(c),
+                      onOpen: (!isEditing && c is! TextComponent) 
+                          ? () => onOpenComponent(c) 
+                          : null,
                       onChanged: _updateComponent,
                     );
                   }),

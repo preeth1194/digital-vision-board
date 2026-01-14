@@ -533,27 +533,63 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     return _components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  Future<void> _addTextComponent() async {
-    final result = await showDialog<String>(
+  Future<void> _editSelectedTextComponent() async {
+    if (_selectedComponentId == null) return;
+    final component = _components.firstWhere(
+      (c) => c.id == _selectedComponentId,
+      orElse: () => throw StateError('Component not found'),
+    );
+    if (component is! TextComponent) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => const _AddTextDialog(),
+      builder: (context) => _TextEditorDialog(
+        initialText: component.text,
+        initialStyle: component.style,
+      ),
     );
 
-    if (result == null || result.isEmpty) return;
+    if (result == null) return;
+
+    final updated = component.copyWith(
+      text: result['text'] as String,
+      style: result['style'] as TextStyle,
+    );
+
+    final updatedComponents = _components.map((c) => c.id == component.id ? updated : c).toList();
+    _onComponentsChanged(updatedComponents);
+    setState(() => _selectedComponentId = updated.id);
+  }
+
+  Future<void> _addTextComponent() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const _TextEditorDialog(
+        initialText: '',
+        initialStyle: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
+        ),
+      ),
+    );
+
+    if (result == null) return;
+    final text = result['text'] as String;
+    if (text.isEmpty) return;
+    
+    // Use text content as ID (truncated if long)
+    final name = text.length > 20 ? '${text.substring(0, 20)}...' : text;
 
     final c = TextComponent(
-      id: _newId('text'),
+      id: name,
       position: const Offset(120, 120),
       size: const Size(260, 90),
       rotation: 0,
       scale: 1,
       zIndex: _nextZ(),
-      text: result,
-      style: const TextStyle(
-        fontSize: 28,
-        fontWeight: FontWeight.w600,
-        color: Colors.black,
-      ),
+      text: text,
+      style: result['style'] as TextStyle,
     );
 
     _onComponentsChanged([..._components, c]);
@@ -577,9 +613,18 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
         imageQuality: 85,
       );
       if (pickedFile == null) return;
+      if (!mounted) return;
+
+      // Ask for name
+      final String? name = await showDialog<String>(
+        context: context,
+        builder: (context) => const _AddNameDialog(title: 'Name this Image'),
+      );
+      
+      if (name == null || name.isEmpty) return;
 
       final c = ImageComponent(
-        id: _newId('image'),
+        id: name, // Use user provided name as ID
         position: const Offset(120, 120),
         size: const Size(320, 220),
         rotation: 0,
@@ -681,14 +726,6 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
             : _viewModeIndex == 0 ? 'Vision Board' : _viewModeIndex == 1 ? 'Habits' : 'Insights'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          // Image picker button
-          IconButton(
-            icon: const Icon(Icons.image),
-            tooltip: 'Background',
-            onPressed: _showImageSourceDialog,
-          ),
-          // REMOVED: Refresh Icon
-          
           IconButton(
             icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
@@ -744,6 +781,64 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     }
   }
 
+  Future<void> _showLayersDialog() async {
+    if (!mounted) return;
+    
+    // Sort components by zIndex descending (Top to Bottom) for the list
+    final sortedComponents = List<VisionComponent>.from(_components)
+      ..sort((a, b) => b.zIndex.compareTo(a.zIndex));
+      
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _LayersSheet(
+        components: sortedComponents,
+        selectedId: _selectedComponentId,
+        onDelete: (id) {
+          final updated = _components.where((c) => c.id != id).toList();
+          _onComponentsChanged(updated);
+          if (_selectedComponentId == id) {
+            setState(() => _selectedComponentId = null);
+          }
+          Navigator.of(context).pop();
+        },
+        onReorder: (oldIndex, newIndex) {
+          // Work with the actual _components list, but sorted by zIndex
+          // The sheet provides indices in the sorted list
+          final sorted = List<VisionComponent>.from(_components)
+            ..sort((a, b) => b.zIndex.compareTo(a.zIndex));
+          
+          // Adjust newIndex for removal
+          if (oldIndex < newIndex) {
+            newIndex -= 1;
+          }
+          
+          // Reorder the sorted list
+          final item = sorted.removeAt(oldIndex);
+          sorted.insert(newIndex, item);
+          
+          // Now assign new z-indexes based on the new order
+          // Index 0 (top of list) = highest z-index
+          final count = sorted.length;
+          final updated = <VisionComponent>[];
+          
+          for (int i = 0; i < count; i++) {
+            // Find the component in _components and update its z-index
+            final component = sorted[i];
+            final existing = _components.firstWhere((c) => c.id == component.id);
+            updated.add(existing.copyWithCommon(zIndex: count - 1 - i));
+          }
+          
+          _onComponentsChanged(updated);
+        },
+        onSelect: (id) {
+           setState(() => _selectedComponentId = id);
+           Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
   Widget? _buildBottomBar() {
     // Using a safe minimum height wrapper
     return SizedBox(
@@ -770,13 +865,18 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
                   tooltip: 'Background',
                   onPressed: _showBackgroundOptions,
                 ),
-                // Delete Selected
                 IconButton(
-                  icon: const Icon(Icons.delete),
-                  tooltip: 'Delete Selected',
-                  color: _selectedComponentId != null ? Colors.red : null,
-                  onPressed: _selectedComponentId != null ? _deleteSelectedComponent : null,
+                  icon: const Icon(Icons.layers_outlined),
+                  tooltip: 'Layers',
+                  onPressed: _showLayersDialog,
                 ),
+                // Edit Selected (only for text components)
+                if (_selectedComponentId != null && _components.any((c) => c.id == _selectedComponentId && c is TextComponent))
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    tooltip: 'Edit Text',
+                    onPressed: _editSelectedTextComponent,
+                  ),
               ],
             ),
           )
@@ -806,39 +906,264 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   }
 }
 
-class _AddTextDialog extends StatefulWidget {
-  const _AddTextDialog();
+class _TextEditorDialog extends StatefulWidget {
+  final String initialText;
+  final TextStyle initialStyle;
+
+  const _TextEditorDialog({
+    required this.initialText,
+    required this.initialStyle,
+  });
 
   @override
-  State<_AddTextDialog> createState() => _AddTextDialogState();
+  State<_TextEditorDialog> createState() => _TextEditorDialogState();
 }
 
-class _AddTextDialogState extends State<_AddTextDialog> {
-  late final TextEditingController _controller;
+class _TextEditorDialogState extends State<_TextEditorDialog> {
+  late final TextEditingController _textController;
+  late double _fontSize;
+  late Color _textColor;
+  late FontWeight _fontWeight;
+  late TextAlign _textAlign;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController();
+    _textController = TextEditingController(text: widget.initialText);
+    _fontSize = widget.initialStyle.fontSize ?? 28;
+    _textColor = widget.initialStyle.color ?? Colors.black;
+    _fontWeight = widget.initialStyle.fontWeight ?? FontWeight.w600;
+    _textAlign = TextAlign.left; // TextStyle doesn't support textAlign
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _textController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return;
+    
+    final style = TextStyle(
+      fontSize: _fontSize,
+      color: _textColor,
+      fontWeight: _fontWeight,
+    );
+    
+    Navigator.of(context).pop({
+      'text': text,
+      'style': style,
+      'textAlign': _textAlign, // Pass separately since TextStyle doesn't support it
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Text Editor',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _textController,
+                decoration: const InputDecoration(
+                  hintText: 'Type something...',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: widget.initialText.isEmpty,
+                maxLines: 4,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 20),
+              // Font Size
+              Row(
+                children: [
+                  const Text('Font Size: '),
+                  Expanded(
+                    child: Slider(
+                      value: _fontSize,
+                      min: 12,
+                      max: 72,
+                      divisions: 30,
+                      label: _fontSize.round().toString(),
+                      onChanged: (value) => setState(() => _fontSize = value),
+                    ),
+                  ),
+                  Text('${_fontSize.round()}'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Font Weight
+              Row(
+                children: [
+                  const Text('Weight: '),
+                  Expanded(
+                    child: SegmentedButton<FontWeight>(
+                      segments: const [
+                        ButtonSegment(value: FontWeight.normal, label: Text('Normal')),
+                        ButtonSegment(value: FontWeight.w600, label: Text('Bold')),
+                        ButtonSegment(value: FontWeight.w300, label: Text('Light')),
+                      ],
+                      selected: {_fontWeight},
+                      onSelectionChanged: (Set<FontWeight> newSelection) {
+                        setState(() => _fontWeight = newSelection.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Text Alignment
+              Row(
+                children: [
+                  const Text('Align: '),
+                  Expanded(
+                    child: SegmentedButton<TextAlign>(
+                      segments: const [
+                        ButtonSegment(value: TextAlign.left, label: Icon(Icons.format_align_left)),
+                        ButtonSegment(value: TextAlign.center, label: Icon(Icons.format_align_center)),
+                        ButtonSegment(value: TextAlign.right, label: Icon(Icons.format_align_right)),
+                      ],
+                      selected: {_textAlign},
+                      onSelectionChanged: (Set<TextAlign> newSelection) {
+                        setState(() => _textAlign = newSelection.first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Color Picker
+              Wrap(
+                spacing: 10,
+                children: [
+                  const Text('Color: '),
+                  ..._colorOptions.map((color) {
+                    return InkWell(
+                      onTap: () => setState(() => _textColor = color),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _textColor == color ? Colors.blue : Colors.grey,
+                            width: _textColor == color ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Preview
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _textController.text.isEmpty ? 'Preview' : _textController.text,
+                  style: TextStyle(
+                    fontSize: _fontSize,
+                    color: _textColor,
+                    fontWeight: _fontWeight,
+                  ),
+                  textAlign: _textAlign,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _submit,
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const List<Color> _colorOptions = [
+    Colors.black,
+    Colors.white,
+    Colors.red,
+    Colors.blue,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+    Colors.pink,
+    Colors.teal,
+    Colors.amber,
+  ];
+}
+
+class _AddNameDialog extends StatefulWidget {
+  final String title;
+  const _AddNameDialog({required this.title});
+
+  @override
+  State<_AddNameDialog> createState() => _AddNameDialogState();
+}
+
+class _AddNameDialogState extends State<_AddNameDialog> {
+  late final TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Text'),
+      title: Text(widget.title),
       content: TextField(
-        controller: _controller,
+        controller: _nameController,
         decoration: const InputDecoration(
-          hintText: 'Type something...',
+          labelText: 'Name (ID)',
+          hintText: 'e.g. Vacation Photo',
         ),
         autofocus: true,
-        onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+        textCapitalization: TextCapitalization.sentences,
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            Navigator.of(context).pop(value.trim());
+          }
+        },
       ),
       actions: [
         TextButton(
@@ -846,10 +1171,111 @@ class _AddTextDialogState extends State<_AddTextDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-          child: const Text('Add'),
+          onPressed: () {
+            if (_nameController.text.trim().isNotEmpty) {
+              Navigator.of(context).pop(_nameController.text.trim());
+            }
+          },
+          child: const Text('Set Name'),
         ),
       ],
     );
   }
 }
+
+class _LayersSheet extends StatefulWidget {
+  final List<VisionComponent> components;
+  final String? selectedId;
+  final Function(int oldIndex, int newIndex) onReorder;
+  final ValueChanged<String> onSelect;
+  final ValueChanged<String> onDelete;
+
+  const _LayersSheet({
+    required this.components,
+    required this.selectedId,
+    required this.onReorder,
+    required this.onSelect,
+    required this.onDelete,
+  });
+
+  @override
+  State<_LayersSheet> createState() => _LayersSheetState();
+}
+
+class _LayersSheetState extends State<_LayersSheet> {
+  late List<VisionComponent> _list;
+
+  @override
+  void initState() {
+    super.initState();
+    _list = List.from(widget.components);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LayersSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.components != oldWidget.components) {
+      _list = List.from(widget.components);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            'Layers (Drag to Reorder)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ),
+        Flexible(
+          child: ReorderableListView(
+            shrinkWrap: true,
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
+                final item = _list.removeAt(oldIndex);
+                _list.insert(newIndex, item);
+              });
+              // Pass the adjusted newIndex to parent
+              widget.onReorder(oldIndex, oldIndex < newIndex ? newIndex : newIndex + 1);
+            },
+            children: [
+              for (int i = 0; i < _list.length; i++)
+                ListTile(
+                  key: ValueKey(_list[i].id),
+                  title: Text(_list[i].id),
+                  leading: Icon(_getIconForType(_list[i])),
+                  selected: _list[i].id == widget.selectedId,
+                  onTap: () => widget.onSelect(_list[i].id),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => widget.onDelete(_list[i].id),
+                        tooltip: 'Delete',
+                      ),
+                      const Icon(Icons.drag_handle),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _getIconForType(VisionComponent c) {
+    if (c is ImageComponent) return Icons.image;
+    if (c is TextComponent) return Icons.text_fields;
+    return Icons.layers;
+  }
+}
+

@@ -13,7 +13,7 @@ class ManipulableNode extends StatefulWidget {
   final Widget child;
 
   final VoidCallback onSelected;
-  final VoidCallback onOpen;
+  final VoidCallback? onOpen;
   final ComponentChanged onChanged;
 
   const ManipulableNode({
@@ -23,7 +23,7 @@ class ManipulableNode extends StatefulWidget {
     required this.gesturesEnabled,
     required this.child,
     required this.onSelected,
-    required this.onOpen,
+    this.onOpen,
     required this.onChanged,
   });
 
@@ -88,7 +88,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     setState(() => _isResizing = v);
   }
 
-  void _resizeFromCorner(_Corner corner, DragUpdateDetails details) {
+  void _resize(_HandlePosition handle, DragUpdateDetails details) {
     if (!widget.gesturesEnabled) return;
     if (!widget.isSelected) return;
 
@@ -101,23 +101,23 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
     Offset posDelta = Offset.zero;
 
-    switch (corner) {
-      case _Corner.topLeft:
+    switch (handle) {
+      case _HandlePosition.topLeft:
         newW = size.width - delta.dx;
         newH = size.height - delta.dy;
         posDelta = Offset(delta.dx, delta.dy);
         break;
-      case _Corner.topRight:
+      case _HandlePosition.topRight:
         newW = size.width + delta.dx;
         newH = size.height - delta.dy;
         posDelta = Offset(0, delta.dy);
         break;
-      case _Corner.bottomLeft:
+      case _HandlePosition.bottomLeft:
         newW = size.width - delta.dx;
         newH = size.height + delta.dy;
         posDelta = Offset(delta.dx, 0);
         break;
-      case _Corner.bottomRight:
+      case _HandlePosition.bottomRight:
         newW = size.width + delta.dx;
         newH = size.height + delta.dy;
         posDelta = Offset.zero;
@@ -128,14 +128,16 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (newW < _minSize) {
       final diff = _minSize - newW;
       newW = _minSize;
-      if (corner == _Corner.topLeft || corner == _Corner.bottomLeft) {
+      if (handle == _HandlePosition.topLeft || 
+          handle == _HandlePosition.bottomLeft) {
         posDelta = Offset(posDelta.dx - diff, posDelta.dy);
       }
     }
     if (newH < _minSize) {
       final diff = _minSize - newH;
       newH = _minSize;
-      if (corner == _Corner.topLeft || corner == _Corner.topRight) {
+      if (handle == _HandlePosition.topLeft || 
+          handle == _HandlePosition.topRight) {
         posDelta = Offset(posDelta.dx, posDelta.dy - diff);
       }
     }
@@ -145,7 +147,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     _emit(widget.component.copyWithCommon(position: pos, size: Size(newW, newH)));
   }
 
-  Widget _handle(_Corner corner, Alignment alignment) {
+  Widget _handle(_HandlePosition handle, Alignment alignment) {
     return Align(
       alignment: alignment,
       child: GestureDetector(
@@ -153,14 +155,21 @@ class _ManipulableNodeState extends State<ManipulableNode> {
         onPanStart: (_) => _setResizing(true),
         onPanEnd: (_) => _setResizing(false),
         onPanCancel: () => _setResizing(false),
-        onPanUpdate: (d) => _resizeFromCorner(corner, d),
+        onPanUpdate: (d) => _resize(handle, d),
         child: Container(
           width: _handleSize,
           height: _handleSize,
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: Colors.blue, width: 2),
-            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
+            borderRadius: BorderRadius.circular(4), // Slightly rounder
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                spreadRadius: 0,
+              )
+            ],
           ),
         ),
       ),
@@ -181,13 +190,18 @@ class _ManipulableNodeState extends State<ManipulableNode> {
         behavior: HitTestBehavior.opaque,
         onTap: () {
           if (!widget.gesturesEnabled) {
-            widget.onOpen();
+            widget.onOpen?.call();
             return;
           }
 
           widget.onSelected();
           if (!_isResizing) {
-            widget.onOpen();
+            // In edit mode, we don't call onOpen anymore, just select.
+            // widget.onOpen?.call(); 
+            // Wait, the requirement says "while in editing mode i should not get habbit tracker popup on clicking image".
+            // So I should disable onOpen in edit mode here OR in the parent. 
+            // Better to respect the passed onOpen. If parent passes null, it won't be called.
+            widget.onOpen?.call();
           }
         },
         onScaleStart: _onScaleStart,
@@ -206,15 +220,15 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blue, width: 2),
+                        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
                       ),
                     ),
                   ),
                 ),
-                _handle(_Corner.topLeft, Alignment.topLeft),
-                _handle(_Corner.topRight, Alignment.topRight),
-                _handle(_Corner.bottomLeft, Alignment.bottomLeft),
-                _handle(_Corner.bottomRight, Alignment.bottomRight),
+                _handle(_HandlePosition.topLeft, Alignment.topLeft),
+                _handle(_HandlePosition.topRight, Alignment.topRight),
+                _handle(_HandlePosition.bottomLeft, Alignment.bottomLeft),
+                _handle(_HandlePosition.bottomRight, Alignment.bottomRight),
               ],
             ],
           ),
@@ -224,5 +238,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   }
 }
 
-enum _Corner { topLeft, topRight, bottomLeft, bottomRight }
+enum _HandlePosition { 
+  topLeft, topRight, 
+  bottomLeft, bottomRight 
+}
 

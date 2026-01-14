@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/hotspot_model.dart';
 import 'habit_tracker_sheet.dart';
+import '../models/vision_component.dart';
 
 /// A robust, reusable widget for building vision board hotspots.
 /// 
@@ -342,6 +343,8 @@ class _VisionBoardHotspotBuilderState
     }
 
     // In view mode, open the habit tracker modal bottom sheet
+    if (_imageSize == null) return;
+    final VisionComponent component = convertHotspotToComponent(hotspot, _imageSize!);
     if (context.mounted) {
       await showModalBottomSheet(
         context: context,
@@ -352,8 +355,9 @@ class _VisionBoardHotspotBuilderState
         ),
         builder: (BuildContext sheetContext) {
           return HabitTrackerSheet(
-            hotspot: hotspot,
-            onHotspotUpdated: (updatedHotspot) {
+            component: component,
+            onComponentUpdated: (updatedComponent) {
+              final updatedHotspot = hotspot.copyWith(habits: updatedComponent.habits);
               // Update the hotspot in the list
               final List<HotspotModel> updatedHotspots = widget.hotspots.map((h) {
                 // Match by coordinates (with small tolerance for floating point)

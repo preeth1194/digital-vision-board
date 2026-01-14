@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../models/hotspot_model.dart';
+import '../models/vision_component.dart';
 
 class GlobalInsightsPage extends StatelessWidget {
-  final List<HotspotModel> hotspots;
+  final List<VisionComponent> components;
 
   const GlobalInsightsPage({
     super.key,
-    required this.hotspots,
+    required this.components,
   });
 
   @override
   Widget build(BuildContext context) {
-    final allHabits = hotspots.expand((h) => h.habits).toList();
+    final allHabits = components.expand((c) => c.habits).toList();
     
     if (allHabits.isEmpty) {
       return const Center(
@@ -209,7 +209,7 @@ class GlobalInsightsPage extends StatelessWidget {
               _buildStatCard(
                 context,
                 'Total Zones',
-                hotspots.length.toString(),
+                components.whereType<ZoneComponent>().length.toString(),
                 Icons.map,
                 Colors.orange,
               ),

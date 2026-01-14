@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models/hotspot_model.dart';
 import 'models/vision_components.dart';
 import 'widgets/habits_list_page.dart';
-import 'widgets/global_insights_page.dart';
+import 'screens/global_insights_screen.dart';
 import 'widgets/habit_tracker_sheet.dart';
 import 'widgets/grid_board_editor.dart';
 import 'widgets/vision_board_builder.dart';
@@ -599,7 +599,7 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          return GlobalInsightsPage(components: snap.data ?? const <VisionComponent>[]);
+          return GlobalInsightsScreen(components: snap.data ?? const <VisionComponent>[]);
         },
       );
     }
@@ -614,7 +614,7 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
         for (final list in snap.data!.values) {
           all.addAll(list);
         }
-        return GlobalInsightsPage(components: all);
+        return GlobalInsightsScreen(components: all);
       },
     );
   }
@@ -1569,7 +1569,7 @@ class _VisionBoardEditorPageState extends State<VisionBoardEditorPage> {
           onComponentsUpdated: _onComponentsChanged,
         );
       case 2:
-        return GlobalInsightsPage(components: _components);
+        return GlobalInsightsScreen(components: _components);
       case 0:
       default:
         return VisionBoardBuilder(

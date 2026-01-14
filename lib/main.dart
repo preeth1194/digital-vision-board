@@ -145,6 +145,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
 
       if (_imageProvider != null) {
         _backgroundImageSize = await _resolveImageSize(_imageProvider!);
+        await _maybeMigrateLegacyHotspots();
         if (mounted) setState(() {});
       }
     } catch (e) {

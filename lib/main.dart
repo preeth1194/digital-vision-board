@@ -2,11 +2,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/hotspot_model.dart';
 import 'widgets/vision_board_hotspot_builder.dart';
+import 'widgets/habits_list_page.dart';
+import 'widgets/global_insights_page.dart';
+
+// Conditional import: File is not available on web
+import 'dart:io' if (dart.library.html) 'dart:html' as io;
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Lock orientation to portrait only
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const MyApp());
 }
 
@@ -21,7 +33,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const VisionBoardExamplePage(),
+      home: const _OrientationLock(
+        child: VisionBoardExamplePage(),
+      ),
     );
   }
 }
@@ -33,30 +47,219 @@ class VisionBoardExamplePage extends StatefulWidget {
   State<VisionBoardExamplePage> createState() => _VisionBoardExamplePageState();
 }
 
+class _OrientationLock extends StatefulWidget {
+  final Widget child;
+  
+  const _OrientationLock({required this.child});
+
+  @override
+  State<_OrientationLock> createState() => _OrientationLockState();
+}
+
+class _OrientationLockState extends State<_OrientationLock> {
+  @override
+  void initState() {
+    super.initState();
+    // Lock to portrait on init
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    // Keep portrait locked
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
 class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   List<HotspotModel> _hotspots = [];
+  Set<HotspotModel> _selectedHotspots = {};
   bool _isEditing = true;
   bool _isLoading = true;
+  bool _showLabels = true;
+  int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Insights
+
   static const String _hotspotsKey = 'vision_board_hotspots';
+  static const String _imagePathKey = 'vision_board_image_path';
   SharedPreferences? _prefs;
-
-  // Example: Using a network image
-  // Replace with your actual image source (FileImage, AssetImage, NetworkImage, etc.)
-  final ImageProvider _imageProvider = const NetworkImage(
-    'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
-  );
-
-  // Alternative examples:
-  // final ImageProvider _imageProvider = AssetImage('assets/images/vision_board.jpg');
-  // final ImageProvider _imageProvider = FileImage(File('/path/to/image.jpg'));
+  
+  final ImagePicker _imagePicker = ImagePicker();
+  dynamic _selectedImageFile; // File on mobile, null on web
+  ImageProvider? _imageProvider;
 
   @override
   void initState() {
     super.initState();
     print('=== initState called ===');
     print('Platform: ${kIsWeb ? "Web" : "Native"}');
+    // Load saved image first, then initialize storage
+    _loadSavedImage();
     // Initialize SharedPreferences first, then load
     _initializeStorage();
+  }
+
+  /// Load saved image path from storage
+  Future<void> _loadSavedImage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? imagePath = prefs.getString(_imagePathKey);
+      
+      if (imagePath != null && imagePath.isNotEmpty && !kIsWeb) {
+        try {
+          final io.File imageFile = io.File(imagePath);
+          if (await imageFile.exists()) {
+            setState(() {
+              _selectedImageFile = imageFile;
+              _imageProvider = FileImage(imageFile);
+            });
+            print('Loaded saved image: $imagePath');
+          }
+        } catch (e) {
+          print('Error loading file: $e');
+        }
+      } else {
+        // Use default network image if no saved image
+        setState(() {
+          _imageProvider = const NetworkImage(
+            'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
+          );
+        });
+      }
+    } catch (e) {
+      print('Error loading saved image: $e');
+      // Fallback to default image
+      setState(() {
+        _imageProvider = const NetworkImage(
+          'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800',
+        );
+      });
+    }
+  }
+
+  /// Save image path to storage
+  Future<void> _saveImagePath(String? imagePath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (imagePath != null && imagePath.isNotEmpty) {
+        await prefs.setString(_imagePathKey, imagePath);
+        print('Saved image path: $imagePath');
+      } else {
+        await prefs.remove(_imagePathKey);
+        print('Removed image path');
+      }
+    } catch (e) {
+      print('Error saving image path: $e');
+    }
+  }
+
+  /// Pick an image from gallery or camera
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        if (kIsWeb) {
+          // On web, use the bytes directly
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _imageProvider = MemoryImage(bytes);
+          });
+          // For web, we can't save file paths, so we'll save a flag
+          await _saveImagePath('web_image_selected');
+        } else {
+          // On mobile, use File
+          try {
+            final io.File imageFile = io.File(pickedFile.path);
+            setState(() {
+              _selectedImageFile = imageFile;
+              _imageProvider = FileImage(imageFile);
+            });
+            // Save the image path
+            await _saveImagePath(pickedFile.path);
+          } catch (e) {
+            print('Error creating File: $e');
+          }
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image loaded successfully'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show dialog to choose image source
+  Future<void> _showImageSourceDialog() async {
+    if (kIsWeb) {
+      // Web only supports gallery
+      await _pickImage(ImageSource.gallery);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Initialize SharedPreferences and load data
@@ -69,24 +272,11 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
       _prefs = await SharedPreferences.getInstance();
       print('SharedPreferences instance obtained');
       
-      // Verify it's working by checking if we can read/write
-      final String testKey = '$_hotspotsKey._test';
-      await _prefs!.setString(testKey, 'test');
-      final String? testValue = _prefs!.getString(testKey);
-      await _prefs!.remove(testKey);
-      
-      if (testValue == 'test') {
-        print('SharedPreferences is working correctly');
-      } else {
-        print('WARNING: SharedPreferences test failed!');
-      }
-      
       // On web, add a delay and ensure we reload the instance to get fresh data
       if (kIsWeb) {
         await Future.delayed(const Duration(milliseconds: 300));
         // Get a fresh instance to ensure we're reading from the actual localStorage
         _prefs = await SharedPreferences.getInstance();
-        print('Web: Got fresh SharedPreferences instance after delay');
       }
       
       await _loadHotspots();
@@ -123,23 +313,8 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
         _prefs = prefs;
       }
       
-      // Get all keys for debugging
-      final Set<String> allKeys = prefs.getKeys();
-      print('All SharedPreferences keys: $allKeys');
-      print('Looking for key: $_hotspotsKey');
-      
       // Try to get the value
       final String? hotspotsJson = prefs.getString(_hotspotsKey);
-      
-      print('Loading hotspots from storage...');
-      print('Key: $_hotspotsKey');
-      print('Raw JSON: $hotspotsJson');
-      print('Raw JSON is null: ${hotspotsJson == null}');
-      print('Raw JSON isEmpty: ${hotspotsJson?.isEmpty ?? true}');
-      if (hotspotsJson != null) {
-        print('Raw JSON length: ${hotspotsJson.length}');
-        print('Raw JSON preview: ${hotspotsJson.substring(0, hotspotsJson.length > 100 ? 100 : hotspotsJson.length)}...');
-      }
       
       if (hotspotsJson != null && hotspotsJson.isNotEmpty) {
         try {
@@ -153,15 +328,10 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
               _hotspots = loadedHotspots;
               _isLoading = false;
             });
-            print('✓ Loaded ${loadedHotspots.length} hotspots from storage');
-            for (var hotspot in loadedHotspots) {
-              print('  - $hotspot');
-            }
           }
         } catch (e, stackTrace) {
           print('✗ Error parsing JSON: $e');
           print('Stack trace: $stackTrace');
-          print('JSON was: $hotspotsJson');
           if (mounted) {
             setState(() {
               _isLoading = false;
@@ -173,11 +343,6 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           setState(() {
             _isLoading = false;
           });
-          print('No saved hotspots found (JSON is null or empty)');
-          print('Available keys: $allKeys');
-          if (allKeys.isEmpty) {
-            print('WARNING: No keys found in SharedPreferences at all!');
-          }
         }
       }
     } catch (e, stackTrace) {
@@ -210,15 +375,8 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
           _hotspots.map((hotspot) => hotspot.toJson()).toList();
       final String jsonString = jsonEncode(hotspotsJson);
       
-      print('Attempting to save ${_hotspots.length} hotspots...');
-      print('Key: $_hotspotsKey');
-      print('JSON length: ${jsonString.length}');
-      print('JSON preview: ${jsonString.substring(0, jsonString.length > 100 ? 100 : jsonString.length)}...');
-      
       // Save using SharedPreferences
-      final bool success = await prefs.setString(_hotspotsKey, jsonString);
-      
-      print('Save operation result: $success');
+      await prefs.setString(_hotspotsKey, jsonString);
       
       // On web, add a delay and force a commit
       if (kIsWeb) {
@@ -228,129 +386,94 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
         // Force reload the instance to ensure it's synced
         _prefs = await SharedPreferences.getInstance();
       }
-      
-      // Verify the save worked by reading it back (use fresh instance on web)
-      final SharedPreferences verifyPrefs = kIsWeb 
-          ? await SharedPreferences.getInstance() 
-          : prefs;
-      final String? verifyJson = verifyPrefs.getString(_hotspotsKey);
-      
-      print('Verification read - Key: $_hotspotsKey');
-      print('Verification read - Value: $verifyJson');
-      print('Verification read - Value is null: ${verifyJson == null}');
-      print('Verification read - Value length: ${verifyJson?.length ?? 0}');
-      
-      if (success && verifyJson == jsonString) {
-        print('✓ Saved ${_hotspots.length} hotspots to storage (verified)');
-        print('Full JSON: $jsonString');
-      } else if (success && verifyJson != null && verifyJson.isNotEmpty) {
-        print('⚠ Save reported success but verification shows different data');
-        print('Expected length: ${jsonString.length}');
-        print('Got length: ${verifyJson.length}');
-        print('Expected: $jsonString');
-        print('Got: $verifyJson');
-      } else if (success) {
-        print('✗ Save reported success but verification returned null/empty');
-        print('This suggests a timing or persistence issue');
-      } else {
-        print('✗ Save operation failed');
-        print('Success: $success, Verify match: ${verifyJson == jsonString}');
-        if (verifyJson != null) {
-          print('Stored JSON: $verifyJson');
-          print('Expected JSON: $jsonString');
-        } else {
-          print('Verification read returned null!');
-        }
-      }
     } catch (e, stackTrace) {
       print('✗ Error saving hotspots: $e');
       print('Stack trace: $stackTrace');
     }
   }
 
-  /// Debug method to check what's in storage
-  Future<void> _debugStorage() async {
-    try {
-      final prefs = _prefs ?? await SharedPreferences.getInstance();
-      final String? stored = prefs.getString(_hotspotsKey);
-      
-      // Get all keys for debugging
-      final Set<String> allKeys = prefs.getKeys();
-      
-      print('=== DEBUG STORAGE ===');
-      print('Platform: ${kIsWeb ? "Web" : "Native"}');
-      print('Key: $_hotspotsKey');
-      print('Stored value: $stored');
-      print('Stored value length: ${stored?.length ?? 0}');
-      print('Stored value is null: ${stored == null}');
-      print('All SharedPreferences keys: $allKeys');
-      print('Current hotspots count: ${_hotspots.length}');
-      print('Is loading: $_isLoading');
-      print('Prefs instance: ${prefs.hashCode}');
-      print('===================');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Storage: ${stored != null ? "Found ${stored.length} chars" : "Empty"} | Keys: ${allKeys.length}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e, stackTrace) {
-      print('Debug error: $e');
-      print('Stack trace: $stackTrace');
-    }
-  }
-
   void _onHotspotsChanged(List<HotspotModel> hotspots) {
-    print('=== _onHotspotsChanged called ===');
-    print('Old count: ${_hotspots.length}');
-    print('New count: ${hotspots.length}');
-    print('Is loading: $_isLoading');
-    
     setState(() {
       _hotspots = hotspots;
     });
     
-    print('Hotspots updated: ${hotspots.length} total');
-    for (var hotspot in hotspots) {
-      print('  - $hotspot');
-    }
-    
     // Automatically save whenever hotspots change (but not while loading)
     if (!_isLoading) {
-      // Use a small delay to ensure state is updated
       Future.delayed(const Duration(milliseconds: 100), () {
         _saveHotspots();
       });
-    } else {
-      print('Skipping save - still loading');
     }
   }
 
   void _toggleEditMode() {
     setState(() {
       _isEditing = !_isEditing;
+      // Clear selection when switching modes
+      _selectedHotspots.clear();
+      // Reset view mode to Vision Board when switching modes
+      if (_isEditing) {
+        _viewModeIndex = 0;
+      }
     });
   }
 
   Future<void> _clearHotspots() async {
     setState(() {
       _hotspots = [];
+      _selectedHotspots.clear();
     });
     // Save the cleared state
     await _saveHotspots();
-    // Don't call _onHotspotsChanged here as it will trigger another save
-    print('Cleared all hotspots');
   }
 
   void _onHotspotDelete(HotspotModel hotspot) {
     final List<HotspotModel> updatedHotspots = List.from(_hotspots)..remove(hotspot);
     _onHotspotsChanged(updatedHotspots);
+    setState(() {
+      _selectedHotspots.remove(hotspot);
+    });
   }
 
-  /// Show dialog for creating or editing a hotspot
+  void _deleteSelectedHotspots() {
+    if (_selectedHotspots.isEmpty) return;
+
+    final List<HotspotModel> updatedHotspots = List.from(_hotspots)
+      ..removeWhere((h) => _selectedHotspots.contains(h));
+    
+    _onHotspotsChanged(updatedHotspots);
+    setState(() {
+      _selectedHotspots.clear();
+    });
+  }
+
+  void _onHotspotSelectionToggled(HotspotModel hotspot) {
+    setState(() {
+      // Check if we can find this hotspot in the selection using coordinate matching
+      // (in case object references changed)
+      final existing = _selectedHotspots.lookup(hotspot);
+      if (existing != null) {
+        _selectedHotspots.remove(existing);
+      } else {
+        // Also try manual iteration if lookup fails
+        bool found = false;
+        for (final s in _selectedHotspots) {
+          if ((s.x - hotspot.x).abs() < 0.0001 &&
+              (s.y - hotspot.y).abs() < 0.0001 &&
+              (s.width - hotspot.width).abs() < 0.0001 &&
+              (s.height - hotspot.height).abs() < 0.0001) {
+            _selectedHotspots.remove(s);
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          _selectedHotspots.add(hotspot);
+        }
+      }
+    });
+  }
+
+  /// Show overlay for creating or editing a hotspot
   Future<HotspotModel?> _showHotspotDialog({
     HotspotModel? existingHotspot,
     double? x,
@@ -368,88 +491,134 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
     );
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-    return showDialog<HotspotModel>(
+    // Using showModalBottomSheet for overlay style as requested
+    return showModalBottomSheet<HotspotModel>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(isEditing ? 'Edit Goal' : 'Add Goal'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Goal Title',
-                      hintText: 'Enter your goal',
-                      border: OutlineInputBorder(),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Goal title is required';
-                      }
-                      return null;
-                    },
-                    autofocus: !isEditing,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: linkController,
-                    decoration: const InputDecoration(
-                      labelText: 'Link URL (Optional)',
-                      hintText: 'https://example.com',
-                      border: OutlineInputBorder(),
+                ),
+              ),
+              Text(
+                isEditing ? 'Edit Goal' : 'Add Goal',
+                style: Theme.of(sheetContext).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Form(
+                key: formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Goal Title',
+                        hintText: 'Enter your goal',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.flag),
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Goal title is required';
+                        }
+                        return null;
+                      },
+                      autofocus: !isEditing,
                     ),
-                    keyboardType: TextInputType.url,
-                    textCapitalization: TextCapitalization.none,
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: linkController,
+                      decoration: const InputDecoration(
+                        labelText: 'Link URL (Optional)',
+                        hintText: 'https://example.com',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.link),
+                      ),
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          final String title = titleController.text.trim();
+                          final String? link = linkController.text.trim().isEmpty
+                              ? null
+                              : linkController.text.trim();
+
+                          HotspotModel hotspot;
+                          if (isEditing && existingHotspot != null) {
+                            // Update existing hotspot
+                            hotspot = existingHotspot.copyWith(
+                              id: title,
+                              link: link,
+                            );
+                          } else {
+                            // Create new hotspot
+                            hotspot = HotspotModel(
+                              x: x!,
+                              y: y!,
+                              width: width!,
+                              height: height!,
+                              id: title,
+                              link: link,
+                            );
+                          }
+
+                          Navigator.of(sheetContext).pop(hotspot);
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Save'),
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 32),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  final String title = titleController.text.trim();
-                  final String? link = linkController.text.trim().isEmpty
-                      ? null
-                      : linkController.text.trim();
-
-                  HotspotModel hotspot;
-                  if (isEditing && existingHotspot != null) {
-                    // Update existing hotspot
-                    hotspot = existingHotspot.copyWith(
-                      id: title,
-                      link: link,
-                    );
-                  } else {
-                    // Create new hotspot
-                    hotspot = HotspotModel(
-                      x: x!,
-                      y: y!,
-                      width: width!,
-                      height: height!,
-                      id: title,
-                      link: link,
-                    );
-                  }
-
-                  Navigator.of(dialogContext).pop(hotspot);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
         );
       },
     );
@@ -478,109 +647,175 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Prevent resizing when keyboard opens to stop image from zooming out/shifting
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: const Text('Vision Board Hotspot Builder'),
+        title: Text(_isEditing 
+            ? 'Edit Vision Board' 
+            : _viewModeIndex == 0 ? 'Vision Board' : _viewModeIndex == 1 ? 'Habits' : 'Insights'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          // Debug button (only in debug mode)
+          // Image picker button
           IconButton(
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'Debug Storage',
-            onPressed: _debugStorage,
+            icon: const Icon(Icons.image),
+            tooltip: 'Upload Image',
+            onPressed: _showImageSourceDialog,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reload from Storage',
-            onPressed: _loadHotspots,
-          ),
+          // REMOVED: Refresh Icon
+          
           IconButton(
             icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
             onPressed: _toggleEditMode,
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Clear All Hotspots',
-            onPressed: _hotspots.isNotEmpty ? _clearHotspots : null,
-          ),
+          
+          // Tag Visibility Icon - Available in BOTH modes if viewing the board
+          if (_isEditing || (_viewModeIndex == 0 && !_isEditing))
+            IconButton(
+              icon: Icon(_showLabels ? Icons.label : Icons.label_off),
+              tooltip: 'Toggle Labels',
+              onPressed: () {
+                setState(() {
+                  _showLabels = !_showLabels;
+                });
+              },
+            ),
+          
+          // REMOVED: Clear All Hotspots (Delete All) Button
         ],
       ),
-      body: Column(
-        children: [
-          // Status bar
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            color: _isEditing ? Colors.orange.shade100 : Colors.green.shade100,
-            child: Row(
-          children: [
-                Icon(
-                  _isEditing ? Icons.edit : Icons.visibility,
-                  color: _isEditing ? Colors.orange.shade900 : Colors.green.shade900,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isEditing
-                      ? 'Edit Mode: Tap and drag to draw zones'
-                      : 'View Mode: Tap zones to interact',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _isEditing ? Colors.orange.shade900 : Colors.green.shade900,
-                  ),
-                ),
-                const Spacer(),
-            Text(
-                  'Hotspots: ${_hotspots.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
 
-          // Vision Board Hotspot Builder
-          Expanded(
-            child: VisionBoardHotspotBuilder(
-              imageProvider: _imageProvider,
+  Widget _buildBody() {
+    if (_isEditing) {
+      // Edit Mode - Always Vision Board
+      return _imageProvider != null
+          ? VisionBoardHotspotBuilder(
+              imageProvider: _imageProvider!,
               hotspots: _hotspots,
               onHotspotsChanged: _onHotspotsChanged,
               onHotspotDelete: _onHotspotDelete,
               onHotspotCreated: _onHotspotCreated,
               onHotspotEdit: _onHotspotEdit,
-              isEditing: _isEditing,
-            ),
-          ),
+              isEditing: true,
+              selectedHotspots: _selectedHotspots,
+              onHotspotSelected: _onHotspotSelectionToggled,
+              showLabels: _showLabels,
+            )
+          : const Center(child: CircularProgressIndicator());
+    } else {
+      // View Mode - Based on _viewModeIndex
+      switch (_viewModeIndex) {
+        case 1:
+          return HabitsListPage(
+            hotspots: _hotspots,
+            onHotspotsUpdated: _onHotspotsChanged,
+          );
+        case 2:
+          // Global Insights Page (IMPLEMENTED)
+          return GlobalInsightsPage(hotspots: _hotspots);
+        case 0:
+        default:
+          return _imageProvider != null
+              ? VisionBoardHotspotBuilder(
+                  imageProvider: _imageProvider!,
+                  hotspots: _hotspots,
+                  onHotspotsChanged: _onHotspotsChanged,
+                  onHotspotDelete: _onHotspotDelete,
+                  onHotspotCreated: _onHotspotCreated,
+                  onHotspotEdit: _onHotspotEdit,
+                  isEditing: false,
+                  selectedHotspots: const {},
+                  onHotspotSelected: null,
+                  showLabels: _showLabels,
+                )
+              : const Center(child: CircularProgressIndicator());
+      }
+    }
+  }
 
-          // Instructions
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            color: Colors.grey.shade100,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget? _buildBottomBar() {
+    // Using a safe minimum height wrapper
+    return SizedBox(
+      height: 80 + MediaQuery.of(context).padding.bottom, // Fixed height wrapper
+      child: _isEditing 
+        ? BottomAppBar(
+            height: 80, // Explicit height
+            padding: EdgeInsets.zero,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text(
-                  _isEditing ? 'Edit Mode Instructions:' : 'View Mode Instructions:',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                // Delete Selected
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  tooltip: 'Delete Selected',
+                  color: _selectedHotspots.isNotEmpty ? Colors.red : null,
+                  onPressed: _selectedHotspots.isNotEmpty ? _deleteSelectedHotspots : null,
                 ),
-                const SizedBox(height: 8),
-                if (_isEditing) ...[
-                  const Text('• Tap and drag on the image to draw a rectangular zone'),
-                  const Text('• Tap a zone to edit its title and link'),
-                  const Text('• Long press a zone to delete it'),
-                  const Text('• Use pinch to zoom and pan to navigate'),
-                  const Text('• Zones are saved with normalized coordinates (0.0-1.0)'),
-                  const Text('• Switch to View Mode to interact with zones'),
-                ] else ...[
-                  const Text('• Tap a zone with a link to open it in your browser'),
-                  const Text('• Zones with links show an external link icon'),
-                  const Text('• Switch to Edit Mode to add, modify, or delete zones'),
-                ],
+                // Toggle Labels (Also in AppBar, but kept here for convenience if needed, though redundant if in AppBar)
+                IconButton(
+                  icon: Icon(_showLabels ? Icons.label : Icons.label_off),
+                  tooltip: 'Toggle Labels',
+                  onPressed: () {
+                    setState(() {
+                      _showLabels = !_showLabels;
+                    });
+                  },
+                ),
+                // Edit Properties (Only if 1 is selected)
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Edit Properties',
+                  onPressed: _selectedHotspots.length == 1
+                      ? () async {
+                          final hotspot = _selectedHotspots.first;
+                          final HotspotModel? updated = await _onHotspotEdit(hotspot);
+                          if (updated != null && mounted) {
+                            // Update the hotspot in the list
+                            final index = _hotspots.indexOf(hotspot);
+                            if (index != -1) {
+                              final updatedHotspots = List<HotspotModel>.from(_hotspots);
+                              updatedHotspots[index] = updated;
+                              _onHotspotsChanged(updatedHotspots);
+                              
+                              // Update selection
+                              setState(() {
+                                _selectedHotspots.remove(hotspot);
+                                _selectedHotspots.add(updated);
+                              });
+                            }
+                          }
+                        }
+                      : null,
+                ),
               ],
             ),
+          )
+        : BottomNavigationBar(
+            currentIndex: _viewModeIndex,
+            onTap: (index) {
+              setState(() {
+                _viewModeIndex = index;
+              });
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Vision Board',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.check_circle_outline),
+                label: 'Habits',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.insights),
+                label: 'Insights',
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

@@ -185,9 +185,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
             return;
           }
 
-          if (!widget.isSelected) {
-            widget.onSelected();
-          } else if (!_isResizing) {
+          widget.onSelected();
+          if (!_isResizing) {
             widget.onOpen();
           }
         },

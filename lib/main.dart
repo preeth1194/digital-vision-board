@@ -25,6 +25,41 @@ void main() {
   runApp(const MyApp());
 }
 
+class VisionBoardInfo {
+  final String id;
+  final String title;
+  final int createdAtMs;
+  final int iconCodePoint; // Material icon code point
+  final int tileColorValue; // ARGB color value
+
+  const VisionBoardInfo({
+    required this.id,
+    required this.title,
+    required this.createdAtMs,
+    required this.iconCodePoint,
+    required this.tileColorValue,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'createdAtMs': createdAtMs,
+        'iconCodePoint': iconCodePoint,
+        'tileColorValue': tileColorValue,
+      };
+
+  factory VisionBoardInfo.fromJson(Map<String, dynamic> json) => VisionBoardInfo(
+        id: json['id'] as String,
+        title: json['title'] as String? ?? 'Untitled',
+        createdAtMs: (json['createdAtMs'] as num?)?.toInt() ??
+            DateTime.now().millisecondsSinceEpoch,
+        iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
+            Icons.dashboard_outlined.codePoint,
+        tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
+            const Color(0xFFEEF2FF).value,
+      );
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -37,17 +72,681 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const _OrientationLock(
-        child: VisionBoardExamplePage(),
+        child: DashboardShellPage(),
       ),
     );
   }
 }
 
-class VisionBoardExamplePage extends StatefulWidget {
-  const VisionBoardExamplePage({super.key});
+class DashboardShellPage extends StatefulWidget {
+  const DashboardShellPage({super.key});
 
   @override
-  State<VisionBoardExamplePage> createState() => _VisionBoardExamplePageState();
+  State<DashboardShellPage> createState() => _DashboardShellPageState();
+}
+
+class _DashboardShellPageState extends State<DashboardShellPage> {
+  static const String _boardsKey = 'vision_boards_list_v1';
+  static const String _activeBoardIdKey = 'active_vision_board_id_v1';
+
+  int _tabIndex = 0; // 0 Dashboard, 1 Habits, 2 Insights
+  bool _loading = true;
+  SharedPreferences? _prefs;
+
+  List<VisionBoardInfo> _boards = [];
+  String? _activeBoardId;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    _prefs = await SharedPreferences.getInstance();
+    await _loadBoards();
+  }
+
+  Future<void> _loadBoards() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final raw = prefs.getString(_boardsKey);
+    final activeId = prefs.getString(_activeBoardIdKey);
+
+    List<VisionBoardInfo> boards = [];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        boards = decoded
+            .map((e) => VisionBoardInfo.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        boards = [];
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _boards = boards;
+      _activeBoardId = activeId;
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(
+      _boardsKey,
+      jsonEncode(boards.map((b) => b.toJson()).toList()),
+    );
+  }
+
+  String _boardComponentsKey(String boardId) => 'vision_board_${boardId}_components';
+  String _boardBgColorKey(String boardId) => 'vision_board_${boardId}_bg_color';
+  String _boardImagePathKey(String boardId) => 'vision_board_${boardId}_bg_image_path';
+
+  Future<List<VisionComponent>> _loadBoardComponents(String boardId) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final raw = prefs.getString(_boardComponentsKey(boardId));
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded
+          .map((e) => VisionComponent.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Map<String, List<VisionComponent>>> _loadAllBoardsComponents() async {
+    final results = <String, List<VisionComponent>>{};
+    for (final b in _boards) {
+      results[b.id] = await _loadBoardComponents(b.id);
+    }
+    return results;
+  }
+
+  VisionBoardInfo? _boardById(String id) {
+    for (final b in _boards) {
+      if (b.id == id) return b;
+    }
+    return null;
+  }
+
+  Future<void> _saveBoardComponents(String boardId, List<VisionComponent> components) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(
+      _boardComponentsKey(boardId),
+      jsonEncode(components.map((c) => c.toJson()).toList()),
+    );
+  }
+
+  Future<void> _setActiveBoard(String boardId) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(_activeBoardIdKey, boardId);
+    if (!mounted) return;
+    setState(() => _activeBoardId = boardId);
+  }
+
+  Future<void> _clearActiveBoard() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.remove(_activeBoardIdKey);
+    if (!mounted) return;
+    setState(() => _activeBoardId = null);
+  }
+
+  Future<void> _createBoard() async {
+    final _NewBoardConfig? config = await showDialog<_NewBoardConfig>(
+      context: context,
+      builder: (context) => const _NewBoardDialog(),
+    );
+    if (config == null || config.title.isEmpty) return;
+
+    final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
+    final board = VisionBoardInfo(
+      id: id,
+      title: config.title,
+      createdAtMs: DateTime.now().millisecondsSinceEpoch,
+      iconCodePoint: config.iconCodePoint,
+      tileColorValue: config.tileColorValue,
+    );
+    final next = [board, ..._boards];
+    await _saveBoards(next);
+    await _setActiveBoard(id);
+    if (!mounted) return;
+    setState(() => _boards = next);
+  }
+
+  Future<void> _deleteBoard(VisionBoardInfo board) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete board?'),
+        content: Text('Delete "${board.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.remove(_boardComponentsKey(board.id));
+    await prefs.remove(_boardBgColorKey(board.id));
+    await prefs.remove(_boardImagePathKey(board.id));
+
+    final next = _boards.where((b) => b.id != board.id).toList();
+    await _saveBoards(next);
+    if (_activeBoardId == board.id) {
+      await prefs.remove(_activeBoardIdKey);
+    }
+    if (!mounted) return;
+    setState(() {
+      _boards = next;
+      if (_activeBoardId == board.id) _activeBoardId = null;
+    });
+  }
+
+  Future<void> _openEditor(VisionBoardInfo board) async {
+    await _openBoard(board, startInEditMode: true);
+    // refresh in case title/list changed later
+    await _loadBoards();
+  }
+
+  Future<void> _openViewer(VisionBoardInfo board) async {
+    await _openBoard(board, startInEditMode: false);
+    await _loadBoards();
+  }
+
+  Future<void> _openBoard(
+    VisionBoardInfo board, {
+    required bool startInEditMode,
+  }) async {
+    await _setActiveBoard(board.id);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VisionBoardEditorPage(
+          boardId: board.id,
+          title: board.title,
+          initialIsEditing: startInEditMode,
+        ),
+      ),
+    );
+
+    // When returning to Dashboard, clear selection so no list item stays highlighted.
+    await _clearActiveBoard();
+  }
+
+  Widget _dashboardTab() {
+    if (_boards.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.dashboard_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'No vision boards yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _createBoard,
+              icon: const Icon(Icons.add),
+              label: const Text('New board'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Dashboard',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _createBoard,
+                icon: const Icon(Icons.add),
+                label: const Text('New'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _boards.length,
+              itemBuilder: (context, i) {
+                final b = _boards[i];
+                final isActive = b.id == _activeBoardId;
+                final tileColor = Color(b.tileColorValue);
+                final iconColor =
+                    tileColor.computeLuminance() < 0.45 ? Colors.white : Colors.black87;
+                final iconData = IconData(b.iconCodePoint, fontFamily: 'MaterialIcons');
+                return Card(
+                  color: tileColor,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    title: Text(b.title),
+                    subtitle: isActive ? const Text('Selected') : null,
+                    leading: Icon(iconData, color: iconColor),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Edit',
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _openEditor(b),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete',
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteBoard(b),
+                        ),
+                      ],
+                    ),
+                    // Tap opens in VIEW mode
+                    onTap: () => _openViewer(b),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _habitsTab() {
+    final boardId = _activeBoardId;
+    // If a board is selected, show its habits; otherwise show all habits across boards.
+    if (boardId != null) {
+      return FutureBuilder<List<VisionComponent>>(
+        future: _loadBoardComponents(boardId),
+        builder: (context, snap) {
+          final components = snap.data ?? const <VisionComponent>[];
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return HabitsListPage(
+            components: components,
+            onComponentsUpdated: (updated) async {
+              await _saveBoardComponents(boardId, updated);
+            },
+          );
+        },
+      );
+    }
+
+    return FutureBuilder<Map<String, List<VisionComponent>>>(
+      future: _loadAllBoardsComponents(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final map = Map<String, List<VisionComponent>>.from(snap.data!);
+
+        // Build an aggregate, editable list grouped by board.
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final boardIds = _boards.map((b) => b.id).toList();
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'All Boards Habits',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                ...boardIds.map((id) {
+                  final board = _boardById(id);
+                  final components = map[id] ?? const <VisionComponent>[];
+                  final componentsWithHabits =
+                      components.where((c) => c.habits.isNotEmpty).toList();
+
+                  if (componentsWithHabits.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  // Section per vision board (as requested): board name header, then goals/visions.
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        child: Text(
+                          board?.title ?? 'Board',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      ...componentsWithHabits.map((component) {
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                                child: Text(
+                                  component.id,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              ...component.habits.map((habit) {
+                                final isCompleted =
+                                    habit.isCompletedOnDate(DateTime.now());
+                                return CheckboxListTile(
+                                  value: isCompleted,
+                                  onChanged: (_) async {
+                                    final updatedHabit = habit.toggleToday();
+                                    final updatedHabits = component.habits
+                                        .map((h) =>
+                                            h.id == habit.id ? updatedHabit : h)
+                                        .toList();
+                                    final updatedComponent =
+                                        component.copyWithCommon(habits: updatedHabits);
+                                    final updatedComponents = components
+                                        .map((c) => c.id == component.id
+                                            ? updatedComponent
+                                            : c)
+                                        .toList();
+
+                                    await _saveBoardComponents(id, updatedComponents);
+                                    setLocal(() {
+                                      map[id] = updatedComponents;
+                                    });
+                                  },
+                                  title: Text(habit.name),
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  dense: true,
+                                );
+                              }),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                }),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _insightsTab() {
+    final boardId = _activeBoardId;
+    // If a board is selected, show its insights; otherwise show overall insights.
+    if (boardId != null) {
+      return FutureBuilder<List<VisionComponent>>(
+        future: _loadBoardComponents(boardId),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return GlobalInsightsPage(components: snap.data ?? const <VisionComponent>[]);
+        },
+      );
+    }
+
+    return FutureBuilder<Map<String, List<VisionComponent>>>(
+      future: _loadAllBoardsComponents(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final all = <VisionComponent>[];
+        for (final list in snap.data!.values) {
+          all.addAll(list);
+        }
+        return GlobalInsightsPage(components: all);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final body = switch (_tabIndex) {
+      0 => _dashboardTab(),
+      1 => _habitsTab(),
+      _ => _insightsTab(),
+    };
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Digital Vision Board'),
+        automaticallyImplyLeading: false,
+      ),
+      body: body,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _tabIndex,
+        onTap: (i) => setState(() => _tabIndex = i),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.check_circle_outline),
+            label: 'Habits',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.insights),
+            label: 'Insights',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class VisionBoardEditorPage extends StatefulWidget {
+  final String boardId;
+  final String title;
+  final bool initialIsEditing;
+
+  const VisionBoardEditorPage({
+    super.key,
+    required this.boardId,
+    required this.title,
+    required this.initialIsEditing,
+  });
+
+  @override
+  State<VisionBoardEditorPage> createState() => _VisionBoardEditorPageState();
+}
+
+class _NewBoardConfig {
+  final String title;
+  final int iconCodePoint;
+  final int tileColorValue;
+
+  const _NewBoardConfig({
+    required this.title,
+    required this.iconCodePoint,
+    required this.tileColorValue,
+  });
+}
+
+class _NewBoardDialog extends StatefulWidget {
+  const _NewBoardDialog();
+
+  @override
+  State<_NewBoardDialog> createState() => _NewBoardDialogState();
+}
+
+class _NewBoardDialogState extends State<_NewBoardDialog> {
+  late final TextEditingController _controller;
+  late int _selectedIconCodePoint;
+  late int _selectedTileColorValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _selectedIconCodePoint = Icons.dashboard_outlined.codePoint;
+    _selectedTileColorValue = const Color(0xFFEEF2FF).value;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    Navigator.of(context).pop(
+      _NewBoardConfig(
+        title: text,
+        iconCodePoint: _selectedIconCodePoint,
+        tileColorValue: _selectedTileColorValue,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('New Vision Board'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                hintText: 'Board name',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Choose icon',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _iconOptions.map((icon) {
+                final selected = _selectedIconCodePoint == icon.codePoint;
+                return InkWell(
+                  onTap: () => setState(() => _selectedIconCodePoint = icon.codePoint),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: selected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
+                      border: Border.all(
+                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black12,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Icon(icon),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Tile color',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _colorOptions.map((c) {
+                final selected = _selectedTileColorValue == c.value;
+                return InkWell(
+                  onTap: () => setState(() => _selectedTileColorValue = c.value),
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black12,
+                        width: selected ? 3 : 1,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Create'),
+        ),
+      ],
+    );
+  }
+
+  static const List<IconData> _iconOptions = [
+    Icons.dashboard_outlined,
+    Icons.flag_outlined,
+    Icons.favorite_border,
+    Icons.fitness_center_outlined,
+    Icons.school_outlined,
+    Icons.work_outline,
+    Icons.attach_money,
+    Icons.travel_explore,
+    Icons.self_improvement_outlined,
+    Icons.restaurant_outlined,
+  ];
+
+  static const List<Color> _colorOptions = [
+    Color(0xFFEEF2FF), // indigo 50
+    Color(0xFFE0F2FE), // sky 50
+    Color(0xFFECFDF5), // emerald 50
+    Color(0xFFFFF7ED), // orange 50
+    Color(0xFFFFEBEE), // red 50
+    Color(0xFFF3E8FF), // purple 50
+    Color(0xFFFFF1F2), // rose 50
+    Color(0xFFF1F5F9), // slate 50
+  ];
 }
 
 class _OrientationLock extends StatefulWidget {
@@ -86,11 +785,11 @@ class _OrientationLockState extends State<_OrientationLock> {
   }
 }
 
-class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
+class _VisionBoardEditorPageState extends State<VisionBoardEditorPage> {
   List<VisionComponent> _components = [];
   String? _selectedComponentId;
   List<HotspotModel> _legacyHotspots = [];
-  bool _isEditing = true;
+  late bool _isEditing;
   bool _isLoading = true;
   int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Insights
 
@@ -98,10 +797,10 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   static const double _pickedImageMaxSide = 2048;
   static const int _pickedImageQuality = 92; // 0-100 (higher = better quality, larger file)
 
-  static const String _componentsKey = 'vision_board_components';
+  String get _componentsKey => 'vision_board_${widget.boardId}_components';
   static const String _hotspotsKey = 'vision_board_hotspots'; // legacy
-  static const String _imagePathKey = 'vision_board_image_path'; // used as background image
-  static const String _backgroundColorKey = 'vision_board_background_color';
+  String get _imagePathKey => 'vision_board_${widget.boardId}_bg_image_path';
+  String get _backgroundColorKey => 'vision_board_${widget.boardId}_bg_color';
   SharedPreferences? _prefs;
   
   final ImagePicker _imagePicker = ImagePicker();
@@ -113,6 +812,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   @override
   void initState() {
     super.initState();
+    _isEditing = widget.initialIsEditing;
     print('=== initState called ===');
     print('Platform: ${kIsWeb ? "Web" : "Native"}');
     // Load saved image first, then initialize storage
@@ -737,14 +1437,23 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
       // Prevent resizing when keyboard opens to stop image from zooming out/shifting
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text(_isEditing 
-            ? 'Edit Vision Board' 
-            : _viewModeIndex == 0 ? 'Vision Board' : _viewModeIndex == 1 ? 'Habits' : 'Insights'),
+        title: Text(
+          _isEditing
+              ? 'Edit: ${widget.title}'
+              : (_viewModeIndex == 0
+                  ? widget.title
+                  : _viewModeIndex == 1
+                      ? 'Habits'
+                      : 'Insights'),
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        // Back on left, Edit/View toggle on right
+        automaticallyImplyLeading: false,
+        leading: const BackButton(),
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
+            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
             onPressed: _toggleEditMode,
           ),
         ],
@@ -889,7 +1598,7 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
             },
             items: const [
               BottomNavigationBarItem(
-                icon: Icon(Icons.home),
+                icon: Icon(Icons.dashboard_customize_outlined),
                 label: 'Vision Board',
               ),
               BottomNavigationBarItem(
@@ -1204,8 +1913,8 @@ class _AddNameDialogState extends State<_AddNameDialog> {
       content: TextField(
         controller: _nameController,
         decoration: const InputDecoration(
-          labelText: 'Name (ID)',
-          hintText: 'e.g. Vacation Photo',
+          labelText: '',
+          hintText: 'e.g. Fitness',
         ),
         autofocus: true,
         textCapitalization: TextCapitalization.sentences,

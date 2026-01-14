@@ -60,6 +60,29 @@ class VisionBoardInfo {
       );
 }
 
+/// Fixed set of board icons.
+///
+/// Important: keep this list `const` so Flutter can tree-shake unused glyphs.
+const List<IconData> kBoardIconOptions = [
+  Icons.dashboard_outlined,
+  Icons.flag_outlined,
+  Icons.favorite_border,
+  Icons.fitness_center_outlined,
+  Icons.school_outlined,
+  Icons.work_outline,
+  Icons.attach_money,
+  Icons.travel_explore,
+  Icons.self_improvement_outlined,
+  Icons.restaurant_outlined,
+];
+
+IconData boardIconFromCodePoint(int codePoint) {
+  for (final icon in kBoardIconOptions) {
+    if (icon.codePoint == codePoint) return icon;
+  }
+  return Icons.dashboard_outlined;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -338,7 +361,7 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
                 final tileColor = Color(b.tileColorValue);
                 final iconColor =
                     tileColor.computeLuminance() < 0.45 ? Colors.white : Colors.black87;
-                final iconData = IconData(b.iconCodePoint, fontFamily: 'MaterialIcons');
+                final iconData = boardIconFromCodePoint(b.iconCodePoint);
                 return Card(
                   color: tileColor,
                   margin: const EdgeInsets.only(bottom: 12),
@@ -660,7 +683,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: _iconOptions.map((icon) {
+              children: kBoardIconOptions.map((icon) {
                 final selected = _selectedIconCodePoint == icon.codePoint;
                 return InkWell(
                   onTap: () => setState(() => _selectedIconCodePoint = icon.codePoint),
@@ -723,19 +746,6 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
       ],
     );
   }
-
-  static const List<IconData> _iconOptions = [
-    Icons.dashboard_outlined,
-    Icons.flag_outlined,
-    Icons.favorite_border,
-    Icons.fitness_center_outlined,
-    Icons.school_outlined,
-    Icons.work_outline,
-    Icons.attach_money,
-    Icons.travel_explore,
-    Icons.self_improvement_outlined,
-    Icons.restaurant_outlined,
-  ];
 
   static const List<Color> _colorOptions = [
     Color(0xFFEEF2FF), // indigo 50

@@ -115,7 +115,9 @@ class _VisionBoardHotspotBuilderState
   @override
   void dispose() {
     _transformationController.dispose();
-    _imageStream?.removeListener(_imageStreamListener!);
+    if (_imageStream != null && _imageStreamListener != null) {
+      _imageStream!.removeListener(_imageStreamListener!);
+    }
     super.dispose();
   }
 
@@ -126,6 +128,7 @@ class _VisionBoardHotspotBuilderState
     );
     _imageStreamListener = ImageStreamListener(
       (ImageInfo info, bool _) {
+        if (!mounted) return;
         setState(() {
           _imageSize = Size(
             info.image.width.toDouble(),

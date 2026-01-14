@@ -10,6 +10,7 @@ import 'models/vision_component.dart';
 import 'widgets/habits_list_page.dart';
 import 'widgets/global_insights_page.dart';
 import 'widgets/habit_tracker_sheet.dart';
+import 'widgets/grid_board_editor.dart';
 import 'widgets/vision_board_builder.dart';
 
 // Conditional import: File is not available on web
@@ -26,11 +27,15 @@ void main() {
 }
 
 class VisionBoardInfo {
+  static const String layoutFreeform = 'freeform';
+  static const String layoutGrid = 'grid';
+
   final String id;
   final String title;
   final int createdAtMs;
   final int iconCodePoint; // Material icon code point
   final int tileColorValue; // ARGB color value
+  final String layoutType; // 'freeform' | 'grid'
 
   const VisionBoardInfo({
     required this.id,
@@ -38,6 +43,7 @@ class VisionBoardInfo {
     required this.createdAtMs,
     required this.iconCodePoint,
     required this.tileColorValue,
+    required this.layoutType,
   });
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +52,7 @@ class VisionBoardInfo {
         'createdAtMs': createdAtMs,
         'iconCodePoint': iconCodePoint,
         'tileColorValue': tileColorValue,
+        'layoutType': layoutType,
       };
 
   factory VisionBoardInfo.fromJson(Map<String, dynamic> json) => VisionBoardInfo(
@@ -57,6 +64,8 @@ class VisionBoardInfo {
             Icons.dashboard_outlined.codePoint,
         tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
             const Color(0xFFEEF2FF).value,
+        layoutType:
+            json['layoutType'] as String? ?? VisionBoardInfo.layoutFreeform,
       );
 }
 
@@ -166,6 +175,38 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
   String _boardComponentsKey(String boardId) => 'vision_board_${boardId}_components';
   String _boardBgColorKey(String boardId) => 'vision_board_${boardId}_bg_color';
   String _boardImagePathKey(String boardId) => 'vision_board_${boardId}_bg_image_path';
+  String _boardGridTilesKey(String boardId) => 'vision_board_${boardId}_grid_tiles_v1';
+
+  Future<String?> _pickTemplate() async {
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            const ListTile(
+              title: Text(
+                'Choose a template',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: const Text('Freeform Canvas'),
+              subtitle: const Text('Drag, resize, and place items freely'),
+              onTap: () => Navigator.of(context).pop(VisionBoardInfo.layoutFreeform),
+            ),
+            ListTile(
+              leading: const Icon(Icons.grid_view_outlined),
+              title: const Text('Grid Layout'),
+              subtitle: const Text('Structured, scrollable grid tiles'),
+              onTap: () => Navigator.of(context).pop(VisionBoardInfo.layoutGrid),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<List<VisionComponent>> _loadBoardComponents(String boardId) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
@@ -219,6 +260,9 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
   }
 
   Future<void> _createBoard() async {
+    final String? layoutType = await _pickTemplate();
+    if (layoutType == null) return;
+
     final _NewBoardConfig? config = await showDialog<_NewBoardConfig>(
       context: context,
       builder: (context) => const _NewBoardDialog(),
@@ -232,12 +276,31 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
       iconCodePoint: config.iconCodePoint,
       tileColorValue: config.tileColorValue,
+      layoutType: layoutType,
     );
     final next = [board, ..._boards];
     await _saveBoards(next);
     await _setActiveBoard(id);
     if (!mounted) return;
     setState(() => _boards = next);
+
+    // Immediately open the chosen editor in edit mode.
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => layoutType == VisionBoardInfo.layoutGrid
+            ? GridBoardEditor(
+                boardId: id,
+                title: board.title,
+                initialIsEditing: true,
+              )
+            : VisionBoardEditorPage(
+                boardId: id,
+                title: board.title,
+                initialIsEditing: true,
+              ),
+      ),
+    );
+    await _clearActiveBoard();
   }
 
   Future<void> _deleteBoard(VisionBoardInfo board) async {
@@ -265,6 +328,7 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
     await prefs.remove(_boardComponentsKey(board.id));
     await prefs.remove(_boardBgColorKey(board.id));
     await prefs.remove(_boardImagePathKey(board.id));
+    await prefs.remove(_boardGridTilesKey(board.id));
 
     final next = _boards.where((b) => b.id != board.id).toList();
     await _saveBoards(next);
@@ -297,11 +361,17 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => VisionBoardEditorPage(
-          boardId: board.id,
-          title: board.title,
-          initialIsEditing: startInEditMode,
-        ),
+        builder: (_) => board.layoutType == VisionBoardInfo.layoutGrid
+            ? GridBoardEditor(
+                boardId: board.id,
+                title: board.title,
+                initialIsEditing: startInEditMode,
+              )
+            : VisionBoardEditorPage(
+                boardId: board.id,
+                title: board.title,
+                initialIsEditing: startInEditMode,
+              ),
       ),
     );
 

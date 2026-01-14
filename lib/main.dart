@@ -534,33 +534,10 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
   }
 
   Future<void> _addTextComponent() async {
-    final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Text'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'Type something...',
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => const _AddTextDialog(),
     );
-    controller.dispose();
 
     if (result == null || result.isEmpty) return;
 
@@ -825,6 +802,54 @@ class _VisionBoardExamplePageState extends State<VisionBoardExamplePage> {
               ),
             ],
           ),
+    );
+  }
+}
+
+class _AddTextDialog extends StatefulWidget {
+  const _AddTextDialog();
+
+  @override
+  State<_AddTextDialog> createState() => _AddTextDialogState();
+}
+
+class _AddTextDialogState extends State<_AddTextDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Text'),
+      content: TextField(
+        controller: _controller,
+        decoration: const InputDecoration(
+          hintText: 'Type something...',
+        ),
+        autofocus: true,
+        onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }

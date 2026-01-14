@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 import '../utils/file_image_provider.dart';
 import 'manipulable_node.dart';
 

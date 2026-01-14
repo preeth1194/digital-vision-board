@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/hotspot_model.dart';
 import 'habit_tracker_sheet.dart';
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 
 /// A robust, reusable widget for building vision board hotspots.
 /// 

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/hotspot_model.dart';
-import 'models/vision_component.dart';
+import 'models/vision_components.dart';
 import 'widgets/habits_list_page.dart';
 import 'widgets/global_insights_page.dart';
 import 'widgets/habit_tracker_sheet.dart';
@@ -215,7 +215,7 @@ class _DashboardShellPageState extends State<DashboardShellPage> {
     try {
       final decoded = jsonDecode(raw) as List<dynamic>;
       return decoded
-          .map((e) => VisionComponent.fromJson(e as Map<String, dynamic>))
+          .map((e) => visionComponentFromJson(e as Map<String, dynamic>))
           .toList();
     } catch (_) {
       return [];
@@ -1143,7 +1143,7 @@ class _VisionBoardEditorPageState extends State<VisionBoardEditorPage> {
         try {
           final List<dynamic> decoded = jsonDecode(componentsJson) as List<dynamic>;
           final List<VisionComponent> loaded = decoded
-              .map((j) => VisionComponent.fromJson(j as Map<String, dynamic>))
+              .map((j) => visionComponentFromJson(j as Map<String, dynamic>))
               .toList();
           if (mounted) {
             setState(() {

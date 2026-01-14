@@ -4,7 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/habit_item.dart';
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 
 /// Modal bottom sheet for tracking habits associated with a canvas component.
 class HabitTrackerSheet extends StatefulWidget {

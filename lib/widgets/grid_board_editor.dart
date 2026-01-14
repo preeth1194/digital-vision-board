@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_tile_model.dart';
-import '../services/image_pick_crop_service.dart';
+import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
 
 class GridBoardEditor extends StatefulWidget {
@@ -187,7 +187,7 @@ class _GridBoardEditorState extends State<GridBoardEditor> {
     if (sourceChoice == null) return;
 
     final source = sourceChoice == 'camera' ? ImageSource.camera : ImageSource.gallery;
-    final String? croppedPath = await ImagePickCropService.pickAndCropImage(
+    final String? croppedPath = await ImageService.pickAndCropImage(
       context,
       source: source,
       maxWidth: _pickedImageMaxSide,

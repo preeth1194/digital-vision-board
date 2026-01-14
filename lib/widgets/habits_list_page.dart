@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 
 class HabitsListPage extends StatefulWidget {
   final List<VisionComponent> components;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 
 typedef ComponentChanged = void Function(VisionComponent component);
 

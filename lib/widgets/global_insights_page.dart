@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
 
 class GlobalInsightsPage extends StatelessWidget {
   final List<VisionComponent> components;

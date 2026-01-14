@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Reusable image picking + cropping helper.
+/// Handles all image picking + cropping logic.
 ///
 /// Workflow:
 /// 1) pick image via [ImagePicker]
 /// 2) immediately crop via [ImageCropper]
 /// 3) return the cropped file path (or null if cancelled)
-class ImagePickCropService {
-  ImagePickCropService._();
+class ImageService {
+  ImageService._();
 
   static final ImagePicker _picker = ImagePicker();
 
@@ -25,10 +25,11 @@ class ImagePickCropService {
     int? imageQuality,
   }) async {
     if (kIsWeb) {
-      // Keep behavior explicit; current app already treats image editing on web as limited.
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image picking/cropping is not supported on web yet.')),
+          const SnackBar(
+            content: Text('Image picking/cropping is not supported on web yet.'),
+          ),
         );
       }
       return null;
@@ -55,13 +56,10 @@ class ImagePickCropService {
           initAspectRatio: CropAspectRatioPreset.original,
           lockAspectRatio: false,
         ),
-        IOSUiSettings(
-          title: 'Crop',
-        ),
+        IOSUiSettings(title: 'Crop'),
       ],
     );
 
-    // Requirement: only add cropped file; if cancelled, return null.
     return cropped?.path;
   }
 }

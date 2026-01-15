@@ -15,6 +15,7 @@ import '../services/boards_storage_service.dart';
 import '../screens/global_insights_screen.dart';
 import '../screens/habits_list_screen.dart';
 import '../widgets/editor/add_name_dialog.dart';
+import '../widgets/editor/background_options_sheet.dart';
 import '../widgets/editor/layers_sheet.dart';
 import '../widgets/editor/text_editor_dialog.dart';
 import '../widgets/habit_tracker_sheet.dart';
@@ -400,80 +401,24 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
   Future<void> _showBackgroundOptions() async {
     if (!mounted) return;
-    await showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        final colors = <Color>[
-          const Color(0xFFF7F7FA),
-          Colors.white,
-          const Color(0xFF111827),
-          const Color(0xFF0EA5E9),
-          const Color(0xFF10B981),
-          const Color(0xFFF59E0B),
-          const Color(0xFFEF4444),
-          const Color(0xFF8B5CF6),
-        ];
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Background', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    await Future.delayed(const Duration(milliseconds: 150));
-                    if (!mounted) return;
-                    await _showBackgroundImageSourceDialog();
-                  },
-                  icon: const Icon(Icons.image_outlined),
-                  label: const Text('Upload background image'),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: colors.map((c) {
-                    return InkWell(
-                      onTap: () {
-                        setState(() => _backgroundColor = c);
-                        _saveComponents();
-                      },
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: c,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    setState(() {
-                      _imageProvider = null;
-                      _selectedImageFile = null;
-                      _backgroundImageSize = null;
-                    });
-                    await _saveImagePath(null);
-                    if (mounted) Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.hide_image_outlined),
-                  label: const Text('Clear background image'),
-                ),
-              ],
-            ),
-          ),
-        );
+    await showBackgroundOptionsSheet(
+      context,
+      onPickBackgroundImage: () async {
+        await Future.delayed(const Duration(milliseconds: 150));
+        if (!mounted) return;
+        await _showBackgroundImageSourceDialog();
+      },
+      onPickColor: (c) {
+        setState(() => _backgroundColor = c);
+        _saveComponents();
+      },
+      onClearBackgroundImage: () async {
+        setState(() {
+          _imageProvider = null;
+          _selectedImageFile = null;
+          _backgroundImageSize = null;
+        });
+        await _saveImagePath(null);
       },
     );
   }

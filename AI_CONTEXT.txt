@@ -1,0 +1,352 @@
+File: lib/main.dart
+- Class: DigitalVisionBoardApp - No doc comment found.
+- Functions:
+  - main() -> void: No doc comment found.
+
+File: lib/models/grid_tile_model.dart
+- Class: GridTileModel - No doc comment found.
+- Functions:
+  - toJson() -> dynamic: No doc comment found.
+
+File: lib/models/habit_item.dart
+- Class: HabitItem - Model representing a habit item with completion tracking.
+- Functions:
+  - isCompletedOnDate(DateTime date) -> bool: Check if the habit was completed on a specific date (date-only comparison)
+  - toJson() -> Map<String, dynamic>: Converts to a map for serialization
+  - toString() -> dynamic: No doc comment found.
+  - toggleToday() -> HabitItem: Toggle completion for today (adds if not present, removes if present)
+
+File: lib/models/hotspot_component_migration.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - convertHotspotToComponent(HotspotModel hotspot, Size originalImageSize,) -> ZoneComponent: Legacy compatibility: convert a normalized `HotspotModel` into a pixel-space
+
+File: lib/models/hotspot_model.dart
+- Class: HotspotModel - Model representing a hotspot zone on the vision board image.
+- Functions:
+  - toJson() -> Map<String, dynamic>: Converts to a map for serialization
+  - toString() -> dynamic: No doc comment found.
+
+File: lib/models/image_component.dart
+- Class: ImageComponent - No doc comment found.
+- Functions:
+  - toJson() -> dynamic: No doc comment found.
+
+File: lib/models/text_component.dart
+- Class: TextComponent - No doc comment found.
+- Functions:
+  - toJson() -> dynamic: No doc comment found.
+
+File: lib/models/vision_board_info.dart
+- Class: VisionBoardInfo - No doc comment found.
+- Functions:
+  - boardIconFromCodePoint(int codePoint) -> IconData: No doc comment found.
+  - toJson() -> dynamic: No doc comment found.
+
+File: lib/models/vision_component.dart
+- Class: VisionComponent - Freeform canvas node model.
+- Functions:
+  - habitsFromJson(dynamic json) -> dynamic: No doc comment found.
+  - habitsToJson(List<HabitItem> habits) -> dynamic: No doc comment found.
+  - offsetFromJson(Map<String, dynamic> json) -> static Offset: No doc comment found.
+  - offsetToJson(Offset o) -> dynamic: No doc comment found.
+  - sizeFromJson(Map<String, dynamic> json) -> static Size: No doc comment found.
+  - sizeToJson(Size s) -> dynamic: No doc comment found.
+  - textStyleFromJson(Map<String, dynamic> json) -> dynamic: No doc comment found.
+  - textStyleToJson(TextStyle style) -> dynamic: No doc comment found.
+
+File: lib/models/vision_component_factory.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - visionComponentFromJson(Map<String, dynamic> json) -> VisionComponent: Deserialize a [VisionComponent] from JSON.
+
+File: lib/models/vision_components.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/models/zone_component.dart
+- Class: ZoneComponent - Legacy transparent hotspot, kept as a component.
+- Functions:
+  - toJson() -> dynamic: No doc comment found.
+
+File: lib/screens/dashboard_screen.dart
+- Class: DashboardScreen - No doc comment found.
+- Class: _DashboardScreenState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/screens/global_insights_screen.dart
+- Class: GlobalInsightsScreen - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/screens/grid_board_editor.dart
+- Class: GridBoardEditor - No doc comment found.
+- Class: _GridBoardEditorState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/screens/habits_list_screen.dart
+- Class: HabitsListScreen - No doc comment found.
+- Class: _HabitsListScreenState - No doc comment found.
+- Functions:
+  - ListTile(leading: Checkbox( value: isCompleted, onChanged: (_) -> return: No doc comment found.
+
+File: lib/screens/vision_board_editor_screen.dart
+- Class: VisionBoardEditorScreen - No doc comment found.
+- Class: _VisionBoardEditorScreenState - No doc comment found.
+- Functions:
+  - VisionBoardBuilder(components: _components, isEditing: true, selectedComponentId: _selectedComponentId, onSelectedComponentIdChanged: (id) -> return: No doc comment found.
+  - jsonEncode(_components.map((c) -> dynamic: No doc comment found.
+  - showLayersSheet(context, componentsTopToBottom: sorted, selectedId: _selectedComponentId, onDelete: (id) -> dynamic: No doc comment found.
+  - switch(_viewModeIndex) -> dynamic: No doc comment found.
+
+File: lib/services/boards_storage_service.dart
+- Class: BoardsStorageService - No doc comment found.
+- Functions:
+  - boardBgColorKey(String boardId) -> static String: No doc comment found.
+  - boardComponentsKey(String boardId) -> dynamic: No doc comment found.
+  - boardGridTilesKey(String boardId) -> static String: No doc comment found.
+  - boardImagePathKey(String boardId) -> static String: No doc comment found.
+  - jsonEncode(boards.map((b) -> dynamic: No doc comment found.
+
+File: lib/services/grid_board_editor_flows.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/services/grid_tiles_storage_service.dart
+- Class: GridTilesStorageService - No doc comment found.
+- Functions:
+  - gridTilesKey(String boardId) -> dynamic: No doc comment found.
+  - normalizeIndices(List<GridTileModel> tiles) -> dynamic: No doc comment found.
+  - sortTiles(List<GridTileModel> tiles) -> dynamic: No doc comment found.
+
+File: lib/services/image_service.dart
+- Class: ImageService - Handles all image picking + cropping logic.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/services/vision_board_components_storage_service.dart
+- Class: VisionBoardComponentsStorageService - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/utils/file_image_provider.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/utils/file_image_provider_io.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - fileImageProviderFromPath(String path) -> ImageProvider?: No doc comment found.
+
+File: lib/utils/file_image_provider_stub.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - fileImageProviderFromPath(String path) -> ImageProvider?: No doc comment found.
+
+File: lib/widgets/dashboard/all_boards_habits_tab.dart
+- Class: AllBoardsHabitsTab - No doc comment found.
+- Functions:
+  - StatefulBuilder(builder: (context, setLocal) -> return: No doc comment found.
+
+File: lib/widgets/dashboard/dashboard_body.dart
+- Class: DashboardBody - No doc comment found.
+- Functions:
+  - HabitsListScreen(components: snap.data ?? const <VisionComponent>[], onComponentsUpdated: (updated) -> return: No doc comment found.
+  - switch(tabIndex) -> return: No doc comment found.
+
+File: lib/widgets/dashboard/dashboard_tab.dart
+- Class: DashboardTab - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/dialogs/confirm_dialog.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/dialogs/new_board_dialog.dart
+- Class: NewBoardConfig - No doc comment found.
+- Class: _NewBoardDialog - No doc comment found.
+- Class: _NewBoardDialogState - No doc comment found.
+- Functions:
+  - InkWell(onTap: () -> return: No doc comment found.
+  - showNewBoardDialog(BuildContext context) -> Future<NewBoardConfig?>: No doc comment found.
+  - showTemplatePickerSheet(BuildContext context) -> Future<String?>: No doc comment found.
+
+File: lib/widgets/dialogs/text_input_dialog.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/editor/add_name_dialog.dart
+- Class: _AddNameDialog - No doc comment found.
+- Class: _AddNameDialogState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/editor/background_options_sheet.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/editor/layers_sheet.dart
+- Class: _LayersSheet - No doc comment found.
+- Class: _LayersSheetState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/editor/text_editor_dialog.dart
+- Class: TextEditorResult - No doc comment found.
+- Class: _TextEditorDialog - No doc comment found.
+- Class: _TextEditorDialogState - No doc comment found.
+- Functions:
+  - InkWell(onTap: () -> return: No doc comment found.
+
+File: lib/widgets/grid/add_tile_card.dart
+- Class: AddTileCard - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/grid/add_tile_dialog.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - showAddGridTileDialog(BuildContext context) -> Future<GridTileType?>: No doc comment found.
+
+File: lib/widgets/grid/grid_board_editor_scaffold.dart
+- Class: GridBoardEditorScaffold - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/grid/grid_tile_card.dart
+- Class: GridTileCard - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/grid/grid_tile_type.dart
+- Class: GridTileType - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/grid/image_source_sheet.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/grid/mini_icon_button.dart
+- Class: MiniIconButton - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/habit_tracker_sheet.dart
+- Class: HabitTrackerSheet - Modal bottom sheet for tracking habits associated with a canvas component.
+- Class: _HabitTrackerSheetState - No doc comment found.
+- Functions:
+  - DefaultTabController(length: 2, child: DraggableScrollableSheet( initialChildSize: 0.9, minChildSize: 0.5, maxChildSize: 0.95, builder: (context, scrollController) -> return: No doc comment found.
+
+File: lib/widgets/habits/habit_tracker_header.dart
+- Class: HabitTrackerHeader - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/habits/habit_tracker_insights_tab.dart
+- Class: HabitInsightsTab - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/habits/habit_tracker_tracker_tab.dart
+- Class: HabitTrackerTab - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/hotspots/hotspot_canvas_view.dart
+- Class: HotspotCanvasView - No doc comment found.
+- Functions:
+  - LayoutBuilder(builder: (context, constraints) -> return: No doc comment found.
+  - Positioned(left: screenRect.left, top: screenRect.top, width: screenRect.width, height: screenRect.height, child: HotspotOverlay( hotspot: hotspot, isEditing: isEditing, isSelected: isSelected, showLabels: showLabels, hotspotBorderColor: hotspotBorderColor, hotspotFillColor: hotspotFillColor, selectedHotspotBorderColor: selectedHotspotBorderColor, selectedHotspotFillColor: selectedHotspotFillColor, hotspotBorderWidth: hotspotBorderWidth, onTap: () -> dynamic: No doc comment found.
+
+File: lib/widgets/hotspots/hotspot_delete_flow.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/hotspots/hotspot_geometry.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - getImageBounds(Size containerSize, Size imageSize) -> Rect: No doc comment found.
+  - transformPoint(Matrix4 matrix, Offset point) -> Offset: No doc comment found.
+
+File: lib/widgets/hotspots/hotspot_habits_flow.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - HabitTrackerSheet(component: component, onComponentUpdated: (updatedComponent) -> return: No doc comment found.
+
+File: lib/widgets/hotspots/hotspot_overlay.dart
+- Class: HotspotOverlay - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/hotspots/vision_board_hotspot_builder.dart
+- Class: VisionBoardHotspotBuilder - No doc comment found.
+- Class: _VisionBoardHotspotBuilderState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/insights/stat_card.dart
+- Class: StatCard - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/insights/today_progress_card.dart
+- Class: TodayProgressCard - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/insights/weekly_activity_card.dart
+- Class: WeeklyActivityCard - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/manipulable/resize_handle.dart
+- Class: HandlePosition - No doc comment found.
+- Class: ResizeHandle - No doc comment found.
+- Functions:
+  - Align(alignment: alignment, child: GestureDetector( behavior: HitTestBehavior.opaque, onPanStart: (_) -> return: No doc comment found.
+
+File: lib/widgets/manipulable/resize_logic.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/manipulable_node.dart
+- Class: ManipulableNode - A Canva-like wrapper that supports drag, pinch-to-zoom, and rotation,
+- Class: _ManipulableNodeState - No doc comment found.
+- Functions:
+  - Positioned(left: c.position.dx, top: c.position.dy, width: c.size.width, height: c.size.height, child: GestureDetector( behavior: HitTestBehavior.opaque, onTap: () -> return: No doc comment found.
+
+File: lib/widgets/vision_board/component_constraints.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - constrainComponentToViewport(VisionComponent component, Size viewportSize,) -> VisionComponent: No doc comment found.
+
+File: lib/widgets/vision_board/component_image.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - componentImageForPath(String path) -> Widget: Renders an image from either a URL or a local file path.
+
+File: lib/widgets/vision_board_builder.dart
+- Class: VisionBoardBuilder - Freeform, Canva-style vision board builder.
+- Class: _VisionBoardBuilderState - No doc comment found.
+- Functions:
+  - InteractiveViewer(minScale: 0.2, maxScale: 6.0, panEnabled: !widget.isEditing || widget.selectedComponentId == null, scaleEnabled: true, child: GestureDetector( behavior: HitTestBehavior.opaque, onTap: widget.isEditing ? () -> return: No doc comment found.
+  - LayoutBuilder(builder: (context, constraints) -> dynamic: No doc comment found.
+  - ManipulableNode(component: c, isSelected: isSelected, gesturesEnabled: widget.isEditing, child: child, onSelected: () -> dynamic: No doc comment found.
+
+File: lib/widgets/vision_board_hotspot_builder.dart
+- Class: (none) - No classes in this file.
+- Functions:
+  - (none)() -> void: No public functions detected.

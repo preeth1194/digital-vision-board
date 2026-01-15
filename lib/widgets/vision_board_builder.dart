@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/vision_component.dart';
-import '../utils/file_image_provider.dart';
+import '../models/vision_components.dart';
 import 'manipulable_node.dart';
+import 'vision_board/component_constraints.dart';
+import 'vision_board/component_image.dart';
 
 /// Freeform, Canva-style vision board builder.
 ///
@@ -42,57 +43,16 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
   Size? _viewportSize;
 
   void _updateComponent(VisionComponent updated) {
-    // Use viewport size if available, otherwise fall back to canvas size
-    final bgSize = widget.backgroundImageSize;
-    final canvasSize = bgSize != null
-        ? Size(
-            bgSize.width < 2000 ? 2000 : bgSize.width,
-            bgSize.height < 2000 ? 2000 : bgSize.height,
-          )
-        : const Size(2000, 2000);
-    
-    // Use viewport size for constraints (visible area), not canvas size
-    // If viewport size not set yet, use a reasonable default based on screen
-    final constraintSize = _viewportSize;
-    if (constraintSize == null) {
-      // Viewport not initialized yet, skip constraint for now
-      final next = widget.components.map((c) => c.id == updated.id ? updated : c).toList();
-      widget.onComponentsChanged(next);
-      return;
-    }
-    
-    // Constrain size to not exceed viewport (minimum size is 40)
-    const minSize = 40.0;
-    final constrainedWidth = updated.size.width.clamp(minSize, constraintSize.width);
-    final constrainedHeight = updated.size.height.clamp(minSize, constraintSize.height);
-    
-    // Calculate max position based on constrained size and scale
-    // The effective size accounts for scale transformation
-    final effectiveWidth = constrainedWidth * updated.scale;
-    final effectiveHeight = constrainedHeight * updated.scale;
-    
-    // Calculate maximum allowed position so component stays within viewport
-    // Right edge: position.x + effectiveWidth <= constraintSize.width
-    // Bottom edge: position.y + effectiveHeight <= constraintSize.height
-    final maxX = (constraintSize.width - effectiveWidth).clamp(0.0, constraintSize.width);
-    final maxY = (constraintSize.height - effectiveHeight).clamp(0.0, constraintSize.height);
-    
-    // Clamp position to ensure component stays within viewport
-    final constrainedPosition = Offset(
-      updated.position.dx.clamp(0.0, maxX),
-      updated.position.dy.clamp(0.0, maxY),
-    );
-    
-    final constrained = updated.copyWithCommon(
-      position: constrainedPosition,
-      size: Size(constrainedWidth, constrainedHeight),
-    );
+    final viewport = _viewportSize;
+    final constrained = viewport == null ? updated : constrainComponentToViewport(updated, viewport);
     final next = widget.components.map((c) => c.id == updated.id ? constrained : c).toList();
     widget.onComponentsChanged(next);
   }
 
   void _bringToFront(VisionComponent component) {
-    final maxZ = widget.components.isEmpty ? 0 : widget.components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b);
+    final maxZ = widget.components.isEmpty
+        ? 0
+        : widget.components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b);
     if (component.zIndex >= maxZ) return;
     _updateComponent(component.copyWithCommon(zIndex: maxZ + 1));
   }
@@ -109,27 +69,9 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
           )
         : const Size(2000, 2000);
 
-    // Get actual screen size for viewport constraints
-    final mediaQuery = MediaQuery.of(context);
-    final screenSize = mediaQuery.size;
-    // Account for app bar and bottom bar (approximately)
-    // App bar is typically 56, bottom bar is 80
-    final viewportHeight = screenSize.height - 56 - 80; // Approximate, will be refined in LayoutBuilder
-    final viewportSize = Size(screenSize.width, viewportHeight);
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Store actual viewport size - use the smaller of constraints or screen size
-        // This ensures we constrain to the visible area
-        final mediaQuery = MediaQuery.of(context);
-        final screenSize = mediaQuery.size;
-        // Use constraints.biggest which is the actual available space in the body
-        // This already accounts for app bar and bottom bar
-        _viewportSize = Size(
-          constraints.biggest.width > 0 ? constraints.biggest.width : screenSize.width,
-          constraints.biggest.height > 0 ? constraints.biggest.height : screenSize.height,
-        );
-        
+        _viewportSize = constraints.biggest;
         return InteractiveViewer(
           minScale: 0.2,
           maxScale: 6.0,
@@ -163,12 +105,12 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                   ...sorted.map((c) {
                     final isSelected = widget.selectedComponentId == c.id;
 
-                    Widget child;
+                    Widget child = const SizedBox.shrink();
                     switch (c) {
                       case ImageComponent():
                         child = ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: _imageForPath(c.imagePath),
+                          child: componentImageForPath(c.imagePath),
                         );
                         break;
                       case TextComponent():
@@ -210,25 +152,6 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
           ),
         );
       },
-    );
-  }
-
-  Widget _imageForPath(String path) {
-    // If path looks like a URL, treat it as NetworkImage; otherwise, file path.
-    final lower = path.toLowerCase();
-    if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return Image.network(path, fit: BoxFit.cover);
-    }
-
-    final provider = fileImageProviderFromPath(path);
-    if (provider != null) {
-      return Image(image: provider, fit: BoxFit.cover);
-    }
-
-    return Container(
-      color: Colors.black12,
-      alignment: Alignment.center,
-      child: const Icon(Icons.broken_image_outlined),
     );
   }
 }

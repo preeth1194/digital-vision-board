@@ -1,0 +1,5 @@
+enum GridTileType {
+  text,
+  image,
+}
+

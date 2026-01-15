@@ -25,9 +25,13 @@ class ResizeHandle extends StatelessWidget {
     required this.onUpdate,
   });
 
+  // Visual sizes (what you see)
   static const double cornerDiameter = 16;
-  static const double edgeLength = 22;
-  static const double edgeThickness = 10;
+  static const double edgeLength = 26;
+  static const double edgeThickness = 8;
+
+  // Touch target size (invisible). Keep large for usability.
+  static const double touchSize = 30;
 
   static Alignment _alignmentFor(HandlePosition p) {
     return switch (p) {
@@ -43,24 +47,24 @@ class ResizeHandle extends StatelessWidget {
   }
 
   static Offset _borderOffsetFor(HandlePosition p) {
-    // Nudge handles slightly outside the selection border, like the screenshot.
-    const double o = 6;
+    // Center each handle on the selection border (half in / half out),
+    // like the screenshot.
     return switch (p) {
-      HandlePosition.topLeft => const Offset(-o, -o),
-      HandlePosition.topCenter => const Offset(0, -o),
-      HandlePosition.topRight => const Offset(o, -o),
-      HandlePosition.centerLeft => const Offset(-o, 0),
-      HandlePosition.centerRight => const Offset(o, 0),
-      HandlePosition.bottomLeft => const Offset(-o, o),
-      HandlePosition.bottomCenter => const Offset(0, o),
-      HandlePosition.bottomRight => const Offset(o, o),
+      HandlePosition.topLeft => const Offset(-touchSize / 2, -touchSize / 2),
+      HandlePosition.topCenter => const Offset(0, -touchSize / 2),
+      HandlePosition.topRight => const Offset(touchSize / 2, -touchSize / 2),
+      HandlePosition.centerLeft => const Offset(-touchSize / 2, 0),
+      HandlePosition.centerRight => const Offset(touchSize / 2, 0),
+      HandlePosition.bottomLeft => const Offset(-touchSize / 2, touchSize / 2),
+      HandlePosition.bottomCenter => const Offset(0, touchSize / 2),
+      HandlePosition.bottomRight => const Offset(touchSize / 2, touchSize / 2),
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final stroke = cs.primary;
+    // Match the screenshot's purple selection color.
+    const stroke = Color(0xFF7C3AED);
 
     final bool isCorner = switch (position) {
       HandlePosition.topLeft ||
@@ -87,21 +91,27 @@ class ResizeHandle extends StatelessWidget {
           onPanEnd: (_) => onEnd(),
           onPanCancel: () => onEnd(),
           onPanUpdate: onUpdate,
-          child: Container(
-            width: size.width,
-            height: size.height,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: stroke, width: 2),
-              shape: isCorner ? BoxShape.circle : BoxShape.rectangle,
-              borderRadius: isCorner ? null : BorderRadius.circular(999),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1A000000),
-                  blurRadius: 2,
-                  offset: Offset(0, 1),
+          child: SizedBox(
+            width: touchSize,
+            height: touchSize,
+            child: Center(
+              child: Container(
+                width: size.width,
+                height: size.height,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: stroke, width: 2),
+                  shape: isCorner ? BoxShape.circle : BoxShape.rectangle,
+                  borderRadius: isCorner ? null : BorderRadius.circular(999),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

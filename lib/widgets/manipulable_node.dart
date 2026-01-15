@@ -37,6 +37,7 @@ class ManipulableNode extends StatefulWidget {
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
   static const double _rotateButtonDiameter = 44;
+  static const Color _selectionPurple = Color(0xFF7C3AED);
 
   final GlobalKey _boxKey = GlobalKey();
 
@@ -158,7 +159,6 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   @override
   Widget build(BuildContext context) {
     final c = widget.component;
-    final cs = Theme.of(context).colorScheme;
 
     // Keep Positioned unscaled/unrotated; apply transform around center.
     return Positioned(
@@ -189,7 +189,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: cs.primary, width: 2),
+                        border: Border.all(color: _selectionPurple, width: 3),
                       ),
                     ),
                   ),
@@ -243,7 +243,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
                 ),
                 Positioned(
-                  right: -(_rotateButtonDiameter / 2) - 6,
+                  // Fully outside, with a small gap like the screenshot.
+                  right: -(_rotateButtonDiameter / 2) - 8,
                   top: (c.size.height - _rotateButtonDiameter) / 2,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -264,10 +265,10 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                             offset: Offset(0, 2),
                           ),
                         ],
-                        border: Border.all(color: cs.primary, width: 2),
+                        border: Border.all(color: Colors.black12, width: 1),
                       ),
                       alignment: Alignment.center,
-                      child: Icon(Icons.rotate_right, size: 22, color: cs.primary),
+                      child: const Icon(Icons.rotate_right, size: 22, color: Colors.black87),
                     ),
                   ),
                 ),

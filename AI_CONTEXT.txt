@@ -97,11 +97,9 @@ File: lib/screens/vision_board_editor_screen.dart
 - Class: VisionBoardEditorScreen - No doc comment found.
 - Class: _VisionBoardEditorScreenState - No doc comment found.
 - Functions:
-  - InkWell(onTap: () -> return: No doc comment found.
   - VisionBoardBuilder(components: _components, isEditing: true, selectedComponentId: _selectedComponentId, onSelectedComponentIdChanged: (id) -> return: No doc comment found.
   - jsonEncode(_components.map((c) -> dynamic: No doc comment found.
   - showLayersSheet(context, componentsTopToBottom: sorted, selectedId: _selectedComponentId, onDelete: (id) -> dynamic: No doc comment found.
-  - showModalBottomSheet(context: context, showDragHandle: true, builder: (context) -> await: No doc comment found.
   - switch(_viewModeIndex) -> dynamic: No doc comment found.
 
 File: lib/services/boards_storage_service.dart
@@ -188,6 +186,11 @@ File: lib/widgets/dialogs/text_input_dialog.dart
 File: lib/widgets/editor/add_name_dialog.dart
 - Class: _AddNameDialog - No doc comment found.
 - Class: _AddNameDialogState - No doc comment found.
+- Functions:
+  - (none)() -> void: No public functions detected.
+
+File: lib/widgets/editor/background_options_sheet.dart
+- Class: (none) - No classes in this file.
 - Functions:
   - (none)() -> void: No public functions detected.
 

@@ -43,6 +43,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
   bool _isResizing = false;
   bool _isRotating = false;
+  HandlePosition? _selectedResizeHandle;
 
   late double _startScale;
   late double _startRotation;
@@ -62,6 +63,11 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (oldWidget.component != widget.component) {
       _startScale = widget.component.scale;
       _startRotation = widget.component.rotation;
+    }
+    if (oldWidget.isSelected && !widget.isSelected) {
+      _selectedResizeHandle = null;
+      _isResizing = false;
+      _isRotating = false;
     }
   }
 
@@ -106,6 +112,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   void _resize(HandlePosition handle, DragUpdateDetails details) {
     if (!widget.gesturesEnabled) return;
     if (!widget.isSelected) return;
+    if (_selectedResizeHandle != handle) return;
 
     final delta = details.delta / widget.component.scale;
     final resized = applyResizeDelta(
@@ -196,49 +203,97 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                 ),
                 ResizeHandle(
                   position: HandlePosition.topLeft,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.topLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topLeft);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.topLeft, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.topCenter,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.topCenter,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topCenter),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topCenter);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.topCenter, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.topRight,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.topRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topRight);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.topRight, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.centerLeft,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.centerLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.centerLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.centerLeft);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.centerLeft, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.centerRight,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.centerRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.centerRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.centerRight);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.centerRight, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.bottomLeft,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomLeft);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomLeft, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.bottomCenter,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomCenter,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomCenter),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomCenter);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomCenter, d),
                 ),
                 ResizeHandle(
                   position: HandlePosition.bottomRight,
-                  onStart: () => _setResizing(true),
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomRight);
+                    _setResizing(true);
+                  },
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
                 ),

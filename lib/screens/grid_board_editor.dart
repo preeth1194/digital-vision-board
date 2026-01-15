@@ -9,6 +9,7 @@ import '../models/grid_tile_model.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
+import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
 
@@ -43,6 +44,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
+  HandlePosition? _selectedResizeHandle;
+  int? _draggingIndex;
 
   SharedPreferences? _prefs;
   List<GridTileModel> _tiles = [];
@@ -67,7 +70,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   }
 
   List<GridTileModel> _ensureTemplateTiles(List<GridTileModel> existing) {
-    // Normalize indices, then ensure we have at least template-length tiles.
+    // Normalize indices. If this board has never been initialized (no saved tiles),
+    // seed it from the chosen template. Otherwise, keep the user's current slot count
+    // (do NOT enforce a template minimum).
     final sorted = GridTilesStorageService.sortTiles(existing);
     final normalized = <GridTileModel>[];
     for (int i = 0; i < sorted.length; i++) {
@@ -76,18 +81,20 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
 
     final next = List<GridTileModel>.from(normalized);
-    for (int i = next.length; i < widget.template.tiles.length; i++) {
-      final blueprint = widget.template.tiles[i];
-      next.add(
-        GridTileModel(
-          id: 'tile_$i',
-          type: 'empty',
-          content: null,
-          crossAxisCellCount: blueprint.crossAxisCount,
-          mainAxisCellCount: blueprint.mainAxisCount,
-          index: i,
-        ),
-      );
+    if (existing.isEmpty) {
+      for (int i = next.length; i < widget.template.tiles.length; i++) {
+        final blueprint = widget.template.tiles[i];
+        next.add(
+          GridTileModel(
+            id: 'tile_$i',
+            type: 'empty',
+            content: null,
+            crossAxisCellCount: blueprint.crossAxisCount,
+            mainAxisCellCount: blueprint.mainAxisCount,
+            index: i,
+          ),
+        );
+      }
     }
     return GridTilesStorageService.sortTiles(next);
   }
@@ -156,20 +163,40 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     _resizeAccumDy = 0;
   }
 
+  void _selectResizeHandle(HandlePosition h) {
+    if (_selectedResizeHandle == h) return;
+    setState(() => _selectedResizeHandle = h);
+  }
+
+  void _onResizeHandleStart(HandlePosition h) {
+    _selectResizeHandle(h);
+    _onResizeDragStart();
+  }
+
+  bool _isCornerHandle(HandlePosition? h) {
+    return h == HandlePosition.topLeft ||
+        h == HandlePosition.topRight ||
+        h == HandlePosition.bottomLeft ||
+        h == HandlePosition.bottomRight;
+  }
+
   Future<void> _onResizeDragUpdate(
     DragUpdateDetails details, {
     required double cellExtent,
     bool allowW = true,
     bool allowH = true,
+    double dxMultiplier = 1,
+    double dyMultiplier = 1,
   }) async {
     if (!_isEditing) return;
     if (_selectedIndex == null) return;
 
-    if (allowW) _resizeAccumDx += details.delta.dx;
-    if (allowH) _resizeAccumDy += details.delta.dy;
+    if (allowW) _resizeAccumDx += details.delta.dx * dxMultiplier;
+    if (allowH) _resizeAccumDy += details.delta.dy * dyMultiplier;
 
-    // Snap a bit sooner than a full cell so small tiles are still usable.
-    final snapExtent = cellExtent * 0.6;
+    // Snap sooner than a full cell so resizing feels responsive.
+    // (Handles are small; requiring ~60% of a cell can feel "stuck".)
+    final snapExtent = cellExtent * 0.35;
 
     int deltaW = 0;
     int deltaH = 0;
@@ -239,14 +266,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       return;
     }
 
-    // If no content is found, delete the tile slot (if allowed).
-    if (_tiles.length <= widget.template.tiles.length) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot remove tiles below the template minimum.')),
-      );
-      return;
-    }
+    // If no content is found, delete the tile slot.
 
     final kept = _tiles.where((tile) => tile.index != index).toList();
     final reindexed = <GridTileModel>[];
@@ -255,7 +275,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
     await _saveTiles(reindexed);
     if (!mounted) return;
-    setState(() => _selectedIndex = null);
+    setState(() {
+      _selectedIndex = null;
+      _selectedResizeHandle = null;
+    });
   }
 
   Future<void> _pickAndSetImage(int index) async {
@@ -466,9 +489,17 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 return GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
-                    if (_isEditing) setState(() => _selectedIndex = null);
+                    if (_isEditing) {
+                      setState(() {
+                        _selectedIndex = null;
+                        _selectedResizeHandle = null;
+                      });
+                    }
                   },
                   child: SingleChildScrollView(
+                    physics: (_isEditing && _isCornerHandle(_selectedResizeHandle))
+                        ? const NeverScrollableScrollPhysics()
+                        : null,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: StaggeredGrid.count(
@@ -482,12 +513,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                               mainAxisCellCount: _tileAt(i).mainAxisCellCount,
                               child: DragTarget<int>(
                                 onWillAcceptWithDetails: (details) =>
-                                    _isEditing && details.data != i,
+                                    _isEditing &&
+                                    details.data != i &&
+                                    (_selectedIndex == null || _draggingIndex != null),
                                 onAcceptWithDetails: (details) =>
                                     _swapTileSlots(details.data, i),
                                 builder: (context, candidateData, rejectedData) {
                                   final tile = _tileAt(i);
                                   final isSelected = _isEditing && _selectedIndex == i;
+                                  final selectionLocked =
+                                      _isEditing && _selectedIndex != null && !isSelected;
                                   final isDropTarget = candidateData.isNotEmpty;
                                   final tileSize =
                                       _tilePixelSize(tile, cellExtent: cellExtent, spacing: spacing);
@@ -525,93 +560,100 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           ),
                                         ),
                                       if (isSelected)
-                                        Positioned(
-                                          // Keep the handle on the tile border (inside hit area) so
-                                          // it doesn't lose hit-testing to drag & drop.
-                                          right: 0,
-                                          top: 0,
-                                          bottom: 0,
-                                          child: Center(
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onPanStart: (_) => _onResizeDragStart(),
-                                              onPanUpdate: (d) => _onResizeDragUpdate(
+                                        ...[
+                                          // Grid editor: only show resize handles on left-middle, right-middle,
+                                          // and bottom-right.
+                                          ResizeHandle(
+                                            position: HandlePosition.centerLeft,
+                                            isSelected: _selectedResizeHandle ==
+                                                HandlePosition.centerLeft,
+                                            onSelected: () =>
+                                                _selectResizeHandle(HandlePosition.centerLeft),
+                                            onStart: () =>
+                                                _onResizeHandleStart(HandlePosition.centerLeft),
+                                            onEnd: () {},
+                                            touchSize: 40,
+                                            cornerDiameter: 14,
+                                            edgeLength: 24,
+                                            edgeThickness: 6,
+                                            visualOutset: 3,
+                                            onUpdate: (d) {
+                                              if (_selectedResizeHandle !=
+                                                  HandlePosition.centerLeft) {
+                                                return;
+                                              }
+                                              // Mirror right-handle behavior: dragging left increases width,
+                                              // dragging right decreases width.
+                                              _onResizeDragUpdate(
                                                 d,
                                                 cellExtent: cellExtent,
                                                 allowH: false,
-                                              ),
-                                              child: Container(
-                                                width: 16,
-                                                height: 28,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black.withOpacity(0.55),
-                                                  borderRadius: BorderRadius.circular(999),
-                                                ),
-                                                alignment: Alignment.center,
-                                                child: const Icon(Icons.chevron_right, size: 14, color: Colors.white),
-                                              ),
-                                            ),
+                                                dxMultiplier: -1,
+                                              );
+                                            },
                                           ),
-                                        ),
-                                      if (isSelected)
-                                        Positioned(
-                                          left: 0,
-                                          right: 0,
-                                          bottom: 0,
-                                          child: Center(
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onPanStart: (_) => _onResizeDragStart(),
-                                              onPanUpdate: (d) => _onResizeDragUpdate(
+                                          ResizeHandle(
+                                            position: HandlePosition.centerRight,
+                                            isSelected: _selectedResizeHandle ==
+                                                HandlePosition.centerRight,
+                                            onSelected: () =>
+                                                _selectResizeHandle(HandlePosition.centerRight),
+                                            onStart: () =>
+                                                _onResizeHandleStart(HandlePosition.centerRight),
+                                            onEnd: () {},
+                                            // Smaller visuals for grid tiles; keep centered on the border.
+                                            touchSize: 40,
+                                            cornerDiameter: 14,
+                                            edgeLength: 24,
+                                            edgeThickness: 6,
+                                            visualOutset: 3,
+                                            onUpdate: (d) {
+                                              if (_selectedResizeHandle !=
+                                                  HandlePosition.centerRight) {
+                                                return;
+                                              }
+                                              _onResizeDragUpdate(
                                                 d,
                                                 cellExtent: cellExtent,
-                                                allowW: false,
-                                              ),
-                                              child: Container(
-                                                width: 28,
-                                                height: 16,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black.withOpacity(0.55),
-                                                  borderRadius: BorderRadius.circular(999),
-                                                ),
-                                                alignment: Alignment.center,
-                                                child: const Icon(Icons.expand_more, size: 14, color: Colors.white),
-                                              ),
-                                            ),
+                                                allowH: false,
+                                              );
+                                            },
                                           ),
-                                        ),
-                                      if (isSelected)
-                                        Positioned(
-                                          right: 0,
-                                          bottom: 0,
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onPanStart: (_) => _onResizeDragStart(),
-                                            onPanUpdate: (d) => _onResizeDragUpdate(
-                                              d,
-                                              cellExtent: cellExtent,
-                                            ),
-                                            child: Container(
-                                              width: 18,
-                                              height: 18,
-                                              decoration: BoxDecoration(
-                                                color: Colors.black.withOpacity(0.55),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              alignment: Alignment.center,
-                                              child: const Icon(Icons.open_in_full, size: 11, color: Colors.white),
-                                            ),
+                                          ResizeHandle(
+                                            position: HandlePosition.bottomRight,
+                                            isSelected: _selectedResizeHandle ==
+                                                HandlePosition.bottomRight,
+                                            onSelected: () =>
+                                                _selectResizeHandle(HandlePosition.bottomRight),
+                                            onStart: () =>
+                                                _onResizeHandleStart(HandlePosition.bottomRight),
+                                            onEnd: () {},
+                                            touchSize: 40,
+                                            cornerDiameter: 14,
+                                            edgeLength: 24,
+                                            edgeThickness: 6,
+                                            visualOutset: 4,
+                                            onUpdate: (d) {
+                                              if (_selectedResizeHandle !=
+                                                  HandlePosition.bottomRight) {
+                                                return;
+                                              }
+                                              _onResizeDragUpdate(d, cellExtent: cellExtent);
+                                            },
                                           ),
-                                        ),
+                                        ],
                                     ],
                                   );
 
                                   final content = InkWell(
-                                    onTap: !_isEditing
+                                    onTap: (!_isEditing || selectionLocked)
                                         ? null
                                         : () async {
                                             final wasSelected = _selectedIndex == i;
-                                            setState(() => _selectedIndex = i);
+                                            setState(() {
+                                              _selectedIndex = i;
+                                              if (!wasSelected) _selectedResizeHandle = null;
+                                            });
 
                                             // Second tap on a selected tile edits/adds content.
                                             if (!wasSelected) return;
@@ -626,11 +668,35 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                     child: tileStack,
                                   );
 
+                                  // While a tile is selected, lock interactions on other tiles so
+                                  // resize handles at the border/corners don't lose gestures to
+                                  // neighboring tiles.
+                                  if (selectionLocked) {
+                                    return IgnorePointer(
+                                      child: content,
+                                    );
+                                  }
+
                                   if (!_isEditing) return content;
 
                                   return LongPressDraggable<int>(
                                     data: i,
                                     dragAnchorStrategy: pointerDragAnchorStrategy,
+                                    onDragStarted: () {
+                                      setState(() => _draggingIndex = i);
+                                    },
+                                    onDragEnd: (_) {
+                                      if (!mounted) return;
+                                      setState(() => _draggingIndex = null);
+                                    },
+                                    onDragCompleted: () {
+                                      if (!mounted) return;
+                                      setState(() => _draggingIndex = null);
+                                    },
+                                    onDraggableCanceled: (_, __) {
+                                      if (!mounted) return;
+                                      setState(() => _draggingIndex = null);
+                                    },
                                     feedback: Material(
                                       elevation: 8,
                                       color: Colors.transparent,

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../services/vision_board_components_storage_service.dart';
-import '../habits_list_page.dart';
+import '../../screens/habits_list_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'dashboard_tab.dart';
 import '../../screens/global_insights_screen.dart';
@@ -56,7 +56,7 @@ class DashboardBody extends StatelessWidget {
           future: VisionBoardComponentsStorageService.loadComponents(boardId, prefs: prefs),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return HabitsListPage(
+            return HabitsListScreen(
               components: snap.data ?? const <VisionComponent>[],
               onComponentsUpdated: (updated) =>
                   VisionBoardComponentsStorageService.saveComponents(boardId, updated, prefs: prefs),

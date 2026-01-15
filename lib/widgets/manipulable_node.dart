@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 import '../models/vision_components.dart';
 import 'manipulable/resize_handle.dart';
@@ -35,26 +36,30 @@ class ManipulableNode extends StatefulWidget {
 
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
+  static const double _rotateButtonDiameter = 44;
+  static const Color _selectionPurple = Color(0xFF7C3AED);
+
+  final GlobalKey _boxKey = GlobalKey();
 
   bool _isResizing = false;
+  bool _isRotating = false;
 
-  late VisionComponent _startComponent;
   late double _startScale;
   late double _startRotation;
+  late double _rotateStartAngle;
 
   @override
   void initState() {
     super.initState();
-    _startComponent = widget.component;
     _startScale = widget.component.scale;
     _startRotation = widget.component.rotation;
+    _rotateStartAngle = 0;
   }
 
   @override
   void didUpdateWidget(covariant ManipulableNode oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.component != widget.component) {
-      _startComponent = widget.component;
       _startScale = widget.component.scale;
       _startRotation = widget.component.rotation;
     }
@@ -66,7 +71,6 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
   void _onScaleStart(ScaleStartDetails details) {
     if (!widget.gesturesEnabled) return;
-    _startComponent = widget.component;
     _startScale = widget.component.scale;
     _startRotation = widget.component.rotation;
   }
@@ -75,6 +79,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (!widget.gesturesEnabled) return;
     if (!widget.isSelected) return;
     if (_isResizing) return;
+    if (_isRotating) return;
 
     // When a component is scaled up/down, raw pointer deltas are in screen space.
     // Convert to canvas space so dragging stays smooth and doesn't "overshoot".
@@ -91,6 +96,11 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   void _setResizing(bool v) {
     if (_isResizing == v) return;
     setState(() => _isResizing = v);
+  }
+
+  void _setRotating(bool v) {
+    if (_isRotating == v) return;
+    setState(() => _isRotating = v);
   }
 
   void _resize(HandlePosition handle, DragUpdateDetails details) {
@@ -114,6 +124,38 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     );
   }
 
+  void _onRotateStart(DragStartDetails details) {
+    if (!widget.gesturesEnabled) return;
+    if (!widget.isSelected) return;
+    final ctx = _boxKey.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    _startRotation = widget.component.rotation;
+    final centerGlobal = box.localToGlobal(Offset(box.size.width / 2, box.size.height / 2));
+    final v = details.globalPosition - centerGlobal;
+    _rotateStartAngle = math.atan2(v.dy, v.dx);
+    _setRotating(true);
+  }
+
+  void _onRotateUpdate(DragUpdateDetails details) {
+    if (!widget.gesturesEnabled) return;
+    if (!widget.isSelected) return;
+    final ctx = _boxKey.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final centerGlobal = box.localToGlobal(Offset(box.size.width / 2, box.size.height / 2));
+    final v = details.globalPosition - centerGlobal;
+    final angle = math.atan2(v.dy, v.dx);
+    final delta = angle - _rotateStartAngle;
+    _emit(widget.component.copyWithCommon(rotation: _startRotation + delta));
+  }
+
+  void _onRotateEnd([DragEndDetails? _]) => _setRotating(false);
+
   @override
   Widget build(BuildContext context) {
     final c = widget.component;
@@ -125,6 +167,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
       width: c.size.width,
       height: c.size.height,
       child: GestureDetector(
+        key: _boxKey,
         behavior: HitTestBehavior.opaque,
         onTap: () {
           if (!widget.gesturesEnabled) return widget.onOpen?.call();
@@ -146,34 +189,88 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
+                        border: Border.all(color: _selectionPurple, width: 3),
                       ),
                     ),
                   ),
                 ),
                 ResizeHandle(
-                  alignment: Alignment.topLeft,
+                  position: HandlePosition.topLeft,
                   onStart: () => _setResizing(true),
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.topLeft, d),
                 ),
                 ResizeHandle(
-                  alignment: Alignment.topRight,
+                  position: HandlePosition.topCenter,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topCenter, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.topRight,
                   onStart: () => _setResizing(true),
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.topRight, d),
                 ),
                 ResizeHandle(
-                  alignment: Alignment.bottomLeft,
+                  position: HandlePosition.centerLeft,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.centerLeft, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.centerRight,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.centerRight, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.bottomLeft,
                   onStart: () => _setResizing(true),
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomLeft, d),
                 ),
                 ResizeHandle(
-                  alignment: Alignment.bottomRight,
+                  position: HandlePosition.bottomCenter,
+                  onStart: () => _setResizing(true),
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomCenter, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.bottomRight,
                   onStart: () => _setResizing(true),
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
+                ),
+                Positioned(
+                  // Fully outside, with a small gap like the screenshot.
+                  right: -(_rotateButtonDiameter / 2) - 8,
+                  top: (c.size.height - _rotateButtonDiameter) / 2,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: _onRotateStart,
+                    onPanUpdate: _onRotateUpdate,
+                    onPanEnd: _onRotateEnd,
+                    onPanCancel: () => _setRotating(false),
+                    child: Container(
+                      width: _rotateButtonDiameter,
+                      height: _rotateButtonDiameter,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x1A000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.black12, width: 1),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.rotate_right, size: 22, color: Colors.black87),
+                    ),
+                  ),
                 ),
               ],
             ],

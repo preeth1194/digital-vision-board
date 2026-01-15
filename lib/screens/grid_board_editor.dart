@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
-import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
@@ -42,7 +41,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   late bool _isEditing;
   bool _loading = true;
   int? _selectedIndex;
-  bool _compactSpacing = false;
+  double _resizeAccumDx = 0;
+  double _resizeAccumDy = 0;
 
   SharedPreferences? _prefs;
   List<GridTileModel> _tiles = [];
@@ -56,10 +56,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
-    _compactSpacing = _prefs?.getBool(
-          BoardsStorageService.boardGridCompactSpacingKey(widget.boardId),
-        ) ??
-        false;
     final loaded = await GridTilesStorageService.loadTiles(widget.boardId, prefs: _prefs);
     final hydrated = _ensureTemplateTiles(loaded);
     await GridTilesStorageService.saveTiles(widget.boardId, hydrated, prefs: _prefs);
@@ -120,16 +116,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     await _saveTiles(next);
   }
 
-  Future<void> _setCompactSpacing(bool value) async {
-    setState(() => _compactSpacing = value);
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    await prefs.setBool(
-      BoardsStorageService.boardGridCompactSpacingKey(widget.boardId),
-      value,
-    );
-  }
-
   Future<void> _addTileSlot() async {
     if (!_isEditing) return;
     final id = 'tile_${DateTime.now().millisecondsSinceEpoch}';
@@ -150,46 +136,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _removeSelectedTileSlot() async {
-    if (!_isEditing) return;
-    final selected = _selectedIndex;
-    if (selected == null) return;
-    if (_tiles.length <= widget.template.tiles.length) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot remove tiles below the template minimum.')),
-      );
-      return;
-    }
-
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove tile slot?'),
-        content: const Text('This removes the tile position from the layout.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (confirm != true) return;
-
-    final kept = _tiles.where((t) => t.index != selected).toList();
-    final reindexed = <GridTileModel>[];
-    for (int i = 0; i < kept.length; i++) {
-      reindexed.add(kept[i].index == i ? kept[i] : kept[i].copyWith(index: i));
-    }
-    await _saveTiles(reindexed);
-    if (!mounted) return;
-    setState(() => _selectedIndex = selected.clamp(0, reindexed.length - 1));
-  }
-
   Future<void> _resizeSelected({int deltaW = 0, int deltaH = 0}) async {
     if (!_isEditing) return;
     final tile = _selectedTile();
@@ -203,6 +149,113 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         mainAxisCellCount: nextH,
       ),
     );
+  }
+
+  void _onResizeDragStart() {
+    _resizeAccumDx = 0;
+    _resizeAccumDy = 0;
+  }
+
+  Future<void> _onResizeDragUpdate(
+    DragUpdateDetails details, {
+    required double cellExtent,
+    bool allowW = true,
+    bool allowH = true,
+  }) async {
+    if (!_isEditing) return;
+    if (_selectedIndex == null) return;
+
+    if (allowW) _resizeAccumDx += details.delta.dx;
+    if (allowH) _resizeAccumDy += details.delta.dy;
+
+    // Snap a bit sooner than a full cell so small tiles are still usable.
+    final snapExtent = cellExtent * 0.6;
+
+    int deltaW = 0;
+    int deltaH = 0;
+
+    if (allowW) {
+      while (_resizeAccumDx >= snapExtent) {
+        deltaW += 1;
+        _resizeAccumDx -= snapExtent;
+      }
+      while (_resizeAccumDx <= -snapExtent) {
+        deltaW -= 1;
+        _resizeAccumDx += snapExtent;
+      }
+    }
+    if (allowH) {
+      while (_resizeAccumDy >= snapExtent) {
+        deltaH += 1;
+        _resizeAccumDy -= snapExtent;
+      }
+      while (_resizeAccumDy <= -snapExtent) {
+        deltaH -= 1;
+        _resizeAccumDy += snapExtent;
+      }
+    }
+
+    if (deltaW != 0 || deltaH != 0) {
+      await _resizeSelected(deltaW: deltaW, deltaH: deltaH);
+    }
+  }
+
+  Future<void> _swapTileSlots(int fromIndex, int toIndex) async {
+    if (!_isEditing) return;
+    if (fromIndex == toIndex) return;
+    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= _tiles.length || toIndex >= _tiles.length) return;
+
+    final fromTile = _tileAt(fromIndex);
+    final toTile = _tileAt(toIndex);
+
+    final next = _tiles.map((t) {
+      if (t.id == fromTile.id) return t.copyWith(index: toIndex);
+      if (t.id == toTile.id) return t.copyWith(index: fromIndex);
+      return t;
+    }).toList();
+
+    await _saveTiles(next);
+    if (!mounted) return;
+    setState(() => _selectedIndex = toIndex);
+  }
+
+  Size _tilePixelSize(GridTileModel tile, {required double cellExtent, required double spacing}) {
+    final w = (tile.crossAxisCellCount * cellExtent) +
+        ((tile.crossAxisCellCount - 1).clamp(0, 1000) * spacing);
+    final h = (tile.mainAxisCellCount * cellExtent) +
+        ((tile.mainAxisCellCount - 1).clamp(0, 1000) * spacing);
+    return Size(w, h);
+  }
+
+  Future<void> _deleteOrClearTile(int index) async {
+    if (!_isEditing) return;
+    final t = _tileAt(index);
+    final hasContent = t.type != 'empty' && (t.content ?? '').trim().isNotEmpty;
+
+    // If there is content, delete the contents (keep the tile slot).
+    if (hasContent) {
+      await _clearTile(index);
+      return;
+    }
+
+    // If no content is found, delete the tile slot (if allowed).
+    if (_tiles.length <= widget.template.tiles.length) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You cannot remove tiles below the template minimum.')),
+      );
+      return;
+    }
+
+    final kept = _tiles.where((tile) => tile.index != index).toList();
+    final reindexed = <GridTileModel>[];
+    for (int i = 0; i < kept.length; i++) {
+      reindexed.add(kept[i].index == i ? kept[i] : kept[i].copyWith(index: i));
+    }
+    await _saveTiles(reindexed);
+    if (!mounted) return;
+    setState(() => _selectedIndex = null);
   }
 
   Future<void> _pickAndSetImage(int index) async {
@@ -239,6 +292,39 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         index: index,
       ),
     );
+  }
+
+  Future<void> _showAddContentSheet(int index) async {
+    if (!_isEditing) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('Add Image'),
+              onTap: () => Navigator.of(context).pop('image'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: const Text('Add Text'),
+              onTap: () => Navigator.of(context).pop('text'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (choice == null) return;
+    if (choice == 'image') {
+      await _pickAndSetImage(index);
+      return;
+    }
+    if (choice == 'text') {
+      await _editText(index);
+    }
   }
 
   Future<void> _editText(int index) async {
@@ -279,45 +365,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     );
   }
 
-  Future<void> _showTileMenu(int index) async {
-    final t = _tileAt(index);
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.text_fields),
-              title: const Text('Edit Text'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _editText(index);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.layers_clear_outlined),
-              title: const Text('Clear Tile'),
-              enabled: t.type != 'empty',
-              onTap: t.type == 'empty'
-                  ? null
-                  : () {
-                      Navigator.of(context).pop();
-                      _clearTile(index);
-                    },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _toggleEditMode() {
     setState(() => _isEditing = !_isEditing);
   }
 
   Widget _tileChild(GridTileModel tile) {
-    final borderRadius = BorderRadius.circular(16);
+    final borderRadius = BorderRadius.zero;
     final isSelected = _isEditing && _selectedIndex == tile.index;
 
     if (tile.type == 'image') {
@@ -330,7 +383,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.none,
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
@@ -351,7 +404,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         alignment: Alignment.topLeft,
         child: Text(
           (tile.content ?? '').trim(),
@@ -373,13 +426,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         ),
       ),
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: const [
           Icon(Icons.add, color: Colors.black54),
           SizedBox(height: 6),
-          Text('Tap to Add', style: TextStyle(color: Colors.black54)),
+          Text('Tap twice to add', style: TextStyle(color: Colors.black54)),
         ],
       ),
     );
@@ -387,7 +440,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = _compactSpacing ? 0.0 : 12.0;
+    // Removed the fixed 12px spacing toggle; keep the grid compact by default.
+    const spacing = 0.0;
     final selected = _selectedTile();
     return Scaffold(
       appBar: AppBar(
@@ -403,78 +457,230 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: StaggeredGrid.count(
-                crossAxisCount: _crossAxisCount,
-                mainAxisSpacing: spacing,
-                crossAxisSpacing: spacing,
-                children: [
-                  for (int i = 0; i < _tiles.length; i++)
-                    StaggeredGridTile.count(
-                      crossAxisCellCount: _tileAt(i).crossAxisCellCount,
-                      mainAxisCellCount: _tileAt(i).mainAxisCellCount,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: !_isEditing
-                            ? null
-                            : () {
-                                final t = _tileAt(i);
-                                setState(() => _selectedIndex = i);
-                                if (t.type == 'empty') _pickAndSetImage(i);
-                              },
-                        onLongPress: !_isEditing ? null : () => _showTileMenu(i),
-                        child: _tileChild(_tileAt(i)),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                // Grid is rendered inside a 16px padding on both sides.
+                final gridMaxWidth = (constraints.maxWidth - 32).clamp(0.0, double.infinity);
+                final cellExtent =
+                    (gridMaxWidth - (spacing * (_crossAxisCount - 1))) / _crossAxisCount;
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () {
+                    if (_isEditing) setState(() => _selectedIndex = null);
+                  },
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: StaggeredGrid.count(
+                        crossAxisCount: _crossAxisCount,
+                        mainAxisSpacing: spacing,
+                        crossAxisSpacing: spacing,
+                        children: [
+                          for (int i = 0; i < _tiles.length; i++)
+                            StaggeredGridTile.count(
+                              crossAxisCellCount: _tileAt(i).crossAxisCellCount,
+                              mainAxisCellCount: _tileAt(i).mainAxisCellCount,
+                              child: DragTarget<int>(
+                                onWillAcceptWithDetails: (details) =>
+                                    _isEditing && details.data != i,
+                                onAcceptWithDetails: (details) =>
+                                    _swapTileSlots(details.data, i),
+                                builder: (context, candidateData, rejectedData) {
+                                  final tile = _tileAt(i);
+                                  final isSelected = _isEditing && _selectedIndex == i;
+                                  final isDropTarget = candidateData.isNotEmpty;
+                                  final tileSize =
+                                      _tilePixelSize(tile, cellExtent: cellExtent, spacing: spacing);
+
+                                  final tileStack = Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Positioned.fill(child: _tileChild(tile)),
+                                      if (isDropTarget)
+                                        Positioned.fill(
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Theme.of(context).colorScheme.primary,
+                                                width: 3,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: Material(
+                                            color: Colors.black.withOpacity(0.55),
+                                            shape: const CircleBorder(),
+                                            child: IconButton(
+                                              visualDensity: VisualDensity.compact,
+                                              iconSize: 18,
+                                              tooltip: 'Delete',
+                                              color: Colors.white,
+                                              onPressed: () => _deleteOrClearTile(i),
+                                              icon: const Icon(Icons.delete_outline),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Positioned(
+                                          // Keep the handle on the tile border (inside hit area) so
+                                          // it doesn't lose hit-testing to drag & drop.
+                                          right: 0,
+                                          top: 0,
+                                          bottom: 0,
+                                          child: Center(
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onPanStart: (_) => _onResizeDragStart(),
+                                              onPanUpdate: (d) => _onResizeDragUpdate(
+                                                d,
+                                                cellExtent: cellExtent,
+                                                allowH: false,
+                                              ),
+                                              child: Container(
+                                                width: 16,
+                                                height: 28,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.55),
+                                                  borderRadius: BorderRadius.circular(999),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: const Icon(Icons.chevron_right, size: 14, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Positioned(
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          child: Center(
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onPanStart: (_) => _onResizeDragStart(),
+                                              onPanUpdate: (d) => _onResizeDragUpdate(
+                                                d,
+                                                cellExtent: cellExtent,
+                                                allowW: false,
+                                              ),
+                                              child: Container(
+                                                width: 28,
+                                                height: 16,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.55),
+                                                  borderRadius: BorderRadius.circular(999),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: const Icon(Icons.expand_more, size: 14, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Positioned(
+                                          right: 0,
+                                          bottom: 0,
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onPanStart: (_) => _onResizeDragStart(),
+                                            onPanUpdate: (d) => _onResizeDragUpdate(
+                                              d,
+                                              cellExtent: cellExtent,
+                                            ),
+                                            child: Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.55),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: const Icon(Icons.open_in_full, size: 11, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+
+                                  final content = InkWell(
+                                    onTap: !_isEditing
+                                        ? null
+                                        : () async {
+                                            final wasSelected = _selectedIndex == i;
+                                            setState(() => _selectedIndex = i);
+
+                                            // Second tap on a selected tile edits/adds content.
+                                            if (!wasSelected) return;
+                                            if (tile.type == 'empty') {
+                                              await _showAddContentSheet(i);
+                                              return;
+                                            }
+                                            if (tile.type == 'text') {
+                                              await _editText(i);
+                                            }
+                                          },
+                                    child: tileStack,
+                                  );
+
+                                  if (!_isEditing) return content;
+
+                                  return LongPressDraggable<int>(
+                                    data: i,
+                                    dragAnchorStrategy: pointerDragAnchorStrategy,
+                                    feedback: Material(
+                                      elevation: 8,
+                                      color: Colors.transparent,
+                                      child: Opacity(
+                                        opacity: 0.9,
+                                        child: SizedBox(
+                                          width: tileSize.width,
+                                          height: tileSize.height,
+                                          child: tileStack,
+                                        ),
+                                      ),
+                                    ),
+                                    childWhenDragging: Opacity(opacity: 0.25, child: content),
+                                    child: content,
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                ],
-              ),
+                  ),
+                );
+              },
             ),
       bottomNavigationBar: !_isEditing
           ? null
-          : BottomAppBar(
-              height: 84 + MediaQuery.of(context).padding.bottom,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: SafeArea(
-                top: false,
+          : SafeArea(
+              top: false,
+              child: BottomAppBar(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    IconButton(
-                      tooltip: _compactSpacing ? 'Show spacing' : 'Remove spacing',
-                      icon: Icon(_compactSpacing ? Icons.grid_on : Icons.grid_off),
-                      onPressed: () => _setCompactSpacing(!_compactSpacing),
-                    ),
                     IconButton(
                       tooltip: 'Add tile slot',
                       icon: const Icon(Icons.add_box_outlined),
                       onPressed: _addTileSlot,
                     ),
-                    IconButton(
-                      tooltip: 'Remove selected slot',
-                      icon: const Icon(Icons.indeterminate_check_box_outlined),
-                      onPressed: selected == null ? null : _removeSelectedTileSlot,
-                    ),
                     const Spacer(),
-                    IconButton(
-                      tooltip: 'Width -',
-                      icon: const Icon(Icons.remove),
-                      onPressed: selected == null ? null : () => _resizeSelected(deltaW: -1),
-                    ),
-                    IconButton(
-                      tooltip: 'Width +',
-                      icon: const Icon(Icons.add),
-                      onPressed: selected == null ? null : () => _resizeSelected(deltaW: 1),
-                    ),
-                    IconButton(
-                      tooltip: 'Height -',
-                      icon: const Icon(Icons.expand_less),
-                      onPressed: selected == null ? null : () => _resizeSelected(deltaH: -1),
-                    ),
-                    IconButton(
-                      tooltip: 'Height +',
-                      icon: const Icon(Icons.expand_more),
-                      onPressed: selected == null ? null : () => _resizeSelected(deltaH: 1),
-                    ),
+                    if (selected != null)
+                      Flexible(
+                        child: Text(
+                          'Drag handles to resize • Long-press tile to move',
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.black54),
+                        ),
+                      ),
                   ],
                 ),
               ),

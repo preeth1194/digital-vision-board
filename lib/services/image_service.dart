@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'image_persistence.dart';
+
 /// Handles all image picking + cropping logic.
 ///
 /// Workflow:
@@ -28,43 +30,53 @@ class ImageService {
     if (_busy) return null;
     _busy = true;
     try {
-    if (kIsWeb) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image picking/cropping is not supported on web yet.'),
-          ),
-        );
+      if (kIsWeb) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image picking/cropping is not supported on web yet.'),
+            ),
+          );
+        }
+        return null;
       }
-      return null;
-    }
 
-    final XFile? picked = await _picker.pickImage(
-      source: source,
-      maxWidth: maxWidth,
-      maxHeight: maxHeight,
-      imageQuality: imageQuality,
-    );
-    if (picked == null) return null;
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        imageQuality: imageQuality,
+      );
+      if (picked == null) return null;
 
-    final CroppedFile? cropped = await ImageCropper().cropImage(
-      sourcePath: picked.path,
-      compressQuality: imageQuality ?? 100,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop',
-          toolbarColor: Theme.of(context).colorScheme.primary,
-          toolbarWidgetColor: Colors.white,
-          statusBarColor: Theme.of(context).colorScheme.primary,
-          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-        ),
-        IOSUiSettings(title: 'Crop'),
-      ],
-    );
+      final CroppedFile? cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressQuality: imageQuality ?? 100,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            statusBarColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(title: 'Crop'),
+        ],
+      );
+      if (cropped == null || cropped.path.isEmpty) return null;
 
-    return cropped?.path;
+      // Persist the cropped output into app-owned storage so it remains available
+      // even if the original photo is deleted or OS temp/cache is cleared.
+      try {
+        final persisted = await persistImageToAppStorage(cropped.path);
+        if (persisted != null && persisted.isNotEmpty) return persisted;
+      } catch (_) {
+        // If persistence fails, fall back to the cropped path.
+      }
+
+      return cropped.path;
     } finally {
       _busy = false;
     }

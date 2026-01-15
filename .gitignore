@@ -27,3 +27,16 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# Node (backend + canva panel)
+node_modules/
+backend/node_modules/
+canva-app-panel/node_modules/
+
+# Backend local storage
+backend/data/
+backend/tmp/
+
+# Canva panel build output
+canva-app-panel/dist/
+

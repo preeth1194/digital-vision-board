@@ -24,7 +24,10 @@ class ResizeHandle extends StatefulWidget {
   final double? touchSize;
   /// Push the *visible* handle outward from the border by this many pixels.
   /// Touch target remains centered/aligned for reliable hit-testing.
-  final double visualOutset;
+  ///
+  /// If null, defaults to [defaultCornerVisualOutset] for corner handles and
+  /// [defaultEdgeVisualOutset] for edge handles.
+  final double? visualOutset;
 
   const ResizeHandle({
     super.key,
@@ -38,7 +41,7 @@ class ResizeHandle extends StatefulWidget {
     this.edgeLength,
     this.edgeThickness,
     this.touchSize,
-    this.visualOutset = 0,
+    this.visualOutset,
   });
 
   // Visual sizes (what you see)
@@ -46,10 +49,15 @@ class ResizeHandle extends StatefulWidget {
   static const double defaultCornerDiameter = 18;
   // Edge pills: ~24x6 (orientation-dependent).
   static const double defaultEdgeLength = 30;
-  static const double defaultEdgeThickness = 8;
+  static const double defaultEdgeThickness = 6;
 
   // Touch target size (invisible). Keep large for usability.
   static const double defaultTouchSize = 48;
+
+  // Visual offset of handles relative to the selection border.
+  // Match Free Canva editor: corners are slightly farther out than edges.
+  static const double defaultCornerVisualOutset = 4;
+  static const double defaultEdgeVisualOutset = 3;
 
   static const Color _handleBorderColor = Color(0xFFD1D5DB); // Light grey
   static const Color _handleFillColor = Colors.white;
@@ -58,7 +66,7 @@ class ResizeHandle extends StatefulWidget {
   static const double _handleBorderWidth = 1.5;
   static final BorderRadius _edgeBorderRadius = BorderRadius.circular(4);
   static const List<BoxShadow> _handleShadow = [
-    const BoxShadow(
+    BoxShadow(
       color: Color(0x26000000),
       blurRadius: 3,
       offset: Offset(0, 1),
@@ -156,6 +164,10 @@ class _ResizeHandleState extends State<ResizeHandle> {
         true,
       _ => false,
     };
+    final double visualOutset = widget.visualOutset ??
+        (isCorner
+            ? ResizeHandle.defaultCornerVisualOutset
+            : ResizeHandle.defaultEdgeVisualOutset);
 
     final Size size = isCorner
         ? Size(cornerDiameter, cornerDiameter)
@@ -213,7 +225,7 @@ class _ResizeHandleState extends State<ResizeHandle> {
                 widget.position,
                 visualSize: visualSize,
                 touchSize: touchSize,
-                visualOutset: widget.visualOutset,
+                visualOutset: visualOutset,
               ),
               child: Container(
                 width: visualW,

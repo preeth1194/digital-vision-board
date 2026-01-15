@@ -10,7 +10,7 @@ import 'models/vision_components.dart';
 import 'widgets/habits_list_page.dart';
 import 'screens/global_insights_screen.dart';
 import 'widgets/habit_tracker_sheet.dart';
-import 'widgets/grid_board_editor.dart';
+import 'screens/grid_board_editor.dart';
 import 'widgets/vision_board_builder.dart';
 
 // Conditional import: File is not available on web

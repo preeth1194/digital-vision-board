@@ -29,7 +29,7 @@ class GridTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(16);
+    final borderRadius = BorderRadius.zero;
 
     final Widget content = switch (tile.type) {
       'image' => _imageTile(borderRadius),
@@ -39,7 +39,6 @@ class GridTileCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: borderRadius,
       child: Stack(
         children: [
           Positioned.fill(
@@ -53,7 +52,7 @@ class GridTileCard extends StatelessWidget {
                   width: (isEditing && isSelected) ? 2 : 1,
                 ),
               ),
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: Clip.none,
               child: content,
             ),
           ),
@@ -73,48 +72,6 @@ class GridTileCard extends StatelessWidget {
                 ),
               ),
             ),
-          if (isEditing && resizeMode && isSelected)
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      MiniIconButton(
-                        icon: Icons.remove,
-                        tooltip: 'Width -',
-                        onPressed: () => onResize?.call(-1, 0),
-                      ),
-                      MiniIconButton(
-                        icon: Icons.add,
-                        tooltip: 'Width +',
-                        onPressed: () => onResize?.call(1, 0),
-                      ),
-                      MiniIconButton(
-                        icon: Icons.expand_less,
-                        tooltip: 'Height -',
-                        onPressed: () => onResize?.call(0, -1),
-                      ),
-                      MiniIconButton(
-                        icon: Icons.expand_more,
-                        tooltip: 'Height +',
-                        onPressed: () => onResize?.call(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -123,16 +80,13 @@ class GridTileCard extends StatelessWidget {
   Widget _imageTile(BorderRadius borderRadius) {
     final path = tile.content ?? '';
     final provider = fileImageProviderFromPath(path);
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: provider != null
-          ? Image(image: provider, fit: BoxFit.cover)
-          : Container(
-              color: Colors.black12,
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined),
-            ),
-    );
+    return provider != null
+        ? Image(image: provider, fit: BoxFit.cover)
+        : Container(
+            color: Colors.black12,
+            alignment: Alignment.center,
+            child: const Icon(Icons.broken_image_outlined),
+          );
   }
 
   Widget _textTile(BuildContext context, BorderRadius borderRadius) {

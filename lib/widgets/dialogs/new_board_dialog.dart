@@ -146,7 +146,7 @@ class _GridTemplatePreview extends StatelessWidget {
     ];
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.zero,
       child: Container(
         color: Colors.black12.withOpacity(0.08),
         padding: const EdgeInsets.all(4),
@@ -162,7 +162,7 @@ class _GridTemplatePreview extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: colors[i % colors.length],
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                 ),
               ),

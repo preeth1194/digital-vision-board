@@ -364,6 +364,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
         builder: (dialogContext, setDialogState) {
           return Dialog.fullscreen(
             child: Scaffold(
+              resizeToAvoidBottomInset: false,
               appBar: AppBar(
                 title: const Text('Create goals from your photo'),
                 actions: [

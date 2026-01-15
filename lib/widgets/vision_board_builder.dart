@@ -41,6 +41,50 @@ class VisionBoardBuilder extends StatefulWidget {
 
 class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
   Size? _viewportSize;
+  final TransformationController _viewerController = TransformationController();
+  Object? _lastBackgroundIdentity;
+  Size? _lastBackgroundSize;
+  bool _didInitView = false;
+
+  @override
+  void dispose() {
+    _viewerController.dispose();
+    super.dispose();
+  }
+
+  void _maybeInitView({
+    required Size viewport,
+    required Size canvas,
+    required Object? backgroundIdentity,
+    required Size? backgroundSize,
+  }) {
+    final bgChanged =
+        backgroundIdentity != _lastBackgroundIdentity || backgroundSize != _lastBackgroundSize;
+
+    _lastBackgroundIdentity = backgroundIdentity;
+    _lastBackgroundSize = backgroundSize;
+
+    if (viewport.width <= 0 || viewport.height <= 0) return;
+    if (canvas.width <= 0 || canvas.height <= 0) return;
+
+    // Recenter/refit when the background changes (e.g., scanned/imported board).
+    if (!_didInitView || bgChanged) {
+      // Fit entire canvas into the viewport (so big photos don't look "zoomed in"
+      // to the top-left) and center it.
+      final scaleX = (viewport.width / canvas.width).clamp(0.05, 1.0);
+      final scaleY = (viewport.height / canvas.height).clamp(0.05, 1.0);
+      final scale = (scaleX < scaleY ? scaleX : scaleY).toDouble();
+      final scaledW = canvas.width * scale;
+      final scaledH = canvas.height * scale;
+      final dx = (viewport.width - scaledW) / 2;
+      final dy = (viewport.height - scaledH) / 2;
+
+      _viewerController.value = Matrix4.identity()
+        ..translateByDouble(dx, dy, 0, 1)
+        ..scaleByDouble(scale, scale, 1, 1);
+      _didInitView = true;
+    }
+  }
 
   void _updateComponent(VisionComponent updated) {
     final viewport = _viewportSize;
@@ -72,12 +116,21 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
     return LayoutBuilder(
       builder: (context, constraints) {
         _viewportSize = constraints.biggest;
+        _maybeInitView(
+          viewport: constraints.biggest,
+          canvas: canvasSize,
+          backgroundIdentity: widget.backgroundImage,
+          backgroundSize: widget.backgroundImageSize,
+        );
         return InteractiveViewer(
+          transformationController: _viewerController,
           minScale: 0.2,
           maxScale: 6.0,
           panEnabled: !widget.isEditing || widget.selectedComponentId == null,
           // Disable pinch-zoom while editing (Canva-like editor behavior).
           scaleEnabled: !widget.isEditing,
+          // Allow some margin so centering isn't clamped.
+          boundaryMargin: const EdgeInsets.all(1000),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.isEditing ? () => widget.onSelectedComponentIdChanged(null) : null,
@@ -99,7 +152,9 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                       child: IgnorePointer(
                         child: Image(
                           image: widget.backgroundImage!,
-                          fit: bgSize != null ? BoxFit.fill : BoxFit.cover,
+                          // Keep pixel-space alignment with components; viewport fitting
+                          // is handled by the InteractiveViewer transform above.
+                          fit: BoxFit.fill,
                         ),
                       ),
                     ),

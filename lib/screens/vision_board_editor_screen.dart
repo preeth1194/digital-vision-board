@@ -12,14 +12,20 @@ import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import '../models/hotspot_model.dart';
 import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
+import '../services/board_scan_service.dart';
+import '../services/image_persistence.dart';
+import '../services/image_region_cropper.dart';
+import '../services/image_service.dart';
 import '../screens/global_insights_screen.dart';
 import '../screens/habits_list_screen.dart';
 import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/editor/background_options_sheet.dart';
 import '../widgets/editor/layers_sheet.dart';
 import '../widgets/editor/text_editor_dialog.dart';
+import '../widgets/grid/image_source_sheet.dart';
 import '../widgets/habit_tracker_sheet.dart';
 import '../widgets/vision_board_builder.dart';
+import '../widgets/vision_board_hotspot_builder.dart';
 
 class VisionBoardEditorScreen extends StatefulWidget {
   final String boardId;
@@ -163,13 +169,14 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       setState(() => _imageProvider = MemoryImage(bytes));
       await _saveImagePath('web_image_selected');
     } else {
-      final io.File imageFile = io.File(pickedFile.path);
+      final persistedPath = await persistImageToAppStorage(pickedFile.path);
+      final io.File imageFile = io.File(persistedPath ?? pickedFile.path);
       if (!mounted) return;
       setState(() {
         _selectedImageFile = imageFile;
         _imageProvider = FileImage(imageFile);
       });
-      await _saveImagePath(pickedFile.path);
+      await _saveImagePath(imageFile.path);
     }
 
     if (_imageProvider != null) {
@@ -264,14 +271,201 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     if (_legacyHotspots.isEmpty) return;
     if (_backgroundImageSize == null) return;
 
-    final converted =
-        _legacyHotspots.map((h) => convertHotspotToComponent(h, _backgroundImageSize!)).toList();
+    // New behavior: convert legacy hotspots into real image layers by cropping
+    // the corresponding region from the background image. This makes them
+    // permanent layers that show up in the Layers sheet and support habits.
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final bgPath = prefs.getString(_imagePathKey);
+
+    final converted = <VisionComponent>[];
+    for (final h in _legacyHotspots) {
+      final id = (h.id ?? '').trim().isNotEmpty ? h.id!.trim() : 'Goal';
+      final rect = Rect.fromLTWH(
+        h.x * _backgroundImageSize!.width,
+        h.y * _backgroundImageSize!.height,
+        h.width * _backgroundImageSize!.width,
+        h.height * _backgroundImageSize!.height,
+      );
+
+      String? croppedPath;
+      if (bgPath != null && bgPath.isNotEmpty && bgPath != 'web_image_selected' && !kIsWeb) {
+        croppedPath = await cropAndPersistImageRegion(
+          sourcePath: bgPath,
+          region: rect,
+          quality: _pickedImageQuality,
+        );
+      }
+
+      if (croppedPath != null && croppedPath.isNotEmpty) {
+        converted.add(
+          ImageComponent(
+            id: id,
+            position: Offset(rect.left, rect.top),
+            size: Size(rect.width, rect.height),
+            rotation: 0,
+            scale: 1,
+            zIndex: converted.length,
+            habits: h.habits,
+            imagePath: croppedPath,
+          ),
+        );
+      } else {
+        // Fallback to legacy transparent zone.
+        converted.add(convertHotspotToComponent(h, _backgroundImageSize!));
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _components = converted;
       _legacyHotspots = [];
     });
     await _saveComponents();
+  }
+
+  Future<void> _createGoalFromBackgroundHotspot() async {
+    if (!_isEditing) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hotspots are not supported on web yet.')),
+      );
+      return;
+    }
+
+    final bgProvider = _imageProvider;
+    final bgSize = _backgroundImageSize;
+    if (bgProvider == null || bgSize == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a background image first to create hotspots.')),
+      );
+      return;
+    }
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    if (!mounted) return;
+    final bgPath = prefs.getString(_imagePathKey);
+    if (bgPath == null || bgPath.isEmpty || bgPath == 'web_image_selected') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Background image file not available for cropping.')),
+      );
+      return;
+    }
+
+    var hotspots = <HotspotModel>[];
+    var selected = <HotspotModel>{};
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return Dialog.fullscreen(
+            child: Scaffold(
+              appBar: AppBar(
+                title: const Text('Create goals from your photo'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              body: VisionBoardHotspotBuilder(
+                imageProvider: bgProvider,
+                hotspots: hotspots,
+                selectedHotspots: selected,
+                isEditing: true,
+                showLabels: true,
+                onHotspotsChanged: (next) => setDialogState(() => hotspots = next),
+                onHotspotSelected: (h) => setDialogState(() => selected = {h}),
+                onHotspotCreated: (x, y, width, height) async {
+                  final String? name =
+                      await showAddNameDialog(dialogContext, title: 'Your Vision/Goal');
+                  if (name == null || name.trim().isEmpty) return null;
+
+                  final rect = Rect.fromLTWH(
+                    x * bgSize.width,
+                    y * bgSize.height,
+                    width * bgSize.width,
+                    height * bgSize.height,
+                  );
+
+                  final croppedPath = await cropAndPersistImageRegion(
+                    sourcePath: bgPath,
+                    region: rect,
+                    quality: _pickedImageQuality,
+                  );
+                  if (croppedPath == null || croppedPath.isEmpty) {
+                    if (dialogContext.mounted) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Failed to crop that region. Try again.')),
+                      );
+                    }
+                    return null;
+                  }
+
+                  final component = ImageComponent(
+                    id: name.trim(),
+                    position: Offset(rect.left, rect.top),
+                    size: Size(rect.width, rect.height),
+                    rotation: 0,
+                    scale: 1,
+                    zIndex: _nextZ(),
+                    imagePath: croppedPath,
+                  );
+
+                  _onComponentsChanged([..._components, component]);
+                  if (mounted) setState(() => _selectedComponentId = component.id);
+
+                  return HotspotModel(
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    id: name.trim(),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _importGoalsFromPhysicalVisionBoard() async {
+    if (!_isEditing) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Import is not supported on web yet.')),
+      );
+      return;
+    }
+
+    final scannedPath = await scanAndCropPhysicalBoard(allowGallery: true);
+    if (scannedPath == null || scannedPath.isEmpty) return;
+    if (!mounted) return;
+
+    final imageFile = io.File(scannedPath);
+    setState(() {
+      _selectedImageFile = imageFile;
+      _imageProvider = FileImage(imageFile);
+      _backgroundImageSize = null;
+    });
+    await _saveImagePath(scannedPath);
+
+    if (_imageProvider != null) {
+      _backgroundImageSize = await _resolveImageSize(_imageProvider!);
+      await _maybeMigrateLegacyHotspots();
+      if (mounted) setState(() {});
+    }
+
+    await _createGoalFromBackgroundHotspot();
   }
 
   Future<void> _saveComponents() async {
@@ -375,13 +569,19 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       return;
     }
 
-    final XFile? pickedFile = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
+    final ImageSource? source = await showImageSourceSheet(context);
+    if (!mounted) return;
+    if (source == null) return;
+
+    final String? croppedPath = await ImageService.pickAndCropImage(
+      context,
+      source: source,
       maxWidth: _pickedImageMaxSide,
       maxHeight: _pickedImageMaxSide,
       imageQuality: _pickedImageQuality,
     );
-    if (pickedFile == null || !mounted) return;
+    if (!mounted) return;
+    if (croppedPath == null || croppedPath.isEmpty) return;
 
     final String? name = await showAddNameDialog(context, title: 'Your Vision/Goal');
     if (name == null || name.isEmpty) return;
@@ -393,7 +593,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       rotation: 0,
       scale: 1,
       zIndex: _nextZ(),
-      imagePath: pickedFile.path,
+      imagePath: croppedPath,
     );
     _onComponentsChanged([..._components, c]);
     setState(() => _selectedComponentId = c.id);
@@ -507,6 +707,11 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                     icon: const Icon(Icons.text_fields),
                     tooltip: 'Add Text',
                     onPressed: _addTextComponent,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.document_scanner_outlined),
+                    tooltip: 'Import goals from physical vision board',
+                    onPressed: _importGoalsFromPhysicalVisionBoard,
                   ),
                   IconButton(
                     icon: const Icon(Icons.format_paint_outlined),

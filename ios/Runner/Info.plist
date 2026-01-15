@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow access to camera to scan and crop your physical vision board.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow access to photos to import and crop your physical vision board.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow saving cropped images for your digital vision board.</string>
 </dict>
 </plist>

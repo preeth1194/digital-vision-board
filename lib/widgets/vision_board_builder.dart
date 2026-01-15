@@ -76,7 +76,8 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
           minScale: 0.2,
           maxScale: 6.0,
           panEnabled: !widget.isEditing || widget.selectedComponentId == null,
-          scaleEnabled: true,
+          // Disable pinch-zoom while editing (Canva-like editor behavior).
+          scaleEnabled: !widget.isEditing,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.isEditing ? () => widget.onSelectedComponentIdChanged(null) : null,
@@ -135,7 +136,6 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                       component: c,
                       isSelected: isSelected,
                       gesturesEnabled: widget.isEditing,
-                      child: child,
                       onSelected: () {
                         widget.onSelectedComponentIdChanged(c.id);
                         _bringToFront(c);
@@ -144,6 +144,7 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                           ? () => widget.onOpenComponent(c) 
                           : null,
                       onChanged: _updateComponent,
+                      child: child,
                     );
                   }),
                 ],

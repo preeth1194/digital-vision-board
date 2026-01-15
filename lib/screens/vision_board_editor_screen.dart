@@ -13,6 +13,7 @@ import '../models/hotspot_model.dart';
 import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/board_scan_service.dart';
+import '../services/canva_import_service.dart';
 import '../services/image_persistence.dart';
 import '../services/image_region_cropper.dart';
 import '../services/image_service.dart';
@@ -469,6 +470,49 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     await _createGoalFromBackgroundHotspot();
   }
 
+  Future<void> _importFromCanva() async {
+    if (!_isEditing) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Canva import is not supported on web yet.')),
+      );
+      return;
+    }
+
+    try {
+      // Ensure we have a dvToken (OAuth deep-link flow).
+      var token = await CanvaImportService.getStoredDvToken();
+      if (token == null) {
+        final url = await CanvaImportService.getOAuthStartUrl();
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        token = await CanvaImportService.connectViaOAuth();
+      }
+      if (token == null || token.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Canva connection not completed.')),
+        );
+        return;
+      }
+
+      await CanvaImportService.importLatestPackageIntoBoard(widget.boardId, dvToken: token);
+      await _loadSavedImage();
+      await _loadComponents();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imported latest Canva package.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Canva import failed: ${e.toString()}')),
+      );
+    }
+  }
+
   Future<void> _saveComponents() async {
     if (_isLoading) return;
     final prefs = _prefs ?? await SharedPreferences.getInstance();
@@ -713,6 +757,11 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                     icon: const Icon(Icons.document_scanner_outlined),
                     tooltip: 'Import goals from physical vision board',
                     onPressed: _importGoalsFromPhysicalVisionBoard,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.cloud_download_outlined),
+                    tooltip: 'Import from Canva',
+                    onPressed: _importFromCanva,
                   ),
                   IconButton(
                     icon: const Icon(Icons.format_paint_outlined),

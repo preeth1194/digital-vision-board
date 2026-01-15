@@ -11,11 +11,20 @@ enum HandlePosition {
   bottomRight,
 }
 
-class ResizeHandle extends StatelessWidget {
+class ResizeHandle extends StatefulWidget {
   final HandlePosition position;
   final VoidCallback onStart;
   final VoidCallback onEnd;
   final ValueChanged<DragUpdateDetails> onUpdate;
+  final bool isSelected;
+  final VoidCallback? onSelected;
+  final double? cornerDiameter;
+  final double? edgeLength;
+  final double? edgeThickness;
+  final double? touchSize;
+  /// Push the *visible* handle outward from the border by this many pixels.
+  /// Touch target remains centered/aligned for reliable hit-testing.
+  final double visualOutset;
 
   const ResizeHandle({
     super.key,
@@ -23,15 +32,38 @@ class ResizeHandle extends StatelessWidget {
     required this.onStart,
     required this.onEnd,
     required this.onUpdate,
+    this.isSelected = false,
+    this.onSelected,
+    this.cornerDiameter,
+    this.edgeLength,
+    this.edgeThickness,
+    this.touchSize,
+    this.visualOutset = 0,
   });
 
   // Visual sizes (what you see)
-  static const double cornerDiameter = 16;
-  static const double edgeLength = 26;
-  static const double edgeThickness = 8;
+  // Corner dots: ~14px diameter.
+  static const double defaultCornerDiameter = 18;
+  // Edge pills: ~24x6 (orientation-dependent).
+  static const double defaultEdgeLength = 30;
+  static const double defaultEdgeThickness = 8;
 
   // Touch target size (invisible). Keep large for usability.
-  static const double touchSize = 30;
+  static const double defaultTouchSize = 48;
+
+  static const Color _handleBorderColor = Color(0xFFD1D5DB); // Light grey
+  static const Color _handleFillColor = Colors.white;
+  // Active/selected feedback.
+  static const Color _handleActiveBorderColor = Color(0xFF7C3AED); // Purple
+  static const double _handleBorderWidth = 1.5;
+  static final BorderRadius _edgeBorderRadius = BorderRadius.circular(4);
+  static const List<BoxShadow> _handleShadow = [
+    const BoxShadow(
+      color: Color(0x26000000),
+      blurRadius: 3,
+      offset: Offset(0, 1),
+    ),
+  ];
 
   static Alignment _alignmentFor(HandlePosition p) {
     return switch (p) {
@@ -46,27 +78,77 @@ class ResizeHandle extends StatelessWidget {
     };
   }
 
-  static Offset _borderOffsetFor(HandlePosition p) {
-    // Center each handle on the selection border (half in / half out),
-    // like the screenshot.
-    return switch (p) {
-      HandlePosition.topLeft => const Offset(-touchSize / 2, -touchSize / 2),
-      HandlePosition.topCenter => const Offset(0, -touchSize / 2),
-      HandlePosition.topRight => const Offset(touchSize / 2, -touchSize / 2),
-      HandlePosition.centerLeft => const Offset(-touchSize / 2, 0),
-      HandlePosition.centerRight => const Offset(touchSize / 2, 0),
-      HandlePosition.bottomLeft => const Offset(-touchSize / 2, touchSize / 2),
-      HandlePosition.bottomCenter => const Offset(0, touchSize / 2),
-      HandlePosition.bottomRight => const Offset(touchSize / 2, touchSize / 2),
+  static Offset _visualOffsetFor(
+    HandlePosition p, {
+    required Size visualSize,
+    required double touchSize,
+    double visualOutset = 0,
+  }) {
+    // Keep the visible pill/dot fully inside the touch target, but flush it to the
+    // selection border. This ensures dragging starts reliably on the visible handle.
+    final halfTouch = touchSize / 2;
+    final halfW = visualSize.width / 2;
+    final halfH = visualSize.height / 2;
+
+    final base = switch (p) {
+      HandlePosition.topLeft => Offset(-(halfTouch - halfW), -(halfTouch - halfH)),
+      HandlePosition.topCenter => Offset(0, -(halfTouch - halfH)),
+      HandlePosition.topRight => Offset((halfTouch - halfW), -(halfTouch - halfH)),
+      HandlePosition.centerLeft => Offset(-(halfTouch - halfW), 0),
+      HandlePosition.centerRight => Offset((halfTouch - halfW), 0),
+      HandlePosition.bottomLeft => Offset(-(halfTouch - halfW), (halfTouch - halfH)),
+      HandlePosition.bottomCenter => Offset(0, (halfTouch - halfH)),
+      HandlePosition.bottomRight => Offset((halfTouch - halfW), (halfTouch - halfH)),
     };
+
+    final double sx = switch (p) {
+      HandlePosition.topLeft ||
+      HandlePosition.centerLeft ||
+      HandlePosition.bottomLeft =>
+        -1,
+      HandlePosition.topRight ||
+      HandlePosition.centerRight ||
+      HandlePosition.bottomRight =>
+        1,
+      _ => 0,
+    };
+    final double sy = switch (p) {
+      HandlePosition.topLeft ||
+      HandlePosition.topCenter ||
+      HandlePosition.topRight =>
+        -1,
+      HandlePosition.bottomLeft ||
+      HandlePosition.bottomCenter ||
+      HandlePosition.bottomRight =>
+        1,
+      _ => 0,
+    };
+
+    return base + Offset(sx * visualOutset, sy * visualOutset);
+  }
+
+  @override
+  State<ResizeHandle> createState() => _ResizeHandleState();
+}
+
+class _ResizeHandleState extends State<ResizeHandle> {
+  bool _active = false;
+
+  void _setActive(bool next) {
+    if (_active == next) return;
+    setState(() => _active = next);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Match the screenshot's purple selection color.
-    const stroke = Color(0xFF7C3AED);
+    final double touchSize = widget.touchSize ?? ResizeHandle.defaultTouchSize;
+    final double cornerDiameter =
+        widget.cornerDiameter ?? ResizeHandle.defaultCornerDiameter;
+    final double edgeLength = widget.edgeLength ?? ResizeHandle.defaultEdgeLength;
+    final double edgeThickness =
+        widget.edgeThickness ?? ResizeHandle.defaultEdgeThickness;
 
-    final bool isCorner = switch (position) {
+    final bool isCorner = switch (widget.position) {
       HandlePosition.topLeft ||
       HandlePosition.topRight ||
       HandlePosition.bottomLeft ||
@@ -76,40 +158,75 @@ class ResizeHandle extends StatelessWidget {
     };
 
     final Size size = isCorner
-        ? const Size(cornerDiameter, cornerDiameter)
-        : (position == HandlePosition.topCenter || position == HandlePosition.bottomCenter)
-            ? const Size(edgeLength, edgeThickness)
-            : const Size(edgeThickness, edgeLength);
+        ? Size(cornerDiameter, cornerDiameter)
+        : (widget.position == HandlePosition.topCenter ||
+                widget.position == HandlePosition.bottomCenter)
+            ? Size(edgeLength, edgeThickness)
+            : Size(edgeThickness, edgeLength);
+
+    final bool isActive = _active || widget.isSelected;
+    final borderColor = isActive
+        ? ResizeHandle._handleActiveBorderColor
+        : ResizeHandle._handleBorderColor;
+    final fillColor = ResizeHandle._handleFillColor;
+
+    // Slightly emphasize the selected edge handle (visual feedback only).
+    final bool isEdge = !isCorner;
+    final bool emphasize = widget.isSelected && isEdge;
+    final double visualEdgeLength = emphasize ? edgeLength + 8 : edgeLength;
+    final double visualEdgeThickness = emphasize ? edgeThickness + 2 : edgeThickness;
+
+    final double visualW = isCorner
+        ? size.width
+        : (size.width > size.height ? visualEdgeLength : visualEdgeThickness);
+    final double visualH = isCorner
+        ? size.height
+        : (size.width > size.height ? visualEdgeThickness : visualEdgeLength);
+    final visualSize = Size(visualW, visualH);
 
     return Align(
-      alignment: _alignmentFor(position),
-      child: Transform.translate(
-        offset: _borderOffsetFor(position),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanStart: (_) => onStart(),
-          onPanEnd: (_) => onEnd(),
-          onPanCancel: () => onEnd(),
-          onPanUpdate: onUpdate,
-          child: SizedBox(
-            width: touchSize,
-            height: touchSize,
-            child: Center(
+      alignment: ResizeHandle._alignmentFor(widget.position),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => widget.onSelected?.call(),
+        onPanDown: (_) => _setActive(true),
+        onPanStart: (_) {
+          _setActive(true);
+          widget.onSelected?.call();
+          widget.onStart();
+        },
+        onPanEnd: (_) {
+          _setActive(false);
+          widget.onEnd();
+        },
+        onPanCancel: () {
+          _setActive(false);
+          widget.onEnd();
+        },
+        onPanUpdate: widget.onUpdate,
+        child: SizedBox(
+          width: touchSize,
+          height: touchSize,
+          child: Center(
+            child: Transform.translate(
+              offset: ResizeHandle._visualOffsetFor(
+                widget.position,
+                visualSize: visualSize,
+                touchSize: touchSize,
+                visualOutset: widget.visualOutset,
+              ),
               child: Container(
-                width: size.width,
-                height: size.height,
+                width: visualW,
+                height: visualH,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: stroke, width: 2),
+                  color: fillColor,
+                  border: Border.all(
+                    color: borderColor,
+                    width: ResizeHandle._handleBorderWidth,
+                  ),
                   shape: isCorner ? BoxShape.circle : BoxShape.rectangle,
-                  borderRadius: isCorner ? null : BorderRadius.circular(999),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
+                  borderRadius: isCorner ? null : ResizeHandle._edgeBorderRadius,
+                  boxShadow: ResizeHandle._handleShadow,
                 ),
               ),
             ),

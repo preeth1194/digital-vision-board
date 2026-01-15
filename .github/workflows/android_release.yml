@@ -2,7 +2,7 @@ name: Android release (APK + AAB)
 
 on:
   push:
-    branches: ["master", "main"] # Added main just in case
+    branches: ["master", "main","habits-image-nav"] # Added main just in case
   workflow_dispatch:
 
 permissions:

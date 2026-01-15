@@ -14,6 +14,9 @@ class BoardsStorageService {
   static String boardBgColorKey(String boardId) => 'vision_board_${boardId}_bg_color';
   static String boardImagePathKey(String boardId) => 'vision_board_${boardId}_bg_image_path';
   static String boardGridTilesKey(String boardId) => 'vision_board_${boardId}_grid_tiles_v1';
+  static String boardGridTilesV2Key(String boardId) => 'vision_board_${boardId}_grid_tiles_v2';
+  static String boardGridCompactSpacingKey(String boardId) =>
+      'vision_board_${boardId}_grid_compact_spacing_v1';
 
   static Future<List<VisionBoardInfo>> loadBoards({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -65,6 +68,8 @@ class BoardsStorageService {
     await p.remove(boardBgColorKey(boardId));
     await p.remove(boardImagePathKey(boardId));
     await p.remove(boardGridTilesKey(boardId));
+    await p.remove(boardGridTilesV2Key(boardId));
+    await p.remove(boardGridCompactSpacingKey(boardId));
   }
 }
 

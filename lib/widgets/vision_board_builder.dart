@@ -105,7 +105,7 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                   ...sorted.map((c) {
                     final isSelected = widget.selectedComponentId == c.id;
 
-                    Widget child;
+                    Widget child = const SizedBox.shrink();
                     switch (c) {
                       case ImageComponent():
                         child = ClipRRect(

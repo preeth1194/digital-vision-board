@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 @immutable
 class GridTileModel {
   final String id;
-  final String type; // 'image' | 'text'
+  final String type; // 'empty' | 'image' | 'text'
   final String? content;
   final int crossAxisCellCount;
   final int mainAxisCellCount;
@@ -52,7 +52,7 @@ class GridTileModel {
   factory GridTileModel.fromJson(Map<String, dynamic> json) {
     return GridTileModel(
       id: json['id'] as String,
-      type: json['type'] as String? ?? 'text',
+      type: json['type'] as String? ?? 'empty',
       content: json['content'] as String?,
       crossAxisCellCount: (json['crossAxisCellCount'] as num?)?.toInt() ?? 1,
       mainAxisCellCount: (json['mainAxisCellCount'] as num?)?.toInt() ?? 1,

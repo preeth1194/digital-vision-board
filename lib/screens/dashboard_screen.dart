@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_board_info.dart';
+import '../models/grid_template.dart';
+import '../models/grid_tile_model.dart';
 import '../services/boards_storage_service.dart';
+import '../services/grid_tiles_storage_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
-import 'grid_board_editor.dart';
+import 'grid_editor.dart';
 import 'vision_board_editor_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -68,8 +71,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _createBoard() async {
     final layoutType = await showTemplatePickerSheet(context);
+    if (!mounted) return;
     if (layoutType == null) return;
+
+    GridTemplate? gridTemplate;
+    if (layoutType == VisionBoardInfo.layoutGrid) {
+      gridTemplate = await showGridTemplateSelectorSheet(context);
+      if (!mounted) return;
+      if (gridTemplate == null) return;
+    }
+
     final config = await showNewBoardDialog(context);
+    if (!mounted) return;
     if (config == null || config.title.isEmpty) return;
 
     final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
@@ -80,6 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       iconCodePoint: config.iconCodePoint,
       tileColorValue: config.tileColorValue,
       layoutType: layoutType,
+      templateId: gridTemplate?.id,
     );
 
     final next = [board, ..._boards];
@@ -88,10 +102,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
     setState(() => _boards = next);
 
+    if (layoutType == VisionBoardInfo.layoutGrid && gridTemplate != null) {
+      // Initialize the fixed template tiles (empty placeholders).
+      final tiles = List<GridTileModel>.generate(
+        gridTemplate.tiles.length,
+        (i) => GridTileModel(
+          id: 'tile_$i',
+          type: 'empty',
+          content: null,
+          crossAxisCellCount: gridTemplate!.tiles[i].crossAxisCount,
+          mainAxisCellCount: gridTemplate.tiles[i].mainAxisCount,
+          index: i,
+        ),
+      );
+      await GridTilesStorageService.saveTiles(id, tiles, prefs: _prefs);
+    }
+
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => layoutType == VisionBoardInfo.layoutGrid
-            ? GridBoardEditor(boardId: id, title: board.title, initialIsEditing: true)
+            ? GridEditorScreen(
+                boardId: id,
+                title: board.title,
+                initialIsEditing: true,
+                template: gridTemplate ?? GridTemplates.hero,
+              )
             : VisionBoardEditorScreen(boardId: id, title: board.title, initialIsEditing: true),
       ),
     );
@@ -124,10 +160,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openBoard(VisionBoardInfo board, {required bool startInEditMode}) async {
     await _setActiveBoard(board.id);
     if (!mounted) return;
+    final gridTemplate = GridTemplates.byId(board.templateId);
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => board.layoutType == VisionBoardInfo.layoutGrid
-            ? GridBoardEditor(boardId: board.id, title: board.title, initialIsEditing: startInEditMode)
+            ? GridEditorScreen(
+                boardId: board.id,
+                title: board.title,
+                initialIsEditing: startInEditMode,
+                template: gridTemplate,
+              )
             : VisionBoardEditorScreen(boardId: board.id, title: board.title, initialIsEditing: startInEditMode),
       ),
     );

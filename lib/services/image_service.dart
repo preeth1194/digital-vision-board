@@ -13,6 +13,7 @@ class ImageService {
   ImageService._();
 
   static final ImagePicker _picker = ImagePicker();
+  static bool _busy = false;
 
   /// Picks an image (gallery/camera), then opens crop UI, returning cropped path.
   ///
@@ -24,6 +25,9 @@ class ImageService {
     double? maxHeight,
     int? imageQuality,
   }) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
     if (kIsWeb) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -45,7 +49,7 @@ class ImageService {
 
     final CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: picked.path,
-      compressQuality: imageQuality,
+      compressQuality: imageQuality ?? 100,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop',
@@ -61,6 +65,9 @@ class ImageService {
     );
 
     return cropped?.path;
+    } finally {
+      _busy = false;
+    }
   }
 }
 

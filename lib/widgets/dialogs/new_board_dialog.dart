@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../models/grid_template.dart';
 import '../../models/vision_board_info.dart';
 
 class NewBoardConfig {
@@ -47,6 +49,128 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
       ),
     ),
   );
+}
+
+Future<GridTemplate?> showGridTemplateSelectorSheet(BuildContext context) {
+  return showModalBottomSheet<GridTemplate>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Pick a layout',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Choose a template first, then fill in the blanks.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: GridTemplates.all.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final template = GridTemplates.all[i];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => Navigator.of(context).pop(template),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 96,
+                            height: 96,
+                            child: _GridTemplatePreview(template: template),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  template.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${template.tiles.length} tiles',
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _GridTemplatePreview extends StatelessWidget {
+  final GridTemplate template;
+  const _GridTemplatePreview({required this.template});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = <Color>[
+      const Color(0xFFEEF2FF),
+      const Color(0xFFE0F2FE),
+      const Color(0xFFECFDF5),
+      const Color(0xFFFFF7ED),
+      const Color(0xFFF3E8FF),
+    ];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        color: Colors.black12.withOpacity(0.08),
+        padding: const EdgeInsets.all(4),
+        child: StaggeredGrid.count(
+          crossAxisCount: 4,
+          mainAxisSpacing: 4,
+          crossAxisSpacing: 4,
+          children: [
+            for (int i = 0; i < template.tiles.length; i++)
+              StaggeredGridTile.count(
+                crossAxisCellCount: template.tiles[i].crossAxisCount,
+                mainAxisCellCount: template.tiles[i].mainAxisCount,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors[i % colors.length],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _NewBoardDialog extends StatefulWidget {

@@ -10,6 +10,7 @@ class VisionBoardInfo {
   final int iconCodePoint; // Material icon code point
   final int tileColorValue; // ARGB color value
   final String layoutType; // 'freeform' | 'grid'
+  final String? templateId; // grid-only: which GridTemplate to use
 
   const VisionBoardInfo({
     required this.id,
@@ -18,6 +19,7 @@ class VisionBoardInfo {
     required this.iconCodePoint,
     required this.tileColorValue,
     required this.layoutType,
+    this.templateId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +29,7 @@ class VisionBoardInfo {
         'iconCodePoint': iconCodePoint,
         'tileColorValue': tileColorValue,
         'layoutType': layoutType,
+        'templateId': templateId,
       };
 
   factory VisionBoardInfo.fromJson(Map<String, dynamic> json) => VisionBoardInfo(
@@ -39,6 +42,7 @@ class VisionBoardInfo {
         tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
             const Color(0xFFEEF2FF).value,
         layoutType: json['layoutType'] as String? ?? VisionBoardInfo.layoutFreeform,
+        templateId: json['templateId'] as String?,
       );
 }
 

@@ -10,6 +10,8 @@ class GridBoardEditorScaffold extends StatelessWidget {
   final bool loading;
   final bool isEditing;
   final bool resizeMode;
+  final String? selectedTileId;
+  final ValueChanged<String?> onSelectedTileIdChanged;
   final List<GridTileModel> tiles;
 
   final VoidCallback onToggleEditMode;
@@ -26,6 +28,8 @@ class GridBoardEditorScaffold extends StatelessWidget {
     required this.loading,
     required this.isEditing,
     required this.resizeMode,
+    required this.selectedTileId,
+    required this.onSelectedTileIdChanged,
     required this.tiles,
     required this.onToggleEditMode,
     required this.onToggleResizeMode,
@@ -63,39 +67,58 @@ class GridBoardEditorScaffold extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: StaggeredGrid.count(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            children: [
-              ...tiles.map((tile) {
-                return StaggeredGridTile.count(
-                  crossAxisCellCount: tile.crossAxisCellCount,
-                  mainAxisCellCount: tile.mainAxisCellCount,
-                  child: GridTileCard(
-                    tile: tile,
-                    isEditing: isEditing,
-                    resizeMode: resizeMode,
-                    onTap: () async {
-                      if (!isEditing) return;
-                      if (tile.type == 'text') await onEditTextTile(tile);
-                    },
-                    onLongPress: () {
-                      if (isEditing) onToggleResizeMode();
-                    },
-                    onResize: (deltaW, deltaH) => onResizeTile(tile, deltaW, deltaH),
-                    onDelete: () => onDeleteTile(tile),
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (isEditing) onSelectedTileIdChanged(null);
+          },
+          child: SingleChildScrollView(
+            child: StaggeredGrid.count(
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              children: [
+                ...tiles.map((tile) {
+                  final isSelected = selectedTileId == tile.id;
+                  return StaggeredGridTile.count(
+                    crossAxisCellCount: tile.crossAxisCellCount,
+                    mainAxisCellCount: tile.mainAxisCellCount,
+                    child: GridTileCard(
+                      tile: tile,
+                      isEditing: isEditing,
+                      resizeMode: resizeMode,
+                      isSelected: isSelected,
+                      onTap: () async {
+                        if (!isEditing) return;
+
+                        // First tap selects; second tap on a selected text tile edits it.
+                        if (!isSelected) {
+                          onSelectedTileIdChanged(tile.id);
+                          return;
+                        }
+
+                        if (!resizeMode && tile.type == 'text') {
+                          await onEditTextTile(tile);
+                        }
+                      },
+                      onLongPress: () {
+                        if (!isEditing) return;
+                        onSelectedTileIdChanged(tile.id);
+                        onToggleResizeMode();
+                      },
+                      onResize: (deltaW, deltaH) => onResizeTile(tile, deltaW, deltaH),
+                      onDelete: () => onDeleteTile(tile),
+                    ),
+                  );
+                }),
+                if (isEditing)
+                  StaggeredGridTile.count(
+                    crossAxisCellCount: 1,
+                    mainAxisCellCount: 1,
+                    child: AddTileCard(onTap: onAddTile),
                   ),
-                );
-              }),
-              if (isEditing)
-                StaggeredGridTile.count(
-                  crossAxisCellCount: 1,
-                  mainAxisCellCount: 1,
-                  child: AddTileCard(onTap: onAddTile),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

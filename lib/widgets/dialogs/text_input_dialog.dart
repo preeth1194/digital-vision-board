@@ -6,13 +6,53 @@ Future<String?> showTextInputDialog(
   required String title,
   required String initialText,
 }) async {
-  final controller = TextEditingController(text: initialText);
-  final result = await showDialog<String>(
+  return showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
+    builder: (context) => _TextInputDialog(
+      title: title,
+      initialText: initialText,
+    ),
+  );
+}
+
+class _TextInputDialog extends StatefulWidget {
+  final String title;
+  final String initialText;
+
+  const _TextInputDialog({
+    required this.title,
+    required this.initialText,
+  });
+
+  @override
+  State<_TextInputDialog> createState() => _TextInputDialogState();
+}
+
+class _TextInputDialogState extends State<_TextInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(_controller.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         maxLines: 5,
         minLines: 1,
         textCapitalization: TextCapitalization.sentences,
@@ -28,13 +68,11 @@ Future<String?> showTextInputDialog(
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(controller.text),
+          onPressed: _submit,
           child: const Text('Save'),
         ),
       ],
-    ),
-  );
-  controller.dispose();
-  return result;
+    );
+  }
 }
 

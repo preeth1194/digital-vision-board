@@ -8,6 +8,7 @@ class GridTileCard extends StatelessWidget {
   final GridTileModel tile;
   final bool isEditing;
   final bool resizeMode;
+  final bool isSelected;
 
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -19,6 +20,7 @@ class GridTileCard extends StatelessWidget {
     required this.tile,
     required this.isEditing,
     required this.resizeMode,
+    required this.isSelected,
     required this.onTap,
     required this.onLongPress,
     required this.onResize,
@@ -44,13 +46,34 @@ class GridTileCard extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: borderRadius,
-                border: Border.all(color: Colors.black12),
+                border: Border.all(
+                  color: (isEditing && isSelected)
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                      : Colors.black12,
+                  width: (isEditing && isSelected) ? 2 : 1,
+                ),
               ),
               clipBehavior: Clip.antiAlias,
               child: content,
             ),
           ),
-          if (isEditing && resizeMode)
+          if (isEditing && isSelected)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: MiniIconButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Remove',
+                  onPressed: onDelete,
+                ),
+              ),
+            ),
+          if (isEditing && resizeMode && isSelected)
             Positioned(
               left: 8,
               right: 8,
@@ -61,37 +84,34 @@ class GridTileCard extends StatelessWidget {
                   color: Colors.black.withOpacity(0.55),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    MiniIconButton(
-                      icon: Icons.remove,
-                      tooltip: 'Width -',
-                      onPressed: () => onResize?.call(-1, 0),
-                    ),
-                    MiniIconButton(
-                      icon: Icons.add,
-                      tooltip: 'Width +',
-                      onPressed: () => onResize?.call(1, 0),
-                    ),
-                    const SizedBox(width: 8),
-                    MiniIconButton(
-                      icon: Icons.expand_less,
-                      tooltip: 'Height -',
-                      onPressed: () => onResize?.call(0, -1),
-                    ),
-                    MiniIconButton(
-                      icon: Icons.expand_more,
-                      tooltip: 'Height +',
-                      onPressed: () => onResize?.call(0, 1),
-                    ),
-                    const Spacer(),
-                    MiniIconButton(
-                      icon: Icons.delete_outline,
-                      tooltip: 'Remove',
-                      onPressed: onDelete,
-                    ),
-                  ],
+                child: Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      MiniIconButton(
+                        icon: Icons.remove,
+                        tooltip: 'Width -',
+                        onPressed: () => onResize?.call(-1, 0),
+                      ),
+                      MiniIconButton(
+                        icon: Icons.add,
+                        tooltip: 'Width +',
+                        onPressed: () => onResize?.call(1, 0),
+                      ),
+                      MiniIconButton(
+                        icon: Icons.expand_less,
+                        tooltip: 'Height -',
+                        onPressed: () => onResize?.call(0, -1),
+                      ),
+                      MiniIconButton(
+                        icon: Icons.expand_more,
+                        tooltip: 'Height +',
+                        onPressed: () => onResize?.call(0, 1),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

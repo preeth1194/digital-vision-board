@@ -7,7 +7,7 @@ import 'habit_item.dart';
 /// `position` is the top-left coordinate in canvas space.
 /// `size` is the unscaled size of the component in canvas space.
 /// `scale` and `rotation` are applied around the component center.
-sealed class VisionComponent {
+abstract class VisionComponent {
   final String id;
   final Offset position;
   final Size size;

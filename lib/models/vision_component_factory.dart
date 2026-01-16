@@ -1,4 +1,5 @@
 import 'image_component.dart';
+import 'goal_overlay_component.dart';
 import 'text_component.dart';
 import 'vision_component.dart';
 import 'zone_component.dart';
@@ -9,6 +10,8 @@ VisionComponent visionComponentFromJson(Map<String, dynamic> json) {
   switch (type) {
     case ImageComponent.typeName:
       return ImageComponent.fromJson(json);
+    case GoalOverlayComponent.typeName:
+      return GoalOverlayComponent.fromJson(json);
     case TextComponent.typeName:
       return TextComponent.fromJson(json);
     case ZoneComponent.typeName:

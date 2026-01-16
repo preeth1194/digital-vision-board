@@ -1,0 +1,314 @@
+import 'dart:async';
+import 'dart:io' as io;
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/vision_components.dart';
+import '../services/boards_storage_service.dart';
+import '../services/google_drive_backup_service.dart';
+import '../services/image_persistence.dart';
+import '../services/vision_board_components_storage_service.dart';
+import '../widgets/editor/layers_sheet.dart';
+import '../widgets/habit_tracker_sheet.dart';
+import '../widgets/vision_board_builder.dart';
+import 'goal_canvas_editor_screen.dart';
+import 'global_insights_screen.dart';
+import 'habits_list_screen.dart';
+import 'tasks_list_screen.dart';
+
+/// View-only screen for Goal Canvas.
+///
+/// Tap a goal layer to open its habit tracker.
+class GoalCanvasViewerScreen extends StatefulWidget {
+  final String boardId;
+  final String title;
+
+  const GoalCanvasViewerScreen({
+    super.key,
+    required this.boardId,
+    required this.title,
+  });
+
+  @override
+  State<GoalCanvasViewerScreen> createState() => _GoalCanvasViewerScreenState();
+}
+
+class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
+  bool _loading = true;
+  List<VisionComponent> _components = [];
+  Color _backgroundColor = const Color(0xFFF7F7FA);
+  ImageProvider? _backgroundImage;
+  String? _selectedId;
+  bool _uploading = false;
+  int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Tasks, 3: Insights
+
+  final GlobalKey _exportKey = GlobalKey();
+
+  String get _backgroundColorKey => BoardsStorageService.boardBgColorKey(widget.boardId);
+  String get _backgroundImagePathKey => BoardsStorageService.boardImagePathKey(widget.boardId);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final loaded = await VisionBoardComponentsStorageService.loadComponents(widget.boardId, prefs: prefs);
+    final bgColor = prefs.getInt(_backgroundColorKey);
+    final bgPath = prefs.getString(_backgroundImagePathKey);
+    if (!mounted) return;
+    setState(() {
+      _components = loaded;
+      if (bgColor != null) _backgroundColor = Color(bgColor);
+      if (bgPath != null && bgPath.isNotEmpty) {
+        _backgroundImage = io.File(bgPath).existsSync() ? FileImage(io.File(bgPath)) : null;
+      } else {
+        _backgroundImage = null;
+      }
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveComponents(List<VisionComponent> updated) async {
+    final prefs = await SharedPreferences.getInstance();
+    await VisionBoardComponentsStorageService.saveComponents(widget.boardId, updated, prefs: prefs);
+    if (!mounted) return;
+    setState(() => _components = updated);
+  }
+
+  Future<void> _openHabitTracker(VisionComponent component) async {
+    if (component is! ImageComponent) return; // only image goals have habits
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => HabitTrackerSheet(
+        component: component,
+        onComponentUpdated: (updated) {
+          final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
+          _saveComponents(next);
+        },
+      ),
+    );
+  }
+
+  Future<void> _showLayers() async {
+    final images = _components.whereType<ImageComponent>().toList()
+      ..sort((a, b) => b.zIndex.compareTo(a.zIndex));
+
+    if (images.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No goals yet.')),
+      );
+      return;
+    }
+
+    await showLayersSheet(
+      context,
+      componentsTopToBottom: images,
+      selectedId: _selectedId,
+      // Viewer: read-only layers list (selection only).
+      onDelete: (_) {},
+      onReorder: (_) {},
+      onSelect: (id) => setState(() => _selectedId = id),
+      onComplete: (id) {
+        final existing = _components.whereType<ImageComponent>().firstWhere((c) => c.id == id);
+        final updated = existing.copyWith(isDisabled: !existing.isDisabled);
+        final next = _components.map((c) => c.id == id ? updated : c).toList();
+        _saveComponents(next);
+      },
+      allowReorder: false,
+      allowDelete: false,
+    );
+  }
+
+  Future<void> _uploadToGoogleDrive() async {
+    if (_uploading) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Drive upload is not supported on web yet.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _uploading = true);
+
+      final boundary = _exportKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception('Switch to the Canvas tab to export.');
+      }
+
+      final pixelRatio = View.of(context).devicePixelRatio;
+      final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) throw Exception('Failed to encode PNG.');
+      final bytes = byteData.buffer.asUint8List();
+
+      final path = await persistImageBytesToAppStorage(bytes, extension: 'png');
+      if (path == null || path.isEmpty) {
+        throw Exception('Failed to save exported image to device storage.');
+      }
+
+      final fileId = await GoogleDriveBackupService.backupPng(
+        filePath: path,
+        fileName: 'goal_canvas_${widget.boardId}.png',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Uploaded to Google Drive (file id: $fileId).')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google Drive upload failed: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = _tabIndex == 0
+        ? widget.title
+        : _tabIndex == 1
+            ? 'Habits'
+            : _tabIndex == 2
+                ? 'Tasks'
+                : 'Insights';
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          if (_tabIndex == 0)
+            IconButton(
+              tooltip: 'Layers',
+              icon: const Icon(Icons.layers_outlined),
+              onPressed: _showLayers,
+            ),
+          PopupMenuButton<String>(
+            icon: _uploading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'upload_drive') _uploadToGoogleDrive();
+              if (value == 'edit') {
+                Navigator.of(context)
+                    .push(
+                  MaterialPageRoute(
+                    builder: (_) => GoalCanvasEditorScreen(
+                      boardId: widget.boardId,
+                      title: widget.title,
+                    ),
+                  ),
+                )
+                    .then((_) {
+                  if (mounted) _load();
+                });
+              }
+            },
+            itemBuilder: (context) {
+              // Only allow editing/exporting when viewing the canvas itself.
+              if (_tabIndex != 0) return const [];
+              return const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined),
+                      SizedBox(width: 12),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'upload_drive',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cloud_upload_outlined),
+                      SizedBox(width: 12),
+                      Text('Upload to Google Drive'),
+                    ],
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : switch (_tabIndex) {
+              1 => HabitsListScreen(
+                  components: _components,
+                  onComponentsUpdated: _saveComponents,
+                  showAppBar: false,
+                ),
+              2 => TasksListScreen(
+                  components: _components,
+                  onComponentsUpdated: _saveComponents,
+                  showAppBar: false,
+                ),
+              3 => GlobalInsightsScreen(components: _components),
+              _ => RepaintBoundary(
+                  key: _exportKey,
+                  child: VisionBoardBuilder(
+                    components: _components,
+                    isEditing: false,
+                    selectedComponentId: _selectedId,
+                    onSelectedComponentIdChanged: (id) => setState(() => _selectedId = id),
+                    onComponentsChanged: _saveComponents,
+                    onOpenComponent: _openHabitTracker,
+                    backgroundColor: _backgroundColor,
+                    backgroundImage: _backgroundImage,
+                    backgroundImageSize: null,
+                  ),
+                ),
+            },
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _tabIndex,
+        onTap: (i) => setState(() => _tabIndex = i),
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_customize_outlined),
+            label: 'Canvas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.check_circle_outline),
+            label: 'Habits',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.checklist),
+            label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.insights),
+            label: 'Insights',
+          ),
+        ],
+      ),
+    );
+  }
+}
+

@@ -34,7 +34,22 @@ class ManipulableNode extends StatefulWidget {
 
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
-  static const Color _selectionPurple = Color(0xFF7C3AED);
+  static const Color _selectionBorderColor = Colors.white;
+  static const List<BoxShadow> _viewSelectionShadow = [
+    BoxShadow(
+      color: Color(0x66000000),
+      blurRadius: 14,
+      spreadRadius: 2,
+      offset: Offset(0, 6),
+    ),
+  ];
+  static const List<BoxShadow> _editSelectionShadow = [
+    BoxShadow(
+      color: Color(0x33000000),
+      blurRadius: 6,
+      offset: Offset(0, 2),
+    ),
+  ];
 
   final GlobalKey _boxKey = GlobalKey();
 
@@ -64,9 +79,9 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (!widget.isSelected) return;
     if (_isResizing) return;
 
-    // When a component is scaled up/down, raw pointer deltas are in screen space.
-    // Convert to canvas space so dragging stays smooth and doesn't "overshoot".
-    final Offset dragDelta = details.focalPointDelta / widget.component.scale;
+    // When a component is dragged, convert pointer deltas to canvas space
+    // Account for the component's current scale to ensure smooth dragging
+    final Offset dragDelta = details.focalPointDelta / (widget.component.scale > 0 ? widget.component.scale : 1.0);
 
     final next = widget.component.copyWithCommon(
       position: widget.component.position + dragDelta,
@@ -118,10 +133,21 @@ class _ManipulableNodeState extends State<ManipulableNode> {
         key: _boxKey,
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (!widget.gesturesEnabled) return widget.onOpen?.call();
+          // In view mode we still want selection highlight, then open.
           widget.onSelected();
+          if (!widget.gesturesEnabled) {
+            widget.onOpen?.call();
+            return;
+          }
         },
-        onScaleUpdate: _onScaleUpdate,
+        onScaleStart: widget.gesturesEnabled && widget.isSelected
+            ? (details) {
+                // Mark that we're starting a drag
+              }
+            : null,
+        onScaleUpdate: widget.gesturesEnabled && widget.isSelected
+            ? _onScaleUpdate
+            : null,
         child: Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
@@ -131,16 +157,20 @@ class _ManipulableNodeState extends State<ManipulableNode> {
             clipBehavior: Clip.none,
             children: [
               Positioned.fill(child: widget.child),
-              if (widget.isSelected && widget.gesturesEnabled) ...[
+              if (widget.isSelected) ...[
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: _selectionPurple, width: 3),
+                        border: Border.all(color: _selectionBorderColor, width: 3),
+                        boxShadow: widget.gesturesEnabled ? _editSelectionShadow : _viewSelectionShadow,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                 ),
+                if (!widget.gesturesEnabled) const SizedBox.shrink(),
+                if (widget.gesturesEnabled) ...[
                 ResizeHandle(
                   position: HandlePosition.topLeft,
                   isSelected: _selectedResizeHandle == HandlePosition.topLeft,
@@ -237,6 +267,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   onEnd: () => _setResizing(false),
                   onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
                 ),
+                ],
               ],
             ],
           ),

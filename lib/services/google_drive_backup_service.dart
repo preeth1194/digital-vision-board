@@ -18,7 +18,7 @@ class GoogleDriveBackupService {
     drive.DriveApi.driveFileScope,
   ];
 
-  static final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: _scopes);
+  static GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
 
   static Future<String> backupPng({
     required String filePath,
@@ -31,10 +31,27 @@ class GoogleDriveBackupService {
     final f = File(filePath);
     if (!await f.exists()) throw Exception('File not found: $filePath');
 
-    final account = await _googleSignIn.signIn();
-    if (account == null) throw Exception('Google sign-in cancelled.');
+    // Initialize GoogleSignIn if not already initialized
+    await _googleSignIn.initialize();
 
-    final headers = await account.authHeaders;
+    // Try lightweight authentication first, then full authentication if needed
+    GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
+    if (account == null) {
+      account = await _googleSignIn.authenticate(scopeHint: _scopes);
+    }
+    if (account == null) {
+      throw Exception('Google sign-in cancelled.');
+    }
+
+    // Request authorization for scopes to get access token
+    final authorization = await account.authorizationClient.authorizeScopes(_scopes);
+    if (authorization.accessToken == null) {
+      throw Exception('Failed to get authorization for Drive access.');
+    }
+
+    final headers = <String, String>{
+      'Authorization': 'Bearer ${authorization.accessToken!}',
+    };
     final client = _GoogleAuthClient(headers);
     final api = drive.DriveApi(client);
 
@@ -81,10 +98,27 @@ class GoogleDriveBackupService {
       throw Exception('Google Drive download is not supported on web yet.');
     }
 
-    final account = await _googleSignIn.signIn();
-    if (account == null) throw Exception('Google sign-in cancelled.');
+    // Initialize GoogleSignIn if not already initialized
+    await _googleSignIn.initialize();
 
-    final headers = await account.authHeaders;
+    // Try lightweight authentication first, then full authentication if needed
+    GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
+    if (account == null) {
+      account = await _googleSignIn.authenticate(scopeHint: _scopes);
+    }
+    if (account == null) {
+      throw Exception('Google sign-in cancelled.');
+    }
+
+    // Request authorization for scopes to get access token
+    final authorization = await account.authorizationClient.authorizeScopes(_scopes);
+    if (authorization.accessToken == null) {
+      throw Exception('Failed to get authorization for Drive access.');
+    }
+
+    final headers = <String, String>{
+      'Authorization': 'Bearer ${authorization.accessToken!}',
+    };
     final client = _GoogleAuthClient(headers);
     final api = drive.DriveApi(client);
 

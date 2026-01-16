@@ -49,18 +49,57 @@ class _TextInputDialogState extends State<_TextInputDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        maxLines: 5,
-        minLines: 1,
-        textCapitalization: TextCapitalization.sentences,
-        autofocus: true,
-        decoration: const InputDecoration(
-          hintText: 'Type something...',
-          border: OutlineInputBorder(),
+    final size = MediaQuery.sizeOf(context);
+    final isCompact = size.width < 600;
+    final insetBottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    final field = TextField(
+      controller: _controller,
+      maxLines: isCompact ? null : 5,
+      minLines: 3,
+      textCapitalization: TextCapitalization.sentences,
+      autofocus: true,
+      decoration: const InputDecoration(
+        hintText: 'Type something...',
+        border: OutlineInputBorder(),
+      ),
+    );
+
+    if (isCompact) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          appBar: AppBar(
+            title: Text(widget.title),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: _submit,
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
+              child: field,
+            ),
+          ),
         ),
+      );
+    }
+
+    return AlertDialog(
+      scrollable: true,
+      title: Text(widget.title),
+      content: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: insetBottom),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: field,
       ),
       actions: [
         TextButton(

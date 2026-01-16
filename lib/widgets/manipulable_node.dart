@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../models/vision_component.dart';
+import '../models/vision_components.dart';
+import 'manipulable/resize_handle.dart';
+import 'manipulable/resize_logic.dart';
 
 typedef ComponentChanged = void Function(VisionComponent component);
 
-/// A Canva-like wrapper that supports drag, pinch-to-zoom, and rotation,
-/// plus selection UI with resize handles.
+/// A Canva-like wrapper that supports drag plus selection UI with resize handles.
 class ManipulableNode extends StatefulWidget {
   final VisionComponent component;
   final bool isSelected;
@@ -33,41 +34,29 @@ class ManipulableNode extends StatefulWidget {
 
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
-  static const double _handleSize = 14;
+  static const Color _selectionPurple = Color(0xFF7C3AED);
+
+  final GlobalKey _boxKey = GlobalKey();
 
   bool _isResizing = false;
-
-  late VisionComponent _startComponent;
-  late double _startScale;
-  late double _startRotation;
+  HandlePosition? _selectedResizeHandle;
 
   @override
   void initState() {
     super.initState();
-    _startComponent = widget.component;
-    _startScale = widget.component.scale;
-    _startRotation = widget.component.rotation;
   }
 
   @override
   void didUpdateWidget(covariant ManipulableNode oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.component != widget.component) {
-      _startComponent = widget.component;
-      _startScale = widget.component.scale;
-      _startRotation = widget.component.rotation;
+    if (oldWidget.isSelected && !widget.isSelected) {
+      _selectedResizeHandle = null;
+      _isResizing = false;
     }
   }
 
   void _emit(VisionComponent next) {
     widget.onChanged(next);
-  }
-
-  void _onScaleStart(ScaleStartDetails details) {
-    if (!widget.gesturesEnabled) return;
-    _startComponent = widget.component;
-    _startScale = widget.component.scale;
-    _startRotation = widget.component.rotation;
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
@@ -81,8 +70,9 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
     final next = widget.component.copyWithCommon(
       position: widget.component.position + dragDelta,
-      scale: (_startScale * details.scale).clamp(0.2, 8.0),
-      rotation: _startRotation + details.rotation,
+      // Disable pinch zoom/rotate; use resize handles + rotate handle instead.
+      scale: widget.component.scale,
+      rotation: widget.component.rotation,
     );
     _emit(next);
   }
@@ -92,90 +82,24 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     setState(() => _isResizing = v);
   }
 
-  void _resize(_HandlePosition handle, DragUpdateDetails details) {
+  void _resize(HandlePosition handle, DragUpdateDetails details) {
     if (!widget.gesturesEnabled) return;
     if (!widget.isSelected) return;
+    if (_selectedResizeHandle != handle) return;
 
     final delta = details.delta / widget.component.scale;
-    var pos = widget.component.position;
-    var size = widget.component.size;
+    final resized = applyResizeDelta(
+      position: widget.component.position,
+      size: widget.component.size,
+      handle: handle,
+      delta: delta,
+      minSize: _minSize,
+    );
 
-    double newW = size.width;
-    double newH = size.height;
-
-    Offset posDelta = Offset.zero;
-
-    switch (handle) {
-      case _HandlePosition.topLeft:
-        newW = size.width - delta.dx;
-        newH = size.height - delta.dy;
-        posDelta = Offset(delta.dx, delta.dy);
-        break;
-      case _HandlePosition.topRight:
-        newW = size.width + delta.dx;
-        newH = size.height - delta.dy;
-        posDelta = Offset(0, delta.dy);
-        break;
-      case _HandlePosition.bottomLeft:
-        newW = size.width - delta.dx;
-        newH = size.height + delta.dy;
-        posDelta = Offset(delta.dx, 0);
-        break;
-      case _HandlePosition.bottomRight:
-        newW = size.width + delta.dx;
-        newH = size.height + delta.dy;
-        posDelta = Offset.zero;
-        break;
-    }
-
-    // Clamp size and adjust position deltas accordingly.
-    if (newW < _minSize) {
-      final diff = _minSize - newW;
-      newW = _minSize;
-      if (handle == _HandlePosition.topLeft || 
-          handle == _HandlePosition.bottomLeft) {
-        posDelta = Offset(posDelta.dx - diff, posDelta.dy);
-      }
-    }
-    if (newH < _minSize) {
-      final diff = _minSize - newH;
-      newH = _minSize;
-      if (handle == _HandlePosition.topLeft || 
-          handle == _HandlePosition.topRight) {
-        posDelta = Offset(posDelta.dx, posDelta.dy - diff);
-      }
-    }
-
-    pos += posDelta;
-
-    _emit(widget.component.copyWithCommon(position: pos, size: Size(newW, newH)));
-  }
-
-  Widget _handle(_HandlePosition handle, Alignment alignment) {
-    return Align(
-      alignment: alignment,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) => _setResizing(true),
-        onPanEnd: (_) => _setResizing(false),
-        onPanCancel: () => _setResizing(false),
-        onPanUpdate: (d) => _resize(handle, d),
-        child: Container(
-          width: _handleSize,
-          height: _handleSize,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
-            borderRadius: BorderRadius.circular(4), // Slightly rounder
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 2,
-                spreadRadius: 0,
-              )
-            ],
-          ),
-        ),
+    _emit(
+      widget.component.copyWithCommon(
+        position: resized.position,
+        size: resized.size,
       ),
     );
   }
@@ -191,30 +115,18 @@ class _ManipulableNodeState extends State<ManipulableNode> {
       width: c.size.width,
       height: c.size.height,
       child: GestureDetector(
+        key: _boxKey,
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (!widget.gesturesEnabled) {
-            widget.onOpen?.call();
-            return;
-          }
-
+          if (!widget.gesturesEnabled) return widget.onOpen?.call();
           widget.onSelected();
-          if (!_isResizing) {
-            // In edit mode, we don't call onOpen anymore, just select.
-            // widget.onOpen?.call(); 
-            // Wait, the requirement says "while in editing mode i should not get habbit tracker popup on clicking image".
-            // So I should disable onOpen in edit mode here OR in the parent. 
-            // Better to respect the passed onOpen. If parent passes null, it won't be called.
-            widget.onOpen?.call();
-          }
         },
-        onScaleStart: _onScaleStart,
         onScaleUpdate: _onScaleUpdate,
         child: Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..rotateZ(c.rotation)
-            ..scale(c.scale, c.scale),
+            ..scaleByDouble(c.scale, c.scale, 1, 1),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -224,15 +136,107 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
+                        border: Border.all(color: _selectionPurple, width: 3),
                       ),
                     ),
                   ),
                 ),
-                _handle(_HandlePosition.topLeft, Alignment.topLeft),
-                _handle(_HandlePosition.topRight, Alignment.topRight),
-                _handle(_HandlePosition.bottomLeft, Alignment.bottomLeft),
-                _handle(_HandlePosition.bottomRight, Alignment.bottomRight),
+                ResizeHandle(
+                  position: HandlePosition.topLeft,
+                  isSelected: _selectedResizeHandle == HandlePosition.topLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topLeft);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topLeft, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.topCenter,
+                  isSelected: _selectedResizeHandle == HandlePosition.topCenter,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topCenter),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topCenter);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topCenter, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.topRight,
+                  isSelected: _selectedResizeHandle == HandlePosition.topRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.topRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.topRight);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.topRight, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.centerLeft,
+                  isSelected: _selectedResizeHandle == HandlePosition.centerLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.centerLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.centerLeft);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.centerLeft, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.centerRight,
+                  isSelected: _selectedResizeHandle == HandlePosition.centerRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.centerRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.centerRight);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.centerRight, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.bottomLeft,
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomLeft,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomLeft),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomLeft);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomLeft, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.bottomCenter,
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomCenter,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomCenter),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomCenter);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomCenter, d),
+                ),
+                ResizeHandle(
+                  position: HandlePosition.bottomRight,
+                  isSelected: _selectedResizeHandle == HandlePosition.bottomRight,
+                  onSelected: () =>
+                      setState(() => _selectedResizeHandle = HandlePosition.bottomRight),
+                  onStart: () {
+                    setState(() => _selectedResizeHandle = HandlePosition.bottomRight);
+                    _setResizing(true);
+                  },
+                  onEnd: () => _setResizing(false),
+                  onUpdate: (d) => _resize(HandlePosition.bottomRight, d),
+                ),
               ],
             ],
           ),
@@ -240,10 +244,5 @@ class _ManipulableNodeState extends State<ManipulableNode> {
       ),
     );
   }
-}
-
-enum _HandlePosition { 
-  topLeft, topRight, 
-  bottomLeft, bottomRight 
 }
 

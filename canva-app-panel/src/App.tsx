@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Card, Rows, Text, Title } from "@canva/app-ui-kit";
+import { Button, Rows, Text, Title } from "@canva/app-ui-kit";
 import { fetchHabits, getDvToken, postSync, setDvToken } from "./api";
 import { backendBaseUrl } from "./env";
 import { registerSelectionListener, tryReadCurrentPageElements } from "./canva_selection";
@@ -147,13 +147,20 @@ export function App() {
     habitId: mappings[s.key],
   }));
 
+  const panelStyle: React.CSSProperties = {
+    border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 12,
+    padding: 12,
+    background: "rgba(255,255,255,0.8)",
+  };
+
   return (
     <div style={{ padding: 12 }}>
       <Rows spacing="2u">
         <Title>Digital Vision Board</Title>
         <Text>Map selected Canva content to a habit, then sync to your backend.</Text>
 
-        <Card>
+        <div style={panelStyle}>
           <Rows spacing="2u">
             <Title size="small">Backend</Title>
             <Text size="small">Base URL: {backendBaseUrl()}</Text>
@@ -184,9 +191,9 @@ export function App() {
               ) : null}
             </Rows>
           </Rows>
-        </Card>
+        </div>
 
-        <Card>
+        <div style={panelStyle}>
           <Rows spacing="2u">
             <Title size="small">Habits</Title>
             <Rows spacing="1u">
@@ -210,9 +217,9 @@ export function App() {
               </select>
             </label>
           </Rows>
-        </Card>
+        </div>
 
-        <Card>
+        <div style={panelStyle}>
           <Rows spacing="2u">
             <Title size="small">Selection</Title>
             <Rows spacing="1u">
@@ -273,9 +280,9 @@ export function App() {
               </pre>
             ) : null}
           </Rows>
-        </Card>
+        </div>
 
-        <Card>
+        <div style={panelStyle}>
           <Rows spacing="2u">
             <Title size="small">Sync</Title>
             <Text size="small">
@@ -294,7 +301,7 @@ export function App() {
                     : ""}
             </Text>
           </Rows>
-        </Card>
+        </div>
       </Rows>
     </div>
   );

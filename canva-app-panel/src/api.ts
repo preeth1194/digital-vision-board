@@ -38,7 +38,7 @@ export async function fetchHabits(): Promise<Habit[]> {
       id: String(h.id ?? h.habitId ?? h.key ?? ""),
       name: String(h.name ?? h.title ?? h.label ?? ""),
     }))
-    .filter((h) => h.id && h.name);
+    .filter((h: Habit) => h.id && h.name);
 }
 
 export type SyncPayload = {

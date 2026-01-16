@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
+import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/tasks_list_screen.dart';
@@ -34,10 +36,64 @@ class DashboardBody extends StatelessWidget {
     required this.onDeleteBoard,
   });
 
+  VisionBoardInfo? _boardById(String id) {
+    return boards.cast<VisionBoardInfo?>().firstWhere((b) => b?.id == id, orElse: () => null);
+  }
+
+  List<VisionComponent> _componentsFromGridTiles(List<GridTileModel> tiles) {
+    final comps = <VisionComponent>[];
+    for (final t in tiles) {
+      if (t.type == 'empty') continue;
+      comps.add(
+        ImageComponent(
+          id: t.id, // stable id for persistence
+          position: Offset.zero,
+          size: const Size(1, 1),
+          rotation: 0,
+          scale: 1,
+          zIndex: t.index,
+          imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+          goal: t.goal,
+          habits: t.habits,
+          tasks: t.tasks,
+        ),
+      );
+    }
+    return comps;
+  }
+
+  Future<List<VisionComponent>> _loadBoardComponents(VisionBoardInfo board) async {
+    if (board.layoutType == VisionBoardInfo.layoutGrid) {
+      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      return _componentsFromGridTiles(tiles);
+    }
+    return VisionBoardComponentsStorageService.loadComponents(board.id, prefs: prefs);
+  }
+
+  Future<void> _saveBoardComponents(VisionBoardInfo board, List<VisionComponent> updated) async {
+    if (board.layoutType == VisionBoardInfo.layoutGrid) {
+      final existingTiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
+      final nextTiles = existingTiles.map((t) {
+        final c = byId[t.id];
+        if (c == null) return t;
+        final img = c is ImageComponent ? c : null;
+        return t.copyWith(
+          goal: img?.goal ?? t.goal,
+          habits: c.habits,
+          tasks: c.tasks,
+        );
+      }).toList();
+      await GridTilesStorageService.saveTiles(board.id, nextTiles, prefs: prefs);
+      return;
+    }
+    await VisionBoardComponentsStorageService.saveComponents(board.id, updated, prefs: prefs);
+  }
+
   Future<Map<String, List<VisionComponent>>> _loadAllBoardsComponents() async {
     final results = <String, List<VisionComponent>>{};
     for (final b in boards) {
-      results[b.id] = await VisionBoardComponentsStorageService.loadComponents(b.id, prefs: prefs);
+      results[b.id] = await _loadBoardComponents(b);
     }
     return results;
   }
@@ -45,6 +101,7 @@ class DashboardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final boardId = activeBoardId;
+    final activeBoard = (boardId == null) ? null : _boardById(boardId);
     return switch (tabIndex) {
       0 => DashboardTab(
           boards: boards,
@@ -54,14 +111,13 @@ class DashboardBody extends StatelessWidget {
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
         ),
-      1 when boardId != null => FutureBuilder<List<VisionComponent>>(
-          future: VisionBoardComponentsStorageService.loadComponents(boardId, prefs: prefs),
+      1 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+          future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return HabitsListScreen(
               components: snap.data ?? const <VisionComponent>[],
-              onComponentsUpdated: (updated) =>
-                  VisionBoardComponentsStorageService.saveComponents(boardId, updated, prefs: prefs),
+              onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
             );
           },
         ),
@@ -72,19 +128,21 @@ class DashboardBody extends StatelessWidget {
             return AllBoardsHabitsTab(
               boards: boards,
               componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
-              onSaveBoardComponents: (id, updated) =>
-                  VisionBoardComponentsStorageService.saveComponents(id, updated, prefs: prefs),
+              onSaveBoardComponents: (id, updated) async {
+                final b = _boardById(id);
+                if (b == null) return;
+                await _saveBoardComponents(b, updated);
+              },
             );
           },
         ),
-      2 when boardId != null => FutureBuilder<List<VisionComponent>>(
-          future: VisionBoardComponentsStorageService.loadComponents(boardId, prefs: prefs),
+      2 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+          future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return TasksListScreen(
               components: snap.data ?? const <VisionComponent>[],
-              onComponentsUpdated: (updated) =>
-                  VisionBoardComponentsStorageService.saveComponents(boardId, updated, prefs: prefs),
+              onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
               showAppBar: false,
             );
           },
@@ -96,13 +154,16 @@ class DashboardBody extends StatelessWidget {
             return AllBoardsTasksTab(
               boards: boards,
               componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
-              onSaveBoardComponents: (id, updated) =>
-                  VisionBoardComponentsStorageService.saveComponents(id, updated, prefs: prefs),
+              onSaveBoardComponents: (id, updated) async {
+                final b = _boardById(id);
+                if (b == null) return;
+                await _saveBoardComponents(b, updated);
+              },
             );
           },
         ),
-      _ when boardId != null => FutureBuilder<List<VisionComponent>>(
-          future: VisionBoardComponentsStorageService.loadComponents(boardId, prefs: prefs),
+      _ when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+          future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return GlobalInsightsScreen(components: snap.data ?? const <VisionComponent>[]);

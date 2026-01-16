@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +21,7 @@ class CanvaImportService {
   static String backendBaseUrl() {
     const raw = String.fromEnvironment(
       'BACKEND_BASE_URL',
-      defaultValue: 'http://127.0.0.1:8787',
+      defaultValue: 'https://digital-vision-board.onrender.com',
     );
     return raw.replaceAll(RegExp(r'/+$'), '');
   }
@@ -92,6 +93,21 @@ class CanvaImportService {
       Uri.parse('${backendBaseUrl()}$path'),
       headers: { 'Authorization': 'Bearer $dvToken' },
     );
+    if (res.statusCode == 404) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>?;
+      final error = body?['error'] as String?;
+      if (error == 'no_packages') {
+        throw Exception(
+          'No Canva package found. Please sync a design from the Canva panel first.\n\n'
+          'Steps:\n'
+          '1. Open your design in Canva\n'
+          '2. Use the Digital Vision Board panel\n'
+          '3. Map habits to elements\n'
+          '4. Click "Sync board to app"\n'
+          '5. Then try importing again',
+        );
+      }
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('Request failed (${res.statusCode}): ${res.body}');
     }
@@ -122,9 +138,27 @@ class CanvaImportService {
           (h['id'] as String): (h['name'] as String? ?? (h['id'] as String)),
     };
 
-    final pkgJson = await _getJson('/canva/packages/latest', dvToken: dvToken);
+    Map<String, dynamic> pkgJson;
+    try {
+      pkgJson = await _getJson('/canva/packages/latest', dvToken: dvToken);
+    } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('no_packages')) {
+        throw Exception(
+          'No Canva package found. Please sync a design from the Canva panel first. '
+          'Open your design in Canva, use the Digital Vision Board panel to map habits to elements, '
+          'and click "Sync" to create a package.',
+        );
+      }
+      rethrow;
+    }
     final pkg = pkgJson['package'] as Map<String, dynamic>?;
-    if (pkg == null) throw Exception('No package found.');
+    if (pkg == null) {
+      throw Exception(
+        'No Canva package found. Please sync a design from the Canva panel first. '
+        'Open your design in Canva, use the Digital Vision Board panel to map habits to elements, '
+        'and click "Sync" to create a package.',
+      );
+    }
 
     // Background from export (if available)
     final export = pkg['export'] as Map<String, dynamic>?;

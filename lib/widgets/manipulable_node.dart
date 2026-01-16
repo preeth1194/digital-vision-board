@@ -121,7 +121,14 @@ class _ManipulableNodeState extends State<ManipulableNode> {
           if (!widget.gesturesEnabled) return widget.onOpen?.call();
           widget.onSelected();
         },
-        onScaleUpdate: _onScaleUpdate,
+        onScaleStart: widget.gesturesEnabled && widget.isSelected
+            ? (details) {
+                // Mark that we're starting a drag
+              }
+            : null,
+        onScaleUpdate: widget.gesturesEnabled && widget.isSelected
+            ? _onScaleUpdate
+            : null,
         child: Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()

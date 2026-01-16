@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Conditional import: File is not available on web
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
@@ -729,13 +730,56 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     if (!mounted) return;
     if (croppedPath == null || croppedPath.isEmpty) return;
 
+    // Get actual image dimensions to set appropriate default size
+    final imageFile = io.File(croppedPath);
+    Size? imageSize;
+    if (await imageFile.exists()) {
+      try {
+        final imageProvider = FileImage(imageFile);
+        imageSize = await _resolveImageSize(imageProvider);
+      } catch (_) {
+        // If we can't resolve size, use defaults below
+      }
+    }
+
+    // Use actual image dimensions with reasonable defaults and limits
+    // Maintain aspect ratio but cap maximum size
+    const minSize = 200.0;
+    const maxSize = 800.0;
+    Size defaultSize;
+    
+    if (imageSize != null && imageSize.width > 0 && imageSize.height > 0) {
+      // Use actual image dimensions, but scale if too large
+      double width = imageSize.width;
+      double height = imageSize.height;
+      
+      // Ensure minimum size
+      if (width < minSize && height < minSize) {
+        final scale = minSize / (width > height ? width : height);
+        width = width * scale;
+        height = height * scale;
+      }
+      
+      // Cap maximum size while maintaining aspect ratio
+      if (width > maxSize || height > maxSize) {
+        final scale = maxSize / (width > height ? width : height);
+        width = width * scale;
+        height = height * scale;
+      }
+      
+      defaultSize = Size(width, height);
+    } else {
+      // Fallback to a larger default size if we can't detect dimensions
+      defaultSize = const Size(500, 400);
+    }
+
     final String? name = await showAddNameDialog(context, title: 'Your Vision/Goal');
     if (name == null || name.isEmpty) return;
 
     final c = ImageComponent(
       id: name,
       position: const Offset(120, 120),
-      size: const Size(320, 220),
+      size: defaultSize,
       rotation: 0,
       scale: 1,
       zIndex: _nextZ(),

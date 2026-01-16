@@ -106,10 +106,12 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
     final sorted = [...widget.components]..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
     final bgSize = widget.backgroundImageSize;
+    // Use background image size if available, otherwise default to 2000x2000
+    // But ensure minimum reasonable size
     final canvasSize = bgSize != null
         ? Size(
-            bgSize.width < 2000 ? 2000 : bgSize.width,
-            bgSize.height < 2000 ? 2000 : bgSize.height,
+            bgSize.width < 1000 ? 1000 : bgSize.width,
+            bgSize.height < 1000 ? 1000 : bgSize.height,
           )
         : const Size(2000, 2000);
 
@@ -126,14 +128,12 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
           transformationController: _viewerController,
           minScale: 0.2,
           maxScale: 6.0,
+          // Allow panning when no component is selected, or when viewing (not editing)
           panEnabled: !widget.isEditing || widget.selectedComponentId == null,
           // Disable pinch-zoom while editing (Canva-like editor behavior).
           scaleEnabled: !widget.isEditing,
           // Allow some margin so centering isn't clamped.
           boundaryMargin: const EdgeInsets.all(1000),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.isEditing ? () => widget.onSelectedComponentIdChanged(null) : null,
             child: SizedBox(
               width: canvasSize.width,
               height: canvasSize.height,
@@ -144,17 +144,12 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
                     child: Container(color: widget.backgroundColor),
                   ),
                   if (widget.backgroundImage != null)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      width: bgSize?.width ?? canvasSize.width,
-                      height: bgSize?.height ?? canvasSize.height,
+                    Positioned.fill(
                       child: IgnorePointer(
                         child: Image(
                           image: widget.backgroundImage!,
-                          // Keep pixel-space alignment with components; viewport fitting
-                          // is handled by the InteractiveViewer transform above.
-                          fit: BoxFit.fill,
+                          // Fill the entire canvas area, letting InteractiveViewer handle viewport scaling
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),

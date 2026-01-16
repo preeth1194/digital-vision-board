@@ -176,3 +176,19 @@ The import flow:
 2. Downloads exported PNG (if present) and stores it as board background
 3. Creates `ZoneComponent`s for mapped bounds and attaches the chosen `HabitItem` to each
 
+### Optional: Google Drive backup (user consent)
+
+After a successful Canva import, the app can prompt the user to **back up the imported PNG** to Google Drive.
+
+- Uses Google Sign-In and requests the minimal Drive scope: `drive.file`
+- Uploads the PNG into a Drive folder named **“Digital Vision Board”** (created once and cached)
+
+#### Platform setup required
+
+You must configure Google Sign-In for your app:
+
+- **Android**: create an OAuth client in Google Cloud, set the SHA-1, and add the required config (commonly `google-services.json` depending on your setup).
+- **iOS**: add the Google OAuth client config (commonly `GoogleService-Info.plist`) and URL scheme.
+
+If these aren’t configured, the app will show a “Google Drive backup failed” message after the user taps Backup.
+

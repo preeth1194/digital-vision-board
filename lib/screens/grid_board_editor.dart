@@ -6,12 +6,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
+import '../models/goal_metadata.dart';
+import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
+import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
+import 'global_insights_screen.dart';
+import 'habits_list_screen.dart';
+import 'grid_goal_viewer_screen.dart';
+import 'tasks_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -41,6 +48,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   late bool _isEditing;
   bool _loading = true;
+  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Tasks, 3: Insights (view mode only)
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
@@ -259,6 +267,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (!_isEditing) return;
     final t = _tileAt(index);
     final hasContent = t.type != 'empty' && (t.content ?? '').trim().isNotEmpty;
+    final hasGoalData = (t.goal?.title ?? '').trim().isNotEmpty || t.hasTrackerData;
+
+    if (hasGoalData) {
+      final bool? ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Remove goal?'),
+          content: const Text(
+            'This will remove the goal from this tile and delete all its habits, tasks, and streak history.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
 
     // If there is content, delete the contents (keep the tile slot).
     if (hasContent) {
@@ -304,17 +334,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (!mounted) return;
     if (croppedPath == null || croppedPath.isEmpty) return;
 
-    await _setTile(
-      index,
-      GridTileModel(
-        id: _tileAt(index).id,
-        type: 'image',
-        content: croppedPath,
-        crossAxisCellCount: _tileAt(index).crossAxisCellCount,
-        mainAxisCellCount: _tileAt(index).mainAxisCellCount,
-        index: index,
-      ),
-    );
+    await _setTile(index, _tileAt(index).copyWith(type: 'image', content: croppedPath));
+    await _ensureGoalTitle(index, suggestedTitle: 'Goal');
   }
 
   Future<void> _showAddContentSheet(int index) async {
@@ -361,44 +382,114 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (text == null) return;
 
     final nextText = text.trim();
-    await _setTile(
-      index,
-      GridTileModel(
-        id: _tileAt(index).id,
-        type: nextText.isEmpty ? 'empty' : 'text',
-        content: nextText.isEmpty ? null : nextText,
-        crossAxisCellCount: _tileAt(index).crossAxisCellCount,
-        mainAxisCellCount: _tileAt(index).mainAxisCellCount,
-        index: index,
-      ),
-    );
+    await _setTile(index, existing.copyWith(type: nextText.isEmpty ? 'empty' : 'text', content: nextText.isEmpty ? null : nextText));
+    if (nextText.isNotEmpty) {
+      await _ensureGoalTitle(index, suggestedTitle: nextText.length > 24 ? nextText.substring(0, 24) : nextText);
+    }
   }
 
   Future<void> _clearTile(int index) async {
     await _setTile(
       index,
-      GridTileModel(
-        id: _tileAt(index).id,
+      _tileAt(index).copyWith(
         type: 'empty',
         content: null,
-        crossAxisCellCount: _tileAt(index).crossAxisCellCount,
-        mainAxisCellCount: _tileAt(index).mainAxisCellCount,
-        index: index,
+        goal: null,
+        habits: const [],
+        tasks: const [],
       ),
     );
   }
 
+  Future<void> _ensureGoalTitle(int index, {String? suggestedTitle}) async {
+    final t = _tileAt(index);
+    final hasTitle = (t.goal?.title ?? '').trim().isNotEmpty;
+    if (hasTitle) return;
+
+    final categorySuggestions = _tiles
+        .map((e) => e.goal?.category)
+        .whereType<String>()
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final res = await showAddNameAndCategoryDialog(
+      context,
+      title: 'Goal name',
+      categoryHint: 'Category (optional)',
+      categorySuggestions: categorySuggestions,
+    );
+    if (!mounted) return;
+    if (res == null || res.name.trim().isEmpty) return;
+
+    final meta = GoalMetadata(title: res.name.trim(), category: res.category);
+    await _setTile(index, _tileAt(index).copyWith(goal: meta));
+  }
+
   void _toggleEditMode() {
-    setState(() => _isEditing = !_isEditing);
+    setState(() {
+      _isEditing = !_isEditing;
+      // When switching back to view mode, default to grid view and clear selection.
+      if (!_isEditing) {
+        _viewTabIndex = 0;
+        _selectedIndex = null;
+        _selectedResizeHandle = null;
+      }
+    });
+  }
+
+  List<VisionComponent> _componentsFromTiles() {
+    final comps = <VisionComponent>[];
+    for (final t in _tiles) {
+      if (t.type == 'empty') continue;
+      comps.add(
+        ImageComponent(
+          id: t.id, // stable key for persistence
+          position: Offset.zero,
+          size: const Size(1, 1),
+          rotation: 0,
+          scale: 1,
+          zIndex: t.index,
+          imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+          goal: t.goal ?? GoalMetadata(title: t.id),
+          habits: t.habits,
+          tasks: t.tasks,
+        ),
+      );
+    }
+    return comps;
+  }
+
+  Future<void> _applyComponentUpdates(List<VisionComponent> updated) async {
+    final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
+    final next = _tiles.map((t) {
+      final c = byId[t.id];
+      if (c == null) return t;
+      final img = c is ImageComponent ? c : null;
+      return t.copyWith(
+        goal: img?.goal ?? t.goal,
+        habits: c.habits,
+        tasks: c.tasks,
+      );
+    }).toList();
+    await _saveTiles(next);
   }
 
   Widget _tileChild(GridTileModel tile) {
     final borderRadius = BorderRadius.zero;
     final isSelected = _isEditing && _selectedIndex == tile.index;
+    final goalTitle = (tile.goal?.title ?? '').trim();
+    final fallbackTitle = tile.type == 'text'
+        ? (tile.content ?? '').trim()
+        : (tile.type == 'image' ? 'Goal' : '');
+    final title = goalTitle.isNotEmpty ? goalTitle : fallbackTitle;
+    final showTitle = title.isNotEmpty && tile.type != 'empty';
 
+    Widget base;
     if (tile.type == 'image') {
       final provider = fileImageProviderFromPath(tile.content ?? '');
-      return Container(
+      base = Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
           border: Border.all(
@@ -415,10 +506,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 child: const Icon(Icons.broken_image_outlined),
               ),
       );
-    }
-
-    if (tile.type == 'text') {
-      return Container(
+    } else if (tile.type == 'text') {
+      base = Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
           borderRadius: borderRadius,
@@ -436,28 +525,54 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       );
+    } else {
+      // Empty state
+      base = Container(
+        decoration: BoxDecoration(
+          color: Colors.black12.withOpacity(0.08),
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.add, color: Colors.black54),
+            SizedBox(height: 6),
+            Text('Tap twice to add', style: TextStyle(color: Colors.black54)),
+          ],
+        ),
+      );
     }
 
-    // Empty state
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black12.withOpacity(0.08),
-        borderRadius: borderRadius,
-        border: Border.all(
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
-          width: isSelected ? 2 : 1,
+    if (!showTitle) return base;
+
+    return Stack(
+      children: [
+        Positioned.fill(child: base),
+        Positioned(
+          left: 8,
+          right: 8,
+          bottom: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.55),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
         ),
-      ),
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.add, color: Colors.black54),
-          SizedBox(height: 6),
-          Text('Tap twice to add', style: TextStyle(color: Colors.black54)),
-        ],
-      ),
+      ],
     );
   }
 
@@ -466,9 +581,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     // Removed the fixed 12px spacing toggle; keep the grid compact by default.
     const spacing = 0.0;
     final selected = _selectedTile();
+    final viewTitle = _viewTabIndex == 0
+        ? widget.title
+        : _viewTabIndex == 1
+            ? 'Habits'
+            : _viewTabIndex == 2
+                ? 'Tasks'
+                : 'Insights';
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit: ${widget.title}' : widget.title),
+        title: Text(_isEditing ? 'Edit: ${widget.title}' : viewTitle),
         leading: const BackButton(),
         actions: [
           IconButton(
@@ -480,8 +602,22 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
+          : (!_isEditing && _viewTabIndex == 1)
+              ? HabitsListScreen(
+                  components: _componentsFromTiles(),
+                  onComponentsUpdated: _applyComponentUpdates,
+                  showAppBar: false,
+                )
+              : (!_isEditing && _viewTabIndex == 2)
+                  ? TasksListScreen(
+                      components: _componentsFromTiles(),
+                      onComponentsUpdated: _applyComponentUpdates,
+                      showAppBar: false,
+                    )
+                  : (!_isEditing && _viewTabIndex == 3)
+                      ? GlobalInsightsScreen(components: _componentsFromTiles())
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
                 // Grid is rendered inside a 16px padding on both sides.
                 final gridMaxWidth = (constraints.maxWidth - 32).clamp(0.0, double.infinity);
                 final cellExtent =
@@ -646,9 +782,24 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                   );
 
                                   final content = InkWell(
-                                    onTap: (!_isEditing || selectionLocked)
-                                        ? null
-                                        : () async {
+                                    onTap: (!_isEditing)
+                                        ? () async {
+                                            // View mode: open the goal viewer for this tile.
+                                            final current = _tileAt(i);
+                                            if (current.type == 'empty') return;
+                                            await Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => GridGoalViewerScreen(
+                                                  boardId: widget.boardId,
+                                                  tileId: current.id,
+                                                ),
+                                              ),
+                                            );
+                                            if (mounted) await _init();
+                                          }
+                                        : (selectionLocked)
+                                            ? null
+                                            : () async {
                                             final wasSelected = _selectedIndex == i;
                                             setState(() {
                                               _selectedIndex = i;
@@ -720,11 +871,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                     ),
                   ),
                 );
-              },
-            ),
-      bottomNavigationBar: !_isEditing
-          ? null
-          : SafeArea(
+                      },
+                    ),
+      bottomNavigationBar: _isEditing
+          ? SafeArea(
               top: false,
               child: BottomAppBar(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -741,15 +891,23 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                         child: Text(
                           'Drag handles to resize • Long-press tile to move',
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
                         ),
                       ),
                   ],
                 ),
               ),
+            )
+          : BottomNavigationBar(
+              currentIndex: _viewTabIndex,
+              onTap: (i) => setState(() => _viewTabIndex = i),
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Grid'),
+                BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
+                BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
+                BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
+              ],
             ),
     );
   }

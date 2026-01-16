@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'habit_item.dart';
+import 'goal_metadata.dart';
+import 'task_item.dart';
 import 'vision_component.dart';
 
 final class ImageComponent extends VisionComponent {
   static const String typeName = 'image';
   final String imagePath;
+  final GoalMetadata? goal;
 
   const ImageComponent({
     required super.id,
@@ -15,7 +18,10 @@ final class ImageComponent extends VisionComponent {
     super.scale,
     super.zIndex,
     super.habits,
+    super.tasks,
+    super.isDisabled,
     required this.imagePath,
+    this.goal,
   });
 
   @override
@@ -30,6 +36,9 @@ final class ImageComponent extends VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<TaskItem>? tasks,
+    bool? isDisabled,
+    GoalMetadata? goal,
   }) {
     return ImageComponent(
       id: id ?? this.id,
@@ -39,11 +48,14 @@ final class ImageComponent extends VisionComponent {
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
       habits: habits ?? this.habits,
+      tasks: tasks ?? this.tasks,
+      isDisabled: isDisabled ?? this.isDisabled,
       imagePath: imagePath,
+      goal: goal ?? this.goal,
     );
   }
 
-  ImageComponent copyWith({String? imagePath}) => ImageComponent(
+  ImageComponent copyWith({String? imagePath, bool? isDisabled, GoalMetadata? goal}) => ImageComponent(
         id: id,
         position: position,
         size: size,
@@ -51,7 +63,10 @@ final class ImageComponent extends VisionComponent {
         scale: scale,
         zIndex: zIndex,
         habits: habits,
+        tasks: tasks,
+        isDisabled: isDisabled ?? this.isDisabled,
         imagePath: imagePath ?? this.imagePath,
+        goal: goal ?? this.goal,
       );
 
   @override
@@ -64,7 +79,10 @@ final class ImageComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
+        'tasks': VisionComponent.tasksToJson(tasks),
+        'isDisabled': isDisabled,
         'imagePath': imagePath,
+        'goal': goal?.toJson(),
       };
 
   factory ImageComponent.fromJson(Map<String, dynamic> json) => ImageComponent(
@@ -77,7 +95,12 @@ final class ImageComponent extends VisionComponent {
         scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
         zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
         habits: VisionComponent.habitsFromJson(json['habits']),
+        tasks: VisionComponent.tasksFromJson(json['tasks']),
+        isDisabled: json['isDisabled'] as bool? ?? false,
         imagePath: json['imagePath'] as String,
+        goal: (json['goal'] is Map<String, dynamic>)
+            ? GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>)
+            : null,
       );
 }
 

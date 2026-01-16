@@ -5,7 +5,9 @@ import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../screens/habits_list_screen.dart';
+import '../../screens/tasks_list_screen.dart';
 import 'all_boards_habits_tab.dart';
+import 'all_boards_tasks_tab.dart';
 import 'dashboard_tab.dart';
 import '../../screens/global_insights_screen.dart';
 
@@ -68,6 +70,30 @@ class DashboardBody extends StatelessWidget {
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return AllBoardsHabitsTab(
+              boards: boards,
+              componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
+              onSaveBoardComponents: (id, updated) =>
+                  VisionBoardComponentsStorageService.saveComponents(id, updated, prefs: prefs),
+            );
+          },
+        ),
+      2 when boardId != null => FutureBuilder<List<VisionComponent>>(
+          future: VisionBoardComponentsStorageService.loadComponents(boardId, prefs: prefs),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            return TasksListScreen(
+              components: snap.data ?? const <VisionComponent>[],
+              onComponentsUpdated: (updated) =>
+                  VisionBoardComponentsStorageService.saveComponents(boardId, updated, prefs: prefs),
+              showAppBar: false,
+            );
+          },
+        ),
+      2 => FutureBuilder<Map<String, List<VisionComponent>>>(
+          future: _loadAllBoardsComponents(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            return AllBoardsTasksTab(
               boards: boards,
               componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
               onSaveBoardComponents: (id, updated) =>

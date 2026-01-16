@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'habit_item.dart';
+import 'task_item.dart';
 
 /// Freeform canvas node model.
 ///
@@ -15,6 +16,9 @@ abstract class VisionComponent {
   final double scale;
   final int zIndex;
   final List<HabitItem> habits;
+  final List<TaskItem> tasks;
+  /// When true, this layer is completed/disabled (kept, but visually muted).
+  final bool isDisabled;
 
   const VisionComponent({
     required this.id,
@@ -24,6 +28,8 @@ abstract class VisionComponent {
     this.scale = 1.0,
     this.zIndex = 0,
     this.habits = const [],
+    this.tasks = const [],
+    this.isDisabled = false,
   });
 
   VisionComponent copyWithCommon({
@@ -34,6 +40,8 @@ abstract class VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<TaskItem>? tasks,
+    bool? isDisabled,
   });
 
   String get type;
@@ -75,5 +83,13 @@ abstract class VisionComponent {
 
   static List<Map<String, dynamic>> habitsToJson(List<HabitItem> habits) =>
       habits.map((h) => h.toJson()).toList();
+
+  static List<TaskItem> tasksFromJson(dynamic json) {
+    final list = (json as List<dynamic>? ?? const []);
+    return list.map((e) => TaskItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static List<Map<String, dynamic>> tasksToJson(List<TaskItem> tasks) =>
+      tasks.map((t) => t.toJson()).toList();
 }
 

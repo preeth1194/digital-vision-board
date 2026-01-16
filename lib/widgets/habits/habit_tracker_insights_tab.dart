@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class HabitInsightsTab extends StatelessWidget {
-  final ScrollController scrollController;
   final DateTime focusedDay;
   final DateTime selectedDay;
   final ValueChanged<DateTime> onFocusedDayChanged;
@@ -15,7 +14,6 @@ class HabitInsightsTab extends StatelessWidget {
 
   const HabitInsightsTab({
     super.key,
-    required this.scrollController,
     required this.focusedDay,
     required this.selectedDay,
     required this.onFocusedDayChanged,
@@ -28,7 +26,6 @@ class HabitInsightsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      controller: scrollController,
       padding: const EdgeInsets.all(16),
       children: [
         Card(

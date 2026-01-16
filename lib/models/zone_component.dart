@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'habit_item.dart';
+import 'task_item.dart';
 import 'vision_component.dart';
 
 /// Legacy transparent hotspot, kept as a component.
@@ -18,6 +19,8 @@ final class ZoneComponent extends VisionComponent {
     super.scale,
     super.zIndex,
     super.habits,
+    super.tasks,
+    super.isDisabled,
     this.link,
   });
 
@@ -33,6 +36,8 @@ final class ZoneComponent extends VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<TaskItem>? tasks,
+    bool? isDisabled,
   }) {
     return ZoneComponent(
       id: id ?? this.id,
@@ -42,11 +47,13 @@ final class ZoneComponent extends VisionComponent {
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
       habits: habits ?? this.habits,
+      tasks: tasks ?? this.tasks,
+      isDisabled: isDisabled ?? this.isDisabled,
       link: link,
     );
   }
 
-  ZoneComponent copyWith({String? link}) => ZoneComponent(
+  ZoneComponent copyWith({String? link, bool? isDisabled}) => ZoneComponent(
         id: id,
         position: position,
         size: size,
@@ -54,6 +61,8 @@ final class ZoneComponent extends VisionComponent {
         scale: scale,
         zIndex: zIndex,
         habits: habits,
+        tasks: tasks,
+        isDisabled: isDisabled ?? this.isDisabled,
         link: link ?? this.link,
       );
 
@@ -67,6 +76,8 @@ final class ZoneComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
+        'tasks': VisionComponent.tasksToJson(tasks),
+        'isDisabled': isDisabled,
         'link': link,
       };
 
@@ -80,6 +91,8 @@ final class ZoneComponent extends VisionComponent {
         scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
         zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
         habits: VisionComponent.habitsFromJson(json['habits']),
+        tasks: VisionComponent.tasksFromJson(json['tasks']),
+        isDisabled: json['isDisabled'] as bool? ?? false,
         link: json['link'] as String?,
       );
 }

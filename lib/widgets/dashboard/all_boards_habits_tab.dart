@@ -58,11 +58,11 @@ class AllBoardsHabitsTab extends StatelessWidget {
                             ),
                           ),
                           ...component.habits.map((habit) {
-                            final isCompleted = habit.isCompletedOnDate(DateTime.now());
+                            final isCompleted = habit.isCompletedForCurrentPeriod(DateTime.now());
                             return CheckboxListTile(
                               value: isCompleted,
                               onChanged: (_) async {
-                                final updatedHabit = habit.toggleToday();
+                                final updatedHabit = habit.toggleForDate(DateTime.now());
                                 final updatedHabits = component.habits
                                     .map((h) => h.id == habit.id ? updatedHabit : h)
                                     .toList();

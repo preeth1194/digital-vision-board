@@ -18,6 +18,7 @@ import '../widgets/grid/image_source_sheet.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
 import 'grid_goal_viewer_screen.dart';
+import 'tasks_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -47,7 +48,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   late bool _isEditing;
   bool _loading = true;
-  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Insights (view mode only)
+  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Tasks, 3: Insights (view mode only)
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
@@ -584,7 +585,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         ? widget.title
         : _viewTabIndex == 1
             ? 'Habits'
-            : 'Insights';
+            : _viewTabIndex == 2
+                ? 'Tasks'
+                : 'Insights';
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit: ${widget.title}' : viewTitle),
@@ -606,7 +609,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   showAppBar: false,
                 )
               : (!_isEditing && _viewTabIndex == 2)
-                  ? GlobalInsightsScreen(components: _componentsFromTiles())
+                  ? TasksListScreen(
+                      components: _componentsFromTiles(),
+                      onComponentsUpdated: _applyComponentUpdates,
+                      showAppBar: false,
+                    )
+                  : (!_isEditing && _viewTabIndex == 3)
+                      ? GlobalInsightsScreen(components: _componentsFromTiles())
                   : LayoutBuilder(
                       builder: (context, constraints) {
                 // Grid is rendered inside a 16px padding on both sides.
@@ -896,6 +905,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Grid'),
                 BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
+                BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
                 BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
               ],
             ),

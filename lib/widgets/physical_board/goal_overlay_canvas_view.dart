@@ -368,113 +368,127 @@ class _GoalOverlayCanvasViewState extends State<GoalOverlayCanvasView> {
                   child: const ColoredBox(color: Colors.transparent),
                 ),
               ),
-            ...widget.overlays.map((o) {
-              final rectPx = _rectFor(o);
-              final screenRect = imagePixelRectToScreenRect(
-                rectPx: rectPx,
-                containerSize: containerSize,
-                imageSize: widget.imageSize,
-                transform: _controller.value,
-              );
-              if (screenRect.width <= 0 || screenRect.height <= 0) {
-                return const SizedBox.shrink();
-              }
+            // Rebuild overlay positions when zoom/pan changes.
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return Stack(
+                  children: [
+                    ...widget.overlays.map((o) {
+                      final rectPx = _rectFor(o);
+                      final screenRect = imagePixelRectToScreenRect(
+                        rectPx: rectPx,
+                        containerSize: containerSize,
+                        imageSize: widget.imageSize,
+                        transform: _controller.value,
+                      );
+                      if (screenRect.width <= 0 || screenRect.height <= 0) {
+                        return const SizedBox.shrink();
+                      }
 
-              final selected = widget.selectedId == o.id;
-              final title = (o.goal.title ?? '').trim().isNotEmpty ? o.goal.title!.trim() : o.id;
+                      final selected = widget.selectedId == o.id;
+                      final title =
+                          (o.goal.title ?? '').trim().isNotEmpty ? o.goal.title!.trim() : o.id;
 
-              return Positioned(
-                left: screenRect.left,
-                top: screenRect.top,
-                width: screenRect.width,
-                height: screenRect.height,
-                child: GoalOverlayBox(
-                  title: title,
-                  isEditing: widget.isEditing,
-                  isSelected: selected,
-                  onTap: () {
-                    if (widget.isEditing) {
-                      widget.onSelectedIdChanged(o.id);
-                      return;
-                    }
-                    widget.onOpenOverlay(o);
-                  },
-                  onDelete: widget.isEditing && selected ? () => _deleteOverlay(o.id) : null,
-                  onMoveStart: widget.isEditing
-                      ? (d) {
-                          widget.onSelectedIdChanged(o.id);
-                          startMove(o.id, d);
-                        }
-                      : null,
-                  onMoveUpdate: widget.isEditing ? updateMove : null,
-                  onMoveEnd: widget.isEditing ? endInteraction : null,
-                  onResizeTlStart: widget.isEditing
-                      ? (d) {
-                          widget.onSelectedIdChanged(o.id);
-                          startResize(o.id, _InteractionMode.resizeTl, d);
-                        }
-                      : null,
-                  onResizeTlUpdate: widget.isEditing ? updateResize : null,
-                  onResizeTlEnd: widget.isEditing ? endInteraction : null,
-                  onResizeTrStart: widget.isEditing
-                      ? (d) {
-                          widget.onSelectedIdChanged(o.id);
-                          startResize(o.id, _InteractionMode.resizeTr, d);
-                        }
-                      : null,
-                  onResizeTrUpdate: widget.isEditing ? updateResize : null,
-                  onResizeTrEnd: widget.isEditing ? endInteraction : null,
-                  onResizeBlStart: widget.isEditing
-                      ? (d) {
-                          widget.onSelectedIdChanged(o.id);
-                          startResize(o.id, _InteractionMode.resizeBl, d);
-                        }
-                      : null,
-                  onResizeBlUpdate: widget.isEditing ? updateResize : null,
-                  onResizeBlEnd: widget.isEditing ? endInteraction : null,
-                  onResizeBrStart: widget.isEditing
-                      ? (d) {
-                          widget.onSelectedIdChanged(o.id);
-                          startResize(o.id, _InteractionMode.resizeBr, d);
-                        }
-                      : null,
-                  onResizeBrUpdate: widget.isEditing ? updateResize : null,
-                  onResizeBrEnd: widget.isEditing ? endInteraction : null,
-                ),
-              );
-            }),
-            if (widget.isEditing && _mode == _InteractionMode.drawing && _drawStartPx != null && _drawEndPx != null)
-              Builder(
-                builder: (context) {
-                  final s = _drawStartPx!;
-                  final e = _drawEndPx!;
-                  final left = math.min(s.dx, e.dx);
-                  final top = math.min(s.dy, e.dy);
-                  final w = (s.dx - e.dx).abs();
-                  final h = (s.dy - e.dy).abs();
-                  final rectPx = Rect.fromLTWH(left, top, w, h);
-                  final screenRect = imagePixelRectToScreenRect(
-                    rectPx: rectPx,
-                    containerSize: containerSize,
-                    imageSize: widget.imageSize,
-                    transform: _controller.value,
-                  );
-                  return Positioned(
-                    left: screenRect.left,
-                    top: screenRect.top,
-                    width: screenRect.width,
-                    height: screenRect.height,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF39FF14), width: 2),
-                          color: const Color(0x1A39FF14),
+                      return Positioned(
+                        left: screenRect.left,
+                        top: screenRect.top,
+                        width: screenRect.width,
+                        height: screenRect.height,
+                        child: GoalOverlayBox(
+                          title: title,
+                          isEditing: widget.isEditing,
+                          isSelected: selected,
+                          onTap: () {
+                            if (widget.isEditing) {
+                              widget.onSelectedIdChanged(o.id);
+                              return;
+                            }
+                            widget.onOpenOverlay(o);
+                          },
+                          onDelete: widget.isEditing && selected ? () => _deleteOverlay(o.id) : null,
+                          onMoveStart: widget.isEditing
+                              ? (d) {
+                                  widget.onSelectedIdChanged(o.id);
+                                  startMove(o.id, d);
+                                }
+                              : null,
+                          onMoveUpdate: widget.isEditing ? updateMove : null,
+                          onMoveEnd: widget.isEditing ? endInteraction : null,
+                          onResizeTlStart: widget.isEditing
+                              ? (d) {
+                                  widget.onSelectedIdChanged(o.id);
+                                  startResize(o.id, _InteractionMode.resizeTl, d);
+                                }
+                              : null,
+                          onResizeTlUpdate: widget.isEditing ? updateResize : null,
+                          onResizeTlEnd: widget.isEditing ? endInteraction : null,
+                          onResizeTrStart: widget.isEditing
+                              ? (d) {
+                                  widget.onSelectedIdChanged(o.id);
+                                  startResize(o.id, _InteractionMode.resizeTr, d);
+                                }
+                              : null,
+                          onResizeTrUpdate: widget.isEditing ? updateResize : null,
+                          onResizeTrEnd: widget.isEditing ? endInteraction : null,
+                          onResizeBlStart: widget.isEditing
+                              ? (d) {
+                                  widget.onSelectedIdChanged(o.id);
+                                  startResize(o.id, _InteractionMode.resizeBl, d);
+                                }
+                              : null,
+                          onResizeBlUpdate: widget.isEditing ? updateResize : null,
+                          onResizeBlEnd: widget.isEditing ? endInteraction : null,
+                          onResizeBrStart: widget.isEditing
+                              ? (d) {
+                                  widget.onSelectedIdChanged(o.id);
+                                  startResize(o.id, _InteractionMode.resizeBr, d);
+                                }
+                              : null,
+                          onResizeBrUpdate: widget.isEditing ? updateResize : null,
+                          onResizeBrEnd: widget.isEditing ? endInteraction : null,
                         ),
+                      );
+                    }),
+                    if (widget.isEditing &&
+                        _mode == _InteractionMode.drawing &&
+                        _drawStartPx != null &&
+                        _drawEndPx != null)
+                      Builder(
+                        builder: (context) {
+                          final s = _drawStartPx!;
+                          final e = _drawEndPx!;
+                          final left = math.min(s.dx, e.dx);
+                          final top = math.min(s.dy, e.dy);
+                          final w = (s.dx - e.dx).abs();
+                          final h = (s.dy - e.dy).abs();
+                          final rectPx = Rect.fromLTWH(left, top, w, h);
+                          final screenRect = imagePixelRectToScreenRect(
+                            rectPx: rectPx,
+                            containerSize: containerSize,
+                            imageSize: widget.imageSize,
+                            transform: _controller.value,
+                          );
+                          return Positioned(
+                            left: screenRect.left,
+                            top: screenRect.top,
+                            width: screenRect.width,
+                            height: screenRect.height,
+                            child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: const Color(0xFF39FF14), width: 2),
+                                  color: const Color(0x1A39FF14),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
-              ),
+                  ],
+                );
+              },
+            ),
           ],
         );
       },

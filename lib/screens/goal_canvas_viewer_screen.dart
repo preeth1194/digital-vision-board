@@ -18,6 +18,7 @@ import '../widgets/vision_board_builder.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
+import 'tasks_list_screen.dart';
 
 /// View-only screen for Goal Canvas.
 ///
@@ -43,7 +44,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   ImageProvider? _backgroundImage;
   String? _selectedId;
   bool _uploading = false;
-  int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Insights
+  int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Tasks, 3: Insights
 
   final GlobalKey _exportKey = GlobalKey();
 
@@ -186,7 +187,9 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
         ? widget.title
         : _tabIndex == 1
             ? 'Habits'
-            : 'Insights';
+            : _tabIndex == 2
+                ? 'Tasks'
+                : 'Insights';
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -261,7 +264,12 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
                 ),
-              2 => GlobalInsightsScreen(components: _components),
+              2 => TasksListScreen(
+                  components: _components,
+                  onComponentsUpdated: _saveComponents,
+                  showAppBar: false,
+                ),
+              3 => GlobalInsightsScreen(components: _components),
               _ => RepaintBoundary(
                   key: _exportKey,
                   child: VisionBoardBuilder(
@@ -280,6 +288,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex,
         onTap: (i) => setState(() => _tabIndex = i),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_customize_outlined),
@@ -288,6 +297,10 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.check_circle_outline),
             label: 'Habits',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.checklist),
+            label: 'Tasks',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.insights),

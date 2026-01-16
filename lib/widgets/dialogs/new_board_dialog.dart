@@ -52,12 +52,6 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
             subtitle: const Text('Scan and import your physical vision board'),
             onTap: () => Navigator.of(context).pop('import_physical'),
           ),
-          ListTile(
-            leading: const Icon(Icons.cloud_download_outlined),
-            title: const Text('Import from Canva'),
-            subtitle: const Text('Import a design from Canva'),
-            onTap: () => Navigator.of(context).pop('import_canva'),
-          ),
         ],
       ),
     ),

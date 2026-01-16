@@ -22,14 +22,12 @@ import '../widgets/physical_board/goal_overlay_canvas_view.dart';
 class PhysicalBoardEditorScreen extends StatefulWidget {
   final String boardId;
   final String title;
-  final bool initialIsEditing;
   final bool autoStartImport;
 
   const PhysicalBoardEditorScreen({
     super.key,
     required this.boardId,
     required this.title,
-    this.initialIsEditing = true,
     this.autoStartImport = true,
   });
 
@@ -39,7 +37,6 @@ class PhysicalBoardEditorScreen extends StatefulWidget {
 
 class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
   bool _loading = true;
-  late bool _isEditing;
 
   SharedPreferences? _prefs;
   Timer? _saveDebounce;
@@ -55,7 +52,6 @@ class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
   @override
   void initState() {
     super.initState();
-    _isEditing = widget.initialIsEditing;
     _load();
   }
 
@@ -168,7 +164,6 @@ class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
     setState(() {
       _bgProvider = provider;
       _bgImageSize = size;
-      _isEditing = true;
     });
   }
 
@@ -282,22 +277,13 @@ class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text('Edit: ${widget.title}'),
         actions: [
           IconButton(
-            tooltip: _isEditing ? 'View mode' : 'Edit mode',
-            icon: Icon(_isEditing ? Icons.visibility_outlined : Icons.edit_outlined),
-            onPressed: () => setState(() {
-              _isEditing = !_isEditing;
-              if (!_isEditing) _selectedId = null;
-            }),
+            tooltip: 'Layers',
+            icon: const Icon(Icons.layers_outlined),
+            onPressed: _showLayers,
           ),
-          if (_isEditing)
-            IconButton(
-              tooltip: 'Layers',
-              icon: const Icon(Icons.layers_outlined),
-              onPressed: _showLayers,
-            ),
           IconButton(
             tooltip: 'Import/Replace photo',
             icon: const Icon(Icons.document_scanner_outlined),
@@ -333,7 +319,7 @@ class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
               : GoalOverlayCanvasView(
                   imageProvider: bg,
                   imageSize: bgSize,
-                  isEditing: _isEditing,
+                  isEditing: true,
                   overlays: overlays,
                   selectedId: _selectedId,
                   onSelectedIdChanged: (id) => setState(() => _selectedId = id),
@@ -342,7 +328,7 @@ class _PhysicalBoardEditorScreenState extends State<PhysicalBoardEditorScreen> {
                     final non = _components.where((c) => c is! GoalOverlayComponent).toList();
                     _setComponents([...non, ...nextOverlays]);
                   },
-                  onCreateOverlay: _isEditing ? _createOverlay : (_) async => null,
+                  onCreateOverlay: _createOverlay,
                   onOpenOverlay: (overlay) => _openHabitTracker(overlay),
                 ),
     );

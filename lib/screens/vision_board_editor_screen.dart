@@ -22,6 +22,7 @@ import '../services/image_region_cropper.dart';
 import '../services/image_service.dart';
 import '../screens/global_insights_screen.dart';
 import '../screens/habits_list_screen.dart';
+import '../screens/tasks_list_screen.dart';
 import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/editor/background_options_sheet.dart';
 import '../widgets/editor/layers_sheet.dart';
@@ -62,7 +63,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
   late bool _isEditing;
   bool _isLoading = true;
-  int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Insights
+  int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Tasks, 3: Insights
 
   SharedPreferences? _prefs;
   final ImagePicker _imagePicker = ImagePicker();
@@ -993,7 +994,8 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
     return switch (_viewModeIndex) {
       1 => HabitsListScreen(components: _components, onComponentsUpdated: _onComponentsChanged),
-      2 => GlobalInsightsScreen(components: _components),
+      2 => TasksListScreen(components: _components, onComponentsUpdated: _onComponentsChanged),
+      3 => GlobalInsightsScreen(components: _components),
       _ => VisionBoardBuilder(
           components: _components,
           isEditing: false,
@@ -1051,6 +1053,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
           : BottomNavigationBar(
               currentIndex: _viewModeIndex,
               onTap: (index) => setState(() => _viewModeIndex = index),
+              type: BottomNavigationBarType.fixed,
               items: const [
                 BottomNavigationBarItem(
                   icon: Icon(Icons.dashboard_customize_outlined),
@@ -1059,6 +1062,10 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.check_circle_outline),
                   label: 'Habits',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.checklist),
+                  label: 'Tasks',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.insights),
@@ -1081,7 +1088,9 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                   ? widget.title
                   : _viewModeIndex == 1
                       ? 'Habits'
-                      : 'Insights'),
+                      : _viewModeIndex == 2
+                          ? 'Tasks'
+                          : 'Insights'),
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         automaticallyImplyLeading: false,

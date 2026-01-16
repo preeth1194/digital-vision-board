@@ -352,7 +352,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
           final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          final insetBottom = MediaQuery.viewInsetsOf(ctx).bottom;
+          // In fullscreen dialogs, the Scaffold resizes for the keyboard already.
+          // Keep extra bottom padding only for the non-fullscreen dialog layout.
+          final insetBottom = isCompact ? 0.0 : MediaQuery.viewInsetsOf(ctx).bottom;
           final body = SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
             child: Column(
@@ -511,7 +513,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
           final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          final insetBottom = MediaQuery.viewInsetsOf(ctx).bottom;
+          // In fullscreen dialogs, the Scaffold resizes for the keyboard already.
+          // Keep extra bottom padding only for the non-fullscreen dialog layout.
+          final insetBottom = isCompact ? 0.0 : MediaQuery.viewInsetsOf(ctx).bottom;
           final body = SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
             child: Column(

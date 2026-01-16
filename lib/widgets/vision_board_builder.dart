@@ -134,6 +134,9 @@ class _VisionBoardBuilderState extends State<VisionBoardBuilder> {
           scaleEnabled: !widget.isEditing,
           // Allow some margin so centering isn't clamped.
           boundaryMargin: const EdgeInsets.all(1000),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.isEditing ? () => widget.onSelectedComponentIdChanged(null) : null,
             child: SizedBox(
               width: canvasSize.width,
               height: canvasSize.height,

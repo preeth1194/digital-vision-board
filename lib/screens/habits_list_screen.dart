@@ -6,11 +6,13 @@ import '../models/vision_components.dart';
 class HabitsListScreen extends StatefulWidget {
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
+  final bool showAppBar;
 
   const HabitsListScreen({
     super.key,
     required this.components,
     required this.onComponentsUpdated,
+    this.showAppBar = true,
   });
 
   @override
@@ -19,7 +21,7 @@ class HabitsListScreen extends StatefulWidget {
 
 class _HabitsListScreenState extends State<HabitsListScreen> {
   void _toggleHabit(VisionComponent component, HabitItem habit) {
-    final updatedHabit = habit.toggleToday();
+    final updatedHabit = habit.toggleForDate(DateTime.now());
     final updatedHabits =
         component.habits.map((h) => h.id == habit.id ? updatedHabit : h).toList();
     final updatedComponent = component.copyWithCommon(habits: updatedHabits);
@@ -45,19 +47,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
             ),
             SizedBox(height: 8),
-            Text('Add habits to your zones in Edit Mode', style: TextStyle(color: Colors.grey)),
+            Text('Tap a goal on the canvas to add habits', style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('All Habits'), automaticallyImplyLeading: false),
-      body: ListView.builder(
+    final body = ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: componentsWithHabits.length,
         itemBuilder: (context, index) {
           final component = componentsWithHabits[index];
+          final displayTitle = (component is ImageComponent && (component.goal?.title ?? '').trim().isNotEmpty)
+              ? component.goal!.title!.trim()
+              : component.id;
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
@@ -73,7 +76,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   ),
                   width: double.infinity,
                   child: Text(
-                    component.id,
+                    displayTitle,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -82,11 +85,13 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   ),
                 ),
                 ...component.habits.map((habit) {
-                  final isCompleted = habit.isCompletedOnDate(DateTime.now());
+                  final now = DateTime.now();
+                  final scheduledToday = habit.isScheduledOnDate(now);
+                  final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
                   return ListTile(
                     leading: Checkbox(
                       value: isCompleted,
-                      onChanged: (_) => _toggleHabit(component, habit),
+                      onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
                     ),
                     title: Text(
                       habit.name,
@@ -95,22 +100,38 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                         color: isCompleted ? Colors.grey : null,
                       ),
                     ),
-                    subtitle: habit.currentStreak > 0
-                        ? Row(
-                            children: [
-                              const Icon(Icons.local_fire_department, size: 14, color: Colors.orange),
-                              const SizedBox(width: 4),
-                              Text('${habit.currentStreak} day streak'),
-                            ],
-                          )
-                        : null,
+                    subtitle: Row(
+                      children: [
+                        if (!scheduledToday)
+                          const Text('Not scheduled today', style: TextStyle(color: Colors.grey)),
+                        if (habit.currentStreak > 0) ...[
+                          const Icon(Icons.local_fire_department, size: 14, color: Colors.orange),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
+                          ),
+                        ] else
+                          const Text('No streak yet', style: TextStyle(color: Colors.grey)),
+                        if ((habit.deadline ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          const Text('•', style: TextStyle(color: Colors.grey)),
+                          const SizedBox(width: 10),
+                          Text('Due ${habit.deadline}', style: const TextStyle(color: Colors.grey)),
+                        ],
+                      ],
+                    ),
                   );
                 }),
               ],
             ),
           );
         },
-      ),
+      );
+
+    if (!widget.showAppBar) return body;
+    return Scaffold(
+      appBar: AppBar(title: const Text('All Habits'), automaticallyImplyLeading: false),
+      body: body,
     );
   }
 }

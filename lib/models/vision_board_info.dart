@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 class VisionBoardInfo {
   static const String layoutFreeform = 'freeform';
+  /// New Canva-style freeform board: goals are image layers only.
+  static const String layoutGoalCanvas = 'goal_canvas';
   static const String layoutGrid = 'grid';
 
   final String id;
@@ -9,7 +11,7 @@ class VisionBoardInfo {
   final int createdAtMs;
   final int iconCodePoint; // Material icon code point
   final int tileColorValue; // ARGB color value
-  final String layoutType; // 'freeform' | 'grid'
+  final String layoutType; // 'freeform' | 'goal_canvas' | 'grid'
   final String? templateId; // grid-only: which GridTemplate to use
 
   const VisionBoardInfo({

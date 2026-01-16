@@ -10,6 +10,9 @@ import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import 'grid_editor.dart';
+import 'goal_canvas_editor_screen.dart';
+import 'goal_canvas_viewer_screen.dart';
+import 'physical_board_editor_screen.dart';
 import 'vision_board_editor_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -74,6 +77,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
     if (layoutType == null) return;
 
+    // Handle import options - these skip the normal board creation flow
+    if (layoutType == 'import_physical' || layoutType == 'import_canva') {
+      // Create a temporary freeform board for import
+      final config = await showNewBoardDialog(context);
+      if (!mounted) return;
+      if (config == null || config.title.isEmpty) return;
+
+      final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
+      final board = VisionBoardInfo(
+        id: id,
+        title: config.title,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        iconCodePoint: config.iconCodePoint,
+        tileColorValue: config.tileColorValue,
+        layoutType: VisionBoardInfo.layoutFreeform,
+        templateId: null,
+      );
+
+      final next = [board, ..._boards];
+      await _saveBoards(next);
+      await _setActiveBoard(id);
+      if (!mounted) return;
+      setState(() => _boards = next);
+
+      // Navigate to editor and trigger import
+      if (!mounted) return;
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => layoutType == 'import_physical'
+              ? PhysicalBoardEditorScreen(
+                  boardId: id,
+                  title: config.title,
+                  initialIsEditing: true,
+                  autoStartImport: true,
+                )
+              : VisionBoardEditorScreen(
+                  boardId: id,
+                  title: config.title,
+                  initialIsEditing: true,
+                  autoImportType: layoutType,
+                ),
+        ),
+      );
+
+      if (mounted) {
+        if (result == true) await _reload();
+        setState(() => _activeBoardId = id);
+      }
+      return;
+    }
+
     GridTemplate? gridTemplate;
     if (layoutType == VisionBoardInfo.layoutGrid) {
       gridTemplate = await showGridTemplateSelectorSheet(context);
@@ -121,14 +175,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => layoutType == VisionBoardInfo.layoutGrid
-            ? GridEditorScreen(
-                boardId: id,
-                title: board.title,
-                initialIsEditing: true,
-                template: gridTemplate ?? GridTemplates.hero,
-              )
-            : VisionBoardEditorScreen(boardId: id, title: board.title, initialIsEditing: true),
+        builder: (_) => switch (layoutType) {
+          VisionBoardInfo.layoutGrid => GridEditorScreen(
+              boardId: id,
+              title: board.title,
+              initialIsEditing: true,
+              template: gridTemplate ?? GridTemplates.hero,
+            ),
+          VisionBoardInfo.layoutGoalCanvas => GoalCanvasEditorScreen(
+              boardId: id,
+              title: board.title,
+            ),
+          _ => VisionBoardEditorScreen(boardId: id, title: board.title, initialIsEditing: true),
+        },
       ),
     );
     await _clearActiveBoard();
@@ -163,14 +222,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final gridTemplate = GridTemplates.byId(board.templateId);
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => board.layoutType == VisionBoardInfo.layoutGrid
-            ? GridEditorScreen(
-                boardId: board.id,
-                title: board.title,
-                initialIsEditing: startInEditMode,
-                template: gridTemplate,
-              )
-            : VisionBoardEditorScreen(boardId: board.id, title: board.title, initialIsEditing: startInEditMode),
+        builder: (_) => switch (board.layoutType) {
+          VisionBoardInfo.layoutGrid => GridEditorScreen(
+              boardId: board.id,
+              title: board.title,
+              initialIsEditing: startInEditMode,
+              template: gridTemplate,
+            ),
+          VisionBoardInfo.layoutGoalCanvas => startInEditMode
+              ? GoalCanvasEditorScreen(boardId: board.id, title: board.title)
+              : GoalCanvasViewerScreen(boardId: board.id, title: board.title),
+          _ => VisionBoardEditorScreen(
+              boardId: board.id,
+              title: board.title,
+              initialIsEditing: startInEditMode,
+            ),
+        },
       ),
     );
     await _clearActiveBoard();
@@ -192,14 +259,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital Vision Board'), automaticallyImplyLeading: false),
+      appBar: AppBar(
+        title: const Text('Digital Vision Board'),
+        automaticallyImplyLeading: false,
+        // Material 3认为 AppBar can be translucent; make it solid so navigation is always visible.
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: body,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex,
         onTap: (i) => setState(() => _tabIndex = i),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
+          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
         ],
       ),

@@ -30,6 +30,12 @@ class GridTileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.zero;
+    final goalTitle = (tile.goal?.title ?? '').trim();
+    final fallbackTitle = tile.type == 'text'
+        ? (tile.content ?? '').trim()
+        : (tile.type == 'image' ? 'Goal' : '');
+    final title = goalTitle.isNotEmpty ? goalTitle : fallbackTitle;
+    final showTitle = title.isNotEmpty && tile.type != 'empty';
 
     final Widget content = switch (tile.type) {
       'image' => _imageTile(borderRadius),
@@ -56,6 +62,25 @@ class GridTileCard extends StatelessWidget {
               child: content,
             ),
           ),
+          if (showTitle)
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
           if (isEditing && isSelected)
             Positioned(
               top: 8,

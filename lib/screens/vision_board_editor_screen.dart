@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
 
 import '../models/hotspot_model.dart';
+import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/board_scan_service.dart';
@@ -34,12 +35,14 @@ class VisionBoardEditorScreen extends StatefulWidget {
   final String boardId;
   final String title;
   final bool initialIsEditing;
+  final String? autoImportType; // 'import_physical' or 'import_canva'
 
   const VisionBoardEditorScreen({
     super.key,
     required this.boardId,
     required this.title,
     required this.initialIsEditing,
+    this.autoImportType,
   });
 
   @override
@@ -79,6 +82,17 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     _isEditing = widget.initialIsEditing;
     _loadSavedImage();
     _initializeStorage();
+    
+    // Auto-trigger import if specified
+    if (widget.autoImportType != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (widget.autoImportType == 'import_physical') {
+          _importGoalsFromPhysicalVisionBoard();
+        } else if (widget.autoImportType == 'import_canva') {
+          _importFromCanva();
+        }
+      });
+    }
   }
 
   Future<void> _initializeStorage() async {
@@ -387,9 +401,22 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                 onHotspotsChanged: (next) => setDialogState(() => hotspots = next),
                 onHotspotSelected: (h) => setDialogState(() => selected = {h}),
                 onHotspotCreated: (x, y, width, height) async {
-                  final String? name =
-                      await showAddNameDialog(dialogContext, title: 'Your Vision/Goal');
-                  if (name == null || name.trim().isEmpty) return null;
+                  final categorySuggestions = _components
+                      .whereType<ImageComponent>()
+                      .map((c) => c.goal?.category)
+                      .whereType<String>()
+                      .map((s) => s.trim())
+                      .where((s) => s.isNotEmpty)
+                      .toSet()
+                      .toList();
+
+                  final nameRes = await showAddNameAndCategoryDialog(
+                    dialogContext,
+                    title: 'Your Vision/Goal',
+                    categoryHint: 'Category (optional)',
+                    categorySuggestions: categorySuggestions,
+                  );
+                  if (nameRes == null || nameRes.name.trim().isEmpty) return null;
 
                   final rect = Rect.fromLTWH(
                     x * bgSize.width,
@@ -413,13 +440,16 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                   }
 
                   final component = ImageComponent(
-                    id: name.trim(),
+                    id: nameRes.name.trim(),
                     position: Offset(rect.left, rect.top),
                     size: Size(rect.width, rect.height),
                     rotation: 0,
                     scale: 1,
                     zIndex: _nextZ(),
                     imagePath: croppedPath,
+                    goal: (nameRes.category == null)
+                        ? null
+                        : GoalMetadata(title: nameRes.name.trim(), category: nameRes.category),
                   );
 
                   _onComponentsChanged([..._components, component]);
@@ -430,7 +460,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                     y: y,
                     width: width,
                     height: height,
-                    id: name.trim(),
+                    id: nameRes.name.trim(),
                   );
                 },
               ),
@@ -566,6 +596,55 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     }
   }
 
+  Future<void> _backupToGoogleDrive() async {
+    if (!_isEditing) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Drive backup is not supported on web yet.')),
+      );
+      return;
+    }
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final bgPath = prefs.getString(_imagePathKey);
+    
+    if (bgPath == null || bgPath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No background image found to backup.')),
+      );
+      return;
+    }
+
+    try {
+      final fileId = await GoogleDriveBackupService.backupPng(
+        filePath: bgPath,
+        fileName: 'vision_board_${widget.boardId}.png',
+      );
+      await GoogleDriveBackupService.saveBoardBackgroundBackupRef(
+        boardId: widget.boardId,
+        driveFileId: fileId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backed up to Google Drive (file id: $fileId).')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Drive backup failed. '
+            'Make sure Google Sign-In is configured for Android/iOS. '
+            'Error: ${e.toString()}',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _restoreBackgroundFromGoogleDrive() async {
     if (!_isEditing) return;
     if (kIsWeb) {
@@ -675,10 +754,11 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       context,
       initialText: component.text,
       initialStyle: component.style,
+      initialTextAlign: component.textAlign,
     );
     if (result == null) return;
 
-    final updated = component.copyWith(text: result.text, style: result.style);
+    final updated = component.copyWith(text: result.text, style: result.style, textAlign: result.textAlign);
     _onComponentsChanged(_components.map((c) => c.id == component.id ? updated : c).toList());
     setState(() => _selectedComponentId = updated.id);
   }
@@ -701,6 +781,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       zIndex: _nextZ(),
       text: result.text,
       style: result.style,
+      textAlign: result.textAlign,
     );
 
     _onComponentsChanged([..._components, c]);
@@ -773,17 +854,32 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       defaultSize = const Size(500, 400);
     }
 
-    final String? name = await showAddNameDialog(context, title: 'Your Vision/Goal');
-    if (name == null || name.isEmpty) return;
+    final categorySuggestions = _components
+        .whereType<ImageComponent>()
+        .map((c) => c.goal?.category)
+        .whereType<String>()
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final nameRes = await showAddNameAndCategoryDialog(
+      context,
+      title: 'Your Vision/Goal',
+      categoryHint: 'Category (optional)',
+      categorySuggestions: categorySuggestions,
+    );
+    if (nameRes == null || nameRes.name.isEmpty) return;
 
     final c = ImageComponent(
-      id: name,
+      id: nameRes.name,
       position: const Offset(120, 120),
       size: defaultSize,
       rotation: 0,
       scale: 1,
       zIndex: _nextZ(),
       imagePath: croppedPath,
+      goal: (nameRes.category == null) ? null : GoalMetadata(title: nameRes.name, category: nameRes.category),
     );
     _onComponentsChanged([..._components, c]);
     setState(() => _selectedComponentId = c.id);
@@ -822,10 +918,44 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       componentsTopToBottom: sorted,
       selectedId: _selectedComponentId,
       onDelete: (id) {
-        final updated = _components.where((c) => c.id != id).toList();
-        _onComponentsChanged(updated);
-        if (_selectedComponentId == id) setState(() => _selectedComponentId = null);
-        Navigator.of(context).pop();
+        final component = _components.cast<VisionComponent?>().firstWhere(
+              (c) => c?.id == id,
+              orElse: () => null,
+            );
+        final hasTrackerData = component != null &&
+            ((component.habits.isNotEmpty || component.tasks.isNotEmpty) ||
+                component.habits.any((h) => h.completedDates.isNotEmpty) ||
+                component.tasks.any((t) => t.checklist.any((c) => (c.completedOn ?? '').trim().isNotEmpty)));
+
+        Future<void>(() async {
+          bool ok = true;
+          if (hasTrackerData) {
+            ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete goal?'),
+                    content: Text(
+                      'Delete "$id"? This will delete all habits, tasks, and streak history associated with this goal.',
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                ) ??
+                false;
+          }
+          if (!ok) return;
+
+          final updated = _components.where((c) => c.id != id).toList();
+          _onComponentsChanged(updated);
+          if (_selectedComponentId == id) setState(() => _selectedComponentId = null);
+          if (mounted) Navigator.of(context).pop();
+        });
       },
       onSelect: (id) {
         setState(() => _selectedComponentId = id);
@@ -899,21 +1029,6 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                     onPressed: _addTextComponent,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.document_scanner_outlined),
-                    tooltip: 'Import goals from physical vision board',
-                    onPressed: _importGoalsFromPhysicalVisionBoard,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.cloud_download_outlined),
-                    tooltip: 'Import from Canva',
-                    onPressed: _importFromCanva,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.cloud_sync_outlined),
-                    tooltip: 'Restore background from Google Drive',
-                    onPressed: _restoreBackgroundFromGoogleDrive,
-                  ),
-                  IconButton(
                     icon: const Icon(Icons.format_paint_outlined),
                     tooltip: 'Background',
                     onPressed: _showBackgroundOptions,
@@ -976,6 +1091,38 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
             icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
             onPressed: _toggleEditMode,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'restore_google_drive') {
+                _restoreBackgroundFromGoogleDrive();
+              } else if (value == 'backup_google_drive') {
+                _backupToGoogleDrive();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'restore_google_drive',
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_download_outlined),
+                    SizedBox(width: 12),
+                    Text('Restore from Google Drive'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'backup_google_drive',
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_upload_outlined),
+                    SizedBox(width: 12),
+                    Text('Backup to Google Drive'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

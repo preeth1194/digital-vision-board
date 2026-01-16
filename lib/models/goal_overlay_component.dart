@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 
-import 'habit_item.dart';
 import 'goal_metadata.dart';
+import 'habit_item.dart';
 import 'task_item.dart';
 import 'vision_component.dart';
 
-final class ImageComponent extends VisionComponent {
-  static const String typeName = 'image';
-  final String imagePath;
-  final GoalMetadata? goal;
+/// Goal overlay anchored to a background image using **image-pixel coordinates**.
+///
+/// - `position` is top-left in the background image pixel space.
+/// - `size` is width/height in the background image pixel space.
+///
+/// This is used for the Physical Board editor where the scanned/photo background
+/// is the primary canvas and goals are represented as overlay regions.
+final class GoalOverlayComponent extends VisionComponent {
+  static const String typeName = 'goal_overlay';
 
-  const ImageComponent({
+  final GoalMetadata goal;
+
+  const GoalOverlayComponent({
     required super.id,
     required super.position,
     required super.size,
@@ -20,15 +27,14 @@ final class ImageComponent extends VisionComponent {
     super.habits,
     super.tasks,
     super.isDisabled,
-    required this.imagePath,
-    this.goal,
+    required this.goal,
   });
 
   @override
   String get type => typeName;
 
   @override
-  ImageComponent copyWithCommon({
+  GoalOverlayComponent copyWithCommon({
     String? id,
     Offset? position,
     Size? size,
@@ -38,9 +44,8 @@ final class ImageComponent extends VisionComponent {
     List<HabitItem>? habits,
     List<TaskItem>? tasks,
     bool? isDisabled,
-    GoalMetadata? goal,
   }) {
-    return ImageComponent(
+    return GoalOverlayComponent(
       id: id ?? this.id,
       position: position ?? this.position,
       size: size ?? this.size,
@@ -50,12 +55,11 @@ final class ImageComponent extends VisionComponent {
       habits: habits ?? this.habits,
       tasks: tasks ?? this.tasks,
       isDisabled: isDisabled ?? this.isDisabled,
-      imagePath: imagePath,
-      goal: goal ?? this.goal,
+      goal: goal,
     );
   }
 
-  ImageComponent copyWith({String? imagePath, bool? isDisabled, GoalMetadata? goal}) => ImageComponent(
+  GoalOverlayComponent copyWith({GoalMetadata? goal, bool? isDisabled}) => GoalOverlayComponent(
         id: id,
         position: position,
         size: size,
@@ -65,7 +69,6 @@ final class ImageComponent extends VisionComponent {
         habits: habits,
         tasks: tasks,
         isDisabled: isDisabled ?? this.isDisabled,
-        imagePath: imagePath ?? this.imagePath,
         goal: goal ?? this.goal,
       );
 
@@ -81,15 +84,12 @@ final class ImageComponent extends VisionComponent {
         'habits': VisionComponent.habitsToJson(habits),
         'tasks': VisionComponent.tasksToJson(tasks),
         'isDisabled': isDisabled,
-        'imagePath': imagePath,
-        'goal': goal?.toJson(),
+        'goal': goal.toJson(),
       };
 
-  factory ImageComponent.fromJson(Map<String, dynamic> json) => ImageComponent(
+  factory GoalOverlayComponent.fromJson(Map<String, dynamic> json) => GoalOverlayComponent(
         id: json['id'] as String,
-        position: VisionComponent.offsetFromJson(
-          json['position'] as Map<String, dynamic>,
-        ),
+        position: VisionComponent.offsetFromJson(json['position'] as Map<String, dynamic>),
         size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
         rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
         scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
@@ -97,10 +97,7 @@ final class ImageComponent extends VisionComponent {
         habits: VisionComponent.habitsFromJson(json['habits']),
         tasks: VisionComponent.tasksFromJson(json['tasks']),
         isDisabled: json['isDisabled'] as bool? ?? false,
-        imagePath: json['imagePath'] as String,
-        goal: (json['goal'] is Map<String, dynamic>)
-            ? GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>)
-            : null,
+        goal: GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>),
       );
 }
 

@@ -14,6 +14,7 @@ import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/board_scan_service.dart';
 import '../services/canva_import_service.dart';
+import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
 import '../services/image_region_cropper.dart';
 import '../services/image_service.dart';
@@ -505,10 +506,110 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
           const SnackBar(content: Text('Imported latest Canva package.')),
         );
       }
+
+      // Optional: backup PNG to Google Drive with explicit consent.
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      _prefs ??= prefs;
+      final bgPath = prefs.getString(_imagePathKey);
+      if (!mounted) return;
+
+      if (bgPath != null && bgPath.isNotEmpty && !kIsWeb) {
+        final doBackup = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Backup to Google Drive?'),
+            content: const Text(
+              'Your imported Canva board background was saved on this device. '
+              'Do you want to back it up to Google Drive? This will ask you to sign in to Google and grant Drive access.',
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Not now')),
+              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Backup')),
+            ],
+          ),
+        );
+
+        if (doBackup == true) {
+          try {
+            final fileId = await GoogleDriveBackupService.backupPng(
+              filePath: bgPath,
+              fileName: 'vision_board_${widget.boardId}.png',
+            );
+            await GoogleDriveBackupService.saveBoardBackgroundBackupRef(
+              boardId: widget.boardId,
+              driveFileId: fileId,
+            );
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Backed up to Google Drive (file id: $fileId).')),
+            );
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Google Drive backup failed. '
+                  'Make sure Google Sign-In is configured for Android/iOS. '
+                  'Error: ${e.toString()}',
+                ),
+              ),
+            );
+          }
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Canva import failed: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _restoreBackgroundFromGoogleDrive() async {
+    if (!_isEditing) return;
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Drive restore is not supported on web yet.')),
+      );
+      return;
+    }
+
+    try {
+      final fileId = await GoogleDriveBackupService.getBoardBackgroundBackupRef(
+        boardId: widget.boardId,
+      );
+      if (fileId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No Google Drive backup found for this board yet.')),
+        );
+        return;
+      }
+
+      final bytes = await GoogleDriveBackupService.downloadFileBytes(driveFileId: fileId);
+      final path = await persistImageBytesToAppStorage(bytes, extension: 'png');
+      if (path == null || path.isEmpty) throw Exception('Failed to save downloaded image.');
+
+      await _saveImagePath(path);
+      await _loadSavedImage();
+      await _maybeMigrateLegacyHotspots();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Restored background from Google Drive.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Drive restore failed. '
+            'Make sure Google Sign-In is configured. '
+            'Error: ${e.toString()}',
+          ),
+        ),
       );
     }
   }
@@ -762,6 +863,11 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                     icon: const Icon(Icons.cloud_download_outlined),
                     tooltip: 'Import from Canva',
                     onPressed: _importFromCanva,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.cloud_sync_outlined),
+                    tooltip: 'Restore background from Google Drive',
+                    onPressed: _restoreBackgroundFromGoogleDrive,
                   ),
                   IconButton(
                     icon: const Icon(Icons.format_paint_outlined),

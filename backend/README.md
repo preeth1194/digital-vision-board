@@ -22,6 +22,7 @@ npm install
 - `CANVA_CLIENT_SECRET=...`
 - `CANVA_REDIRECT_URI=http://localhost:8787/auth/canva/callback`
 - `CANVA_SCOPES=design:content:read profile:read`
+- `DATABASE_URL=postgres://...` (optional; enables Postgres storage)
 
 3) Run:
 
@@ -32,6 +33,12 @@ npm run dev
 
 ### Notes
 
-- Data is stored in `backend/data/` (JSON files).
+- If `DATABASE_URL` is set, data is stored in Postgres. Otherwise data is stored in `backend/data/` (JSON files).
 - For local development, the OAuth callback page will `postMessage` a `dvToken` back to the opener window.
+
+### Postgres schema
+
+Run the SQL in:
+
+- `backend/sql/001_init.sql`
 

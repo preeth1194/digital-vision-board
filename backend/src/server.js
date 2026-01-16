@@ -13,8 +13,12 @@ import {
 } from "./canva_connect.js";
 import { deletePkceState, getPkceState, putPkceState, getUserRecord, putUserRecord } from "./storage.js";
 import { requireDvAuth } from "./auth.js";
+import { ensureSchema } from "./migrate.js";
 
 const app = express();
+
+// Ensure DB tables exist (idempotent).
+await ensureSchema();
 
 app.use(
   cors({
@@ -24,6 +28,22 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "2mb" }));
+
+app.get("/", (req, res) => {
+  res
+    .status(200)
+    .type("text/plain")
+    .send(
+      [
+        "Digital Vision Board backend is running.",
+        "",
+        "Useful endpoints:",
+        "- GET /health",
+        "- GET /auth/canva/start",
+        "- GET /canva/connect (alias)",
+      ].join("\n"),
+    );
+});
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 

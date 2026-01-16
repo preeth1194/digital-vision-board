@@ -381,89 +381,93 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
           return Dialog.fullscreen(
-            child: Scaffold(
-              resizeToAvoidBottomInset: false,
-              appBar: AppBar(
-                title: const Text('Create goals from your photo'),
-                actions: [
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              body: VisionBoardHotspotBuilder(
-                imageProvider: bgProvider,
-                hotspots: hotspots,
-                selectedHotspots: selected,
-                isEditing: true,
-                showLabels: true,
-                onHotspotsChanged: (next) => setDialogState(() => hotspots = next),
-                onHotspotSelected: (h) => setDialogState(() => selected = {h}),
-                onHotspotCreated: (x, y, width, height) async {
-                  final categorySuggestions = _components
-                      .whereType<ImageComponent>()
-                      .map((c) => c.goal?.category)
-                      .whereType<String>()
-                      .map((s) => s.trim())
-                      .where((s) => s.isNotEmpty)
-                      .toSet()
-                      .toList();
+            child: SafeArea(
+              top: true,
+              bottom: false,
+              child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                appBar: AppBar(
+                  title: const Text('Create goals from your photo'),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                body: VisionBoardHotspotBuilder(
+                  imageProvider: bgProvider,
+                  hotspots: hotspots,
+                  selectedHotspots: selected,
+                  isEditing: true,
+                  showLabels: true,
+                  onHotspotsChanged: (next) => setDialogState(() => hotspots = next),
+                  onHotspotSelected: (h) => setDialogState(() => selected = {h}),
+                  onHotspotCreated: (x, y, width, height) async {
+                    final categorySuggestions = _components
+                        .whereType<ImageComponent>()
+                        .map((c) => c.goal?.category)
+                        .whereType<String>()
+                        .map((s) => s.trim())
+                        .where((s) => s.isNotEmpty)
+                        .toSet()
+                        .toList();
 
-                  final nameRes = await showAddNameAndCategoryDialog(
-                    dialogContext,
-                    title: 'Your Vision/Goal',
-                    categoryHint: 'Category (optional)',
-                    categorySuggestions: categorySuggestions,
-                  );
-                  if (nameRes == null || nameRes.name.trim().isEmpty) return null;
+                    final nameRes = await showAddNameAndCategoryDialog(
+                      dialogContext,
+                      title: 'Your Vision/Goal',
+                      categoryHint: 'Category (optional)',
+                      categorySuggestions: categorySuggestions,
+                    );
+                    if (nameRes == null || nameRes.name.trim().isEmpty) return null;
 
-                  final rect = Rect.fromLTWH(
-                    x * bgSize.width,
-                    y * bgSize.height,
-                    width * bgSize.width,
-                    height * bgSize.height,
-                  );
+                    final rect = Rect.fromLTWH(
+                      x * bgSize.width,
+                      y * bgSize.height,
+                      width * bgSize.width,
+                      height * bgSize.height,
+                    );
 
-                  final croppedPath = await cropAndPersistImageRegion(
-                    sourcePath: bgPath,
-                    region: rect,
-                    quality: _pickedImageQuality,
-                  );
-                  if (croppedPath == null || croppedPath.isEmpty) {
-                    if (dialogContext.mounted) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('Failed to crop that region. Try again.')),
-                      );
+                    final croppedPath = await cropAndPersistImageRegion(
+                      sourcePath: bgPath,
+                      region: rect,
+                      quality: _pickedImageQuality,
+                    );
+                    if (croppedPath == null || croppedPath.isEmpty) {
+                      if (dialogContext.mounted) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(content: Text('Failed to crop that region. Try again.')),
+                        );
+                      }
+                      return null;
                     }
-                    return null;
-                  }
 
-                  final component = ImageComponent(
-                    id: nameRes.name.trim(),
-                    position: Offset(rect.left, rect.top),
-                    size: Size(rect.width, rect.height),
-                    rotation: 0,
-                    scale: 1,
-                    zIndex: _nextZ(),
-                    imagePath: croppedPath,
-                    goal: (nameRes.category == null)
-                        ? null
-                        : GoalMetadata(title: nameRes.name.trim(), category: nameRes.category),
-                  );
+                    final component = ImageComponent(
+                      id: nameRes.name.trim(),
+                      position: Offset(rect.left, rect.top),
+                      size: Size(rect.width, rect.height),
+                      rotation: 0,
+                      scale: 1,
+                      zIndex: _nextZ(),
+                      imagePath: croppedPath,
+                      goal: (nameRes.category == null)
+                          ? null
+                          : GoalMetadata(title: nameRes.name.trim(), category: nameRes.category),
+                    );
 
-                  _onComponentsChanged([..._components, component]);
-                  if (mounted) setState(() => _selectedComponentId = component.id);
+                    _onComponentsChanged([..._components, component]);
+                    if (mounted) setState(() => _selectedComponentId = component.id);
 
-                  return HotspotModel(
-                    x: x,
-                    y: y,
-                    width: width,
-                    height: height,
-                    id: nameRes.name.trim(),
-                  );
-                },
+                    return HotspotModel(
+                      x: x,
+                      y: y,
+                      width: width,
+                      height: height,
+                      id: nameRes.name.trim(),
+                    );
+                  },
+                ),
               ),
             ),
           );

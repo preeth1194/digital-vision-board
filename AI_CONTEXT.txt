@@ -1,352 +1,312 @@
-File: lib/main.dart
-- Class: DigitalVisionBoardApp - No doc comment found.
-- Functions:
-  - main() -> void: No doc comment found.
+AI_CONTEXT — Digital Vision Board (Flutter)
+Last updated: 2026-01-17
 
-File: lib/models/grid_tile_model.dart
-- Class: GridTileModel - No doc comment found.
-- Functions:
-  - toJson() -> dynamic: No doc comment found.
+This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
-File: lib/models/habit_item.dart
-- Class: HabitItem - Model representing a habit item with completion tracking.
-- Functions:
-  - isCompletedOnDate(DateTime date) -> bool: Check if the habit was completed on a specific date (date-only comparison)
-  - toJson() -> Map<String, dynamic>: Converts to a map for serialization
-  - toString() -> dynamic: No doc comment found.
-  - toggleToday() -> HabitItem: Toggle completion for today (adds if not present, removes if present)
+---
 
-File: lib/models/hotspot_component_migration.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - convertHotspotToComponent(HotspotModel hotspot, Size originalImageSize,) -> ZoneComponent: Legacy compatibility: convert a normalized `HotspotModel` into a pixel-space
+## 1) What the app does (product mental model)
 
-File: lib/models/hotspot_model.dart
-- Class: HotspotModel - Model representing a hotspot zone on the vision board image.
-- Functions:
-  - toJson() -> Map<String, dynamic>: Converts to a map for serialization
-  - toString() -> dynamic: No doc comment found.
+Digital Vision Board lets users create “boards” and attach “goals” to them. Each goal can have:
+- Habits (daily/weekly scheduled completion tracking)
+- Tasks (each task has a checklist; checklist items can be completed per-day and can store completion feedback)
 
-File: lib/models/image_component.dart
-- Class: ImageComponent - No doc comment found.
-- Functions:
-  - toJson() -> dynamic: No doc comment found.
+Daily loop:
+- Open a board
+- Open a goal
+- Check off habits/tasks (optionally leave a rating + note)
+- Review progress/insights
 
-File: lib/models/text_component.dart
-- Class: TextComponent - No doc comment found.
-- Functions:
-  - toJson() -> dynamic: No doc comment found.
+---
 
-File: lib/models/vision_board_info.dart
-- Class: VisionBoardInfo - No doc comment found.
-- Functions:
-  - boardIconFromCodePoint(int codePoint) -> IconData: No doc comment found.
-  - toJson() -> dynamic: No doc comment found.
+## 2) Board types (UIs) and how they map to storage
 
-File: lib/models/vision_component.dart
-- Class: VisionComponent - Freeform canvas node model.
-- Functions:
-  - habitsFromJson(dynamic json) -> dynamic: No doc comment found.
-  - habitsToJson(List<HabitItem> habits) -> dynamic: No doc comment found.
-  - offsetFromJson(Map<String, dynamic> json) -> static Offset: No doc comment found.
-  - offsetToJson(Offset o) -> dynamic: No doc comment found.
-  - sizeFromJson(Map<String, dynamic> json) -> static Size: No doc comment found.
-  - sizeToJson(Size s) -> dynamic: No doc comment found.
-  - textStyleFromJson(Map<String, dynamic> json) -> dynamic: No doc comment found.
-  - textStyleToJson(TextStyle style) -> dynamic: No doc comment found.
+There are multiple board “canvas” experiences. They differ in how goals are represented and how they are stored.
 
-File: lib/models/vision_component_factory.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - visionComponentFromJson(Map<String, dynamic> json) -> VisionComponent: Deserialize a [VisionComponent] from JSON.
+### A) Freeform “Vision Board” (Canva-like editor)
+- Editor: `lib/screens/vision_board_editor_screen.dart`
+- Model storage: `VisionBoardComponentsStorageService` (components keyed by boardId)
 
-File: lib/models/vision_components.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### B) Goal Canvas (freeform layers over optional background)
+- Viewer: `lib/screens/goal_canvas_viewer_screen.dart`
+- Editor: `lib/screens/goal_canvas_editor_screen.dart`
+- Storage: `lib/services/vision_board_components_storage_service.dart`
+- Supports “Layers” UI via `showLayersSheet` (see section 6)
 
-File: lib/models/zone_component.dart
-- Class: ZoneComponent - Legacy transparent hotspot, kept as a component.
-- Functions:
-  - toJson() -> dynamic: No doc comment found.
+### C) Physical Board (photo background + goal overlays)
+- Viewer: `lib/screens/physical_board_viewer_screen.dart`
+- Editor: `lib/screens/physical_board_editor_screen.dart`
+- Storage:
+  - Components: `lib/services/vision_board_components_storage_service.dart`
+  - Background image path: `BoardsStorageService.boardImagePathKey(boardId)`
+- Goals are `GoalOverlayComponent` anchored in image pixel space (`lib/models/goal_overlay_component.dart`).
 
-File: lib/screens/dashboard_screen.dart
-- Class: DashboardScreen - No doc comment found.
-- Class: _DashboardScreenState - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### D) Grid Board (structured tile layout)
+- Editor: `lib/screens/grid_board_editor.dart`
+- Storage: `lib/services/grid_tiles_storage_service.dart` (tiles keyed by boardId)
+- Single “goal” viewer: `lib/screens/grid_goal_viewer_screen.dart`
 
-File: lib/screens/global_insights_screen.dart
-- Class: GlobalInsightsScreen - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/screens/grid_board_editor.dart
-- Class: GridBoardEditor - No doc comment found.
-- Class: _GridBoardEditorState - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 3) Core data model (what “goal”, “habit”, “task” mean in code)
 
-File: lib/screens/habits_list_screen.dart
-- Class: HabitsListScreen - No doc comment found.
-- Class: _HabitsListScreenState - No doc comment found.
-- Functions:
-  - ListTile(leading: Checkbox( value: isCompleted, onChanged: (_) -> return: No doc comment found.
+### VisionComponent (core “node”)
+`VisionComponent` is the base type for nodes on freeform canvases.
+- Location/size/z-index exist for visuals.
+- It also owns the tracker data:
+  - `habits: List<HabitItem>`
+  - `tasks: List<TaskItem>`
 
-File: lib/screens/vision_board_editor_screen.dart
-- Class: VisionBoardEditorScreen - No doc comment found.
-- Class: _VisionBoardEditorScreenState - No doc comment found.
-- Functions:
-  - VisionBoardBuilder(components: _components, isEditing: true, selectedComponentId: _selectedComponentId, onSelectedComponentIdChanged: (id) -> return: No doc comment found.
-  - jsonEncode(_components.map((c) -> dynamic: No doc comment found.
-  - showLayersSheet(context, componentsTopToBottom: sorted, selectedId: _selectedComponentId, onDelete: (id) -> dynamic: No doc comment found.
-  - switch(_viewModeIndex) -> dynamic: No doc comment found.
+Key files:
+- `lib/models/vision_component.dart` (base)
+- `lib/models/vision_component_factory.dart` (JSON deserialization)
+- `lib/models/vision_components.dart` (exports concrete components)
+- `lib/models/image_component.dart` (image goal layer; often has `goal` metadata)
+- `lib/models/goal_overlay_component.dart` (physical board goal overlay)
 
-File: lib/services/boards_storage_service.dart
-- Class: BoardsStorageService - No doc comment found.
-- Functions:
-  - boardBgColorKey(String boardId) -> static String: No doc comment found.
-  - boardComponentsKey(String boardId) -> dynamic: No doc comment found.
-  - boardGridTilesKey(String boardId) -> static String: No doc comment found.
-  - boardImagePathKey(String boardId) -> static String: No doc comment found.
-  - jsonEncode(boards.map((b) -> dynamic: No doc comment found.
+### GridTileModel
+Grid boards don’t store `VisionComponent`s directly. They store tiles:
+- `lib/models/grid_tile_model.dart`
+- Each tile can have: `goal`, `habits`, `tasks`
 
-File: lib/services/grid_board_editor_flows.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+For tracking UI, `GridGoalViewerScreen` converts a tile into an `ImageComponent` (see section 5).
 
-File: lib/services/grid_tiles_storage_service.dart
-- Class: GridTilesStorageService - No doc comment found.
-- Functions:
-  - gridTilesKey(String boardId) -> dynamic: No doc comment found.
-  - normalizeIndices(List<GridTileModel> tiles) -> dynamic: No doc comment found.
-  - sortTiles(List<GridTileModel> tiles) -> dynamic: No doc comment found.
+### HabitItem
+`lib/models/habit_item.dart`
+- Tracks completion dates / streaks
+- Supports weekly schedule gating (`isScheduledOnDate`)
+- Stores per-day completion feedback (see below)
 
-File: lib/services/image_service.dart
-- Class: ImageService - Handles all image picking + cropping logic.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### TaskItem + ChecklistItem
+`lib/models/task_item.dart`
+- `TaskItem` owns:
+  - `checklist: List<ChecklistItem>`
+  - optional task-level completion feedback by date (`completionFeedbackByDate`)
+- `ChecklistItem` owns:
+  - `completedOn` (YYYY-MM-DD) when checked
+  - `feedbackByDate` (per-day checklist-item completion feedback)
+  - optional `dueDate` and optional CBT enhancements
 
-File: lib/services/vision_board_components_storage_service.dart
-- Class: VisionBoardComponentsStorageService - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Important bug fix: `ChecklistItem.copyWith` uses a sentinel so callers can explicitly clear nullable fields like `completedOn` (unchecking).
 
-File: lib/utils/file_image_provider.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/utils/file_image_provider_io.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - fileImageProviderFromPath(String path) -> ImageProvider?: No doc comment found.
+## 4) Persistence (where data is saved)
 
-File: lib/utils/file_image_provider_stub.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - fileImageProviderFromPath(String path) -> ImageProvider?: No doc comment found.
+### Boards list + board metadata
+- `lib/services/boards_storage_service.dart`
 
-File: lib/widgets/dashboard/all_boards_habits_tab.dart
-- Class: AllBoardsHabitsTab - No doc comment found.
-- Functions:
-  - StatefulBuilder(builder: (context, setLocal) -> return: No doc comment found.
+### Components (freeform boards: vision board / goal canvas / physical board)
+- `lib/services/vision_board_components_storage_service.dart`
+- Components are JSON encoded and stored keyed by `boardId`.
 
-File: lib/widgets/dashboard/dashboard_body.dart
-- Class: DashboardBody - No doc comment found.
-- Functions:
-  - HabitsListScreen(components: snap.data ?? const <VisionComponent>[], onComponentsUpdated: (updated) -> return: No doc comment found.
-  - switch(tabIndex) -> return: No doc comment found.
+### Grid tiles
+- `lib/services/grid_tiles_storage_service.dart`
+- Tiles are JSON encoded and stored keyed by `boardId`.
 
-File: lib/widgets/dashboard/dashboard_tab.dart
-- Class: DashboardTab - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/widgets/dialogs/confirm_dialog.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 5) The tracker UI: HabitTrackerSheet
 
-File: lib/widgets/dialogs/new_board_dialog.dart
-- Class: NewBoardConfig - No doc comment found.
-- Class: _NewBoardDialog - No doc comment found.
-- Class: _NewBoardDialogState - No doc comment found.
-- Functions:
-  - InkWell(onTap: () -> return: No doc comment found.
-  - showNewBoardDialog(BuildContext context) -> Future<NewBoardConfig?>: No doc comment found.
-  - showTemplatePickerSheet(BuildContext context) -> Future<String?>: No doc comment found.
+Main tracker UI:
+- `lib/widgets/habit_tracker_sheet.dart`
 
-File: lib/widgets/dialogs/text_input_dialog.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Usage patterns:
+- Shown as a bottom sheet from viewers (Goal canvas / Physical board viewers).
+- Embedded full-screen in `GridGoalViewerScreen` as the whole page body.
 
-File: lib/widgets/editor/add_name_dialog.dart
-- Class: _AddNameDialog - No doc comment found.
-- Class: _AddNameDialogState - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Tabs:
+- Tracker (habits list)
+- Tasks (tasks list + checklist)
+- Insights (activity/streak summaries)
 
-File: lib/widgets/editor/background_options_sheet.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+It emits updated `VisionComponent` back to the caller via `onComponentUpdated`, and callers persist the updated component list/tile.
 
-File: lib/widgets/editor/layers_sheet.dart
-- Class: _LayersSheet - No doc comment found.
-- Class: _LayersSheetState - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/widgets/editor/text_editor_dialog.dart
-- Class: TextEditorResult - No doc comment found.
-- Class: _TextEditorDialog - No doc comment found.
-- Class: _TextEditorDialogState - No doc comment found.
-- Functions:
-  - InkWell(onTap: () -> return: No doc comment found.
+## 6) Layers UI (showLayersSheet)
 
-File: lib/widgets/grid/add_tile_card.dart
-- Class: AddTileCard - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Shared “Layers” bottom sheet:
+- `lib/widgets/editor/layers_sheet.dart` → `showLayersSheet(...)`
 
-File: lib/widgets/grid/add_tile_dialog.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - showAddGridTileDialog(BuildContext context) -> Future<GridTileType?>: No doc comment found.
+Where it’s used:
+- Goal canvas viewer: `GoalCanvasViewerScreen._showLayers` (AppBar button on Canvas tab)
+- Physical board viewer: `PhysicalBoardViewerScreen._showLayers` (AppBar button on Photo tab)
+  - also supports toggling `isDisabled` (mark completed)
+- Grid goal viewer: `GridGoalViewerScreen._showLayers` (top-right overlay button)
+  - used to jump between tile-goals without backing out
 
-File: lib/widgets/grid/grid_board_editor_scaffold.dart
-- Class: GridBoardEditorScaffold - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Selection behavior:
+- Selecting a layer updates the viewer’s selected id (highlights it visually).
 
-File: lib/widgets/grid/grid_tile_card.dart
-- Class: GridTileCard - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/widgets/grid/grid_tile_type.dart
-- Class: GridTileType - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 7) Completion semantics + feedback prompts (unified behavior)
 
-File: lib/widgets/grid/image_source_sheet.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### Habit completion
+- Weekly scheduled habits can only be toggled on scheduled dates.
+- When toggled ON and feedback is missing for today, prompt for feedback.
 
-File: lib/widgets/grid/mini_icon_button.dart
-- Class: MiniIconButton - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### Checklist item completion
+- When a checklist item is checked ON:
+  - If item feedback missing for today → prompt for feedback.
+- If that check causes the task to become fully complete:
+  - If task-level feedback missing for today → prompt for task-level feedback.
+- Special case: if the task has exactly 1 checklist item, do NOT show two prompts back-to-back.
+  - In that case, skip item-level feedback and only ask the task-level “Task completed” feedback.
 
-File: lib/widgets/habit_tracker_sheet.dart
-- Class: HabitTrackerSheet - Modal bottom sheet for tracking habits associated with a canvas component.
-- Class: _HabitTrackerSheetState - No doc comment found.
-- Functions:
-  - DefaultTabController(length: 2, child: DraggableScrollableSheet( initialChildSize: 0.9, minChildSize: 0.5, maxChildSize: 0.95, builder: (context, scrollController) -> return: No doc comment found.
+Shared helpers:
+- Mutation / state derivation: `lib/services/completion_mutations.dart`
+- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
 
-File: lib/widgets/habits/habit_tracker_header.dart
-- Class: HabitTrackerHeader - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Where completion+feedback is implemented (must stay consistent):
+- `lib/widgets/habit_tracker_sheet.dart`
+- `lib/screens/tasks_list_screen.dart`
+- `lib/widgets/dashboard/all_boards_tasks_tab.dart`
+- Habits equivalents:
+  - `lib/screens/habits_list_screen.dart`
+  - `lib/widgets/dashboard/all_boards_habits_tab.dart`
 
-File: lib/widgets/habits/habit_tracker_insights_tab.dart
-- Class: HabitInsightsTab - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/widgets/habits/habit_tracker_tracker_tab.dart
-- Class: HabitTrackerTab - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 8) Add flows (goal picker + creation dialogs)
 
-File: lib/widgets/hotspots/hotspot_canvas_view.dart
-- Class: HotspotCanvasView - No doc comment found.
-- Functions:
-  - LayoutBuilder(builder: (context, constraints) -> return: No doc comment found.
-  - Positioned(left: screenRect.left, top: screenRect.top, width: screenRect.width, height: screenRect.height, child: HotspotOverlay( hotspot: hotspot, isEditing: isEditing, isSelected: isSelected, showLabels: showLabels, hotspotBorderColor: hotspotBorderColor, hotspotFillColor: hotspotFillColor, selectedHotspotBorderColor: selectedHotspotBorderColor, selectedHotspotFillColor: selectedHotspotFillColor, hotspotBorderWidth: hotspotBorderWidth, onTap: () -> dynamic: No doc comment found.
+Goal picker (select goal to attach habit/task to):
+- `lib/widgets/dialogs/goal_picker_sheet.dart`
 
-File: lib/widgets/hotspots/hotspot_delete_flow.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Add/edit dialogs (shared, reused across screens):
+- Habits: `lib/widgets/dialogs/add_habit_dialog.dart`
+  - Compact layout is bounded below the status bar (prevents dialog covering notification bar).
+- Tasks (full dialog with optional CBT fields): `lib/widgets/dialogs/add_task_dialog.dart`
+- Checklist items (due date + optional CBT): `lib/widgets/dialogs/add_checklist_item_dialog.dart`
 
-File: lib/widgets/hotspots/hotspot_geometry.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - getImageBounds(Size containerSize, Size imageSize) -> Rect: No doc comment found.
-  - transformPoint(Matrix4 matrix, Offset point) -> Offset: No doc comment found.
+Global aggregation screens:
+- Per-board lists:
+  - `lib/screens/habits_list_screen.dart`
+  - `lib/screens/tasks_list_screen.dart` (supports adding checklist items inside tasks)
+- All-boards dashboard tabs:
+  - `lib/widgets/dashboard/all_boards_habits_tab.dart` (Add habit = pick board → pick goal → dialog → save)
+  - `lib/widgets/dashboard/all_boards_tasks_tab.dart` (Add task + Add checklist item; same pattern)
 
-File: lib/widgets/hotspots/hotspot_habits_flow.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - HabitTrackerSheet(component: component, onComponentUpdated: (updatedComponent) -> return: No doc comment found.
+---
 
-File: lib/widgets/hotspots/hotspot_overlay.dart
-- Class: HotspotOverlay - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 9) Viewer-specific behaviors and UX constraints
 
-File: lib/widgets/hotspots/vision_board_hotspot_builder.dart
-- Class: VisionBoardHotspotBuilder - No doc comment found.
-- Class: _VisionBoardHotspotBuilderState - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### PhysicalBoardViewerScreen
+- Tapping an overlay opens `HabitTrackerSheet` as a bottom sheet.
+- The bottom sheet is constrained so it does not cover the AppBar (max height excludes status+toolbar).
 
-File: lib/widgets/insights/stat_card.dart
-- Class: StatCard - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+### GridGoalViewerScreen
+- The entire screen is a `HabitTrackerSheet` bound to a single `GridTileModel`.
+- Uses a `ValueKey(tile.id)` when switching tiles so the sheet remounts cleanly.
 
-File: lib/widgets/insights/today_progress_card.dart
-- Class: TodayProgressCard - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+---
 
-File: lib/widgets/insights/weekly_activity_card.dart
-- Class: WeeklyActivityCard - No doc comment found.
-- Functions:
-  - (none)() -> void: No public functions detected.
+## 10) Stability / “gotchas” (important for AI edits)
 
-File: lib/widgets/manipulable/resize_handle.dart
-- Class: HandlePosition - No doc comment found.
-- Class: ResizeHandle - No doc comment found.
-- Functions:
-  - Align(alignment: alignment, child: GestureDetector( behavior: HitTestBehavior.opaque, onPanStart: (_) -> return: No doc comment found.
+### A) TextEditingController + dialogs
+Avoid creating a controller outside a dialog and disposing it immediately after `await showDialog(...)`.
+This can crash during route pop animations on some devices (“used after being disposed”).
 
-File: lib/widgets/manipulable/resize_logic.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+Example fix:
+- `lib/screens/tasks_list_screen.dart` add-task dialog returns a string without an external controller.
 
-File: lib/widgets/manipulable_node.dart
-- Class: ManipulableNode - A Canva-like wrapper that supports drag, pinch-to-zoom, and rotation,
-- Class: _ManipulableNodeState - No doc comment found.
-- Functions:
-  - Positioned(left: c.position.dx, top: c.position.dy, width: c.size.width, height: c.size.height, child: GestureDetector( behavior: HitTestBehavior.opaque, onTap: () -> return: No doc comment found.
+### B) Checklist uncheck bug
+If you see “can’t uncheck checklist items”, check `ChecklistItem.copyWith` semantics:
+- Clearing `completedOn` requires allowing `null` to be passed through (sentinel pattern).
+- File: `lib/models/task_item.dart`
 
-File: lib/widgets/vision_board/component_constraints.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - constrainComponentToViewport(VisionComponent component, Size viewportSize,) -> VisionComponent: No doc comment found.
+### C) Avoid duplicate symbol definitions
+Keep shared dialogs/services single-defined. Some files previously contained duplicated class definitions; those were deduped.
 
-File: lib/widgets/vision_board/component_image.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - componentImageForPath(String path) -> Widget: Renders an image from either a URL or a local file path.
+---
 
-File: lib/widgets/vision_board_builder.dart
-- Class: VisionBoardBuilder - Freeform, Canva-style vision board builder.
-- Class: _VisionBoardBuilderState - No doc comment found.
-- Functions:
-  - InteractiveViewer(minScale: 0.2, maxScale: 6.0, panEnabled: !widget.isEditing || widget.selectedComponentId == null, scaleEnabled: true, child: GestureDetector( behavior: HitTestBehavior.opaque, onTap: widget.isEditing ? () -> return: No doc comment found.
-  - LayoutBuilder(builder: (context, constraints) -> dynamic: No doc comment found.
-  - ManipulableNode(component: c, isSelected: isSelected, gesturesEnabled: widget.isEditing, child: child, onSelected: () -> dynamic: No doc comment found.
+## 11) Quick entry points (if you’re new)
 
-File: lib/widgets/vision_board_hotspot_builder.dart
-- Class: (none) - No classes in this file.
-- Functions:
-  - (none)() -> void: No public functions detected.
+- App entry: `lib/main.dart`
+- Main dashboard: `lib/screens/dashboard_screen.dart`
+- Tracker: `lib/widgets/habit_tracker_sheet.dart`
+- Completion/feedback: `lib/services/completion_mutations.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- “All boards” tabs: `lib/widgets/dashboard/*`
+- Physical board viewer/editor: `lib/screens/physical_board_*`
+- Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
+- Grid board editor + goal viewer: `lib/screens/grid_board_editor.dart`, `lib/screens/grid_goal_viewer_screen.dart`
+
+---
+
+## 12) User journeys (end-to-end flows with code entry points)
+
+These are the most common “click paths” and what files implement them.
+
+### A) Create a new board from the dashboard
+- Start: `lib/screens/dashboard_screen.dart`
+- Create/import: `lib/widgets/dialogs/new_board_dialog.dart`
+- Storage for board list/metadata: `lib/services/boards_storage_service.dart`
+
+### B) Goal canvas: open a goal and track habits/tasks
+- Viewer screen: `lib/screens/goal_canvas_viewer_screen.dart`
+- Tap a goal layer → opens tracker:
+  - `GoalCanvasViewerScreen._openHabitTracker` → `HabitTrackerSheet`
+- Persist updates:
+  - `GoalCanvasViewerScreen._saveComponents` → `VisionBoardComponentsStorageService`
+
+### C) Physical board: scan/import photo → create overlays → track
+- Editor: `lib/screens/physical_board_editor_screen.dart`
+  - Imports photo via `lib/services/board_scan_service.dart`
+  - Creates overlay goals: `GoalOverlayComponent` (`lib/models/goal_overlay_component.dart`)
+  - Persists components: `VisionBoardComponentsStorageService`
+- Viewer: `lib/screens/physical_board_viewer_screen.dart`
+  - Tap overlay → `_openHabitTracker` (bottom sheet) → `HabitTrackerSheet`
+  - Bottom sheet height is constrained so it does not cover the AppBar.
+
+### D) Grid board: open a tile-goal and track
+- Grid editor: `lib/screens/grid_board_editor.dart`
+- Tile-goal viewer: `lib/screens/grid_goal_viewer_screen.dart`
+  - Converts `GridTileModel` → `ImageComponent` for `HabitTrackerSheet`
+  - Persists updates back into the tile via `GridTilesStorageService`
+
+### E) Add a habit/task from global lists (single-board)
+- All habits: `lib/screens/habits_list_screen.dart`
+  - Flow: goal picker (`goal_picker_sheet.dart`) → `add_habit_dialog.dart` → persist via callback
+- All tasks: `lib/screens/tasks_list_screen.dart`
+  - Add task: goal picker → simple title prompt → persist via callback
+  - Add checklist item inside a task: inline “Add checklist item”
+
+### F) Add a habit/task from “All boards” dashboard tabs
+- All boards habits tab: `lib/widgets/dashboard/all_boards_habits_tab.dart`
+  - Flow: pick board → goal picker → `add_habit_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
+- All boards tasks tab: `lib/widgets/dashboard/all_boards_tasks_tab.dart`
+  - Flow: pick board → goal picker → `add_task_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
+  - Add checklist item inside a task: `add_checklist_item_dialog.dart`
+
+### G) Completion + feedback prompts (shared semantics)
+- Mutation logic: `lib/services/completion_mutations.dart`
+- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Implemented consistently across:
+  - `lib/widgets/habit_tracker_sheet.dart`
+  - `lib/screens/tasks_list_screen.dart`
+  - `lib/widgets/dashboard/all_boards_tasks_tab.dart`
+  - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
+
+---
+
+## 13) Glossary (UI term → code type)
+
+- Board:
+  - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `BoardsStorageService`
+- Goal (general concept: something you attach habits/tasks to):
+  - Freeform/goal canvas: usually an `ImageComponent` with `goal` metadata
+  - Physical board: `GoalOverlayComponent`
+  - Grid: `GridTileModel` (converted to `ImageComponent` for tracker UI)
+- Layer:
+  - A `VisionComponent` entry in the board’s components list (ordered by `zIndex`)
+  - Managed via `showLayersSheet` in `lib/widgets/editor/layers_sheet.dart`
+- Habit:
+  - `HabitItem` (`lib/models/habit_item.dart`) stored on a goal’s component/tile
+- Task:
+  - `TaskItem` (`lib/models/task_item.dart`) stored on a goal’s component/tile
+- Checklist item:
+  - `ChecklistItem` (`lib/models/task_item.dart`)
+  - Completion stored in `completedOn` (YYYY-MM-DD) and per-day feedback in `feedbackByDate`
+- “Tracker”:
+  - The per-goal tracking UI: `HabitTrackerSheet` (`lib/widgets/habit_tracker_sheet.dart`)

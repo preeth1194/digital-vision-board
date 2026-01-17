@@ -127,3 +127,33 @@ export async function findUserByDvTokenPg(dvToken) {
   });
 }
 
+export async function putOauthPollTokenPg(pollToken, { dvToken, canvaUserId }) {
+  return await withClient(async (c) => {
+    await c.query(
+      `insert into dv_oauth_poll_tokens (poll_token, dv_token, canva_user_id)
+       values ($1, $2, $3)
+       on conflict (poll_token) do update set
+         dv_token = excluded.dv_token,
+         canva_user_id = excluded.canva_user_id,
+         updated_at = now()`,
+      [pollToken, dvToken ?? null, canvaUserId ?? null],
+    );
+  });
+}
+
+export async function getOauthPollTokenPg(pollToken) {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      "select poll_token, dv_token, canva_user_id, updated_at from dv_oauth_poll_tokens where poll_token = $1",
+      [pollToken],
+    );
+    if (!r.rowCount) return null;
+    const row = r.rows[0];
+    return {
+      pollToken: row.poll_token,
+      dvToken: row.dv_token ?? null,
+      canvaUserId: row.canva_user_id ?? null,
+      updatedAt: row.updated_at?.toISOString?.() ?? row.updated_at ?? null,
+    };
+  });
+}

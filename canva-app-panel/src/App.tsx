@@ -4,6 +4,7 @@ import { fetchHabits, getDvToken, postAdminCanvaImportCurrentPage, postAdminCrea
 import { backendBaseUrl } from "./env";
 import { registerSelectionListener, tryReadCurrentPageElements } from "./canva_selection";
 import type { Habit, Mapping, SelectedItem } from "./types";
+import { requestOpenExternalUrl } from "@canva/platform";
 
 type Status = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "ok"; message: string };
 
@@ -202,6 +203,45 @@ export function App() {
     }
   }
 
+  async function connectToBackend() {
+    setSyncStatus({ kind: "loading" });
+    try {
+      const startRes = await fetch(`${backendBaseUrl()}/auth/canva/start_poll`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      const startText = await startRes.text().catch(() => "");
+      if (!startRes.ok) throw new Error(`Start auth failed (${startRes.status}): ${startText || startRes.statusText}`);
+      const startJson = startText ? (JSON.parse(startText) as any) : {};
+      const authUrl = String(startJson?.authUrl ?? "");
+      const pollToken = String(startJson?.pollToken ?? "");
+      if (!authUrl || !pollToken) throw new Error("Auth start response missing authUrl/pollToken.");
+
+      await requestOpenExternalUrl({ url: authUrl });
+
+      const deadline = Date.now() + 2 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 1200));
+        const pollRes = await fetch(
+          `${backendBaseUrl()}/auth/canva/poll?pollToken=${encodeURIComponent(pollToken)}`,
+          { method: "GET", headers: { Accept: "application/json" } },
+        );
+        const pollText = await pollRes.text().catch(() => "");
+        if (!pollRes.ok) continue;
+        const pollJson = pollText ? (JSON.parse(pollText) as any) : {};
+        if (pollJson?.status === "completed" && typeof pollJson?.dvToken === "string" && pollJson.dvToken) {
+          setDvToken(pollJson.dvToken);
+          setDvTokenState(pollJson.dvToken);
+          setSyncStatus({ kind: "ok", message: "Connected to backend." });
+          return;
+        }
+      }
+      throw new Error("Timed out waiting for authentication to complete.");
+    } catch (e: any) {
+      setSyncStatus({ kind: "error", message: e?.message ?? String(e) });
+    }
+  }
+
   const selectionWithMapping = selection.map((s) => ({
     ...s,
     habitId: mappings[s.key],
@@ -230,10 +270,7 @@ export function App() {
             <Rows spacing="1u">
               <Button
                 variant="secondary"
-                onClick={() => {
-                  const origin = window.location.origin;
-                  window.open(`${backendBaseUrl()}/canva/connect?origin=${encodeURIComponent(origin)}`, "_blank", "noopener,noreferrer");
-                }}
+                onClick={connectToBackend}
               >
                 Connect to Digital Vision Board
               </Button>

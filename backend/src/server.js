@@ -13,7 +13,15 @@ import {
   getUsersMe,
   refreshAccessToken,
 } from "./canva_connect.js";
-import { deletePkceState, getPkceState, putPkceState, getUserRecord, putUserRecord } from "./storage.js";
+import {
+  deletePkceState,
+  getOauthPollToken,
+  getPkceState,
+  getUserRecord,
+  putOauthPollToken,
+  putPkceState,
+  putUserRecord,
+} from "./storage.js";
 import { requireAdmin, requireDvAuth } from "./auth.js";
 import { ensureSchema } from "./migrate.js";
 import { hasDatabase } from "./db.js";
@@ -130,6 +138,41 @@ app.post("/auth/guest", async (req, res) => {
   }
 });
 
+/**
+ * Canva OAuth start for sandboxed environments (no window.opener).
+ * Returns an auth URL + a poll token that the client can poll for dvToken.
+ */
+app.get("/auth/canva/start_poll", async (req, res) => {
+  const state = randomId(16);
+  const codeVerifier = randomId(32);
+  const codeChallenge = sha256Base64Url(codeVerifier);
+  const pollToken = `poll_${randomId(16)}`;
+
+  await putPkceState(state, { codeVerifier, createdAt: Date.now(), pollToken, returnTo: "", origin: "" });
+  const url = canvaAuthorizeUrl({ state, codeChallenge });
+  res.json({ ok: true, authUrl: url, pollToken });
+});
+
+/**
+ * Poll for completion of a prior /auth/canva/start_poll flow.
+ * Query:
+ * - pollToken: string
+ */
+app.get("/auth/canva/poll", async (req, res) => {
+  const pollToken = typeof req.query.pollToken === "string" ? req.query.pollToken : null;
+  if (!pollToken) return res.status(400).json({ error: "missing_pollToken" });
+
+  const rec = await getOauthPollToken(pollToken);
+  if (!rec?.dvToken) return res.json({ ok: true, status: "pending" });
+
+  res.json({
+    ok: true,
+    status: "completed",
+    dvToken: rec.dvToken,
+    canvaUserId: rec.canvaUserId ?? null,
+  });
+});
+
 // Back-compat for the Canva panel (expected in canva-app-panel/README.md)
 app.get("/canva/connect", async (req, res) => {
   const qs = new URLSearchParams();
@@ -196,6 +239,10 @@ app.get("/auth/canva/callback", async (req, res) => {
       packages: Array.isArray(existing.packages) ? existing.packages : [],
     });
 
+    if (st?.pollToken) {
+      await putOauthPollToken(st.pollToken, { dvToken, canvaUserId });
+    }
+
     await deletePkceState(state);
 
     // If a returnTo is supplied (e.g. deep-link back into Flutter), redirect there.
@@ -205,6 +252,16 @@ app.get("/auth/canva/callback", async (req, res) => {
       url.searchParams.set("dvToken", dvToken);
       url.searchParams.set("canvaUserId", canvaUserId);
       return res.redirect(url.toString());
+    }
+
+    if (st?.pollToken) {
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      return res.send(`<!doctype html>
+<html>
+  <body>
+    Connected. You can close this tab and return to Canva.
+  </body>
+</html>`);
     }
 
     const targetOrigin = st.origin && st.origin !== "" ? st.origin : "*";

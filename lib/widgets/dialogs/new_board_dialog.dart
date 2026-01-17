@@ -41,6 +41,13 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text('Freeform Board'),
+            subtitle: const Text('Classic freeform canvas (supports Canva import)'),
+            onTap: () => Navigator.of(context).pop(VisionBoardInfo.layoutFreeform),
+          ),
+          const Divider(),
+          ListTile(
             leading: const Icon(Icons.dashboard_customize_outlined),
             title: const Text('Goal Canvas (Canva-style)'),
             subtitle: const Text('Add goal images, crop, resize, reorder layers, track habits'),

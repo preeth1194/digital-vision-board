@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Minimal auth storage + guest issuance.
 ///
@@ -13,6 +15,7 @@ final class DvAuthService {
   static const _dvTokenKey = 'dv_auth_token_v1';
   static const _expiresAtMsKey = 'dv_auth_expires_at_ms_v1'; // unix ms
   static const _homeTimezoneKey = 'dv_home_timezone_v1';
+  static const _canvaUserIdKey = 'dv_canva_user_id_v1';
 
   // Legacy key used by Canva OAuth flow.
   static const _legacyCanvaDvTokenKey = 'dv_canva_token_v1';
@@ -42,6 +45,80 @@ final class DvAuthService {
     final p = prefs ?? await SharedPreferences.getInstance();
     final t = p.getString(_dvTokenKey);
     return (t != null && t.isNotEmpty) ? t : null;
+  }
+
+  static Future<String?> getCanvaUserId({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = p.getString(_canvaUserIdKey);
+    return (v != null && v.trim().isNotEmpty) ? v.trim() : null;
+  }
+
+  static Future<void> _setDvToken(
+    String dvToken, {
+    String? canvaUserId,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.setString(_dvTokenKey, dvToken);
+    await p.remove(_expiresAtMsKey); // treated as non-expiring for Canva tokens
+    final cuid = (canvaUserId ?? '').trim();
+    if (cuid.isEmpty) {
+      await p.remove(_canvaUserIdKey);
+    } else {
+      await p.setString(_canvaUserIdKey, cuid);
+    }
+  }
+
+  /// Connect to Canva via backend OAuth (poll-based), storing a dvToken for API calls.
+  ///
+  /// This is designed to work even when window.opener postMessage is not available
+  /// (e.g., inside sandboxed environments).
+  static Future<CanvaOAuthResult> connectViaCanvaOAuth({
+    Duration timeout = const Duration(minutes: 2),
+    SharedPreferences? prefs,
+  }) async {
+    if (kIsWeb) {
+      throw Exception('Canva OAuth is not supported on web in this app.');
+    }
+    final p = prefs ?? await SharedPreferences.getInstance();
+
+    final startRes = await http.get(
+      Uri.parse('${backendBaseUrl()}/auth/canva/start_poll'),
+      headers: {'accept': 'application/json'},
+    );
+    if (startRes.statusCode < 200 || startRes.statusCode >= 300) {
+      throw Exception('OAuth start failed (${startRes.statusCode}): ${startRes.body}');
+    }
+    final startJson = jsonDecode(startRes.body) as Map<String, dynamic>;
+    final authUrl = startJson['authUrl'] as String?;
+    final pollToken = startJson['pollToken'] as String?;
+    if ((authUrl ?? '').trim().isEmpty || (pollToken ?? '').trim().isEmpty) {
+      throw Exception('OAuth start response missing authUrl/pollToken');
+    }
+
+    final ok = await launchUrl(Uri.parse(authUrl!), mode: LaunchMode.externalApplication);
+    if (!ok) throw Exception('Could not open Canva OAuth URL.');
+
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      final pollRes = await http.get(
+        Uri.parse('${backendBaseUrl()}/auth/canva/poll?pollToken=${Uri.encodeComponent(pollToken!)}'),
+        headers: {'accept': 'application/json'},
+      );
+      if (pollRes.statusCode < 200 || pollRes.statusCode >= 300) continue;
+      final pollJson = jsonDecode(pollRes.body) as Map<String, dynamic>;
+      final status = pollJson['status'] as String?;
+      if (status != 'completed') continue;
+      final dvToken = pollJson['dvToken'] as String?;
+      final canvaUserId = pollJson['canvaUserId'] as String?;
+      if ((dvToken ?? '').trim().isEmpty) continue;
+
+      await _setDvToken(dvToken!.trim(), canvaUserId: canvaUserId, prefs: p);
+      return CanvaOAuthResult(dvToken: dvToken.trim(), canvaUserId: canvaUserId?.trim());
+    }
+
+    throw Exception('Timed out waiting for Canva OAuth to complete.');
   }
 
   static Future<int?> getExpiresAtMs({SharedPreferences? prefs}) async {
@@ -79,6 +156,7 @@ final class DvAuthService {
     final p = prefs ?? await SharedPreferences.getInstance();
     await p.remove(_dvTokenKey);
     await p.remove(_expiresAtMsKey);
+    await p.remove(_canvaUserIdKey);
   }
 
   static Future<GuestAuthResult> continueAsGuest({
@@ -121,6 +199,13 @@ final class DvAuthService {
       homeTimezone: returnedTz?.trim().isEmpty ?? true ? null : returnedTz!.trim(),
     );
   }
+}
+
+final class CanvaOAuthResult {
+  final String dvToken;
+  final String? canvaUserId;
+
+  const CanvaOAuthResult({required this.dvToken, required this.canvaUserId});
 }
 
 final class GuestAuthResult {

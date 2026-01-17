@@ -8,8 +8,16 @@ export async function ensureSchema() {
   const pool = getPool();
   if (!pool) return;
 
-  const sqlPath = path.resolve(process.cwd(), "sql", "001_init.sql");
-  const sql = await fs.readFile(sqlPath, "utf-8");
-  await pool.query(sql);
+  const sqlDir = path.resolve(process.cwd(), "sql");
+  const entries = await fs.readdir(sqlDir);
+  const sqlFiles = entries
+    .filter((n) => /^\d+_.+\.sql$/i.test(n))
+    .sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+
+  for (const file of sqlFiles) {
+    const sqlPath = path.join(sqlDir, file);
+    const sql = await fs.readFile(sqlPath, "utf-8");
+    await pool.query(sql);
+  }
 }
 

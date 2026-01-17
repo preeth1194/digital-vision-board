@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
+import '../services/notifications_service.dart';
+import '../widgets/dialogs/add_habit_dialog.dart';
+import '../widgets/dialogs/completion_feedback_sheet.dart';
+import '../widgets/dialogs/goal_picker_sheet.dart';
 
 class HabitsListScreen extends StatefulWidget {
   final List<VisionComponent> components;
@@ -20,47 +24,181 @@ class HabitsListScreen extends StatefulWidget {
 }
 
 class _HabitsListScreenState extends State<HabitsListScreen> {
-  void _toggleHabit(VisionComponent component, HabitItem habit) {
-    final updatedHabit = habit.toggleForDate(DateTime.now());
-    final updatedHabits =
-        component.habits.map((h) => h.id == habit.id ? updatedHabit : h).toList();
-    final updatedComponent = component.copyWithCommon(habits: updatedHabits);
-    final updatedComponents =
-        widget.components.map((c) => c.id == component.id ? updatedComponent : c).toList();
+  late List<VisionComponent> _components;
+
+  @override
+  void initState() {
+    super.initState();
+    _components = widget.components;
+  }
+
+  @override
+  void didUpdateWidget(covariant HabitsListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.components != widget.components) {
+      _components = widget.components;
+    }
+  }
+
+  static String _toIsoDate(DateTime d) {
+    final dd = DateTime(d.year, d.month, d.day);
+    final yyyy = dd.year.toString().padLeft(4, '0');
+    final mm = dd.month.toString().padLeft(2, '0');
+    final day = dd.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$day';
+  }
+
+  static List<VisionComponent> _goalLikeComponents(List<VisionComponent> all) {
+    return all.where((c) => c is ImageComponent || c is GoalOverlayComponent).toList();
+  }
+
+  Future<void> _addHabitFromGoalPicker() async {
+    final selected = await showGoalPickerSheet(
+      context,
+      components: _goalLikeComponents(_components),
+      title: 'Select goal for habit',
+    );
+    if (selected == null) return;
+
+    final goalDeadline = selected is ImageComponent
+        ? selected.goal?.deadline
+        : (selected is GoalOverlayComponent ? selected.goal.deadline : null);
+
+    final req = await showAddHabitDialog(
+      context,
+      initialName: null,
+      suggestedGoalDeadline: goalDeadline,
+      existingHabits: selected.habits,
+    );
+    if (req == null) return;
+
+    final newId = DateTime.now().millisecondsSinceEpoch.toString();
+    final newHabit = HabitItem(
+      id: newId,
+      name: req.name,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      completedDates: const [],
+    );
+
+    final nextComponents = _components.map((c) {
+      if (c.id != selected.id) return c;
+      return c.copyWithCommon(habits: [...c.habits, newHabit]);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+
+    Future<void>(() async {
+      if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
+      final ok = await NotificationsService.requestPermissionsIfNeeded();
+      if (!ok) return;
+      await NotificationsService.scheduleHabitReminders(newHabit);
+    });
+  }
+
+  Future<void> _toggleHabit(VisionComponent component, HabitItem habit) async {
+    final now = DateTime.now();
+    if (!habit.isScheduledOnDate(now)) return;
+    final wasDone = habit.isCompletedForCurrentPeriod(now);
+    final toggled = habit.toggleForDate(now);
+
+    List<VisionComponent> updatedComponents = _components.map((c) {
+      if (c.id != component.id) return c;
+      final updatedHabits = c.habits.map((h) => h.id == habit.id ? toggled : h).toList();
+      return c.copyWithCommon(habits: updatedHabits);
+    }).toList();
+
+    setState(() => _components = updatedComponents);
     widget.onComponentsUpdated(updatedComponents);
+
+    // Prompt for completion feedback (same semantics as HabitTrackerSheet._maybeAskCompletionFeedback).
+    if (!wasDone) {
+      final iso = _toIsoDate(now);
+      if (!toggled.feedbackByDate.containsKey(iso)) {
+        final res = await showCompletionFeedbackSheet(
+          context,
+          title: 'How did it go?',
+          subtitle: habit.name,
+        );
+        if (res == null) return;
+
+        final nextFeedback = Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
+        nextFeedback[iso] = HabitCompletionFeedback(rating: res.rating, note: res.note);
+        final withFeedback = toggled.copyWith(feedbackByDate: nextFeedback);
+
+        updatedComponents = updatedComponents.map((c) {
+          if (c.id != component.id) return c;
+          final updatedHabits = c.habits.map((h) => h.id == habit.id ? withFeedback : h).toList();
+          return c.copyWithCommon(habits: updatedHabits);
+        }).toList();
+
+        if (mounted) setState(() => _components = updatedComponents);
+        widget.onComponentsUpdated(updatedComponents);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final componentsWithHabits =
-        widget.components.where((c) => c.habits.isNotEmpty).toList();
+        _components.where((c) => c.habits.isNotEmpty).toList();
 
     if (componentsWithHabits.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.list_alt, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
+            const Icon(Icons.list_alt, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
               'No habits found',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
             ),
-            SizedBox(height: 8),
-            Text('Tap a goal on the canvas to add habits', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 8),
+            const Text('Add a habit to a goal to get started', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _addHabitFromGoalPicker,
+              icon: const Icon(Icons.add),
+              label: const Text('Add habit'),
+            ),
           ],
         ),
       );
     }
 
-    final body = ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: componentsWithHabits.length,
-        itemBuilder: (context, index) {
-          final component = componentsWithHabits[index];
-          final displayTitle = (component is ImageComponent && (component.goal?.title ?? '').trim().isNotEmpty)
-              ? component.goal!.title!.trim()
-              : component.id;
+    final body = ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Habits',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: _addHabitFromGoalPicker,
+              icon: const Icon(Icons.add),
+              label: const Text('Add habit'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...componentsWithHabits.map((component) {
+          final displayTitle =
+              (component is ImageComponent && (component.goal?.title ?? '').trim().isNotEmpty)
+                  ? component.goal!.title!.trim()
+                  : component.id;
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
@@ -125,12 +263,23 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
               ],
             ),
           );
-        },
-      );
+        }),
+      ],
+    );
 
     if (!widget.showAppBar) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('All Habits'), automaticallyImplyLeading: false),
+      appBar: AppBar(
+        title: const Text('All Habits'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            tooltip: 'Add habit',
+            icon: const Icon(Icons.add),
+            onPressed: _addHabitFromGoalPicker,
+          ),
+        ],
+      ),
       body: body,
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +12,7 @@ import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
+import '../services/reminder_summary_service.dart';
 import 'grid_editor.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
@@ -25,7 +28,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   int _tabIndex = 0;
   bool _loading = true;
   SharedPreferences? _prefs;
@@ -33,15 +36,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
 
+  bool _loadingReminders = false;
+  ReminderSummary? _reminderSummary;
+  Timer? _remindersAutoRefreshTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _init();
+    _startAutoRefreshReminders();
+  }
+
+  @override
+  void dispose() {
+    _remindersAutoRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshReminders();
+    }
+  }
+
+  void _startAutoRefreshReminders() {
+    _remindersAutoRefreshTimer?.cancel();
+    _remindersAutoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      _refreshReminders();
+    });
   }
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     await _reload();
+    await _refreshReminders();
   }
 
   Future<void> _reload() async {
@@ -54,6 +86,146 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _activeBoardId = activeId;
       _loading = false;
     });
+  }
+
+  Future<void> _refreshReminders() async {
+    if (_loadingReminders) return;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    setState(() => _loadingReminders = true);
+    try {
+      final summary = await ReminderSummaryService.build(boards: _boards, prefs: prefs);
+      if (!mounted) return;
+      setState(() => _reminderSummary = summary);
+    } finally {
+      if (mounted) setState(() => _loadingReminders = false);
+    }
+  }
+
+  static String _monthDayLabel(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final m = months[(d.month - 1).clamp(0, 11)];
+    return '$m ${d.day}';
+  }
+
+  static String _timeLabel(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    final hh = ((h % 12) == 0) ? 12 : (h % 12);
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    return '$hh:${m.toString().padLeft(2, '0')} $ampm';
+  }
+
+  Future<void> _openRemindersSheet() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final summary =
+        _reminderSummary ?? await ReminderSummaryService.build(boards: _boards, prefs: prefs);
+    if (!mounted) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    List<DateTime> days = [];
+    for (DateTime d = today; !d.isAfter(endOfMonth); d = d.add(const Duration(days: 1))) {
+      days.add(d);
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final paddingBottom = MediaQuery.paddingOf(ctx).bottom;
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(ctx).height * 0.85,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Text(
+                    'Reminders',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + paddingBottom),
+                    children: [
+                      for (final d in days) ...[
+                        Builder(
+                          builder: (_) {
+                            final iso = ReminderSummaryService.toIsoDate(d);
+                            final items = summary.itemsByIsoDate[iso] ?? const <ReminderItem>[];
+                            if (items.isEmpty) return const SizedBox.shrink();
+                            final title = (d == today)
+                                ? 'Today'
+                                : (d == tomorrow)
+                                    ? 'Tomorrow'
+                                    : _monthDayLabel(d);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 10),
+                                Text(
+                                  title,
+                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                ...items.map((it) {
+                                  final leading = it.kind == ReminderKind.habit
+                                      ? const Icon(Icons.notifications_active_outlined)
+                                      : const Icon(Icons.event_outlined);
+                                  final time = it.minutesSinceMidnight == null
+                                      ? null
+                                      : _timeLabel(it.minutesSinceMidnight!);
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    child: ListTile(
+                                      leading: leading,
+                                      title: Text(it.label),
+                                      subtitle: Text(
+                                        time == null ? it.boardTitle : '${it.boardTitle} • $time',
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                      if (summary.itemsByIsoDate.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 24),
+                          child: Center(child: Text('No reminders for the rest of this month.')),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
@@ -186,6 +358,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
     await _clearActiveBoard();
+    await _reload();
+    await _refreshReminders();
   }
 
   Future<void> _deleteBoard(VisionBoardInfo board) async {
@@ -209,6 +383,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _boards = next;
       if (_activeBoardId == board.id) _activeBoardId = null;
     });
+    await _refreshReminders();
   }
 
   Future<void> _openBoard(VisionBoardInfo board, {required bool startInEditMode}) async {
@@ -251,6 +426,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
     await _clearActiveBoard();
+    await _reload();
+    await _refreshReminders();
   }
 
   @override
@@ -276,11 +453,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        actions: [
+          Builder(
+            builder: (ctx) {
+              final count = _reminderSummary?.todayPendingCount ?? 0;
+              final icon = IconButton(
+                tooltip: 'Reminders',
+                onPressed: _openRemindersSheet,
+                icon: const Icon(Icons.notifications_outlined),
+              );
+              if (count <= 0) return icon;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  icon,
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       body: body,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex,
-        onTap: (i) => setState(() => _tabIndex = i),
+        onTap: (i) {
+          setState(() => _tabIndex = i);
+          _refreshReminders();
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [

@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
+import '../../models/task_item.dart';
+import '../../services/completion_mutations.dart';
+import '../dialogs/completion_feedback_sheet.dart';
+import '../dialogs/goal_picker_sheet.dart';
+import '../dialogs/add_task_dialog.dart';
+import '../dialogs/add_checklist_item_dialog.dart';
 
 class AllBoardsTasksTab extends StatelessWidget {
   final List<VisionBoardInfo> boards;
@@ -29,6 +35,62 @@ class AllBoardsTasksTab extends StatelessWidget {
 
     return StatefulBuilder(
       builder: (context, setLocal) {
+        Future<VisionBoardInfo?> pickBoard() async {
+          if (boards.isEmpty) return null;
+          return showModalBottomSheet<VisionBoardInfo?>(
+            context: context,
+            showDragHandle: true,
+            builder: (ctx) => SafeArea(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: boards.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final b = boards[i];
+                  return ListTile(
+                    title: Text(b.title),
+                    onTap: () => Navigator.of(ctx).pop(b),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+
+        Future<void> addTaskGlobal() async {
+          final board = await pickBoard();
+          if (board == null) return;
+          final components = componentsByBoardId[board.id] ?? const <VisionComponent>[];
+          final selected = await showGoalPickerSheet(
+            context,
+            components: components,
+            title: 'Select goal for task',
+          );
+          if (selected == null) return;
+
+          final res = await showAddTaskDialog(
+            context,
+            dialogTitle: 'Add task',
+            primaryActionText: 'Add',
+          );
+          if (res == null) return;
+
+          final newTask = TaskItem(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            title: res.title,
+            checklist: const [],
+            cbtEnhancements: res.cbtEnhancements,
+          );
+
+          final nextComponents = components.map((c) {
+            if (c.id != selected.id) return c;
+            return c.copyWithCommon(tasks: [...c.tasks, newTask]);
+          }).toList();
+
+          await onSaveBoardComponents(board.id, nextComponents);
+          setLocal(() => componentsByBoardId[board.id] = nextComponents);
+        }
+
         int totalChecklist = 0;
         int completedChecklist = 0;
         int dueToday = 0;
@@ -52,9 +114,20 @@ class AllBoardsTasksTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'All Boards Tasks',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'All Boards Tasks',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: addTaskGlobal,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add task'),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Card(
@@ -107,27 +180,116 @@ class AllBoardsTasksTab extends StatelessWidget {
                                 title: Text(task.title),
                                 subtitle: total == 0 ? const Text('No checklist items') : Text('$done / $total completed'),
                                 children: [
+                                  ListTile(
+                                    dense: true,
+                                    leading: const Icon(Icons.add),
+                                    title: const Text('Add checklist item'),
+                                    onTap: () async {
+                                      final res = await showAddChecklistItemDialog(
+                                        context,
+                                        dialogTitle: 'Add checklist item',
+                                        primaryActionText: 'Add',
+                                      );
+                                      if (res == null) return;
+
+                                      final newItem = ChecklistItem(
+                                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                        text: res.text,
+                                        dueDate: res.dueDate,
+                                        completedOn: null,
+                                        cbtEnhancements: res.cbtEnhancements,
+                                        feedbackByDate: const {},
+                                      );
+
+                                      final updatedComponents = components.map((c) {
+                                        if (c.id != component.id) return c;
+                                        final updatedTasks = component.tasks.map((t) {
+                                          if (t.id != task.id) return t;
+                                          return t.copyWith(checklist: [...t.checklist, newItem]);
+                                        }).toList();
+                                        return c.copyWithCommon(tasks: updatedTasks);
+                                      }).toList();
+
+                                      await onSaveBoardComponents(id, updatedComponents);
+                                      setLocal(() => componentsByBoardId[id] = updatedComponents);
+                                    },
+                                  ),
                                   ...task.checklist.map((item) {
                                     return CheckboxListTile(
                                       value: item.isCompleted,
                                       onChanged: (_) async {
-                                        final nowIso = _toIsoDate(DateTime.now());
-                                        final updatedItem = item.copyWith(
-                                          completedOn: item.isCompleted ? null : nowIso,
-                                        );
-                                        final updatedTasks = component.tasks.map((t) {
-                                          if (t.id != task.id) return t;
-                                          return t.copyWith(
-                                            checklist: t.checklist.map((ci) => ci.id == item.id ? updatedItem : ci).toList(),
-                                          );
+                                        final toggle = CompletionMutations.toggleChecklistItemForToday(task, item);
+                                        var currentTask = toggle.updatedTask;
+
+                                        List<VisionComponent> updatedComponents = components.map((c) {
+                                          if (c.id != component.id) return c;
+                                          final updatedTasks = component.tasks
+                                              .map((t) => t.id == task.id ? currentTask : t)
+                                              .toList();
+                                          return c.copyWithCommon(tasks: updatedTasks);
                                         }).toList();
 
-                                        final updatedComponent = component.copyWithCommon(tasks: updatedTasks);
-                                        final updatedComponents = components.map((c) => c.id == component.id ? updatedComponent : c).toList();
                                         await onSaveBoardComponents(id, updatedComponents);
-                                        setLocal(() {
-                                          componentsByBoardId[id] = updatedComponents;
-                                        });
+                                        setLocal(() => componentsByBoardId[id] = updatedComponents);
+
+                                        if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
+                                          final updatedItem = currentTask.checklist.firstWhere((c) => c.id == item.id);
+                                          final isSingleItemTask = currentTask.checklist.length == 1;
+                                          final shouldSkipItemFeedback =
+                                              isSingleItemTask && !toggle.wasTaskComplete && toggle.isTaskComplete;
+
+                                          if (!shouldSkipItemFeedback &&
+                                              !updatedItem.feedbackByDate.containsKey(toggle.isoDate)) {
+                                            final res = await showCompletionFeedbackSheet(
+                                              context,
+                                              title: 'How did it go?',
+                                              subtitle: '${task.title}: ${updatedItem.text} • ${board.title}',
+                                            );
+                                            if (res != null) {
+                                              currentTask = CompletionMutations.applyChecklistItemFeedback(
+                                                currentTask,
+                                                itemId: updatedItem.id,
+                                                isoDate: toggle.isoDate,
+                                                feedback: CompletionFeedback(rating: res.rating, note: res.note),
+                                              );
+                                              updatedComponents = components.map((c) {
+                                                if (c.id != component.id) return c;
+                                                final updatedTasks = component.tasks
+                                                    .map((t) => t.id == task.id ? currentTask : t)
+                                                    .toList();
+                                                return c.copyWithCommon(tasks: updatedTasks);
+                                              }).toList();
+                                              await onSaveBoardComponents(id, updatedComponents);
+                                              setLocal(() => componentsByBoardId[id] = updatedComponents);
+                                            }
+                                          }
+
+                                          if (!toggle.wasTaskComplete && toggle.isTaskComplete) {
+                                            if (!currentTask.completionFeedbackByDate.containsKey(toggle.isoDate)) {
+                                              final res = await showCompletionFeedbackSheet(
+                                                context,
+                                                title: 'Task completed',
+                                                subtitle: '${task.title} • ${board.title}',
+                                              );
+                                              if (res != null) {
+                                                currentTask = CompletionMutations.applyTaskCompletionFeedback(
+                                                  currentTask,
+                                                  isoDate: toggle.isoDate,
+                                                  feedback: CompletionFeedback(rating: res.rating, note: res.note),
+                                                );
+                                                updatedComponents = components.map((c) {
+                                                  if (c.id != component.id) return c;
+                                                  final updatedTasks = component.tasks
+                                                      .map((t) => t.id == task.id ? currentTask : t)
+                                                      .toList();
+                                                  return c.copyWithCommon(tasks: updatedTasks);
+                                                }).toList();
+                                                await onSaveBoardComponents(id, updatedComponents);
+                                                setLocal(() => componentsByBoardId[id] = updatedComponents);
+                                              }
+                                            }
+                                          }
+                                        }
                                       },
                                       title: Text(item.text),
                                       subtitle: (item.dueDate ?? '').trim().isEmpty ? null : Text('Due ${item.dueDate}'),

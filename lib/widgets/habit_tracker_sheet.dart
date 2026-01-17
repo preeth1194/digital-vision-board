@@ -6,10 +6,14 @@ import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../models/task_item.dart';
 import '../services/notifications_service.dart';
+import '../services/completion_mutations.dart';
 import 'habits/habit_tracker_header.dart';
 import 'habits/habit_tracker_insights_tab.dart';
 import 'habits/habit_tracker_tracker_tab.dart';
 import 'dialogs/add_habit_dialog.dart';
+import 'dialogs/add_task_dialog.dart';
+import 'dialogs/add_checklist_item_dialog.dart';
+import 'dialogs/completion_feedback_sheet.dart';
 import 'tasks/task_tracker_tab.dart';
 
 /// Modal bottom sheet for tracking habits associated with a canvas component.
@@ -309,11 +313,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     if (h.feedbackByDate.containsKey(iso)) return;
     if (!mounted) return;
 
-    final res = await showModalBottomSheet<_CompletionFeedbackResult?>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => _CompletionFeedbackSheet(habitName: h.name),
+    final res = await showCompletionFeedbackSheet(
+      context,
+      title: 'How did it go?',
+      subtitle: h.name,
     );
     if (res == null) return;
     if (!mounted) return;
@@ -325,7 +328,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       final next = Map<String, HabitCompletionFeedback>.from(latest.feedbackByDate);
       next[iso] = HabitCompletionFeedback(
         rating: res.rating,
-        note: (res.note ?? '').trim().isEmpty ? null : res.note!.trim(),
+        note: res.note,
       );
       _habits[latestIdx] = latest.copyWith(feedbackByDate: next);
       _updateComponent();
@@ -340,148 +343,12 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   Future<void> _addTask() async {
-    final controller = TextEditingController();
-    final micro = TextEditingController();
-    final obstacle = TextEditingController();
-    final ifThen = TextEditingController();
-    final reward = TextEditingController();
-    double confidence = 8;
-    bool addCbt = false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          // In fullscreen dialogs, the Scaffold resizes for the keyboard already.
-          // Keep extra bottom padding only for the non-fullscreen dialog layout.
-          final insetBottom = isCompact ? 0.0 : MediaQuery.viewInsetsOf(ctx).bottom;
-          final body = SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Task title',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add CBT (optional)'),
-                value: addCbt,
-                onChanged: (v) => setLocal(() => addCbt = v),
-              ),
-              if (addCbt) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: micro,
-                  decoration: const InputDecoration(
-                    labelText: 'Micro version',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: obstacle,
-                  decoration: const InputDecoration(
-                    labelText: 'Predicted obstacle',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ifThen,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'If-Then plan',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Confidence: ${confidence.round()}/10',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Slider(
-                  value: confidence,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  label: confidence.round().toString(),
-                  onChanged: (v) => setLocal(() => confidence = v),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: reward,
-                  decoration: const InputDecoration(
-                    labelText: 'Reward',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              ],
-            ),
-          );
-
-          if (isCompact) {
-            return Dialog.fullscreen(
-              child: Scaffold(
-                resizeToAvoidBottomInset: true,
-                appBar: AppBar(
-                  title: const Text('Add task'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Add'),
-                    ),
-                  ],
-                ),
-                body: SafeArea(child: body),
-              ),
-            );
-          }
-
-          return AlertDialog(
-            scrollable: true,
-            title: const Text('Add task'),
-            content: body,
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Add')),
-            ],
-          );
-        },
-      ),
+    final res = await showAddTaskDialog(
+      context,
+      dialogTitle: 'Add task',
+      primaryActionText: 'Add',
     );
-    final title = controller.text.trim();
-    final cbt = CbtEnhancements(
-      microVersion: micro.text.trim().isEmpty ? null : micro.text.trim(),
-      predictedObstacle: obstacle.text.trim().isEmpty ? null : obstacle.text.trim(),
-      ifThenPlan: ifThen.text.trim().isEmpty ? null : ifThen.text.trim(),
-      confidenceScore: confidence.round(),
-      reward: reward.text.trim().isEmpty ? null : reward.text.trim(),
-    );
-    final hasCbt = (cbt.microVersion ?? '').isNotEmpty ||
-        (cbt.predictedObstacle ?? '').isNotEmpty ||
-        (cbt.ifThenPlan ?? '').isNotEmpty ||
-        (cbt.reward ?? '').isNotEmpty;
-    controller.dispose();
-    micro.dispose();
-    obstacle.dispose();
-    ifThen.dispose();
-    reward.dispose();
-    if (ok != true || title.isEmpty) return;
+    if (res == null) return;
     if (!mounted) return;
 
     setState(() {
@@ -490,9 +357,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         ..._tasks,
         TaskItem(
           id: id,
-          title: title,
+          title: res.title,
           checklist: const [],
-          cbtEnhancements: (addCbt && hasCbt) ? cbt : null,
+          cbtEnhancements: res.cbtEnhancements,
         ),
       ];
       _updateComponent();
@@ -500,158 +367,22 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   Future<void> _editTask(TaskItem task) async {
-    final controller = TextEditingController(text: task.title);
-    final micro = TextEditingController(text: task.cbtEnhancements?.microVersion ?? '');
-    final obstacle = TextEditingController(text: task.cbtEnhancements?.predictedObstacle ?? '');
-    final ifThen = TextEditingController(text: task.cbtEnhancements?.ifThenPlan ?? '');
-    final reward = TextEditingController(text: task.cbtEnhancements?.reward ?? '');
-    double confidence = (task.cbtEnhancements?.confidenceScore ?? 8).clamp(0, 10).toDouble();
-    bool addCbt = task.cbtEnhancements != null;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          // In fullscreen dialogs, the Scaffold resizes for the keyboard already.
-          // Keep extra bottom padding only for the non-fullscreen dialog layout.
-          final insetBottom = isCompact ? 0.0 : MediaQuery.viewInsetsOf(ctx).bottom;
-          final body = SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Task title',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add CBT (optional)'),
-                value: addCbt,
-                onChanged: (v) => setLocal(() => addCbt = v),
-              ),
-              if (addCbt) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: micro,
-                  decoration: const InputDecoration(
-                    labelText: 'Micro version',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: obstacle,
-                  decoration: const InputDecoration(
-                    labelText: 'Predicted obstacle',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ifThen,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'If-Then plan',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Confidence: ${confidence.round()}/10',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Slider(
-                  value: confidence,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  label: confidence.round().toString(),
-                  onChanged: (v) => setLocal(() => confidence = v),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: reward,
-                  decoration: const InputDecoration(
-                    labelText: 'Reward',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              ],
-            ),
-          );
-
-          if (isCompact) {
-            return Dialog.fullscreen(
-              child: Scaffold(
-                resizeToAvoidBottomInset: true,
-                appBar: AppBar(
-                  title: const Text('Edit task'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-                body: SafeArea(child: body),
-              ),
-            );
-          }
-
-          return AlertDialog(
-            scrollable: true,
-            title: const Text('Edit task'),
-            content: body,
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Save')),
-            ],
-          );
-        },
-      ),
+    final res = await showEditTaskDialog(
+      context,
+      dialogTitle: 'Edit task',
+      primaryActionText: 'Save',
+      initialTitle: task.title,
+      initialCbt: task.cbtEnhancements,
     );
-
-    final title = controller.text.trim();
-    final cbt = CbtEnhancements(
-      microVersion: micro.text.trim().isEmpty ? null : micro.text.trim(),
-      predictedObstacle: obstacle.text.trim().isEmpty ? null : obstacle.text.trim(),
-      ifThenPlan: ifThen.text.trim().isEmpty ? null : ifThen.text.trim(),
-      confidenceScore: confidence.round(),
-      reward: reward.text.trim().isEmpty ? null : reward.text.trim(),
-    );
-    final hasCbt = (cbt.microVersion ?? '').isNotEmpty ||
-        (cbt.predictedObstacle ?? '').isNotEmpty ||
-        (cbt.ifThenPlan ?? '').isNotEmpty ||
-        (cbt.reward ?? '').isNotEmpty;
-    controller.dispose();
-    micro.dispose();
-    obstacle.dispose();
-    ifThen.dispose();
-    reward.dispose();
-    if (ok != true || title.isEmpty) return;
+    if (res == null) return;
     if (!mounted) return;
 
     setState(() {
       _tasks = _tasks.map((t) {
         if (t.id != task.id) return t;
         return t.copyWith(
-          title: title,
-          cbtEnhancements: (addCbt && hasCbt) ? cbt : null,
+          title: res.title,
+          cbtEnhancements: res.cbtEnhancements,
         );
       }).toList();
       _updateComponent();
@@ -659,179 +390,15 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   Future<void> _editChecklistItem(String taskId, ChecklistItem item) async {
-    final text = TextEditingController(text: item.text);
-    String? dueDate = (item.dueDate ?? '').trim().isEmpty ? null : item.dueDate;
-    final micro = TextEditingController(text: item.cbtEnhancements?.microVersion ?? '');
-    final obstacle = TextEditingController(text: item.cbtEnhancements?.predictedObstacle ?? '');
-    final ifThen = TextEditingController(text: item.cbtEnhancements?.ifThenPlan ?? '');
-    final reward = TextEditingController(text: item.cbtEnhancements?.reward ?? '');
-    double confidence = (item.cbtEnhancements?.confidenceScore ?? 8).clamp(0, 10).toDouble();
-    bool addCbt = item.cbtEnhancements != null;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          final insetBottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          final body = SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              TextField(
-                controller: text,
-                decoration: const InputDecoration(
-                  labelText: 'Item',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        if (!ctx.mounted) return;
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: now,
-                          firstDate: now.subtract(const Duration(days: 1)),
-                          lastDate: DateTime(now.year + 10),
-                        );
-                        if (picked == null) return;
-                        if (!ctx.mounted) return;
-                        setLocal(() => dueDate = _toIsoDate(picked));
-                      },
-                      icon: const Icon(Icons.event_outlined),
-                      label: Text(dueDate == null ? 'Due date (optional)' : 'Due $dueDate'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Clear',
-                    onPressed: dueDate == null ? null : () => setLocal(() => dueDate = null),
-                    icon: const Icon(Icons.clear),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add CBT (optional)'),
-                value: addCbt,
-                onChanged: (v) => setLocal(() => addCbt = v),
-              ),
-              if (addCbt) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: micro,
-                  decoration: const InputDecoration(
-                    labelText: 'Micro version',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: obstacle,
-                  decoration: const InputDecoration(
-                    labelText: 'Predicted obstacle',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ifThen,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'If-Then plan',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Confidence: ${confidence.round()}/10',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Slider(
-                  value: confidence,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  label: confidence.round().toString(),
-                  onChanged: (v) => setLocal(() => confidence = v),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: reward,
-                  decoration: const InputDecoration(
-                    labelText: 'Reward',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              ],
-            ),
-          );
-
-          if (isCompact) {
-            return Dialog.fullscreen(
-              child: Scaffold(
-                resizeToAvoidBottomInset: true,
-                appBar: AppBar(
-                  title: const Text('Edit checklist item'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-                body: SafeArea(child: body),
-              ),
-            );
-          }
-
-          return AlertDialog(
-            scrollable: true,
-            title: const Text('Edit checklist item'),
-            content: body,
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Save')),
-            ],
-          );
-        },
-      ),
+    final res = await showEditChecklistItemDialog(
+      context,
+      dialogTitle: 'Edit checklist item',
+      primaryActionText: 'Save',
+      initialText: item.text,
+      initialDueDate: (item.dueDate ?? '').trim().isEmpty ? null : item.dueDate,
+      initialCbt: item.cbtEnhancements,
     );
-
-    final label = text.text.trim();
-    final cbt = CbtEnhancements(
-      microVersion: micro.text.trim().isEmpty ? null : micro.text.trim(),
-      predictedObstacle: obstacle.text.trim().isEmpty ? null : obstacle.text.trim(),
-      ifThenPlan: ifThen.text.trim().isEmpty ? null : ifThen.text.trim(),
-      confidenceScore: confidence.round(),
-      reward: reward.text.trim().isEmpty ? null : reward.text.trim(),
-    );
-    final hasCbt = (cbt.microVersion ?? '').isNotEmpty ||
-        (cbt.predictedObstacle ?? '').isNotEmpty ||
-        (cbt.ifThenPlan ?? '').isNotEmpty ||
-        (cbt.reward ?? '').isNotEmpty;
-    text.dispose();
-    micro.dispose();
-    obstacle.dispose();
-    ifThen.dispose();
-    reward.dispose();
-    if (ok != true || label.isEmpty) return;
+    if (res == null) return;
     if (!mounted) return;
 
     setState(() {
@@ -841,9 +408,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           checklist: t.checklist.map((c) {
             if (c.id != item.id) return c;
             return c.copyWith(
-              text: label,
-              dueDate: dueDate,
-              cbtEnhancements: (addCbt && hasCbt) ? cbt : null,
+              text: res.text,
+              dueDate: res.dueDate,
+              cbtEnhancements: res.cbtEnhancements,
             );
           }).toList(),
         );
@@ -860,179 +427,12 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   Future<void> _addChecklistItem(String taskId) async {
-    final text = TextEditingController();
-    String? dueDate;
-    final micro = TextEditingController();
-    final obstacle = TextEditingController();
-    final ifThen = TextEditingController();
-    final reward = TextEditingController();
-    double confidence = 8;
-    bool addCbt = false;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final isCompact = MediaQuery.sizeOf(ctx).width < 600;
-          final insetBottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          final body = SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insetBottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              TextField(
-                controller: text,
-                decoration: const InputDecoration(
-                  labelText: 'Item',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        if (!ctx.mounted) return;
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: now,
-                          firstDate: now.subtract(const Duration(days: 1)),
-                          lastDate: DateTime(now.year + 10),
-                        );
-                        if (picked == null) return;
-                        if (!ctx.mounted) return;
-                        setLocal(() => dueDate = _toIsoDate(picked));
-                      },
-                      icon: const Icon(Icons.event_outlined),
-                      label: Text(dueDate == null ? 'Due date (optional)' : 'Due $dueDate'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Clear',
-                    onPressed: dueDate == null ? null : () => setLocal(() => dueDate = null),
-                    icon: const Icon(Icons.clear),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add CBT (optional)'),
-                value: addCbt,
-                onChanged: (v) => setLocal(() => addCbt = v),
-              ),
-              if (addCbt) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: micro,
-                  decoration: const InputDecoration(
-                    labelText: 'Micro version',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: obstacle,
-                  decoration: const InputDecoration(
-                    labelText: 'Predicted obstacle',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: ifThen,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'If-Then plan',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Confidence: ${confidence.round()}/10',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Slider(
-                  value: confidence,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  label: confidence.round().toString(),
-                  onChanged: (v) => setLocal(() => confidence = v),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: reward,
-                  decoration: const InputDecoration(
-                    labelText: 'Reward',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-              ],
-            ),
-          );
-
-          if (isCompact) {
-            return Dialog.fullscreen(
-              child: Scaffold(
-                resizeToAvoidBottomInset: true,
-                appBar: AppBar(
-                  title: const Text('Add checklist item'),
-                  leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Add'),
-                    ),
-                  ],
-                ),
-                body: SafeArea(child: body),
-              ),
-            );
-          }
-
-          return AlertDialog(
-            scrollable: true,
-            title: const Text('Add checklist item'),
-            content: body,
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Add')),
-            ],
-          );
-        },
-      ),
+    final res = await showAddChecklistItemDialog(
+      context,
+      dialogTitle: 'Add checklist item',
+      primaryActionText: 'Add',
     );
-
-    final label = text.text.trim();
-    final cbt = CbtEnhancements(
-      microVersion: micro.text.trim().isEmpty ? null : micro.text.trim(),
-      predictedObstacle: obstacle.text.trim().isEmpty ? null : obstacle.text.trim(),
-      ifThenPlan: ifThen.text.trim().isEmpty ? null : ifThen.text.trim(),
-      confidenceScore: confidence.round(),
-      reward: reward.text.trim().isEmpty ? null : reward.text.trim(),
-    );
-    final hasCbt = (cbt.microVersion ?? '').isNotEmpty ||
-        (cbt.predictedObstacle ?? '').isNotEmpty ||
-        (cbt.ifThenPlan ?? '').isNotEmpty ||
-        (cbt.reward ?? '').isNotEmpty;
-    text.dispose();
-    micro.dispose();
-    obstacle.dispose();
-    ifThen.dispose();
-    reward.dispose();
-    if (ok != true || label.isEmpty) return;
+    if (res == null) return;
     if (!mounted) return;
 
     setState(() {
@@ -1044,10 +444,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
             ...t.checklist,
             ChecklistItem(
               id: id,
-              text: label,
-              dueDate: dueDate,
+              text: res.text,
+              dueDate: res.dueDate,
               completedOn: null,
-              cbtEnhancements: (addCbt && hasCbt) ? cbt : null,
+              cbtEnhancements: res.cbtEnhancements,
             ),
           ],
         );
@@ -1067,19 +467,71 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   void _toggleChecklistItem(String taskId, ChecklistItem item) {
-    final today = _toIsoDate(DateTime.now());
-    setState(() {
-      _tasks = _tasks.map((t) {
-        if (t.id != taskId) return t;
-        return t.copyWith(
-          checklist: t.checklist.map((c) {
-            if (c.id != item.id) return c;
-            final next = c.isCompleted ? null : today;
-            return c.copyWith(completedOn: next);
-          }).toList(),
-        );
-      }).toList();
-      _updateComponent();
+    Future<void>(() async {
+      final now = DateTime.now();
+      final idx = _tasks.indexWhere((t) => t.id == taskId);
+      if (idx == -1) return;
+      final task = _tasks[idx];
+
+      final toggle = CompletionMutations.toggleChecklistItemForToday(task, item, now: now);
+      if (!mounted) return;
+      setState(() {
+        _tasks = _tasks.map((t) => t.id == taskId ? toggle.updatedTask : t).toList();
+        _updateComponent();
+      });
+
+      // Checklist item completion feedback.
+      if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
+        var currentTask = toggle.updatedTask;
+
+        final updatedItem = currentTask.checklist.firstWhere((c) => c.id == item.id);
+        final isSingleItemTask = currentTask.checklist.length == 1;
+        final shouldSkipItemFeedback = isSingleItemTask && !toggle.wasTaskComplete && toggle.isTaskComplete;
+
+        if (!shouldSkipItemFeedback && !updatedItem.feedbackByDate.containsKey(toggle.isoDate)) {
+          final res = await showCompletionFeedbackSheet(
+            context,
+            title: 'How did it go?',
+            subtitle: '${task.title}: ${updatedItem.text}',
+          );
+          if (res != null) {
+            currentTask = CompletionMutations.applyChecklistItemFeedback(
+              currentTask,
+              itemId: updatedItem.id,
+              isoDate: toggle.isoDate,
+              feedback: CompletionFeedback(rating: res.rating, note: res.note),
+            );
+            if (!mounted) return;
+            setState(() {
+              _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
+              _updateComponent();
+            });
+          }
+        }
+
+        // Task-level completion feedback (when task becomes fully complete).
+        if (!toggle.wasTaskComplete && toggle.isTaskComplete) {
+          if (!currentTask.completionFeedbackByDate.containsKey(toggle.isoDate)) {
+            final res = await showCompletionFeedbackSheet(
+              context,
+              title: 'Task completed',
+              subtitle: task.title,
+            );
+            if (res != null) {
+              currentTask = CompletionMutations.applyTaskCompletionFeedback(
+                currentTask,
+                isoDate: toggle.isoDate,
+                feedback: CompletionFeedback(rating: res.rating, note: res.note),
+              );
+              if (!mounted) return;
+              setState(() {
+                _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
+                _updateComponent();
+              });
+            }
+          }
+        }
+      }
     });
   }
 
@@ -1220,92 +672,6 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-final class _CompletionFeedbackResult {
-  final int rating;
-  final String? note;
-  const _CompletionFeedbackResult({required this.rating, required this.note});
-}
-
-class _CompletionFeedbackSheet extends StatefulWidget {
-  final String habitName;
-  const _CompletionFeedbackSheet({required this.habitName});
-
-  @override
-  State<_CompletionFeedbackSheet> createState() => _CompletionFeedbackSheetState();
-}
-
-class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
-  int _rating = 5;
-  final _note = TextEditingController();
-
-  @override
-  void dispose() {
-    _note.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + inset),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'How did it go?',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          Text(widget.habitName, style: const TextStyle(color: Colors.black54)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Rating'),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Slider(
-                  value: _rating.toDouble(),
-                  min: 1,
-                  max: 5,
-                  divisions: 4,
-                  label: _rating.toString(),
-                  onChanged: (v) => setState(() => _rating = v.round()),
-                ),
-              ),
-              SizedBox(width: 36, child: Text(_rating.toString(), textAlign: TextAlign.end)),
-            ],
-          ),
-          TextField(
-            controller: _note,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Notes (optional)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Skip')),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(
-                  _CompletionFeedbackResult(rating: _rating, note: _note.text),
-                ),
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

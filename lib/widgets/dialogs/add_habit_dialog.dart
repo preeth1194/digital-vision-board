@@ -629,12 +629,18 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
     );
 
     if (isCompact) {
-      return Dialog.fullscreen(
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          body: SafeArea(
-            // Don't apply extra bottom padding here; Scaffold already resizes for the keyboard.
-            child: dialogContent,
+      final paddingTop = MediaQuery.paddingOf(context).top;
+      final maxHeight = size.height - paddingTop - 24;
+      return Dialog(
+        insetPadding: EdgeInsets.fromLTRB(12, paddingTop + 12, 12, 12),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: double.infinity,
+          height: maxHeight.clamp(520.0, size.height),
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            // The dialog is already inset below the status bar; don't double-apply top padding.
+            body: SafeArea(top: false, bottom: false, child: dialogContent),
           ),
         ),
       );

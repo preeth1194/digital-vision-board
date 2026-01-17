@@ -14,6 +14,16 @@ import {
 import { deletePkceState, getPkceState, putPkceState, getUserRecord, putUserRecord } from "./storage.js";
 import { requireDvAuth } from "./auth.js";
 import { ensureSchema } from "./migrate.js";
+import { hasDatabase } from "./db.js";
+import {
+  applySyncPushPg,
+  cleanupOldLogsPg,
+  getRecentChecklistEventsPg,
+  getRecentHabitCompletionsPg,
+  getUserSettingsPg,
+  listBoardsPg,
+  putUserSettingsPg,
+} from "./sync_pg.js";
 
 const app = express();
 
@@ -23,7 +33,7 @@ await ensureSchema();
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN ?? "*",
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "OPTIONS"],
     allowedHeaders: ["content-type", "authorization"],
   }),
 );
@@ -366,6 +376,66 @@ app.post("/canva/export", requireDvAuth(), async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: "export_failed", message: String(e?.message ?? e) });
   }
+});
+
+// ---- Sync APIs (Phase A) ----
+const SYNC_RETAIN_DAYS = Number(process.env.SYNC_RETAIN_DAYS ?? 90);
+
+app.put("/user/settings", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone });
+  res.json({ ok: true, home_timezone: homeTimezone });
+});
+
+app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  const days = Number.isFinite(SYNC_RETAIN_DAYS) && SYNC_RETAIN_DAYS > 0 ? SYNC_RETAIN_DAYS : 90;
+
+  // Best-effort retention to keep server storage bounded.
+  await cleanupOldLogsPg(req.dvUser.canvaUserId, days);
+
+  const [settings, boards, habitCompletions, checklistEvents] = await Promise.all([
+    getUserSettingsPg(req.dvUser.canvaUserId),
+    listBoardsPg(req.dvUser.canvaUserId),
+    getRecentHabitCompletionsPg(req.dvUser.canvaUserId, days),
+    getRecentChecklistEventsPg(req.dvUser.canvaUserId, days),
+  ]);
+
+  res.json({
+    ok: true,
+    home_timezone: settings?.homeTimezone ?? null,
+    boards,
+    habit_completions: habitCompletions,
+    checklist_events: checklistEvents,
+    retain_days: days,
+  });
+});
+
+/**
+ * Push a batch of recent mutations (idempotent).
+ * Body:
+ * {
+ *   boards?: [{ boardId, boardJson }],
+ *   userSettings?: { homeTimezone },
+ *   habitCompletions?: [{ boardId, componentId, habitId, logicalDate, rating?, note?, deleted? }],
+ *   checklistEvents?: [{ boardId, componentId, taskId, itemId, logicalDate, rating?, note?, deleted? }]
+ * }
+ */
+app.post("/sync/push", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  const days = Number.isFinite(SYNC_RETAIN_DAYS) && SYNC_RETAIN_DAYS > 0 ? SYNC_RETAIN_DAYS : 90;
+
+  const body = req.body ?? {};
+  await applySyncPushPg(req.dvUser.canvaUserId, {
+    boards: Array.isArray(body?.boards) ? body.boards : null,
+    userSettings: typeof body?.userSettings === "object" && body.userSettings ? body.userSettings : null,
+    habitCompletions: Array.isArray(body?.habitCompletions) ? body.habitCompletions : null,
+    checklistEvents: Array.isArray(body?.checklistEvents) ? body.checklistEvents : null,
+    retainDays: days,
+  });
+
+  res.json({ ok: true });
 });
 
 const port = Number(process.env.PORT ?? 8787);

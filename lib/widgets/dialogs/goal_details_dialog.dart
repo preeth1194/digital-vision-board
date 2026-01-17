@@ -202,16 +202,31 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Add')),
+          TextButton(
+            onPressed: () {
+              FocusScope.of(ctx).unfocus();
+              Navigator.of(ctx).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              FocusScope.of(ctx).unfocus();
+              Navigator.of(ctx).pop(true);
+            },
+            child: const Text('Add'),
+          ),
         ],
       ),
     );
-    if (result != true) return;
     final t = trigger.text.trim();
     final s = strategy.text.trim();
-    trigger.dispose();
-    strategy.dispose();
+    // Dispose controllers on the next frame to avoid racing with focus teardown.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      trigger.dispose();
+      strategy.dispose();
+    });
+    if (result != true) return;
     if (t.isEmpty || s.isEmpty) return;
     setState(() => _obstacles.add(GoalObstacle(trigger: t, copingStrategy: s)));
   }

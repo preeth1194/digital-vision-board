@@ -3,17 +3,21 @@ import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../services/notifications_service.dart';
+import '../services/logical_date_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
 
 class HabitsListScreen extends StatefulWidget {
+  final String? boardId;
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final bool showAppBar;
 
   const HabitsListScreen({
     super.key,
+    this.boardId,
     required this.components,
     required this.onComponentsUpdated,
     this.showAppBar = true,
@@ -41,11 +45,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   }
 
   static String _toIsoDate(DateTime d) {
-    final dd = DateTime(d.year, d.month, d.day);
-    final yyyy = dd.year.toString().padLeft(4, '0');
-    final mm = dd.month.toString().padLeft(2, '0');
-    final day = dd.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$day';
+    return LogicalDateService.toIsoDate(d);
   }
 
   static List<VisionComponent> _goalLikeComponents(List<VisionComponent> all) {
@@ -105,7 +105,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   }
 
   Future<void> _toggleHabit(VisionComponent component, HabitItem habit) async {
-    final now = DateTime.now();
+    final now = LogicalDateService.now();
     if (!habit.isScheduledOnDate(now)) return;
     final wasDone = habit.isCompletedForCurrentPeriod(now);
     final toggled = habit.toggleForDate(now);
@@ -118,6 +118,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     setState(() => _components = updatedComponents);
     widget.onComponentsUpdated(updatedComponents);
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.isNotEmpty) {
+      final iso = _toIsoDate(now);
+      Future<void>(() async {
+        await SyncService.enqueueHabitCompletion(
+          boardId: boardId,
+          componentId: component.id,
+          habitId: habit.id,
+          logicalDate: iso,
+          deleted: wasDone,
+        );
+      });
+    }
 
     // Prompt for completion feedback (same semantics as HabitTrackerSheet._maybeAskCompletionFeedback).
     if (!wasDone) {
@@ -142,6 +156,21 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
         if (mounted) setState(() => _components = updatedComponents);
         widget.onComponentsUpdated(updatedComponents);
+
+        final boardId2 = widget.boardId;
+        if (boardId2 != null && boardId2.isNotEmpty) {
+          Future<void>(() async {
+            await SyncService.enqueueHabitCompletion(
+              boardId: boardId2,
+              componentId: component.id,
+              habitId: habit.id,
+              logicalDate: iso,
+              rating: res.rating,
+              note: res.note,
+              deleted: false,
+            );
+          });
+        }
       }
     }
   }

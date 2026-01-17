@@ -4,6 +4,8 @@ import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../services/notifications_service.dart';
+import '../../services/logical_date_service.dart';
+import '../../services/sync_service.dart';
 import '../dialogs/add_habit_dialog.dart';
 import '../dialogs/goal_picker_sheet.dart';
 import '../dialogs/completion_feedback_sheet.dart';
@@ -20,13 +22,7 @@ class AllBoardsHabitsTab extends StatelessWidget {
     required this.onSaveBoardComponents,
   });
 
-  static String _toIsoDate(DateTime d) {
-    final dd = DateTime(d.year, d.month, d.day);
-    final yyyy = dd.year.toString().padLeft(4, '0');
-    final mm = dd.month.toString().padLeft(2, '0');
-    final day = dd.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$day';
-  }
+  static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +154,7 @@ class AllBoardsHabitsTab extends StatelessWidget {
                             ),
                           ),
                           ...component.habits.map((habit) {
-                            final now = DateTime.now();
+                            final now = LogicalDateService.now();
                             final scheduledToday = habit.isScheduledOnDate(now);
                             final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
                             return CheckboxListTile(
@@ -180,9 +176,20 @@ class AllBoardsHabitsTab extends StatelessWidget {
                                   componentsByBoardId[id] = updatedComponents;
                                 });
 
+                                // Outbox: completion toggle.
+                                final iso = _toIsoDate(now);
+                                Future<void>(() async {
+                                  await SyncService.enqueueHabitCompletion(
+                                    boardId: id,
+                                    componentId: component.id,
+                                    habitId: habit.id,
+                                    logicalDate: iso,
+                                    deleted: wasDone,
+                                  );
+                                });
+
                                 // Prompt for completion feedback on marking complete.
                                 if (!wasDone) {
-                                  final iso = _toIsoDate(now);
                                   if (!toggled.feedbackByDate.containsKey(iso)) {
                                     final res = await showCompletionFeedbackSheet(
                                       context,
@@ -208,6 +215,18 @@ class AllBoardsHabitsTab extends StatelessWidget {
                                     await onSaveBoardComponents(id, updatedComponents2);
                                     setLocal(() {
                                       componentsByBoardId[id] = updatedComponents2;
+                                    });
+
+                                    Future<void>(() async {
+                                      await SyncService.enqueueHabitCompletion(
+                                        boardId: id,
+                                        componentId: component.id,
+                                        habitId: habit.id,
+                                        logicalDate: iso,
+                                        rating: res.rating,
+                                        note: res.note,
+                                        deleted: false,
+                                      );
                                     });
                                   }
                                 }

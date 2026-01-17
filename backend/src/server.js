@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import multer from "multer";
+import sharp from "sharp";
 
 import { randomId, sha256Base64Url } from "./crypto.js";
 import {
@@ -12,7 +14,7 @@ import {
   refreshAccessToken,
 } from "./canva_connect.js";
 import { deletePkceState, getPkceState, putPkceState, getUserRecord, putUserRecord } from "./storage.js";
-import { requireDvAuth } from "./auth.js";
+import { requireAdmin, requireDvAuth } from "./auth.js";
 import { ensureSchema } from "./migrate.js";
 import { hasDatabase } from "./db.js";
 import {
@@ -24,6 +26,14 @@ import {
   listBoardsPg,
   putUserSettingsPg,
 } from "./sync_pg.js";
+import {
+  deleteTemplatePg,
+  getTemplateImagePg,
+  getTemplatePg,
+  insertTemplateImagePg,
+  listTemplatesPg,
+  upsertTemplatePg,
+} from "./templates_pg.js";
 
 const app = express();
 
@@ -33,11 +43,26 @@ await ensureSchema();
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN ?? "*",
-    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["content-type", "authorization"],
   }),
 );
 app.use(express.json({ limit: "2mb" }));
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+});
+
+function templateImagePath(id) {
+  return `/template-images/${encodeURIComponent(id)}`;
+}
+
+function ensureDbOr501(res) {
+  if (hasDatabase()) return true;
+  res.status(501).json({ error: "database_required" });
+  return false;
+}
 
 app.get("/", (req, res) => {
   res
@@ -56,6 +81,54 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+/**
+ * Guest auth (no Canva required).
+ * Returns a backend-issued dvToken that expires in 10 days.
+ *
+ * Body (optional):
+ * - home_timezone: IANA timezone string (e.g. "America/Los_Angeles")
+ */
+app.post("/auth/guest", async (req, res) => {
+  try {
+    const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
+    const now = Date.now();
+    const expiresAtMs = now + 10 * 24 * 60 * 60 * 1000;
+    const dvToken = randomId(24);
+    const guestId = `guest_${randomId(16)}`;
+
+    await putUserRecord(guestId, {
+      canvaUserId: guestId,
+      teamId: null,
+      dvToken,
+      isGuest: true,
+      guestExpiresAtMs: expiresAtMs,
+      canva: {
+        access_token: null,
+        refresh_token: null,
+        expires_in: null,
+        token_type: "Bearer",
+        obtained_at: null,
+        scope: null,
+      },
+      habits: [],
+      packages: [],
+    });
+
+    if (hasDatabase() && homeTimezone) {
+      await putUserSettingsPg(guestId, { homeTimezone });
+    }
+
+    res.json({
+      ok: true,
+      dvToken,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      home_timezone: homeTimezone,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "guest_auth_failed", message: String(e?.message ?? e) });
+  }
+});
 
 // Back-compat for the Canva panel (expected in canva-app-panel/README.md)
 app.get("/canva/connect", async (req, res) => {
@@ -165,6 +238,293 @@ app.get("/auth/canva/callback", async (req, res) => {
 // ---- Authenticated APIs (dvToken) ----
 app.get("/habits", requireDvAuth(), async (req, res) => {
   res.json({ habits: req.dvUser.habits ?? [] });
+});
+
+// ---- Templates (user) ----
+app.get("/templates", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const list = await listTemplatesPg();
+  res.json({
+    templates: list.map((t) => ({
+      id: t.id,
+      name: t.name,
+      kind: t.kind,
+      previewImageUrl: t.previewImageId ? templateImagePath(t.previewImageId) : null,
+      updatedAt: t.updatedAt ?? null,
+    })),
+  });
+});
+
+app.get("/templates/:id", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const t = await getTemplatePg(req.params.id);
+  if (!t) return res.status(404).json({ error: "template_not_found" });
+  res.json({
+    template: {
+      id: t.id,
+      name: t.name,
+      kind: t.kind,
+      templateJson: t.templateJson ?? {},
+      previewImageUrl: t.previewImageId ? templateImagePath(t.previewImageId) : null,
+      updatedAt: t.updatedAt ?? null,
+    },
+  });
+});
+
+// Public image serving (Image.network can’t attach headers)
+app.get("/template-images/:id", async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const found = await getTemplateImagePg(req.params.id);
+  if (!found) return res.status(404).send("Not found");
+  res.setHeader("content-type", found.contentType ?? "application/octet-stream");
+  res.setHeader("cache-control", "public, max-age=31536000, immutable");
+  res.status(200).send(found.bytes);
+});
+
+// ---- Templates (admin) ----
+app.get("/admin/templates", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const list = await listTemplatesPg();
+  res.json({
+    templates: list.map((t) => ({
+      id: t.id,
+      name: t.name,
+      kind: t.kind,
+      previewImageUrl: t.previewImageId ? templateImagePath(t.previewImageId) : null,
+      updatedAt: t.updatedAt ?? null,
+    })),
+  });
+});
+
+app.post("/admin/template-images", requireAdmin(), upload.single("file"), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const f = req.file;
+  if (!f || !f.buffer) return res.status(400).json({ error: "missing_file" });
+  const id = `timg_${randomId(16)}`;
+  const createdBy = req.dvUser.canvaUserId;
+  await insertTemplateImagePg({
+    id,
+    createdBy,
+    contentType: f.mimetype || "application/octet-stream",
+    bytes: f.buffer,
+  });
+  res.json({ ok: true, imageId: id, url: templateImagePath(id) });
+});
+
+app.post("/admin/templates", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  const kind = typeof req.body?.kind === "string" ? req.body.kind.trim() : "";
+  const templateJson = typeof req.body?.templateJson === "object" && req.body.templateJson ? req.body.templateJson : {};
+  const previewImageId = typeof req.body?.previewImageId === "string" ? req.body.previewImageId : null;
+  if (!name) return res.status(400).json({ error: "missing_name" });
+  if (kind !== "goal_canvas" && kind !== "grid") return res.status(400).json({ error: "invalid_kind" });
+  const id = `tpl_${randomId(16)}`;
+  await upsertTemplatePg({
+    id,
+    name,
+    kind,
+    templateJson,
+    previewImageId,
+    createdBy: req.dvUser.canvaUserId,
+  });
+  res.json({ ok: true, id });
+});
+
+app.put("/admin/templates/:id", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const id = req.params.id;
+  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  const kind = typeof req.body?.kind === "string" ? req.body.kind.trim() : "";
+  const templateJson = typeof req.body?.templateJson === "object" && req.body.templateJson ? req.body.templateJson : {};
+  const previewImageId = typeof req.body?.previewImageId === "string" ? req.body.previewImageId : null;
+  if (!name) return res.status(400).json({ error: "missing_name" });
+  if (kind !== "goal_canvas" && kind !== "grid") return res.status(400).json({ error: "invalid_kind" });
+  await upsertTemplatePg({
+    id,
+    name,
+    kind,
+    templateJson,
+    previewImageId,
+    createdBy: req.dvUser.canvaUserId,
+  });
+  res.json({ ok: true, id });
+});
+
+app.delete("/admin/templates/:id", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const id = req.params.id;
+  const result = await deleteTemplatePg(id);
+  res.json({ ok: true, deleted: result.deleted });
+});
+
+function decodeJwtPayload(jwt) {
+  // Minimal/dev-friendly decoder (no signature verification).
+  // TODO: verify with Canva JWKS + expected audience when hardening.
+  try {
+    const parts = String(jwt).split(".");
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replaceAll("-", "+").replaceAll("_", "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+async function downloadBytes(url) {
+  const res = await fetch(url);
+  if (res.status < 200 || res.status >= 300) throw new Error(`Download failed (${res.status})`);
+  const ab = await res.arrayBuffer();
+  return Buffer.from(ab);
+}
+
+function normalizeCropRect({ left, top, width, height }, imgW, imgH) {
+  const nums = [left, top, width, height].filter((n) => typeof n === "number" && Number.isFinite(n));
+  if (nums.length !== 4) return null;
+  const max = Math.max(...nums.map((n) => Math.abs(n)));
+  const isFractional = max <= 1.5;
+
+  let l = left;
+  let t = top;
+  let w = width;
+  let h = height;
+  if (isFractional) {
+    l = left * imgW;
+    t = top * imgH;
+    w = width * imgW;
+    h = height * imgH;
+  }
+
+  const ll = Math.max(0, Math.min(imgW - 1, Math.round(l)));
+  const tt = Math.max(0, Math.min(imgH - 1, Math.round(t)));
+  const ww = Math.max(1, Math.min(imgW - ll, Math.round(w)));
+  const hh = Math.max(1, Math.min(imgH - tt, Math.round(h)));
+  return { left: ll, top: tt, width: ww, height: hh };
+}
+
+/**
+ * Admin: import Canva current page elements into a Goal Canvas template by cropping PNG.
+ *
+ * Body:
+ * {
+ *   designId?: string,
+ *   designToken?: string,
+ *   elements: [{ id?, type?, left, top, width, height, rotation?, text? }]
+ * }
+ */
+app.post("/admin/canva/import/current-page", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    let designId = typeof req.body?.designId === "string" ? req.body.designId : null;
+    const designToken = typeof req.body?.designToken === "string" ? req.body.designToken : null;
+    if (!designId && designToken) {
+      const payload = decodeJwtPayload(designToken);
+      designId = typeof payload?.designId === "string" ? payload.designId : null;
+    }
+    if (!designId) return res.status(400).json({ error: "missing_designId" });
+
+    const elements = Array.isArray(req.body?.elements) ? req.body.elements : null;
+    if (!elements) return res.status(400).json({ error: "invalid_elements" });
+
+    const rec = await getUserRecord(req.dvUser.canvaUserId);
+    if (!rec?.canva?.access_token) return res.status(400).json({ error: "missing_canva_token" });
+
+    // Refresh token if expired (best effort).
+    let accessToken = rec.canva.access_token;
+    const expiresIn = typeof rec.canva.expires_in === "number" ? rec.canva.expires_in : null;
+    const obtainedAt = typeof rec.canva.obtained_at === "number" ? rec.canva.obtained_at : null;
+    const refreshToken = rec.canva.refresh_token ?? null;
+    const now = Date.now();
+    const isExpired =
+      expiresIn != null && obtainedAt != null ? now > obtainedAt + Math.max(0, expiresIn - 60) * 1000 : false;
+    if (isExpired && refreshToken) {
+      const fresh = await refreshAccessToken({ refreshToken });
+      accessToken = fresh.access_token;
+      rec.canva.access_token = fresh.access_token;
+      rec.canva.refresh_token = fresh.refresh_token ?? rec.canva.refresh_token;
+      rec.canva.expires_in = fresh.expires_in ?? rec.canva.expires_in;
+      rec.canva.obtained_at = Date.now();
+      await putUserRecord(req.dvUser.canvaUserId, rec);
+    }
+
+    const created = await createExportJob({ accessToken, designId, format: { type: "png" } });
+    const startedAt = Date.now();
+    let job = created;
+    while (job?.status === "in_progress" && Date.now() - startedAt < 90_000) {
+      await new Promise((r) => setTimeout(r, 2000));
+      job = await getExportJob({ accessToken, exportId: job.id });
+    }
+    const urls = Array.isArray(job?.urls) ? job.urls : null;
+    if (!urls?.length || typeof urls[0] !== "string") {
+      return res.status(500).json({ error: "export_missing_urls", status: job?.status ?? null, jobId: job?.id ?? null });
+    }
+
+    const pngBytes = await downloadBytes(urls[0]);
+    const meta = await sharp(pngBytes).metadata();
+    const imgW = meta.width ?? null;
+    const imgH = meta.height ?? null;
+    if (!imgW || !imgH) return res.status(500).json({ error: "image_metadata_missing" });
+
+    const components = [];
+    const createdBy = req.dvUser.canvaUserId;
+    let z = 0;
+
+    for (let i = 0; i < elements.length; i++) {
+      const e = elements[i] ?? {};
+      const left = typeof e.left === "number" ? e.left : typeof e.x === "number" ? e.x : null;
+      const top = typeof e.top === "number" ? e.top : typeof e.y === "number" ? e.y : null;
+      const width = typeof e.width === "number" ? e.width : typeof e.w === "number" ? e.w : null;
+      const height = typeof e.height === "number" ? e.height : typeof e.h === "number" ? e.h : null;
+      if (left == null || top == null || width == null || height == null) continue;
+      if (width <= 0 || height <= 0) continue;
+
+      const rect = normalizeCropRect({ left, top, width, height }, imgW, imgH);
+      if (!rect) continue;
+
+      // Note: rotation is ignored in v1; we crop axis-aligned.
+      const croppedPng = await sharp(pngBytes).extract(rect).png().toBuffer();
+      const imageId = `timg_${randomId(16)}`;
+      await insertTemplateImagePg({
+        id: imageId,
+        createdBy,
+        contentType: "image/png",
+        bytes: croppedPng,
+      });
+
+      const rawText = typeof e.text === "string" ? e.text.trim() : "";
+      const title = rawText ? rawText.slice(0, 80) : `Layer ${i + 1}`;
+
+      components.push({
+        type: "image",
+        id: `canva_layer_${randomId(10)}`,
+        position: { dx: rect.left, dy: rect.top },
+        size: { w: rect.width, h: rect.height },
+        rotation: 0,
+        scale: 1,
+        zIndex: z++,
+        habits: [],
+        tasks: [],
+        isDisabled: false,
+        imagePath: templateImagePath(imageId),
+        goal: { title, category: null, deadline: null, cbt_metadata: null, action_plan: null },
+      });
+    }
+
+    res.json({
+      ok: true,
+      exportUrl: urls[0],
+      imageWidth: imgW,
+      imageHeight: imgH,
+      template: {
+        kind: "goal_canvas",
+        templateJson: { components },
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: "canva_import_failed", message: String(e?.message ?? e) });
+  }
 });
 
 app.get("/canva/packages", requireDvAuth(), async (req, res) => {

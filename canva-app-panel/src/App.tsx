@@ -164,7 +164,9 @@ export function App() {
       const els = await tryReadCurrentPageElements();
       if (!els.length) throw new Error("Could not read page elements. Make sure the Design Editing API is available.");
       const elements = els
-        .filter((e) => typeof e.left === "number" && typeof e.top === "number" && typeof e.width === "number" && typeof e.height === "number")
+        .filter(
+          (e) => typeof e.left === "number" && typeof e.top === "number" && typeof e.width === "number" && typeof e.height === "number",
+        )
         .map((e) => ({
           id: e.id,
           type: e.type,
@@ -173,6 +175,8 @@ export function App() {
           width: e.width!,
           height: e.height!,
           rotation: e.rotation,
+          text: typeof e.text === "string" ? e.text : undefined,
+          style: typeof (e as any).style === "object" && (e as any).style ? (e as any).style : undefined,
         }));
 
       const imported = await postAdminCanvaImportCurrentPage({ designToken, elements });

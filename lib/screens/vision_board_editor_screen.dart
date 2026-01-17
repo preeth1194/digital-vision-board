@@ -994,6 +994,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
         backgroundColor: _backgroundColor,
         backgroundImage: _imageProvider,
         backgroundImageSize: _backgroundImageSize,
+        canvasSize: null,
       );
     }
 
@@ -1011,6 +1012,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
           backgroundColor: _backgroundColor,
           backgroundImage: _imageProvider,
           backgroundImageSize: _backgroundImageSize,
+          canvasSize: null,
         ),
     };
   }

@@ -6,7 +6,9 @@ import {
   deletePkceStatePg,
   findUserByDvTokenPg,
   getPkceStatePg,
+  getOauthPollTokenPg,
   getUserRecordPg,
+  putOauthPollTokenPg,
   putPkceStatePg,
   putUserRecordPg,
 } from "./storage_pg.js";
@@ -41,6 +43,10 @@ function userFile(canvaUserId) {
 
 function pkceFile() {
   return path.join(dataDir, "pkce_states.json");
+}
+
+function pollFile() {
+  return path.join(dataDir, "oauth_poll_tokens.json");
 }
 
 export async function getPkceState(state) {
@@ -88,3 +94,26 @@ export async function findUserByDvToken(dvToken) {
   return null;
 }
 
+export async function putOauthPollToken(pollToken, { dvToken, canvaUserId }) {
+  if (hasDatabase()) return await putOauthPollTokenPg(pollToken, { dvToken, canvaUserId });
+  const all = await readJson(pollFile(), {});
+  all[pollToken] = {
+    dvToken: dvToken ?? null,
+    canvaUserId: canvaUserId ?? null,
+    updatedAt: Date.now(),
+  };
+  await atomicWriteJson(pollFile(), all);
+}
+
+export async function getOauthPollToken(pollToken) {
+  if (hasDatabase()) return await getOauthPollTokenPg(pollToken);
+  const all = await readJson(pollFile(), {});
+  const rec = all[pollToken] ?? null;
+  if (!rec) return null;
+  return {
+    pollToken,
+    dvToken: rec.dvToken ?? null,
+    canvaUserId: rec.canvaUserId ?? null,
+    updatedAt: rec.updatedAt ?? null,
+  };
+}

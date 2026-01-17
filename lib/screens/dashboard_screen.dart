@@ -13,6 +13,8 @@ import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
+import '../services/dv_auth_service.dart';
+import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
@@ -32,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   int _tabIndex = 0;
   bool _loading = true;
   SharedPreferences? _prefs;
+  bool _checkedGuestExpiry = false;
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
@@ -72,8 +75,28 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    await DvAuthService.migrateLegacyTokenIfNeeded(prefs: _prefs);
     await _reload();
     await _refreshReminders();
+    await _maybeShowAuthGatewayIfGuestExpired();
+  }
+
+  Future<void> _maybeShowAuthGatewayIfGuestExpired() async {
+    if (_checkedGuestExpiry) return;
+    _checkedGuestExpiry = true;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final expired = await DvAuthService.isGuestExpired(prefs: prefs);
+    if (!expired) return;
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const AuthGatewayScreen(forced: true),
+          fullscreenDialog: true,
+        ),
+      );
+    });
   }
 
   Future<void> _reload() async {
@@ -454,6 +477,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Account',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AuthGatewayScreen(forced: false),
+                  fullscreenDialog: true,
+                ),
+              );
+            },
+          ),
           Builder(
             builder: (ctx) {
               final count = _reminderSummary?.todayPendingCount ?? 0;

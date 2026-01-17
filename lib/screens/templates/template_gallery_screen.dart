@@ -83,6 +83,12 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
         final compsRaw =
             (raw is List) ? raw.whereType<Map<String, dynamic>>().toList() : const <Map<String, dynamic>>[];
 
+        // Optional template canvas size (pixel space).
+        final cs = tpl.templateJson['canvasSize'];
+        // If missing (older templates), default to your standard Canva page size.
+        final canvasW = ((cs is Map) ? (cs['w'] as num?)?.toDouble() : null) ?? 1080.0;
+        final canvasH = ((cs is Map) ? (cs['h'] as num?)?.toDouble() : null) ?? 1920.0;
+
         final components = <VisionComponent>[];
         for (final c in compsRaw) {
           // Absolutize template-served images (Image.network expects http(s)).
@@ -109,6 +115,10 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
         await BoardsStorageService.saveBoards([board, ...boards], prefs: prefs);
         await BoardsStorageService.setActiveBoardId(boardId, prefs: prefs);
         await VisionBoardComponentsStorageService.saveComponents(boardId, components, prefs: prefs);
+        if (canvasW > 0 && canvasH > 0) {
+          await prefs.setDouble(BoardsStorageService.boardCanvasWidthKey(boardId), canvasW);
+          await prefs.setDouble(BoardsStorageService.boardCanvasHeightKey(boardId), canvasH);
+        }
 
         if (!mounted) return;
         await Navigator.of(context).push(

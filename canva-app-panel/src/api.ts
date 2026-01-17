@@ -67,7 +67,17 @@ export async function postSync(payload: SyncPayload): Promise<void> {
 
 export async function postAdminCanvaImportCurrentPage(payload: {
   designToken: string;
-  elements: Array<{ id?: string; type?: string; left: number; top: number; width: number; height: number; rotation?: number }>;
+  elements: Array<{
+    id?: string;
+    type?: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    rotation?: number;
+    text?: string;
+    style?: any;
+  }>;
 }): Promise<any> {
   const res = await fetch(`${backendBaseUrl()}/admin/canva/import/current-page`, {
     method: "POST",

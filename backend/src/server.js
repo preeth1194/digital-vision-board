@@ -82,8 +82,11 @@ app.get("/", (req, res) => {
         "",
         "Useful endpoints:",
         "- GET /health",
+        "- GET /auth/canva/start_poll",
+        "- GET /auth/canva/poll?pollToken=...",
         "- GET /auth/canva/start",
         "- GET /canva/connect (alias)",
+        "- GET /templates",
       ].join("\n"),
     );
 });

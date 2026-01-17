@@ -57,6 +57,54 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
+/**
+ * Guest auth (no Canva required).
+ * Returns a backend-issued dvToken that expires in 10 days.
+ *
+ * Body (optional):
+ * - home_timezone: IANA timezone string (e.g. "America/Los_Angeles")
+ */
+app.post("/auth/guest", async (req, res) => {
+  try {
+    const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
+    const now = Date.now();
+    const expiresAtMs = now + 10 * 24 * 60 * 60 * 1000;
+    const dvToken = randomId(24);
+    const guestId = `guest_${randomId(16)}`;
+
+    await putUserRecord(guestId, {
+      canvaUserId: guestId,
+      teamId: null,
+      dvToken,
+      isGuest: true,
+      guestExpiresAtMs: expiresAtMs,
+      canva: {
+        access_token: null,
+        refresh_token: null,
+        expires_in: null,
+        token_type: "Bearer",
+        obtained_at: null,
+        scope: null,
+      },
+      habits: [],
+      packages: [],
+    });
+
+    if (hasDatabase() && homeTimezone) {
+      await putUserSettingsPg(guestId, { homeTimezone });
+    }
+
+    res.json({
+      ok: true,
+      dvToken,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      home_timezone: homeTimezone,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "guest_auth_failed", message: String(e?.message ?? e) });
+  }
+});
+
 // Back-compat for the Canva panel (expected in canva-app-panel/README.md)
 app.get("/canva/connect", async (req, res) => {
   const qs = new URLSearchParams();

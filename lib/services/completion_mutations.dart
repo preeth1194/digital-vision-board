@@ -1,5 +1,6 @@
 import '../models/habit_item.dart';
 import '../models/task_item.dart';
+import 'logical_date_service.dart';
 
 final class ChecklistToggleResult {
   final TaskItem updatedTask;
@@ -23,14 +24,7 @@ final class ChecklistToggleResult {
 
 final class CompletionMutations {
   CompletionMutations._();
-
-  static String toIsoDate(DateTime d) {
-    final dd = DateTime(d.year, d.month, d.day);
-    final yyyy = dd.year.toString().padLeft(4, '0');
-    final mm = dd.month.toString().padLeft(2, '0');
-    final day = dd.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$day';
-  }
+  static String toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
 
   /// Returns true if the habit is allowed to be checked today (scheduled weekly habits only).
   static bool canToggleHabitToday(HabitItem habit, DateTime now) {
@@ -48,7 +42,7 @@ final class CompletionMutations {
     ChecklistItem item, {
     DateTime? now,
   }) {
-    final current = now ?? DateTime.now();
+    final current = now ?? LogicalDateService.now();
     final iso = toIsoDate(current);
 
     final wasItemDone = item.isCompleted;

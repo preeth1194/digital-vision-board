@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import '../models/task_item.dart';
 import '../models/vision_components.dart';
 import '../services/completion_mutations.dart';
+import '../services/logical_date_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
 
 class TasksListScreen extends StatefulWidget {
+  final String? boardId;
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final bool showAppBar;
 
   const TasksListScreen({
     super.key,
+    this.boardId,
     required this.components,
     required this.onComponentsUpdated,
     this.showAppBar = true,
@@ -87,10 +91,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
     widget.onComponentsUpdated(nextComponents);
   }
   static String _toIsoDate(DateTime d) {
-    final yyyy = d.year.toString().padLeft(4, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
+    return LogicalDateService.toIsoDate(d);
   }
 
   Future<void> _addChecklistItem(VisionComponent component, String taskId) async {
@@ -139,7 +140,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
   }
 
   Future<void> _toggleChecklistItem(VisionComponent component, String taskId, ChecklistItem item) async {
-    final now = DateTime.now();
+    final now = LogicalDateService.now();
     final task = component.tasks.firstWhere((t) => t.id == taskId);
 
     final toggle = CompletionMutations.toggleChecklistItemForToday(task, item, now: now);
@@ -152,6 +153,30 @@ class _TasksListScreenState extends State<TasksListScreen> {
     }).toList();
     setState(() => _components = updatedComponents);
     widget.onComponentsUpdated(updatedComponents);
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.isNotEmpty) {
+      Future<void>(() async {
+        await SyncService.enqueueChecklistEvent(
+          boardId: boardId,
+          componentId: component.id,
+          taskId: taskId,
+          itemId: item.id,
+          logicalDate: toggle.isoDate,
+          deleted: toggle.wasItemCompleted && !toggle.isItemCompleted,
+        );
+        if (toggle.wasTaskComplete && !toggle.isTaskComplete) {
+          await SyncService.enqueueChecklistEvent(
+            boardId: boardId,
+            componentId: component.id,
+            taskId: taskId,
+            itemId: '__task__',
+            logicalDate: toggle.isoDate,
+            deleted: true,
+          );
+        }
+      });
+    }
 
     // Checklist item feedback when checking off.
     if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
@@ -179,6 +204,22 @@ class _TasksListScreenState extends State<TasksListScreen> {
           }).toList();
           if (mounted) setState(() => _components = updatedComponents);
           widget.onComponentsUpdated(updatedComponents);
+
+          final boardId2 = widget.boardId;
+          if (boardId2 != null && boardId2.isNotEmpty) {
+            Future<void>(() async {
+              await SyncService.enqueueChecklistEvent(
+                boardId: boardId2,
+                componentId: component.id,
+                taskId: taskId,
+                itemId: updatedItem.id,
+                logicalDate: toggle.isoDate,
+                rating: res.rating,
+                note: res.note,
+                deleted: false,
+              );
+            });
+          }
         }
       }
 
@@ -203,6 +244,22 @@ class _TasksListScreenState extends State<TasksListScreen> {
             }).toList();
             if (mounted) setState(() => _components = updatedComponents);
             widget.onComponentsUpdated(updatedComponents);
+
+            final boardId3 = widget.boardId;
+            if (boardId3 != null && boardId3.isNotEmpty) {
+              Future<void>(() async {
+                await SyncService.enqueueChecklistEvent(
+                  boardId: boardId3,
+                  componentId: component.id,
+                  taskId: taskId,
+                  itemId: '__task__',
+                  logicalDate: toggle.isoDate,
+                  rating: res.rating,
+                  note: res.note,
+                  deleted: false,
+                );
+              });
+            }
           }
         }
       }
@@ -252,9 +309,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
       );
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final isoToday = _toIsoDate(today);
+    final isoToday = LogicalDateService.isoToday();
     final doneToday = allChecklist.where((c) => c.completedOn == isoToday).length;
     final total = allChecklist.length;
     final dueToday = allChecklist.where((c) => (c.dueDate ?? '').trim() == isoToday && !c.isCompleted).length;

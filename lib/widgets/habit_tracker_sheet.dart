@@ -7,6 +7,8 @@ import '../models/vision_components.dart';
 import '../models/task_item.dart';
 import '../services/notifications_service.dart';
 import '../services/completion_mutations.dart';
+import '../services/logical_date_service.dart';
+import '../services/sync_service.dart';
 import 'habits/habit_tracker_header.dart';
 import 'habits/habit_tracker_insights_tab.dart';
 import 'habits/habit_tracker_tracker_tab.dart';
@@ -18,12 +20,14 @@ import 'tasks/task_tracker_tab.dart';
 
 /// Modal bottom sheet for tracking habits associated with a canvas component.
 class HabitTrackerSheet extends StatefulWidget {
+  final String? boardId;
   final VisionComponent component;
   final ValueChanged<VisionComponent> onComponentUpdated;
   final bool fullScreen;
 
   const HabitTrackerSheet({
     super.key,
+    this.boardId,
     required this.component,
     required this.onComponentUpdated,
     this.fullScreen = false,
@@ -37,8 +41,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   late List<HabitItem> _habits;
   late List<TaskItem> _tasks;
   final TextEditingController _newHabitController = TextEditingController();
-  DateTime _focusedDay = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = LogicalDateService.today();
+  DateTime _selectedDay = LogicalDateService.today();
   bool _checkedMissed = false;
 
   @override
@@ -66,8 +70,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   void _toggleHabitCompletion(HabitItem habit) {
     // If this is a scheduled weekly habit and today is not scheduled, ignore toggles.
-    if (habit.hasWeeklySchedule && !habit.isScheduledOnDate(DateTime.now())) return;
-    final now = DateTime.now();
+    final now = LogicalDateService.now();
+    if (habit.hasWeeklySchedule && !habit.isScheduledOnDate(now)) return;
     final wasDone = habit.isCompletedForCurrentPeriod(now);
     setState(() {
       final int index = _habits.indexWhere((h) => h.id == habit.id);
@@ -76,6 +80,21 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         _updateComponent();
       }
     });
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.isNotEmpty) {
+      final logicalDate = LogicalDateService.toIsoDate(now);
+      Future<void>(() async {
+        await SyncService.enqueueHabitCompletion(
+          boardId: boardId,
+          componentId: widget.component.id,
+          habitId: habit.id,
+          logicalDate: logicalDate,
+          deleted: wasDone,
+        );
+      });
+    }
+
     if (!wasDone) {
       Future<void>(() async => _maybeAskCompletionFeedback(habitId: habit.id, date: now));
     }
@@ -264,7 +283,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     if (!mounted) return;
     if (_habits.isEmpty) return;
 
-    final now = DateTime.now();
+    final now = LogicalDateService.now();
     final nowMinutes = (now.hour * 60) + now.minute;
     HabitItem? missed;
     for (final h in _habits) {
@@ -308,7 +327,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     if (idx == -1) return;
     final h = _habits[idx];
     final normalized = DateTime(date.year, date.month, date.day);
-    final iso = normalized.toIso8601String().split('T')[0];
+    final iso = LogicalDateService.toIsoDate(normalized);
     if (!h.isCompletedForCurrentPeriod(date)) return;
     if (h.feedbackByDate.containsKey(iso)) return;
     if (!mounted) return;
@@ -333,13 +352,25 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       _habits[latestIdx] = latest.copyWith(feedbackByDate: next);
       _updateComponent();
     });
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.isNotEmpty) {
+      Future<void>(() async {
+        await SyncService.enqueueHabitCompletion(
+          boardId: boardId,
+          componentId: widget.component.id,
+          habitId: habitId,
+          logicalDate: iso,
+          rating: res.rating,
+          note: res.note,
+          deleted: false,
+        );
+      });
+    }
   }
 
   static String _toIsoDate(DateTime d) {
-    final yyyy = d.year.toString().padLeft(4, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
+    return LogicalDateService.toIsoDate(d);
   }
 
   Future<void> _addTask() async {
@@ -468,7 +499,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   void _toggleChecklistItem(String taskId, ChecklistItem item) {
     Future<void>(() async {
-      final now = DateTime.now();
+      final now = LogicalDateService.now();
       final idx = _tasks.indexWhere((t) => t.id == taskId);
       if (idx == -1) return;
       final task = _tasks[idx];
@@ -479,6 +510,30 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         _tasks = _tasks.map((t) => t.id == taskId ? toggle.updatedTask : t).toList();
         _updateComponent();
       });
+
+      final boardId = widget.boardId;
+      if (boardId != null && boardId.isNotEmpty) {
+        Future<void>(() async {
+          await SyncService.enqueueChecklistEvent(
+            boardId: boardId,
+            componentId: widget.component.id,
+            taskId: taskId,
+            itemId: item.id,
+            logicalDate: toggle.isoDate,
+            deleted: toggle.wasItemCompleted && !toggle.isItemCompleted,
+          );
+          if (toggle.wasTaskComplete && !toggle.isTaskComplete) {
+            await SyncService.enqueueChecklistEvent(
+              boardId: boardId,
+              componentId: widget.component.id,
+              taskId: taskId,
+              itemId: '__task__',
+              logicalDate: toggle.isoDate,
+              deleted: true,
+            );
+          }
+        });
+      }
 
       // Checklist item completion feedback.
       if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
@@ -506,6 +561,22 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
               _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
               _updateComponent();
             });
+
+            final boardId2 = widget.boardId;
+            if (boardId2 != null && boardId2.isNotEmpty) {
+              Future<void>(() async {
+                await SyncService.enqueueChecklistEvent(
+                  boardId: boardId2,
+                  componentId: widget.component.id,
+                  taskId: taskId,
+                  itemId: updatedItem.id,
+                  logicalDate: toggle.isoDate,
+                  rating: res.rating,
+                  note: res.note,
+                  deleted: false,
+                );
+              });
+            }
           }
         }
 
@@ -528,6 +599,22 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
                 _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
                 _updateComponent();
               });
+
+              final boardId3 = widget.boardId;
+              if (boardId3 != null && boardId3.isNotEmpty) {
+                Future<void>(() async {
+                  await SyncService.enqueueChecklistEvent(
+                    boardId: boardId3,
+                    componentId: widget.component.id,
+                    taskId: taskId,
+                    itemId: '__task__',
+                    logicalDate: toggle.isoDate,
+                    rating: res.rating,
+                    note: res.note,
+                    deleted: false,
+                  );
+                });
+              }
             }
           }
         }
@@ -565,7 +652,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   /// Get completion data for the last 7 days
   List<Map<String, dynamic>> _getLast7DaysData() {
     final List<Map<String, dynamic>> data = [];
-    final DateTime now = DateTime.now();
+    final DateTime now = LogicalDateService.now();
     
     for (int i = 6; i >= 0; i--) {
       final DateTime date = now.subtract(Duration(days: i));

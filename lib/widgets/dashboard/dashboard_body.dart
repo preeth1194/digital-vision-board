@@ -8,6 +8,7 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/tasks_list_screen.dart';
+import '../../screens/daily_overview_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_tasks_tab.dart';
 import 'dashboard_tab.dart';
@@ -111,17 +112,19 @@ class DashboardBody extends StatelessWidget {
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
         ),
-      1 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+      1 => const DailyOverviewScreen(),
+      2 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return HabitsListScreen(
+              boardId: boardId,
               components: snap.data ?? const <VisionComponent>[],
               onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
             );
           },
         ),
-      1 => FutureBuilder<Map<String, List<VisionComponent>>>(
+      2 => FutureBuilder<Map<String, List<VisionComponent>>>(
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
@@ -136,18 +139,19 @@ class DashboardBody extends StatelessWidget {
             );
           },
         ),
-      2 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+      3 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return TasksListScreen(
+              boardId: boardId,
               components: snap.data ?? const <VisionComponent>[],
               onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
               showAppBar: false,
             );
           },
         ),
-      2 => FutureBuilder<Map<String, List<VisionComponent>>>(
+      3 => FutureBuilder<Map<String, List<VisionComponent>>>(
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
@@ -162,7 +166,7 @@ class DashboardBody extends StatelessWidget {
             );
           },
         ),
-      _ when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+      4 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());

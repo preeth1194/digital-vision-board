@@ -140,6 +140,7 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
           children: [
             HabitTrackerSheet(
               key: ValueKey(tile.id),
+              boardId: widget.boardId,
               component: _componentFromTile(tile),
               fullScreen: true,
               onComponentUpdated: (updated) {

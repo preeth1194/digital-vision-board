@@ -13,6 +13,10 @@ import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
+import '../services/dv_auth_service.dart';
+import '../services/sync_service.dart';
+import '../services/logical_date_service.dart';
+import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
@@ -32,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   int _tabIndex = 0;
   bool _loading = true;
   SharedPreferences? _prefs;
+  bool _checkedGuestExpiry = false;
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
@@ -39,6 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   bool _loadingReminders = false;
   ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
+  VoidCallback? _syncAuthListener;
 
   @override
   void initState() {
@@ -51,6 +57,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   @override
   void dispose() {
     _remindersAutoRefreshTimer?.cancel();
+    if (_syncAuthListener != null) {
+      SyncService.authExpired.removeListener(_syncAuthListener!);
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -72,8 +81,45 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    await DvAuthService.migrateLegacyTokenIfNeeded(prefs: _prefs);
+    await SyncService.bootstrapIfNeeded(prefs: _prefs);
+    await LogicalDateService.ensureInitialized(prefs: _prefs);
     await _reload();
+    await SyncService.pruneLocalFeedback(prefs: _prefs);
+    await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _refreshReminders();
+    await _maybeShowAuthGatewayIfGuestExpired();
+
+    _syncAuthListener ??= () {
+      if (!mounted) return;
+      if (SyncService.authExpired.value) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const AuthGatewayScreen(forced: true),
+            fullscreenDialog: true,
+          ),
+        );
+      }
+    };
+    SyncService.authExpired.addListener(_syncAuthListener!);
+  }
+
+  Future<void> _maybeShowAuthGatewayIfGuestExpired() async {
+    if (_checkedGuestExpiry) return;
+    _checkedGuestExpiry = true;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final expired = await DvAuthService.isGuestExpired(prefs: prefs);
+    if (!expired) return;
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const AuthGatewayScreen(forced: true),
+          fullscreenDialog: true,
+        ),
+      );
+    });
   }
 
   Future<void> _reload() async {
@@ -454,6 +500,26 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Account',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () async {
+              final res = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => const AuthGatewayScreen(forced: false),
+                  fullscreenDialog: true,
+                ),
+              );
+              if (res == true) {
+                // Token refreshed (guest). Attempt bootstrap/sync/prune.
+                await SyncService.bootstrapIfNeeded(prefs: _prefs);
+                await LogicalDateService.reloadHomeTimezone(prefs: _prefs);
+                await SyncService.pruneLocalFeedback(prefs: _prefs);
+                await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
+                await _reload();
+              }
+            },
+          ),
           Builder(
             builder: (ctx) {
               final count = _reminderSummary?.todayPendingCount ?? 0;
@@ -499,6 +565,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.today_outlined), label: 'Daily'),
           BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
           BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),

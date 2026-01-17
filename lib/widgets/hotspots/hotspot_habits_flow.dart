@@ -33,6 +33,7 @@ Future<void> openHabitTrackerForHotspot({
     ),
     builder: (_) {
       return HabitTrackerSheet(
+        boardId: null,
         component: component,
         onComponentUpdated: (updatedComponent) {
           final updatedHotspot = hotspot.copyWith(habits: updatedComponent.habits);

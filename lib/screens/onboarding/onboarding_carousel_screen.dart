@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../dashboard_screen.dart';
 
 final class OnboardingCarouselScreen extends StatefulWidget {
-  const OnboardingCarouselScreen({super.key});
+  const OnboardingCarouselScreen({super.key, this.onFinished});
+
+  /// Called when the user completes the last slide ("Get Started").
+  ///
+  /// If omitted, the screen navigates to `DashboardScreen` via pushReplacement.
+  final FutureOr<void> Function(BuildContext context)? onFinished;
 
   @override
   State<OnboardingCarouselScreen> createState() => _OnboardingCarouselScreenState();
@@ -45,9 +52,11 @@ final class _OnboardingCarouselScreenState extends State<OnboardingCarouselScree
   Future<void> _next() async {
     if (_isLastPage) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+      if (widget.onFinished != null) {
+        await widget.onFinished!(context);
+        return;
+      }
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const DashboardScreen()));
       return;
     }
     await _controller.nextPage(
@@ -145,7 +154,7 @@ final class _OnboardingSlideView extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: scheme.primaryContainer.withOpacity(0.6),
+                color: scheme.primaryContainer.withAlpha(153), // ~0.6 * 255
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: scheme.primaryContainer),
               ),

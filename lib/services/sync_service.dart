@@ -6,9 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_tile_model.dart';
+import '../models/habit_item.dart';
+import '../models/task_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
-import '../models/vision_component_factory.dart';
 import 'boards_storage_service.dart';
 import 'dv_auth_service.dart';
 import 'grid_tiles_storage_service.dart';

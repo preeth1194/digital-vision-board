@@ -22,6 +22,7 @@ import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
 import 'physical_board_editor_screen.dart';
 import 'physical_board_viewer_screen.dart';
+import 'settings_screen.dart';
 import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
 
@@ -443,6 +444,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _prefs ??= prefs;
     final loadedComponents = await VisionBoardComponentsStorageService.loadComponents(board.id, prefs: prefs);
     final isPhysical = loadedComponents.any((c) => c is GoalOverlayComponent);
+    if (!mounted) return;
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -518,6 +520,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
                 await _reload();
               }
+            },
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
           Builder(

@@ -741,6 +741,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => HabitTrackerSheet(
+        boardId: widget.boardId,
         component: component,
         onComponentUpdated: (updated) {
           final next = _components.map((c) => c.id == updated.id ? updated : c).toList();

@@ -4,6 +4,8 @@ import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../models/task_item.dart';
 import '../../services/completion_mutations.dart';
+import '../../services/logical_date_service.dart';
+import '../../services/sync_service.dart';
 import '../dialogs/completion_feedback_sheet.dart';
 import '../dialogs/goal_picker_sheet.dart';
 import '../dialogs/add_task_dialog.dart';
@@ -21,17 +23,10 @@ class AllBoardsTasksTab extends StatelessWidget {
     required this.onSaveBoardComponents,
   });
 
-  static String _toIsoDate(DateTime d) {
-    final yyyy = d.year.toString().padLeft(4, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
-  }
-
   @override
   Widget build(BuildContext context) {
     final boardIds = boards.map((b) => b.id).toList();
-    final isoToday = _toIsoDate(DateTime.now());
+    final isoToday = LogicalDateService.isoToday();
 
     return StatefulBuilder(
       builder: (context, setLocal) {
@@ -232,6 +227,27 @@ class AllBoardsTasksTab extends StatelessWidget {
                                         await onSaveBoardComponents(id, updatedComponents);
                                         setLocal(() => componentsByBoardId[id] = updatedComponents);
 
+                                        Future<void>(() async {
+                                          await SyncService.enqueueChecklistEvent(
+                                            boardId: id,
+                                            componentId: component.id,
+                                            taskId: task.id,
+                                            itemId: item.id,
+                                            logicalDate: toggle.isoDate,
+                                            deleted: toggle.wasItemCompleted && !toggle.isItemCompleted,
+                                          );
+                                          if (toggle.wasTaskComplete && !toggle.isTaskComplete) {
+                                            await SyncService.enqueueChecklistEvent(
+                                              boardId: id,
+                                              componentId: component.id,
+                                              taskId: task.id,
+                                              itemId: '__task__',
+                                              logicalDate: toggle.isoDate,
+                                              deleted: true,
+                                            );
+                                          }
+                                        });
+
                                         if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
                                           final updatedItem = currentTask.checklist.firstWhere((c) => c.id == item.id);
                                           final isSingleItemTask = currentTask.checklist.length == 1;
@@ -261,6 +277,19 @@ class AllBoardsTasksTab extends StatelessWidget {
                                               }).toList();
                                               await onSaveBoardComponents(id, updatedComponents);
                                               setLocal(() => componentsByBoardId[id] = updatedComponents);
+
+                                              Future<void>(() async {
+                                                await SyncService.enqueueChecklistEvent(
+                                                  boardId: id,
+                                                  componentId: component.id,
+                                                  taskId: task.id,
+                                                  itemId: updatedItem.id,
+                                                  logicalDate: toggle.isoDate,
+                                                  rating: res.rating,
+                                                  note: res.note,
+                                                  deleted: false,
+                                                );
+                                              });
                                             }
                                           }
 
@@ -286,6 +315,19 @@ class AllBoardsTasksTab extends StatelessWidget {
                                                 }).toList();
                                                 await onSaveBoardComponents(id, updatedComponents);
                                                 setLocal(() => componentsByBoardId[id] = updatedComponents);
+
+                                                Future<void>(() async {
+                                                  await SyncService.enqueueChecklistEvent(
+                                                    boardId: id,
+                                                    componentId: component.id,
+                                                    taskId: task.id,
+                                                    itemId: '__task__',
+                                                    logicalDate: toggle.isoDate,
+                                                    rating: res.rating,
+                                                    note: res.note,
+                                                    deleted: false,
+                                                  );
+                                                });
                                               }
                                             }
                                           }

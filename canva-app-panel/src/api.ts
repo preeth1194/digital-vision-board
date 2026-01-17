@@ -65,3 +65,40 @@ export async function postSync(payload: SyncPayload): Promise<void> {
   }
 }
 
+export async function postAdminCanvaImportCurrentPage(payload: {
+  designToken: string;
+  elements: Array<{ id?: string; type?: string; left: number; top: number; width: number; height: number; rotation?: number }>;
+}): Promise<any> {
+  const res = await fetch(`${backendBaseUrl()}/admin/canva/import/current-page`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text().catch(() => "");
+  if (!res.ok) throw new Error(`Import failed (${res.status}): ${text || res.statusText}`);
+  return text ? JSON.parse(text) : {};
+}
+
+export async function postAdminCreateTemplate(payload: {
+  name: string;
+  kind: "goal_canvas" | "grid";
+  templateJson: any;
+  previewImageId?: string | null;
+}): Promise<any> {
+  const res = await fetch(`${backendBaseUrl()}/admin/templates`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text().catch(() => "");
+  if (!res.ok) throw new Error(`Create template failed (${res.status}): ${text || res.statusText}`);
+  return text ? JSON.parse(text) : {};
+}

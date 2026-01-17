@@ -34,6 +34,13 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
             title: Text('Choose a template', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           ListTile(
+            leading: const Icon(Icons.auto_awesome_outlined),
+            title: const Text('Browse templates'),
+            subtitle: const Text('Pick a pre-filled board (images + goals + categories)'),
+            onTap: () => Navigator.of(context).pop('browse_templates'),
+          ),
+          const Divider(),
+          ListTile(
             leading: const Icon(Icons.dashboard_customize_outlined),
             title: const Text('Goal Canvas (Canva-style)'),
             subtitle: const Text('Add goal images, crop, resize, reorder layers, track habits'),

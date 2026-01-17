@@ -23,6 +23,7 @@ import 'goal_canvas_viewer_screen.dart';
 import 'physical_board_editor_screen.dart';
 import 'physical_board_viewer_screen.dart';
 import 'settings_screen.dart';
+import 'templates/template_gallery_screen.dart';
 import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
 
@@ -298,6 +299,17 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     final layoutType = await showTemplatePickerSheet(context);
     if (!mounted) return;
     if (layoutType == null) return;
+
+    if (layoutType == 'browse_templates') {
+      final res = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const TemplateGalleryScreen()),
+      );
+      if (mounted && res == true) {
+        await _reload();
+        await _refreshReminders();
+      }
+      return;
+    }
 
     // Handle import options - these skip the normal board creation flow
     if (layoutType == 'import_physical') {

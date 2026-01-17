@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Rows, Text, Title } from "@canva/app-ui-kit";
-import { fetchHabits, getDvToken, postSync, setDvToken } from "./api";
+import { fetchHabits, getDvToken, postAdminCanvaImportCurrentPage, postAdminCreateTemplate, postSync, setDvToken } from "./api";
 import { backendBaseUrl } from "./env";
 import { registerSelectionListener, tryReadCurrentPageElements } from "./canva_selection";
 import type { Habit, Mapping, SelectedItem } from "./types";
@@ -19,6 +19,7 @@ export function App() {
   const [mappings, setMappings] = useState<Record<string, string>>({});
 
   const [syncStatus, setSyncStatus] = useState<Status>({ kind: "idle" });
+  const [templatesStatus, setTemplatesStatus] = useState<Status>({ kind: "idle" });
   const [showDebug, setShowDebug] = useState(false);
 
   const habitById = useMemo(() => new Map(habits.map((h) => [h.id, h])), [habits]);
@@ -142,6 +143,65 @@ export function App() {
     }
   }
 
+  async function importCurrentPageAsTemplate() {
+    setTemplatesStatus({ kind: "loading" });
+    try {
+      if (!getDvToken()) throw new Error("Not connected. Click “Connect to Digital Vision Board” first.");
+      let designToken = "";
+      try {
+        const designMod: any = await import("@canva/design");
+        const getDesignToken = designMod?.getDesignToken;
+        const tokenObj = (await getDesignToken?.()) ?? null;
+        designToken = typeof tokenObj?.token === "string" ? tokenObj.token : "";
+      } catch {
+        // outside Canva / SDK unavailable
+      }
+      if (!designToken) throw new Error("Could not read Canva design token. Make sure you are running inside Canva.");
+
+      const els = await tryReadCurrentPageElements();
+      if (!els.length) throw new Error("Could not read page elements. Make sure the Design Editing API is available.");
+      const elements = els
+        .filter((e) => typeof e.left === "number" && typeof e.top === "number" && typeof e.width === "number" && typeof e.height === "number")
+        .map((e) => ({
+          id: e.id,
+          type: e.type,
+          left: e.left!,
+          top: e.top!,
+          width: e.width!,
+          height: e.height!,
+          rotation: e.rotation,
+        }));
+
+      const imported = await postAdminCanvaImportCurrentPage({ designToken, elements });
+      const templateJson = imported?.template?.templateJson ?? null;
+      if (!templateJson || typeof templateJson !== "object") throw new Error("Import returned no templateJson.");
+
+      const name = window.prompt("Template name?", "Canva Import");
+      if (!name) {
+        setTemplatesStatus({ kind: "ok", message: "Import done (not published)." });
+        return;
+      }
+
+      // Best-effort preview image: parse first component image id from '/template-images/<id>'
+      let previewImageId: string | null = null;
+      const comps: any[] = Array.isArray((templateJson as any)?.components) ? (templateJson as any).components : [];
+      const firstPath = typeof comps[0]?.imagePath === "string" ? comps[0].imagePath : "";
+      if (firstPath.startsWith("/template-images/")) {
+        previewImageId = firstPath.split("/").filter(Boolean)[1] ?? null;
+      }
+
+      const created = await postAdminCreateTemplate({
+        name,
+        kind: "goal_canvas",
+        templateJson,
+        previewImageId,
+      });
+      setTemplatesStatus({ kind: "ok", message: `Published template: ${created?.id ?? "ok"}` });
+    } catch (e: any) {
+      setTemplatesStatus({ kind: "error", message: e?.message ?? String(e) });
+    }
+  }
+
   const selectionWithMapping = selection.map((s) => ({
     ...s,
     habitId: mappings[s.key],
@@ -216,6 +276,27 @@ export function App() {
                 ))}
               </select>
             </label>
+          </Rows>
+        </div>
+
+        <div style={panelStyle}>
+          <Rows spacing="2u">
+            <Title size="small">Templates (admin)</Title>
+            <Text size="small">Imports current Canva page as a Goal Canvas template via backend cropping.</Text>
+            <Rows spacing="1u">
+              <Button variant="primary" onClick={importCurrentPageAsTemplate}>
+                Import current page as template
+              </Button>
+              <Text size="small">
+                {templatesStatus.kind === "error"
+                  ? templatesStatus.message
+                  : templatesStatus.kind === "ok"
+                    ? templatesStatus.message
+                    : templatesStatus.kind === "loading"
+                      ? "Working…"
+                      : ""}
+              </Text>
+            </Rows>
           </Rows>
         </div>
 

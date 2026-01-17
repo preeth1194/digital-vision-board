@@ -26,3 +26,23 @@ export function requireDvAuth() {
   };
 }
 
+function parseAdminUserIds() {
+  const raw = String(process.env.DV_ADMIN_USER_IDS ?? "");
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export function requireAdmin() {
+  const allowed = new Set(parseAdminUserIds());
+  return async (req, res, next) => {
+    await requireDvAuth()(req, res, () => {});
+    if (!req.dvUser) return; // requireDvAuth already responded
+    const id = req.dvUser?.canvaUserId;
+    if (!id || !allowed.has(id)) {
+      return res.status(403).json({ error: "forbidden", message: "Admin access required." });
+    }
+    next();
+  };
+}

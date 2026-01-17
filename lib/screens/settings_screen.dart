@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'onboarding/onboarding_carousel_screen.dart';
+import 'admin/templates_admin_screen.dart';
 
 final class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -17,6 +18,17 @@ final class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.admin_panel_settings_outlined),
+            title: const Text('Admin: Templates'),
+            subtitle: const Text('Publish vision board templates for users'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TemplatesAdminScreen()),
+              );
+            },
+          ),
+          const Divider(height: 0),
           ListTile(
             leading: const Icon(Icons.slideshow_outlined),
             title: const Text('View onboarding'),

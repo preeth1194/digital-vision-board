@@ -9,6 +9,7 @@ import '../models/goal_overlay_component.dart';
 import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
+import '../widgets/editor/layers_sheet.dart';
 import '../widgets/habit_tracker_sheet.dart';
 import '../widgets/physical_board/goal_overlay_canvas_view.dart';
 import 'global_insights_screen.dart';
@@ -38,6 +39,7 @@ class PhysicalBoardViewerScreen extends StatefulWidget {
 class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
   bool _loading = true;
   int _tabIndex = 0; // 0: Photo, 1: Habits, 2: Tasks, 3: Insights
+  String? _selectedId;
 
   SharedPreferences? _prefs;
 
@@ -109,9 +111,13 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
 
   Future<void> _openHabitTracker(VisionComponent component) async {
     if (!mounted) return;
+    setState(() => _selectedId = component.id);
+    final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final maxHeight = MediaQuery.sizeOf(context).height - topInset;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: BoxConstraints(maxHeight: maxHeight),
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -122,8 +128,44 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
           final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
           _saveComponents(next);
         },
-        fullScreen: true,
+        fullScreen: false,
       ),
+    );
+  }
+
+  Future<void> _showLayers() async {
+    final topToBottom = [..._components]..sort((a, b) => b.zIndex.compareTo(a.zIndex));
+    final overlays = topToBottom.whereType<GoalOverlayComponent>().toList();
+    if (overlays.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No goals yet.')),
+      );
+      return;
+    }
+
+    await showLayersSheet(
+      context,
+      componentsTopToBottom: overlays,
+      selectedId: _selectedId,
+      allowReorder: false,
+      allowDelete: false,
+      onReorder: (_) {},
+      onDelete: (_) {},
+      onSelect: (id) {
+        setState(() => _selectedId = id);
+        Navigator.of(context).pop();
+      },
+      onComplete: (id) {
+        final existing = _components.whereType<GoalOverlayComponent>().cast<GoalOverlayComponent?>().firstWhere(
+              (c) => c?.id == id,
+              orElse: () => null,
+            );
+        if (existing == null) return;
+        final updated = existing.copyWith(isDisabled: !existing.isDisabled);
+        final next = _components.map((c) => c.id == id ? updated : c).toList();
+        _saveComponents(next);
+      },
     );
   }
 
@@ -161,6 +203,12 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          if (_tabIndex == 0)
+            IconButton(
+              tooltip: 'Layers',
+              icon: const Icon(Icons.layers_outlined),
+              onPressed: _showLayers,
+            ),
           IconButton(
             tooltip: 'Edit',
             icon: const Icon(Icons.edit_outlined),
@@ -189,8 +237,8 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
                       imageSize: bgSize,
                       isEditing: false,
                       overlays: overlays,
-                      selectedId: null,
-                      onSelectedIdChanged: (_) {},
+                      selectedId: _selectedId,
+                      onSelectedIdChanged: (id) => setState(() => _selectedId = id),
                       onOverlaysChanged: (_) {},
                       onCreateOverlay: (_) async => null,
                       onOpenOverlay: (overlay) => _openHabitTracker(overlay),

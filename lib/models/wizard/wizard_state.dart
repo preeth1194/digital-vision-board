@@ -28,12 +28,15 @@ final class CreateBoardWizardState {
   /// All selected core values including the major one.
   final List<WizardCoreValueSelection> coreValues;
   final List<WizardGoalDraft> goals;
+  /// Goal ids that the user has reviewed (opened/edited) during the wizard.
+  final List<String> reviewedGoalIds;
 
   const CreateBoardWizardState({
     required this.boardName,
     required this.majorCoreValueId,
     required this.coreValues,
     required this.goals,
+    required this.reviewedGoalIds,
   });
 
   factory CreateBoardWizardState.initial() => CreateBoardWizardState(
@@ -46,6 +49,7 @@ final class CreateBoardWizardState {
           ),
         ],
         goals: const [],
+        reviewedGoalIds: const [],
       );
 
   CreateBoardWizardState copyWith({
@@ -53,12 +57,14 @@ final class CreateBoardWizardState {
     String? majorCoreValueId,
     List<WizardCoreValueSelection>? coreValues,
     List<WizardGoalDraft>? goals,
+    List<String>? reviewedGoalIds,
   }) {
     return CreateBoardWizardState(
       boardName: boardName ?? this.boardName,
       majorCoreValueId: majorCoreValueId ?? this.majorCoreValueId,
       coreValues: coreValues ?? this.coreValues,
       goals: goals ?? this.goals,
+      reviewedGoalIds: reviewedGoalIds ?? this.reviewedGoalIds,
     );
   }
 

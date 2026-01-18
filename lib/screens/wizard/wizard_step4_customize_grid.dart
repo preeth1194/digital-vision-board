@@ -30,6 +30,7 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
   String? _boardId;
   String? _boardTitle;
   String? _templateId;
+  bool _ackReviewed = false;
 
   @override
   void didUpdateWidget(covariant WizardStep4CustomizeGrid oldWidget) {
@@ -40,6 +41,7 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
       _boardId = null;
       _boardTitle = null;
       _templateId = null;
+      _ackReviewed = false;
     }
   }
 
@@ -136,6 +138,13 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
+          CheckboxListTile(
+            value: _ackReviewed,
+            onChanged: (v) => setState(() => _ackReviewed = v == true),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('I reviewed this screen'),
+            subtitle: const Text('Required to open the editor and continue.'),
+          ),
           Expanded(
             child: Card(
               clipBehavior: Clip.antiAlias,
@@ -152,7 +161,7 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
                         mainAxisCellCount: t.mainAxisCellCount,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black12.withOpacity(0.06),
+                            color: Colors.black12.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.black12),
                           ),
@@ -172,7 +181,7 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: (_creating || tiles.isEmpty) ? null : _createAndOpenEditor,
+                onPressed: (_creating || tiles.isEmpty || !_ackReviewed) ? null : _createAndOpenEditor,
                 child: Text(_creating ? 'Opening…' : 'Open grid editor'),
               ),
             ],

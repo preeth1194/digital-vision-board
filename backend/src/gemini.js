@@ -35,7 +35,7 @@ function sanitizeCbt(cbt) {
 
 function sanitizeHabit(h) {
   if (!h || typeof h !== "object") return null;
-  const name = asNonEmptyString(h.name);
+  const name = asNonEmptyString(h.name ?? h.title);
   if (!name) return null;
   const frequencyRaw = asNonEmptyString(h.frequency);
   const frequency =
@@ -51,10 +51,17 @@ function sanitizeHabit(h) {
 
 function sanitizeGoal(g) {
   if (!g || typeof g !== "object") return null;
-  const name = asNonEmptyString(g.name);
+  const name = asNonEmptyString(g.name ?? g.title);
   if (!name) return null;
-  const whyImportant = asNonEmptyString(g.whyImportant ?? g.why_important) ?? "";
-  const habitsRaw = Array.isArray(g.habits) ? g.habits : [];
+  const whyImportant =
+    asNonEmptyString(g.whyImportant ?? g.why_important ?? g.why ?? g.reason ?? g.rationale) ?? "";
+  const habitsRaw = Array.isArray(g.habits)
+    ? g.habits
+    : Array.isArray(g.recommendedHabits)
+      ? g.recommendedHabits
+      : Array.isArray(g.recommended_habits)
+        ? g.recommended_habits
+        : [];
   const habits = habitsRaw.map(sanitizeHabit).filter(Boolean);
   return { name, whyImportant, habits };
 }
@@ -63,8 +70,9 @@ export function validateAndNormalizeRecommendationsJson(json) {
   const goalsRaw = Array.isArray(json?.goals) ? json.goals : null;
   if (!goalsRaw) return null;
   const goals = goalsRaw.map(sanitizeGoal).filter(Boolean);
-  if (goals.length !== 3) return null; // strict per spec
-  return { goals };
+  if (goals.length < 3) return null;
+  // Enforce exactly 3 for the app spec by truncating extras.
+  return { goals: goals.slice(0, 3) };
 }
 
 export async function generateWizardRecommendationsWithGemini({
@@ -106,6 +114,7 @@ export async function generateWizardRecommendationsWithGemini({
     `Constraints: goals.length MUST equal ${goalsPerCategory}.`,
     `Each goal should include around ${habitsPerGoal} habits.`,
     "Habits should be concrete, measurable, and realistic.",
+    "For each habit, ALWAYS provide cbtEnhancements with non-empty microVersion and reward.",
   ].join("\n");
 
   const userPrompt = [
@@ -134,73 +143,84 @@ export async function generateWizardRecommendationsWithGemini({
 
   const apiVersions = ["v1beta", "v1"];
 
-  const requestBody = {
-    contents: [{ role: "user", parts: [{ text: `${instruction}\n\n${userPrompt}` }] }],
-    generationConfig: {
-      temperature: 0.6,
-      maxOutputTokens: 1200,
-      responseMimeType: "application/json",
-    },
-  };
+  async function callGeminiOnce({ temperature }) {
+    const requestBody = {
+      contents: [{ role: "user", parts: [{ text: `${instruction}\n\n${userPrompt}` }] }],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: 1400,
+        responseMimeType: "application/json",
+      },
+    };
 
-  let lastErr = null;
-  let rawText = null;
-  for (const apiVersion of apiVersions) {
-    for (const model of modelCandidates) {
-      const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
-      url.searchParams.set("key", apiKey);
+    let lastErr = null;
+    let rawText = null;
+    for (const apiVersion of apiVersions) {
+      for (const model of modelCandidates) {
+        const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
+        url.searchParams.set("key", apiKey);
 
-      const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      rawText = await res.text();
-      if (res.status >= 200 && res.status < 300) {
-        lastErr = null;
-        break;
+        const res = await fetch(url.toString(), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        rawText = await res.text();
+        if (res.status >= 200 && res.status < 300) {
+          lastErr = null;
+          break;
+        }
+
+        // Retry on "model not found / unsupported" style responses.
+        if (res.status === 404 || res.status === 400) {
+          lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
+          continue;
+        }
+
+        // Other failures: don't spam retries; bubble up.
+        throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
       }
-
-      // Retry on "model not found / unsupported" style responses.
-      if (res.status === 404 || res.status === 400) {
-        lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
-        continue;
-      }
-
-      // Other failures: don't spam retries; bubble up.
-      throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+      if (!lastErr) break;
     }
-    if (!lastErr) break;
-  }
-  if (lastErr) throw lastErr;
-  if (rawText == null) throw new Error("Gemini call failed without response body");
-
-  let payload;
-  try {
-    payload = JSON.parse(rawText);
-  } catch (e) {
-    throw new Error(`Gemini returned non-JSON: ${rawText.slice(0, 400)}`);
+    if (lastErr) throw lastErr;
+    if (rawText == null) throw new Error("Gemini call failed without response body");
+    return rawText;
   }
 
-  const text =
-    payload?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") ??
-    payload?.candidates?.[0]?.content?.parts?.[0]?.text ??
-    null;
+  // Some models occasionally omit fields; retry once with lower temperature.
+  const attemptTemps = [0.6, 0.2];
+  let lastValidationError = null;
+  for (const t of attemptTemps) {
+    const rawText = await callGeminiOnce({ temperature: t });
 
-  // If responseMimeType works, API might already return JSON in parts[0].text.
-  const jsonText = typeof text === "string" ? text.trim() : rawText.trim();
-  let obj;
-  try {
-    obj = JSON.parse(jsonText);
-  } catch (e) {
-    // Some Gemini responses return the structured JSON directly (no nested text).
-    obj = payload;
+    let payload;
+    try {
+      payload = JSON.parse(rawText);
+    } catch (e) {
+      lastValidationError = new Error(`Gemini returned non-JSON: ${rawText.slice(0, 400)}`);
+      continue;
+    }
+
+    const text =
+      payload?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") ??
+      payload?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      null;
+
+    // If responseMimeType works, API might already return JSON in parts[0].text.
+    const jsonText = typeof text === "string" ? text.trim() : rawText.trim();
+    let obj;
+    try {
+      obj = JSON.parse(jsonText);
+    } catch (e) {
+      // Some Gemini responses return the structured JSON directly (no nested text).
+      obj = payload;
+    }
+
+    const validated = validateAndNormalizeRecommendationsJson(obj);
+    if (validated) return validated;
+    lastValidationError = new Error("Gemini response did not match expected recommendations schema (need >= 3 goals).");
   }
 
-  const validated = validateAndNormalizeRecommendationsJson(obj);
-  if (!validated) {
-    throw new Error("Gemini response did not match expected recommendations schema (need exactly 3 goals).");
-  }
-  return validated;
+  throw lastValidationError ?? new Error("Gemini response invalid.");
 }
 

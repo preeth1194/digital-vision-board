@@ -23,6 +23,16 @@ class WizardStep3GenerateGridPreview extends StatefulWidget {
 }
 
 class _WizardStep3GenerateGridPreviewState extends State<WizardStep3GenerateGridPreview> {
+  bool _ackReviewed = false;
+
+  @override
+  void didUpdateWidget(covariant WizardStep3GenerateGridPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      _ackReviewed = false;
+    }
+  }
+
   List<GridTileModel> _previewTiles() {
     final result = WizardBoardBuilderService.build(
       boardId: 'preview',
@@ -59,6 +69,13 @@ class _WizardStep3GenerateGridPreviewState extends State<WizardStep3GenerateGrid
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
+          CheckboxListTile(
+            value: _ackReviewed,
+            onChanged: (v) => setState(() => _ackReviewed = v == true),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('I reviewed this preview'),
+            subtitle: const Text('Required to continue.'),
+          ),
           Expanded(
             child: Card(
               clipBehavior: Clip.antiAlias,
@@ -89,7 +106,7 @@ class _WizardStep3GenerateGridPreviewState extends State<WizardStep3GenerateGrid
               ),
               const Spacer(),
               FilledButton(
-                onPressed: tiles.isEmpty ? null : widget.onNext,
+                onPressed: (tiles.isEmpty || !_ackReviewed) ? null : widget.onNext,
                 child: const Text('Next: Customize grid'),
               ),
             ],
@@ -112,7 +129,7 @@ class _TilePreview extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black12.withOpacity(0.06),
+        color: Colors.black12.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.black12),
       ),

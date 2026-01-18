@@ -56,6 +56,14 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
     return _state.goals.where((g) => g.coreValueId == _coreValueId).toList();
   }
 
+  void _markGoalReviewed(String goalId) {
+    final id = goalId.trim();
+    if (id.isEmpty) return;
+    final current = _state.reviewedGoalIds;
+    if (current.contains(id)) return;
+    setState(() => _state = _state.copyWith(reviewedGoalIds: [...current, id]));
+  }
+
   Future<void> _ensureRecsLoaded(String category) async {
     final cat = category.trim();
     if (cat.isEmpty) return;
@@ -116,6 +124,8 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
   Future<void> _addOrEditGoal({WizardGoalDraft? existing, WizardGoalDraft? prefill}) async {
     final isEdit = existing != null;
     final seed = existing ?? prefill;
+    // Opening an existing goal counts as “reviewed”, even if user cancels.
+    if (existing != null) _markGoalReviewed(existing.id);
     final nameC = TextEditingController(text: seed?.name ?? '');
     final whyC = TextEditingController(text: seed?.whyImportant ?? '');
     String category = (seed?.category ?? '');
@@ -259,6 +269,7 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
     // keep stable ordering by insert time
     nextGoals.sort((a, b) => a.id.compareTo(b.id));
     setState(() => _state = _state.copyWith(goals: nextGoals));
+    _markGoalReviewed(res.id);
   }
 
   void _removeGoal(WizardGoalDraft g) {
@@ -272,6 +283,18 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
     if (goals.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add at least 1 goal for this core value.')),
+      );
+      return;
+    }
+
+    final reviewed = _state.reviewedGoalIds.toSet();
+    final unreviewed = goals.where((g) => !reviewed.contains(g.id)).toList();
+    if (unreviewed.isNotEmpty) {
+      final names = unreviewed.map((g) => g.name.trim()).where((s) => s.isNotEmpty).take(3).toList();
+      final suffix = (unreviewed.length > 3) ? '…' : '';
+      final hint = names.isEmpty ? '' : ' (${names.join(', ')}$suffix)';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Review each goal (tap to open) before continuing. Remaining: ${unreviewed.length}$hint')),
       );
       return;
     }
@@ -567,6 +590,10 @@ class _WizardHabitsEditor extends StatelessWidget {
                     if ((h.frequency ?? '').trim().isNotEmpty) (h.frequency ?? '').trim(),
                     if ((h.deadline ?? '').trim().isNotEmpty) 'Due ${h.deadline}',
                     if (h.reminderEnabled && h.reminderMinutes != null) 'Reminder set',
+                    if ((h.cbtEnhancements?.microVersion ?? '').trim().isNotEmpty)
+                      'Micro: ${(h.cbtEnhancements?.microVersion ?? '').trim()}',
+                    if ((h.cbtEnhancements?.reward ?? '').trim().isNotEmpty)
+                      'Reward: ${(h.cbtEnhancements?.reward ?? '').trim()}',
                   ].join(' • '),
                 ),
                 trailing: IconButton(

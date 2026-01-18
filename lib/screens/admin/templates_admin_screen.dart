@@ -28,6 +28,14 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   String? _canvaUserId;
   bool _wizardSyncing = false;
 
+  bool get _isLocalBackend {
+    final base = DvAuthService.backendBaseUrl().toLowerCase();
+    // Common local dev hosts:
+    // - Android emulator: 10.0.2.2
+    // - iOS simulator / desktop: localhost / 127.0.0.1
+    return base.contains('10.0.2.2') || base.contains('localhost') || base.contains('127.0.0.1');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -339,7 +347,11 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
                       child: ListTile(
                         leading: const Icon(Icons.lock_outline),
                         title: const Text('Admin access required'),
-                        subtitle: const Text('Ask an admin to add your user id to DV_ADMIN_USER_IDS.'),
+                        subtitle: Text(
+                          _isLocalBackend
+                              ? 'Local backend detected. To enable admin actions locally, set DV_ALLOW_DEV_ADMIN=true on the backend.'
+                              : 'Ask an admin to add your user id to DV_ADMIN_USER_IDS.',
+                        ),
                       ),
                     ),
                   if ((_error ?? '').trim().isNotEmpty)
@@ -373,7 +385,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : PopupMenuButton<String>(
-                              enabled: _isAdmin && !_loading,
+                              enabled: (_isAdmin || _isLocalBackend) && !_loading,
                               onSelected: (v) async {
                                 if (v == 'seed') {
                                   await _syncWizardDefaults(reset: false);

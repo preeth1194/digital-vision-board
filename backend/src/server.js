@@ -276,7 +276,8 @@ app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
     }
 
     // Concurrency limit to avoid rate limits.
-    const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 3)));
+    // Default to 1 to be safe on Gemini free-tier quotas (5 req/min).
+    const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 1)));
     let idx = 0;
     const results = [];
     async function worker() {

@@ -66,6 +66,26 @@ function sanitizeGoal(g) {
   return { name, whyImportant, habits };
 }
 
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryDelayMs(rawText) {
+  try {
+    const j = JSON.parse(rawText);
+    const details = Array.isArray(j?.error?.details) ? j.error.details : [];
+    for (const d of details) {
+      const type = d?.["@type"];
+      if (type === "type.googleapis.com/google.rpc.RetryInfo") {
+        const s = String(d?.retryDelay ?? "").trim(); // e.g. "23s"
+        const m = /^(\d+(?:\.\d+)?)s$/.exec(s);
+        if (m) return Math.max(0, Math.round(parseFloat(m[1]) * 1000));
+      }
+    }
+  } catch {}
+  return null;
+}
+
 export function validateAndNormalizeRecommendationsJson(json) {
   const goalsRaw = Array.isArray(json?.goals) ? json.goals : null;
   if (!goalsRaw) return null;
@@ -160,25 +180,38 @@ export async function generateWizardRecommendationsWithGemini({
         const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
         url.searchParams.set("key", apiKey);
 
-        const res = await fetch(url.toString(), {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
-        rawText = await res.text();
-        if (res.status >= 200 && res.status < 300) {
-          lastErr = null;
-          break;
-        }
+        const max429Retries = Math.max(0, Math.min(5, Number(process.env.GEMINI_429_RETRIES ?? 3)));
+        let attempt = 0;
+        while (true) {
+          const res = await fetch(url.toString(), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          rawText = await res.text();
+          if (res.status >= 200 && res.status < 300) {
+            lastErr = null;
+            break;
+          }
 
-        // Retry on "model not found / unsupported" style responses.
-        if (res.status === 404 || res.status === 400) {
-          lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
-          continue;
-        }
+          // Rate limit: wait and retry same model/version.
+          if (res.status === 429 && attempt < max429Retries) {
+            const delayMs = parseRetryDelayMs(rawText) ?? 12000; // free-tier is often ~5/min => ~12s
+            attempt++;
+            await sleepMs(delayMs);
+            continue;
+          }
 
-        // Other failures: don't spam retries; bubble up.
-        throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+          // Retry on "model not found / unsupported" style responses.
+          if (res.status === 404 || res.status === 400) {
+            lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
+            break; // try next model
+          }
+
+          // Other failures: don't spam retries; bubble up.
+          throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+        }
+        if (!lastErr) break;
       }
       if (!lastErr) break;
     }

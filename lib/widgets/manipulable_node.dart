@@ -9,6 +9,9 @@ typedef ComponentChanged = void Function(VisionComponent component);
 /// A Canva-like wrapper that supports drag plus selection UI with resize handles.
 class ManipulableNode extends StatefulWidget {
   final VisionComponent component;
+  /// Global canvas scale applied by the parent (template fit-to-viewport).
+  /// Pointer deltas need to be divided by this to stay in canvas coordinates.
+  final double canvasScale;
   final bool isSelected;
   final bool gesturesEnabled;
   final Widget child;
@@ -20,6 +23,7 @@ class ManipulableNode extends StatefulWidget {
   const ManipulableNode({
     super.key,
     required this.component,
+    this.canvasScale = 1.0,
     required this.isSelected,
     required this.gesturesEnabled,
     required this.child,
@@ -81,7 +85,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
     // When a component is dragged, convert pointer deltas to canvas space
     // Account for the component's current scale to ensure smooth dragging
-    final Offset dragDelta = details.focalPointDelta / (widget.component.scale > 0 ? widget.component.scale : 1.0);
+    final denom = (widget.component.scale > 0 ? widget.component.scale : 1.0) * (widget.canvasScale > 0 ? widget.canvasScale : 1.0);
+    final Offset dragDelta = details.focalPointDelta / denom;
 
     final next = widget.component.copyWithCommon(
       position: widget.component.position + dragDelta,
@@ -102,7 +107,8 @@ class _ManipulableNodeState extends State<ManipulableNode> {
     if (!widget.isSelected) return;
     if (_selectedResizeHandle != handle) return;
 
-    final delta = details.delta / widget.component.scale;
+    final denom = (widget.component.scale > 0 ? widget.component.scale : 1.0) * (widget.canvasScale > 0 ? widget.canvasScale : 1.0);
+    final delta = details.delta / denom;
     final resized = applyResizeDelta(
       position: widget.component.position,
       size: widget.component.size,

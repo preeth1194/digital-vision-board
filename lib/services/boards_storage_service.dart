@@ -13,6 +13,9 @@ class BoardsStorageService {
   static String boardComponentsKey(String boardId) => 'vision_board_${boardId}_components';
   static String boardBgColorKey(String boardId) => 'vision_board_${boardId}_bg_color';
   static String boardImagePathKey(String boardId) => 'vision_board_${boardId}_bg_image_path';
+  // Logical canvas size for template-based boards (stored in template pixel space).
+  static String boardCanvasWidthKey(String boardId) => 'vision_board_${boardId}_canvas_w';
+  static String boardCanvasHeightKey(String boardId) => 'vision_board_${boardId}_canvas_h';
   static String boardGridTilesKey(String boardId) => 'vision_board_${boardId}_grid_tiles_v1';
   static String boardGridTilesV2Key(String boardId) => 'vision_board_${boardId}_grid_tiles_v2';
   static String boardGridCompactSpacingKey(String boardId) =>
@@ -67,6 +70,8 @@ class BoardsStorageService {
     await p.remove(boardComponentsKey(boardId));
     await p.remove(boardBgColorKey(boardId));
     await p.remove(boardImagePathKey(boardId));
+    await p.remove(boardCanvasWidthKey(boardId));
+    await p.remove(boardCanvasHeightKey(boardId));
     await p.remove(boardGridTilesKey(boardId));
     await p.remove(boardGridTilesV2Key(boardId));
     await p.remove(boardGridCompactSpacingKey(boardId));

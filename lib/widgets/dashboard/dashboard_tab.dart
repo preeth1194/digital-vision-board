@@ -50,12 +50,7 @@ class DashboardTab extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Dashboard',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
+              const Spacer(),
               FilledButton.icon(
                 onPressed: onCreateBoard,
                 icon: const Icon(Icons.add),

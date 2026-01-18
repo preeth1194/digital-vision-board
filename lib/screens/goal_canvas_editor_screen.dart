@@ -75,6 +75,10 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
     final loaded = await VisionBoardComponentsStorageService.loadComponents(widget.boardId, prefs: prefs);
     final bgColor = prefs.getInt(_backgroundColorKey);
     final bgPath = prefs.getString(_backgroundImagePathKey);
+    final cw = prefs.getDouble(BoardsStorageService.boardCanvasWidthKey(widget.boardId)) ??
+        (prefs.getInt(BoardsStorageService.boardCanvasWidthKey(widget.boardId))?.toDouble());
+    final ch = prefs.getDouble(BoardsStorageService.boardCanvasHeightKey(widget.boardId)) ??
+        (prefs.getInt(BoardsStorageService.boardCanvasHeightKey(widget.boardId))?.toDouble());
     if (!mounted) return;
     setState(() {
       _components = loaded; // goal canvas supports image goals + decorative text
@@ -83,6 +87,9 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
         _backgroundImage = FileImage(io.File(bgPath));
       } else {
         _backgroundImage = null;
+      }
+      if (cw != null && ch != null && cw > 0 && ch > 0) {
+        _canvasSize = Size(cw, ch);
       }
       _loading = false;
     });
@@ -427,7 +434,8 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
           : LayoutBuilder(
               builder: (context, constraints) {
                 final nextSize = constraints.biggest;
-                if (_canvasSize != nextSize) {
+                // If no fixed canvas size is persisted (non-template boards), default to viewport size.
+                if (_canvasSize == null && _canvasSize != nextSize) {
                   // Store the current canvas bounds and clamp any existing items once.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted) return;
@@ -446,6 +454,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
                   backgroundColor: _backgroundColor,
                   backgroundImage: _backgroundImage,
                   backgroundImageSize: null,
+                  canvasSize: _canvasSize,
                 );
               },
             ),

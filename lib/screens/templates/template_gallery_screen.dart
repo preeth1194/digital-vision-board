@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/board_template.dart';
+import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
 import '../../models/grid_tile_model.dart';
 import '../../models/vision_board_info.dart';
@@ -77,11 +78,18 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
 
       final boardId = 'board_${DateTime.now().millisecondsSinceEpoch}';
       final kind = tpl.kind;
+      final core = CoreValues.byId(config.coreValueId);
 
       if (kind == 'goal_canvas') {
         final raw = tpl.templateJson['components'];
         final compsRaw =
             (raw is List) ? raw.whereType<Map<String, dynamic>>().toList() : const <Map<String, dynamic>>[];
+
+        // Optional template canvas size (pixel space).
+        final cs = tpl.templateJson['canvasSize'];
+        // If missing (older templates), default to your standard Canva page size.
+        final canvasW = ((cs is Map) ? (cs['w'] as num?)?.toDouble() : null) ?? 1080.0;
+        final canvasH = ((cs is Map) ? (cs['h'] as num?)?.toDouble() : null) ?? 1920.0;
 
         final components = <VisionComponent>[];
         for (final c in compsRaw) {
@@ -99,8 +107,9 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
           id: boardId,
           title: config.title,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
-          iconCodePoint: config.iconCodePoint,
-          tileColorValue: config.tileColorValue,
+          coreValueId: core.id,
+          iconCodePoint: core.icon.codePoint,
+          tileColorValue: core.tileColor.toARGB32(),
           layoutType: VisionBoardInfo.layoutGoalCanvas,
           templateId: null,
         );
@@ -109,6 +118,10 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
         await BoardsStorageService.saveBoards([board, ...boards], prefs: prefs);
         await BoardsStorageService.setActiveBoardId(boardId, prefs: prefs);
         await VisionBoardComponentsStorageService.saveComponents(boardId, components, prefs: prefs);
+        if (canvasW > 0 && canvasH > 0) {
+          await prefs.setDouble(BoardsStorageService.boardCanvasWidthKey(boardId), canvasW);
+          await prefs.setDouble(BoardsStorageService.boardCanvasHeightKey(boardId), canvasH);
+        }
 
         if (!mounted) return;
         await Navigator.of(context).push(
@@ -141,8 +154,9 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
           id: boardId,
           title: config.title,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
-          iconCodePoint: config.iconCodePoint,
-          tileColorValue: config.tileColorValue,
+          coreValueId: core.id,
+          iconCodePoint: core.icon.codePoint,
+          tileColorValue: core.tileColor.toARGB32(),
           layoutType: VisionBoardInfo.layoutGrid,
           templateId: templateId,
         );

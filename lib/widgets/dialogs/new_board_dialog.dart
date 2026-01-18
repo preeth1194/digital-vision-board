@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
-import '../../models/vision_board_info.dart';
 
 class NewBoardConfig {
   final String title;
-  final int iconCodePoint;
-  final int tileColorValue;
+  final String coreValueId;
 
   const NewBoardConfig({
     required this.title,
-    required this.iconCodePoint,
-    required this.tileColorValue,
+    required this.coreValueId,
   });
 }
 
@@ -28,38 +26,37 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
     context: context,
     showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Wrap(
-        children: [
-          const ListTile(
-            title: Text('Choose a template', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('Browse templates'),
-            subtitle: const Text('Pick a pre-filled board (images + goals + categories)'),
-            onTap: () => Navigator.of(context).pop('browse_templates'),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.dashboard_customize_outlined),
-            title: const Text('Goal Canvas (Canva-style)'),
-            subtitle: const Text('Add goal images, crop, resize, reorder layers, track habits'),
-            onTap: () => Navigator.of(context).pop(VisionBoardInfo.layoutGoalCanvas),
-          ),
-          ListTile(
-            leading: const Icon(Icons.grid_view_outlined),
-            title: const Text('Grid Layout'),
-            subtitle: const Text('Structured, scrollable grid tiles'),
-            onTap: () => Navigator.of(context).pop(VisionBoardInfo.layoutGrid),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.document_scanner_outlined),
-            title: const Text('Import from Physical Vision Board'),
-            subtitle: const Text('Scan and import your physical vision board'),
-            onTap: () => Navigator.of(context).pop('import_physical'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              title: Text('Choose a template', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Two quick ways to start'),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('Browse templates'),
+                subtitle: const Text('Pick a pre-filled board'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pop('browse_templates'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.dashboard_customize_outlined),
+                title: const Text('Create Dream Board (Wizard)'),
+                subtitle: const Text('Step-by-step: goals, categories, habits/tasks, then grid'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pop('create_wizard'),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -196,26 +193,12 @@ class _NewBoardDialog extends StatefulWidget {
 
 class _NewBoardDialogState extends State<_NewBoardDialog> {
   late final TextEditingController _controller;
-  late int _selectedIconCodePoint;
-  late int _selectedTileColorValue;
-
-  static const List<Color> _colorOptions = [
-    Color(0xFFEEF2FF),
-    Color(0xFFE0F2FE),
-    Color(0xFFECFDF5),
-    Color(0xFFFFF7ED),
-    Color(0xFFFFEBEE),
-    Color(0xFFF3E8FF),
-    Color(0xFFFFF1F2),
-    Color(0xFFF1F5F9),
-  ];
+  String _selectedCoreValueId = CoreValues.growthMindset;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
-    _selectedIconCodePoint = Icons.dashboard_outlined.codePoint;
-    _selectedTileColorValue = const Color(0xFFEEF2FF).value;
   }
 
   @override
@@ -230,8 +213,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
     Navigator.of(context).pop(
       NewBoardConfig(
         title: text,
-        iconCodePoint: _selectedIconCodePoint,
-        tileColorValue: _selectedTileColorValue,
+        coreValueId: _selectedCoreValueId,
       ),
     );
   }
@@ -256,61 +238,42 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 16),
-            const Text('Choose icon', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: kBoardIconOptions.map((icon) {
-                final selected = _selectedIconCodePoint == icon.codePoint;
-                return InkWell(
-                  onTap: () => setState(() => _selectedIconCodePoint = icon.codePoint),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: selected
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: selected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.black12,
-                        width: selected ? 2 : 1,
-                      ),
-                    ),
-                    child: Icon(icon),
-                  ),
-                );
-              }).toList(),
+            const Text(
+              'Core value',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            const Text('Tile color', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const Text(
+              'Pick one major focus for this board.',
+              style: TextStyle(color: Colors.black54),
+            ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: _colorOptions.map((c) {
-                final selected = _selectedTileColorValue == c.value;
-                return InkWell(
-                  onTap: () => setState(() => _selectedTileColorValue = c.value),
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.black12,
-                        width: selected ? 3 : 1,
-                      ),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedCoreValueId,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final cv in CoreValues.all)
+                  DropdownMenuItem<String>(
+                    value: cv.id,
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: cv.tileColor,
+                          child: Icon(cv.icon, size: 16, color: Colors.black87),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(cv.label),
+                      ],
                     ),
                   ),
-                );
-              }).toList(),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _selectedCoreValueId = v);
+              },
             ),
           ],
         ),

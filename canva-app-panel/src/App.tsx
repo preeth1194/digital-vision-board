@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Rows, Text, Title } from "@canva/app-ui-kit";
+import { Button, Rows, Text, TextInput, Title } from "@canva/app-ui-kit";
 import { fetchHabits, getDvToken, postAdminCanvaImportCurrentPage, postAdminCreateTemplate, postSync, setDvToken } from "./api";
 import { backendBaseUrl } from "./env";
 import { registerSelectionListener, tryReadCurrentPageElements } from "./canva_selection";
@@ -21,6 +21,8 @@ export function App() {
 
   const [syncStatus, setSyncStatus] = useState<Status>({ kind: "idle" });
   const [templatesStatus, setTemplatesStatus] = useState<Status>({ kind: "idle" });
+  const [templateName, setTemplateName] = useState<string>("Canva Import");
+  const [pendingTemplateJson, setPendingTemplateJson] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
 
   const habitById = useMemo(() => new Map(habits.map((h) => [h.id, h])), [habits]);
@@ -162,7 +164,9 @@ export function App() {
       const els = await tryReadCurrentPageElements();
       if (!els.length) throw new Error("Could not read page elements. Make sure the Design Editing API is available.");
       const elements = els
-        .filter((e) => typeof e.left === "number" && typeof e.top === "number" && typeof e.width === "number" && typeof e.height === "number")
+        .filter(
+          (e) => typeof e.left === "number" && typeof e.top === "number" && typeof e.width === "number" && typeof e.height === "number",
+        )
         .map((e) => ({
           id: e.id,
           type: e.type,
@@ -171,17 +175,28 @@ export function App() {
           width: e.width!,
           height: e.height!,
           rotation: e.rotation,
+          text: typeof e.text === "string" ? e.text : undefined,
+          style: typeof (e as any).style === "object" && (e as any).style ? (e as any).style : undefined,
         }));
 
       const imported = await postAdminCanvaImportCurrentPage({ designToken, elements });
       const templateJson = imported?.template?.templateJson ?? null;
       if (!templateJson || typeof templateJson !== "object") throw new Error("Import returned no templateJson.");
 
-      const name = window.prompt("Template name?", "Canva Import");
-      if (!name) {
-        setTemplatesStatus({ kind: "ok", message: "Import done (not published)." });
-        return;
-      }
+      setPendingTemplateJson(templateJson);
+      setTemplatesStatus({ kind: "ok", message: "Import done. Review name and publish below." });
+    } catch (e: any) {
+      setTemplatesStatus({ kind: "error", message: e?.message ?? String(e) });
+    }
+  }
+
+  async function publishPendingTemplate() {
+    setTemplatesStatus({ kind: "loading" });
+    try {
+      const name = templateName.trim();
+      if (!name) throw new Error("Template name is required.");
+      const templateJson = pendingTemplateJson;
+      if (!templateJson || typeof templateJson !== "object") throw new Error("No imported template to publish yet.");
 
       // Best-effort preview image: parse first component image id from '/template-images/<id>'
       let previewImageId: string | null = null;
@@ -197,6 +212,7 @@ export function App() {
         templateJson,
         previewImageId,
       });
+      setPendingTemplateJson(null);
       setTemplatesStatus({ kind: "ok", message: `Published template: ${created?.id ?? "ok"}` });
     } catch (e: any) {
       setTemplatesStatus({ kind: "error", message: e?.message ?? String(e) });
@@ -323,6 +339,11 @@ export function App() {
             <Rows spacing="1u">
               <Button variant="primary" onClick={importCurrentPageAsTemplate}>
                 Import current page as template
+              </Button>
+              <Text size="small">Template name</Text>
+              <TextInput value={templateName} onChange={(e: any) => setTemplateName(String(e?.target?.value ?? ""))} />
+              <Button variant="secondary" disabled={!pendingTemplateJson} onClick={publishPendingTemplate}>
+                Publish imported template
               </Button>
               <Text size="small">
                 {templatesStatus.kind === "error"

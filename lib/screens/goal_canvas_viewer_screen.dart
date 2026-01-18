@@ -42,6 +42,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   List<VisionComponent> _components = [];
   Color _backgroundColor = const Color(0xFFF7F7FA);
   ImageProvider? _backgroundImage;
+  Size? _canvasSize;
   String? _selectedId;
   bool _uploading = false;
   int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Tasks, 3: Insights
@@ -63,6 +64,10 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
     final loaded = await VisionBoardComponentsStorageService.loadComponents(widget.boardId, prefs: prefs);
     final bgColor = prefs.getInt(_backgroundColorKey);
     final bgPath = prefs.getString(_backgroundImagePathKey);
+    final cw = prefs.getDouble(BoardsStorageService.boardCanvasWidthKey(widget.boardId)) ??
+        (prefs.getInt(BoardsStorageService.boardCanvasWidthKey(widget.boardId))?.toDouble());
+    final ch = prefs.getDouble(BoardsStorageService.boardCanvasHeightKey(widget.boardId)) ??
+        (prefs.getInt(BoardsStorageService.boardCanvasHeightKey(widget.boardId))?.toDouble());
     if (!mounted) return;
     setState(() {
       _components = loaded;
@@ -71,6 +76,9 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
         _backgroundImage = io.File(bgPath).existsSync() ? FileImage(io.File(bgPath)) : null;
       } else {
         _backgroundImage = null;
+      }
+      if (cw != null && ch != null && cw > 0 && ch > 0) {
+        _canvasSize = Size(cw, ch);
       }
       _loading = false;
     });
@@ -283,6 +291,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                     backgroundColor: _backgroundColor,
                     backgroundImage: _backgroundImage,
                     backgroundImageSize: null,
+                    canvasSize: _canvasSize,
                   ),
                 ),
             },

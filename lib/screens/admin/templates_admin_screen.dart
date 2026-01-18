@@ -25,6 +25,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   String? _error;
   bool _isAdmin = false;
   List<BoardTemplateSummary> _templates = const [];
+  String? _canvaUserId;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       _error = null;
     });
     try {
+      final canvaUserId = await DvAuthService.getCanvaUserId();
       final token = await DvAuthService.getDvToken();
       if (token == null) throw Exception('Not authenticated.');
       final list = await TemplatesService.adminListTemplates(dvToken: token);
@@ -45,6 +47,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       setState(() {
         _isAdmin = true;
         _templates = list;
+        _canvaUserId = canvaUserId;
       });
     } catch (e) {
       if (!mounted) return;
@@ -53,6 +56,35 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
         _isAdmin = !msg.contains('403') && !msg.contains('forbidden') ? _isAdmin : false;
         _error = msg;
       });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _connectCanvaOAuth() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Canva OAuth is not supported on web yet.')),
+      );
+      return;
+    }
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await DvAuthService.connectViaCanvaOAuth();
+      if (!mounted) return;
+      setState(() => _canvaUserId = res.canvaUserId);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Connected as ${res.canvaUserId ?? 'Canva user'}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -255,6 +287,21 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.person_outline),
+                      title: const Text('Backend account'),
+                      subtitle: Text(
+                        (_canvaUserId ?? '').trim().isEmpty
+                            ? 'Not connected'
+                            : 'Connected as ${_canvaUserId!}',
+                      ),
+                      trailing: FilledButton(
+                        onPressed: _loading ? null : _connectCanvaOAuth,
+                        child: const Text('Connect Canva'),
+                      ),
+                    ),
+                  ),
                   if (!_isAdmin)
                     Card(
                       child: ListTile(

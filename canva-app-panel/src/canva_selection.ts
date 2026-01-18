@@ -1,4 +1,4 @@
-import type { SelectedItem } from "./types";
+import type { CanvaPageElement, SelectedItem } from "./types";
 
 type Unsubscribe = () => void;
 
@@ -107,7 +107,7 @@ export async function registerSelectionListener(
  * If the Design Editing API isn’t available (or we’re not inside Canva), returns [].
  */
 export async function tryReadCurrentPageElements(): Promise<
-  Array<{ id?: string; type?: string; top?: number; left?: number; width?: number; height?: number; rotation?: number }>
+  CanvaPageElement[]
 > {
   try {
     const designMod: any = await import("@canva/design");
@@ -125,15 +125,49 @@ export async function tryReadCurrentPageElements(): Promise<
       result = Array.isArray(elements) ? elements : [];
     });
 
-    return result.map((el: any) => ({
-      id: typeof el?.id === "string" ? el.id : undefined,
-      type: typeof el?.type === "string" ? el.type : undefined,
-      top: typeof el?.top === "number" ? el.top : undefined,
-      left: typeof el?.left === "number" ? el.left : undefined,
-      width: typeof el?.width === "number" ? el.width : undefined,
-      height: typeof el?.height === "number" ? el.height : undefined,
-      rotation: typeof el?.rotation === "number" ? el.rotation : undefined,
-    }));
+    const pickString = (...vals: any[]): string | undefined => {
+      for (const v of vals) {
+        if (typeof v === "string" && v.trim()) return v;
+      }
+      return undefined;
+    };
+
+    const pickNum = (...vals: any[]): number | undefined => {
+      for (const v of vals) {
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+      }
+      return undefined;
+    };
+
+    return result.map((el: any) => {
+      // Best-effort: Canva element shapes vary by SDK/version. Keep this defensive.
+      const text = pickString(el?.text, el?.plainText, el?.content?.text, el?.data?.text);
+
+      const styleSrc = el?.style ?? el?.textStyle ?? el?.data?.style ?? el ?? {};
+      const style =
+        text != null
+          ? {
+              color: styleSrc?.color ?? styleSrc?.textColor ?? styleSrc?.fillColor,
+              fontSize: pickNum(styleSrc?.fontSize, styleSrc?.size),
+              fontWeight: pickNum(styleSrc?.fontWeight),
+              fontStyle: pickNum(styleSrc?.fontStyle),
+              fontFamily: pickString(styleSrc?.fontFamily, styleSrc?.family),
+              textAlign: styleSrc?.textAlign ?? styleSrc?.align,
+            }
+          : undefined;
+
+      return {
+        id: typeof el?.id === "string" ? el.id : undefined,
+        type: typeof el?.type === "string" ? el.type : undefined,
+        top: pickNum(el?.top, el?.y),
+        left: pickNum(el?.left, el?.x),
+        width: pickNum(el?.width, el?.w),
+        height: pickNum(el?.height, el?.h),
+        rotation: pickNum(el?.rotation),
+        text,
+        style,
+      } satisfies CanvaPageElement;
+    });
   } catch {
     return [];
   }

@@ -111,12 +111,7 @@ class AllBoardsTasksTab extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'All Boards Tasks',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                const Spacer(),
                 FilledButton.icon(
                   onPressed: addTaskGlobal,
                   icon: const Icon(Icons.add),

@@ -12,6 +12,183 @@ import 'vision_board_components_storage_service.dart';
 final class DailyOverviewService {
   DailyOverviewService._();
 
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  static String _toIsoDate(DateTime d) {
+    final dd = _dateOnly(d);
+    final yyyy = dd.year.toString().padLeft(4, '0');
+    final mm = dd.month.toString().padLeft(2, '0');
+    final day = dd.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$day';
+  }
+
+  /// Habits-only daily mood aggregation per board.
+  ///
+  /// Returns one entry per board with isoDate -> average rating (1..5) and ratingCount.
+  static Future<List<BoardHabitMoodSummary>> buildHabitMoodByBoard({
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: p);
+    final out = <BoardHabitMoodSummary>[];
+
+    for (final b in boards) {
+      final comps = await _loadBoardComponents(b, prefs: p);
+      final sumByIso = <String, int>{};
+      final countByIso = <String, int>{};
+      final habitRatingsByName = <String, HabitMoodSeries>{};
+
+      for (final c in comps) {
+        for (final h in c.habits) {
+          final displayName = h.name.trim();
+          if (displayName.isNotEmpty) {
+            final key = displayName.toLowerCase();
+            final existing = habitRatingsByName[key];
+            final nextMap = existing == null
+                ? <String, int>{}
+                : Map<String, int>.from(existing.ratingByIsoDate);
+            final nextCompleted = existing == null
+                ? <String>{}
+                : <String>{...existing.completedIsoDates};
+            for (final entry in h.feedbackByDate.entries) {
+              final iso = entry.key;
+              final fb = entry.value;
+              if (fb.rating <= 0) continue;
+              nextMap[iso] = fb.rating;
+            }
+            for (final d in h.completedDates) {
+              nextCompleted.add(_toIsoDate(d));
+            }
+            habitRatingsByName[key] =
+                HabitMoodSeries(
+                  name: existing?.name ?? displayName,
+                  ratingByIsoDate: nextMap,
+                  completedIsoDates: nextCompleted,
+                );
+          }
+
+          for (final entry in h.feedbackByDate.entries) {
+            final iso = entry.key;
+            final fb = entry.value;
+            if (fb.rating <= 0) continue;
+            sumByIso[iso] = (sumByIso[iso] ?? 0) + fb.rating;
+            countByIso[iso] = (countByIso[iso] ?? 0) + 1;
+          }
+        }
+      }
+
+      final byIso = <String, HabitMoodDaySummary>{};
+      for (final entry in sumByIso.entries) {
+        final iso = entry.key;
+        final sum = entry.value;
+        final count = countByIso[iso] ?? 0;
+        if (count <= 0) continue;
+        byIso[iso] = HabitMoodDaySummary(
+          isoDate: iso,
+          averageRating: sum / count,
+          ratingCount: count,
+        );
+      }
+
+      out.add(
+        BoardHabitMoodSummary(
+          boardId: b.id,
+          boardTitle: b.title,
+          byIsoDate: byIso,
+          habitsByName: habitRatingsByName,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Habits-only daily mood aggregation.
+  ///
+  /// Returns per-day average rating (1..5) along with count of ratings used.
+  /// Source of truth is `HabitItem.feedbackByDate` across all boards/components.
+  static Future<Map<String, HabitMoodDaySummary>> buildHabitMoodByIsoDate({
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: p);
+
+    final sumByIso = <String, int>{};
+    final countByIso = <String, int>{};
+
+    for (final b in boards) {
+      final comps = await _loadBoardComponents(b, prefs: p);
+      for (final c in comps) {
+        for (final h in c.habits) {
+          for (final entry in h.feedbackByDate.entries) {
+            final iso = entry.key;
+            final fb = entry.value;
+            if (fb.rating <= 0) continue;
+            sumByIso[iso] = (sumByIso[iso] ?? 0) + fb.rating;
+            countByIso[iso] = (countByIso[iso] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    final out = <String, HabitMoodDaySummary>{};
+    for (final entry in sumByIso.entries) {
+      final iso = entry.key;
+      final sum = entry.value;
+      final count = countByIso[iso] ?? 0;
+      if (count <= 0) continue;
+      out[iso] = HabitMoodDaySummary(
+        isoDate: iso,
+        averageRating: sum / count,
+        ratingCount: count,
+      );
+    }
+    return out;
+  }
+
+  /// Habits-only mood grouped by normalized habit name (merged across boards).
+  ///
+  /// Returns: normalizedName -> HabitMoodSeries(name, ratingsByIsoDate)
+  static Future<Map<String, HabitMoodSeries>> buildHabitMoodByHabitName({
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: p);
+    final byName = <String, HabitMoodSeries>{};
+
+    for (final b in boards) {
+      final comps = await _loadBoardComponents(b, prefs: p);
+      for (final c in comps) {
+        for (final h in c.habits) {
+          final display = h.name.trim();
+          if (display.isEmpty) continue;
+          final key = display.toLowerCase();
+          final existing = byName[key];
+          final nextMap = existing == null
+              ? <String, int>{}
+              : Map<String, int>.from(existing.ratingByIsoDate);
+          final nextCompleted =
+              existing == null ? <String>{} : <String>{...existing.completedIsoDates};
+          for (final entry in h.feedbackByDate.entries) {
+            final iso = entry.key;
+            final fb = entry.value;
+            if (fb.rating <= 0) continue;
+            // If multiple ratings exist for the same iso (merged), keep the latest encountered.
+            nextMap[iso] = fb.rating;
+          }
+          for (final d in h.completedDates) {
+            nextCompleted.add(_toIsoDate(d));
+          }
+          byName[key] = HabitMoodSeries(
+            name: existing?.name ?? display,
+            ratingByIsoDate: nextMap,
+            completedIsoDates: nextCompleted,
+          );
+        }
+      }
+    }
+    return byName;
+  }
+
   static Future<Map<String, DailyMoodSummary>> buildMoodByIsoDate({
     SharedPreferences? prefs,
   }) async {
@@ -137,6 +314,44 @@ final class DailyOverviewService {
 }
 
 enum DailyRatingKind { habit, checklistItem, task }
+
+final class BoardHabitMoodSummary {
+  final String boardId;
+  final String boardTitle;
+  final Map<String, HabitMoodDaySummary> byIsoDate;
+  final Map<String, HabitMoodSeries> habitsByName; // normalizedName -> series
+
+  const BoardHabitMoodSummary({
+    required this.boardId,
+    required this.boardTitle,
+    required this.byIsoDate,
+    this.habitsByName = const {},
+  });
+}
+
+final class HabitMoodDaySummary {
+  final String isoDate;
+  final double averageRating; // 1..5
+  final int ratingCount;
+
+  const HabitMoodDaySummary({
+    required this.isoDate,
+    required this.averageRating,
+    required this.ratingCount,
+  });
+}
+
+final class HabitMoodSeries {
+  final String name;
+  final Map<String, int> ratingByIsoDate; // iso -> 1..5
+  final Set<String> completedIsoDates; // iso -> completed that day
+
+  const HabitMoodSeries({
+    required this.name,
+    required this.ratingByIsoDate,
+    this.completedIsoDates = const <String>{},
+  });
+}
 
 final class DailyRatingItem {
   final String isoDate;

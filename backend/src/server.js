@@ -23,6 +23,12 @@ import {
   putUserRecord,
 } from "./storage.js";
 import { requireAdmin, requireDvAuth } from "./auth.js";
+import {
+  getWizardDefaults,
+  getWizardRecommendations,
+  putWizardDefaults,
+  upsertWizardRecommendations,
+} from "./wizard_storage.js";
 import { ensureSchema } from "./migrate.js";
 import { hasDatabase } from "./db.js";
 import {
@@ -42,6 +48,7 @@ import {
   listTemplatesPg,
   upsertTemplatePg,
 } from "./templates_pg.js";
+import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 
 const app = express();
 
@@ -61,6 +68,34 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
 });
+
+function normalizeCategoryKey(category) {
+  return String(category ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function defaultWizardDefaults() {
+  // Backend source-of-truth defaults.
+  // Mirrors Flutter `CoreValues` + `WizardCoreValueCatalog.predefinedCategories` (server owns canonical list).
+  return {
+    coreValues: [
+      { id: "growth_mindset", label: "Growth & Mindset" },
+      { id: "career_ambition", label: "Career & Ambition" },
+      { id: "creativity_expression", label: "Creativity & Expression" },
+      { id: "lifestyle_adventure", label: "Lifestyle & Adventure" },
+      { id: "connection_community", label: "Connection & Community" },
+    ],
+    categoriesByCoreValueId: {
+      growth_mindset: ["Health", "Learning", "Mindfulness", "Confidence"],
+      career_ambition: ["Skills", "Promotion", "Income", "Leadership"],
+      creativity_expression: ["Art", "Writing", "Music", "Content"],
+      lifestyle_adventure: ["Travel", "Fitness", "Experiences", "Home"],
+      connection_community: ["Family", "Friends", "Community", "Relationships"],
+    },
+  };
+}
 
 function templateImagePath(id) {
   return `/template-images/${encodeURIComponent(id)}`;
@@ -82,13 +117,185 @@ app.get("/", (req, res) => {
         "",
         "Useful endpoints:",
         "- GET /health",
+        "- GET /auth/canva/start_poll",
+        "- GET /auth/canva/poll?pollToken=...",
         "- GET /auth/canva/start",
         "- GET /canva/connect (alias)",
+        "- GET /templates",
       ].join("\n"),
     );
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+// ---- Wizard defaults + recommendations (public) ----
+app.get("/wizard/defaults", async (req, res) => {
+  try {
+    const stored = await getWizardDefaults();
+    const defaults = stored?.defaults && typeof stored.defaults === "object" ? stored.defaults : defaultWizardDefaults();
+    res.json({
+      ok: true,
+      defaults,
+      updatedAt: stored?.updatedAt ?? null,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "wizard_defaults_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/wizard/recommendations", async (req, res) => {
+  try {
+    const coreValueId = typeof req.query.coreValueId === "string" ? req.query.coreValueId.trim() : "";
+    const category = typeof req.query.category === "string" ? req.query.category : "";
+    if (!coreValueId) return res.status(400).json({ error: "missing_coreValueId" });
+    if (!String(category).trim()) return res.status(400).json({ error: "missing_category" });
+
+    const categoryKey = normalizeCategoryKey(category);
+    const found = await getWizardRecommendations({ coreValueId, categoryKey });
+    if (!found?.recommendations) {
+      return res.json({ ok: true, status: "miss", coreValueId, categoryKey });
+    }
+    return res.json({
+      ok: true,
+      status: "hit",
+      coreValueId,
+      categoryKey,
+      categoryLabel: found.categoryLabel ?? category,
+      recommendations: found.recommendations,
+      updatedAt: found.updatedAt ?? null,
+      source: found.source ?? null,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "wizard_recommendations_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/wizard/recommendations/generate", async (req, res) => {
+  try {
+    const coreValueId = typeof req.body?.coreValueId === "string" ? req.body.coreValueId.trim() : "";
+    const category = typeof req.body?.category === "string" ? req.body.category : "";
+    if (!coreValueId) return res.status(400).json({ error: "missing_coreValueId" });
+    if (!String(category).trim()) return res.status(400).json({ error: "missing_category" });
+
+    const categoryKey = normalizeCategoryKey(category);
+    const existing = await getWizardRecommendations({ coreValueId, categoryKey });
+    if (existing?.recommendations) {
+      return res.json({
+        ok: true,
+        status: "hit",
+        coreValueId,
+        categoryKey,
+        categoryLabel: existing.categoryLabel ?? category,
+        recommendations: existing.recommendations,
+        updatedAt: existing.updatedAt ?? null,
+        source: existing.source ?? null,
+      });
+    }
+
+    const defaultsRec = await getWizardDefaults();
+    const defaults = defaultsRec?.defaults && typeof defaultsRec.defaults === "object" ? defaultsRec.defaults : defaultWizardDefaults();
+    const coreLabel =
+      Array.isArray(defaults?.coreValues)
+        ? defaults.coreValues.find((c) => c?.id === coreValueId)?.label ?? coreValueId
+        : coreValueId;
+
+    const recommendations = await generateWizardRecommendationsWithGemini({
+      coreValueId,
+      coreValueLabel: coreLabel,
+      category: String(category).trim(),
+      goalsPerCategory: 3,
+      habitsPerGoal: 3,
+    });
+
+    await upsertWizardRecommendations({
+      coreValueId,
+      categoryKey,
+      categoryLabel: String(category).trim(),
+      recommendations,
+      source: "gemini",
+      createdBy: null,
+    });
+
+    return res.json({
+      ok: true,
+      status: "generated",
+      coreValueId,
+      categoryKey,
+      categoryLabel: String(category).trim(),
+      recommendations,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "wizard_generate_failed", message: String(e?.message ?? e) });
+  }
+});
+
+// ---- Wizard sync/reset (admin) ----
+app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
+  try {
+    const reset = Boolean(req.body?.reset);
+    const defaults = defaultWizardDefaults();
+    // Always re-write defaults (idempotent).
+    await putWizardDefaults({ defaults });
+
+    const categoriesByCore = defaults.categoriesByCoreValueId ?? {};
+    const createdBy = req.dvUser?.canvaUserId ?? null;
+
+    // Optionally re-seed default-category recommendations (Gemini).
+    // Note: we don't delete rows in reset; we upsert so this is safe and simple.
+    const jobs = [];
+    for (const coreValueId of Object.keys(categoriesByCore)) {
+      const cats = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
+      const coreLabel = defaults.coreValues.find((c) => c.id === coreValueId)?.label ?? coreValueId;
+      for (const cat of cats) {
+        const category = String(cat ?? "").trim();
+        if (!category) continue;
+        const categoryKey = normalizeCategoryKey(category);
+        jobs.push(async () => {
+          if (!reset) {
+            const existing = await getWizardRecommendations({ coreValueId, categoryKey });
+            if (existing?.recommendations) return { skipped: true };
+          }
+          const recommendations = await generateWizardRecommendationsWithGemini({
+            coreValueId,
+            coreValueLabel: coreLabel,
+            category,
+            goalsPerCategory: 3,
+            habitsPerGoal: 3,
+          });
+          await upsertWizardRecommendations({
+            coreValueId,
+            categoryKey,
+            categoryLabel: category,
+            recommendations,
+            source: "gemini",
+            createdBy,
+          });
+          return { ok: true };
+        });
+      }
+    }
+
+    // Concurrency limit to avoid rate limits.
+    const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 3)));
+    let idx = 0;
+    const results = [];
+    async function worker() {
+      while (idx < jobs.length) {
+        const i = idx++;
+        results[i] = await jobs[i]();
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    res.json({
+      ok: true,
+      reset,
+      seeded: jobs.length,
+    });
+  } catch (e) {
+    res.status(500).json({ error: "wizard_sync_failed", message: String(e?.message ?? e) });
+  }
+});
 
 /**
  * Guest auth (no Canva required).
@@ -461,6 +668,52 @@ function normalizeCropRect({ left, top, width, height }, imgW, imgH) {
   return { left: ll, top: tt, width: ww, height: hh };
 }
 
+function maybeRotationRad(x) {
+  if (typeof x !== "number" || !Number.isFinite(x)) return 0;
+  // Canva element rotation is often in degrees; Flutter uses radians.
+  // Heuristic: if magnitude is larger than ~2π, treat as degrees.
+  const abs = Math.abs(x);
+  if (abs > 2 * Math.PI + 0.01) return (x * Math.PI) / 180;
+  return x;
+}
+
+function parseArgbColor(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    // Assume already ARGB int.
+    return value | 0;
+  }
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    // Accept "#RRGGBB" or "#AARRGGBB"
+    if (s.startsWith("#") && (s.length === 7 || s.length === 9)) {
+      const hex = s.slice(1);
+      const n = Number.parseInt(hex, 16);
+      if (!Number.isFinite(n)) return null;
+      if (hex.length === 6) return (0xff000000 | n) | 0;
+      return n | 0;
+    }
+  }
+  // Accept { r,g,b,a } in 0..1 or 0..255
+  if (value && typeof value === "object") {
+    const r = value.r ?? value.red;
+    const g = value.g ?? value.green;
+    const b = value.b ?? value.blue;
+    const a = value.a ?? value.alpha;
+    const nums = [r, g, b].every((v) => typeof v === "number" && Number.isFinite(v));
+    if (!nums) return null;
+    const isFrac = Math.max(Math.abs(r), Math.abs(g), Math.abs(b), typeof a === "number" ? Math.abs(a) : 1) <= 1.5;
+    const rr = Math.max(0, Math.min(255, Math.round(isFrac ? r * 255 : r)));
+    const gg = Math.max(0, Math.min(255, Math.round(isFrac ? g * 255 : g)));
+    const bb = Math.max(0, Math.min(255, Math.round(isFrac ? b * 255 : b)));
+    const aa =
+      typeof a === "number" && Number.isFinite(a)
+        ? Math.max(0, Math.min(255, Math.round(isFrac ? a * 255 : a)))
+        : 255;
+    return (((aa & 0xff) << 24) | ((rr & 0xff) << 16) | ((gg & 0xff) << 8) | (bb & 0xff)) | 0;
+  }
+  return null;
+}
+
 /**
  * Admin: import Canva current page elements into a Goal Canvas template by cropping PNG.
  *
@@ -540,7 +793,69 @@ app.post("/admin/canva/import/current-page", requireAdmin(), async (req, res) =>
       const rect = normalizeCropRect({ left, top, width, height }, imgW, imgH);
       if (!rect) continue;
 
-      // Note: rotation is ignored in v1; we crop axis-aligned.
+      const rawText = typeof e.text === "string" ? e.text.trim() : "";
+      const typeStr = typeof e.type === "string" ? e.type.toLowerCase() : "";
+      const isText = Boolean(rawText) || typeStr.includes("text");
+
+      if (isText) {
+        const rotationRad = maybeRotationRad(e.rotation);
+
+        // Best-effort TextStyle (Flutter expects a map with these keys).
+        const styleSrc = (e.style && typeof e.style === "object" ? e.style : e) ?? {};
+        const color = parseArgbColor(styleSrc.color ?? styleSrc.textColor ?? styleSrc.fillColor);
+        const fontSize =
+          typeof styleSrc.fontSize === "number" && Number.isFinite(styleSrc.fontSize) ? styleSrc.fontSize : null;
+        const fontFamily = typeof styleSrc.fontFamily === "string" ? styleSrc.fontFamily : null;
+        const fontWeight =
+          typeof styleSrc.fontWeight === "number" && Number.isFinite(styleSrc.fontWeight)
+            ? Math.max(0, Math.min(8, Math.round(styleSrc.fontWeight)))
+            : null;
+        const fontStyle =
+          typeof styleSrc.fontStyle === "number" && Number.isFinite(styleSrc.fontStyle)
+            ? Math.max(0, Math.min(1, Math.round(styleSrc.fontStyle)))
+            : null;
+
+        // Flutter TextAlign index: left=0,right=1,center=2,justify=3,start=4,end=5
+        let textAlign = 0;
+        const ta = styleSrc.textAlign ?? styleSrc.align;
+        if (typeof ta === "number" && Number.isFinite(ta)) {
+          textAlign = Math.max(0, Math.min(5, Math.round(ta)));
+        } else if (typeof ta === "string") {
+          const s = ta.toLowerCase();
+          if (s === "right") textAlign = 1;
+          else if (s === "center") textAlign = 2;
+          else if (s === "justify") textAlign = 3;
+          else if (s === "start") textAlign = 4;
+          else if (s === "end") textAlign = 5;
+          else textAlign = 0;
+        }
+
+        const style = {};
+        if (color != null) style.color = color;
+        if (fontSize != null) style.fontSize = fontSize;
+        if (fontFamily) style.fontFamily = fontFamily;
+        if (fontWeight != null) style.fontWeight = fontWeight;
+        if (fontStyle != null) style.fontStyle = fontStyle;
+
+        components.push({
+          type: "text",
+          id: `canva_text_${randomId(10)}`,
+          position: { dx: rect.left, dy: rect.top },
+          size: { w: rect.width, h: rect.height },
+          rotation: rotationRad,
+          scale: 1,
+          zIndex: z++,
+          habits: [],
+          tasks: [],
+          isDisabled: false,
+          text: rawText || `Text ${i + 1}`,
+          style,
+          textAlign,
+        });
+        continue;
+      }
+
+      // Note: rotation is ignored for image crops (axis-aligned crop).
       const croppedPng = await sharp(pngBytes).extract(rect).png().toBuffer();
       const imageId = `timg_${randomId(16)}`;
       await insertTemplateImagePg({
@@ -550,7 +865,6 @@ app.post("/admin/canva/import/current-page", requireAdmin(), async (req, res) =>
         bytes: croppedPng,
       });
 
-      const rawText = typeof e.text === "string" ? e.text.trim() : "";
       const title = rawText ? rawText.slice(0, 80) : `Layer ${i + 1}`;
 
       components.push({
@@ -576,7 +890,7 @@ app.post("/admin/canva/import/current-page", requireAdmin(), async (req, res) =>
       imageHeight: imgH,
       template: {
         kind: "goal_canvas",
-        templateJson: { components },
+        templateJson: { canvasSize: { w: imgW, h: imgH }, components },
       },
     });
   } catch (e) {

@@ -1,5 +1,87 @@
 import 'cbt_enhancements.dart';
 
+final class HabitTimeBoundSpec {
+  final bool enabled;
+  /// Duration amount in the selected unit.
+  final int duration;
+  /// 'minutes' | 'hours'
+  final String unit;
+
+  const HabitTimeBoundSpec({
+    required this.enabled,
+    required this.duration,
+    required this.unit,
+  });
+
+  int get durationMinutes {
+    final u = unit.trim().toLowerCase();
+    final d = duration < 0 ? 0 : duration;
+    if (u == 'hours') return d * 60;
+    return d;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'duration': duration,
+        'unit': unit,
+      };
+
+  factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
+    final enabled = (json['enabled'] as bool?) ?? false;
+    final duration = (json['duration'] as num?)?.toInt() ?? 0;
+    final unit = (json['unit'] as String?) ?? 'minutes';
+    return HabitTimeBoundSpec(enabled: enabled, duration: duration, unit: unit);
+  }
+}
+
+final class HabitLocationBoundSpec {
+  final bool enabled;
+  final double lat;
+  final double lng;
+  final int radiusMeters;
+  /// 'arrival' | 'dwell' | 'both'
+  final String triggerMode;
+  /// Used when triggerMode is 'dwell' or 'both'
+  final int? dwellMinutes;
+
+  const HabitLocationBoundSpec({
+    required this.enabled,
+    required this.lat,
+    required this.lng,
+    required this.radiusMeters,
+    required this.triggerMode,
+    required this.dwellMinutes,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'lat': lat,
+        'lng': lng,
+        'radiusMeters': radiusMeters,
+        'triggerMode': triggerMode,
+        'dwellMinutes': dwellMinutes,
+      };
+
+  factory HabitLocationBoundSpec.fromJson(Map<String, dynamic> json) {
+    final enabled = (json['enabled'] as bool?) ?? false;
+    final lat = (json['lat'] as num?)?.toDouble() ?? 0.0;
+    final lng = (json['lng'] as num?)?.toDouble() ?? 0.0;
+    final radiusMeters = (json['radiusMeters'] as num?)?.toInt() ??
+        (json['radius_meters'] as num?)?.toInt() ??
+        150;
+    final triggerMode = (json['triggerMode'] as String?) ?? (json['trigger_mode'] as String?) ?? 'arrival';
+    final dwellMinutes = (json['dwellMinutes'] as num?)?.toInt() ?? (json['dwell_minutes'] as num?)?.toInt();
+    return HabitLocationBoundSpec(
+      enabled: enabled,
+      lat: lat,
+      lng: lng,
+      radiusMeters: radiusMeters,
+      triggerMode: triggerMode,
+      dwellMinutes: dwellMinutes,
+    );
+  }
+}
+
 /// Model representing a habit item with completion tracking.
 
 class HabitItem {
@@ -45,6 +127,12 @@ class HabitItem {
   /// Optional CBT enhancements for this habit.
   final CbtEnhancements? cbtEnhancements;
 
+  /// Optional timebound settings (timer / duration tracking).
+  final HabitTimeBoundSpec? timeBound;
+
+  /// Optional location-based settings (geofence + dwell).
+  final HabitLocationBoundSpec? locationBound;
+
   /// List of dates when this habit was completed (stored as date-only, no time)
   final List<DateTime> completedDates;
 
@@ -61,6 +149,8 @@ class HabitItem {
     this.feedbackByDate = const {},
     this.chaining,
     this.cbtEnhancements,
+    this.timeBound,
+    this.locationBound,
     this.completedDates = const [],
   });
 
@@ -83,6 +173,8 @@ class HabitItem {
     Map<String, HabitCompletionFeedback>? feedbackByDate,
     HabitChaining? chaining,
     CbtEnhancements? cbtEnhancements,
+    HabitTimeBoundSpec? timeBound,
+    HabitLocationBoundSpec? locationBound,
     List<DateTime>? completedDates,
   }) {
     return HabitItem(
@@ -98,6 +190,8 @@ class HabitItem {
       feedbackByDate: feedbackByDate ?? this.feedbackByDate,
       chaining: chaining ?? this.chaining,
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
+      timeBound: timeBound ?? this.timeBound,
+      locationBound: locationBound ?? this.locationBound,
       completedDates: completedDates ?? this.completedDates,
     );
   }
@@ -117,6 +211,8 @@ class HabitItem {
       'feedbackByDate': feedbackByDate.map((k, v) => MapEntry(k, v.toJson())),
       'chaining': chaining?.toJson(),
       'cbtEnhancements': cbtEnhancements?.toJson(),
+      'timeBound': timeBound?.toJson(),
+      'locationBound': locationBound?.toJson(),
       'stats': stats,
       'completedDates': completedDates
           .map((date) => date.toIso8601String().split('T')[0])
@@ -182,6 +278,11 @@ class HabitItem {
             HabitCompletionFeedback.fromJson(entry.value as Map<String, dynamic>);
       }
     }
+
+    final timeBoundRaw = (json['timeBound'] as Map<String, dynamic>?) ??
+        (json['time_bound'] as Map<String, dynamic>?);
+    final locationBoundRaw = (json['locationBound'] as Map<String, dynamic>?) ??
+        (json['location_bound'] as Map<String, dynamic>?);
     
     return HabitItem(
       id: json['id'] as String,
@@ -202,6 +303,8 @@ class HabitItem {
           : (json['cbt_enhancements'] is Map<String, dynamic>)
               ? CbtEnhancements.fromJson(json['cbt_enhancements'] as Map<String, dynamic>)
               : null,
+      timeBound: (timeBoundRaw != null) ? HabitTimeBoundSpec.fromJson(timeBoundRaw) : null,
+      locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
       completedDates: dates,
     );
   }

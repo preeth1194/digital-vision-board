@@ -524,6 +524,8 @@ class _WizardHabitsEditor extends StatelessWidget {
       reminderEnabled: req.reminderEnabled,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
     );
   }
 

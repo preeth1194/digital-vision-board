@@ -10,6 +10,7 @@ import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
+import 'habit_timer_screen.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/vision_board/component_image.dart';
 
@@ -556,6 +557,24 @@ class _PendingHabitsToday extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  if (it.habit.timeBound?.enabled == true)
+                                    IconButton(
+                                      tooltip: 'Timer',
+                                      icon: const Icon(Icons.timer_outlined),
+                                      onPressed: () async {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => HabitTimerScreen(
+                                              habit: it.habit,
+                                              onMarkCompleted: () async {
+                                                // Delegate completion to the owning screen so it can persist + sync.
+                                                await onToggleHabit(it.componentId, it.habit);
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                 ],
                               ),
                             ),

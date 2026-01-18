@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../models/habit_item.dart';
 import '../../models/cbt_enhancements.dart';
@@ -14,6 +15,8 @@ final class HabitCreateRequest {
   final bool reminderEnabled;
   final HabitChaining? chaining;
   final CbtEnhancements? cbtEnhancements;
+  final HabitTimeBoundSpec? timeBound;
+  final HabitLocationBoundSpec? locationBound;
 
   const HabitCreateRequest({
     required this.name,
@@ -26,6 +29,8 @@ final class HabitCreateRequest {
     required this.reminderEnabled,
     required this.chaining,
     required this.cbtEnhancements,
+    required this.timeBound,
+    required this.locationBound,
   });
 }
 
@@ -103,6 +108,21 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
   final _reward = TextEditingController();
   double _confidence = 8;
 
+  // Timer/location-bound
+  bool _timeBoundEnabled = false;
+  int _timeBoundDuration = 15;
+  String _timeBoundUnit = 'minutes'; // minutes | hours
+  late final TextEditingController _timeBoundDurationC = TextEditingController();
+
+  bool _locationBoundEnabled = false;
+  double? _locLat;
+  double? _locLng;
+  int _locRadiusMeters = 150;
+  String _locTriggerMode = 'arrival'; // arrival | dwell | both
+  int _locDwellMinutes = 15;
+  late final TextEditingController _locRadiusC = TextEditingController();
+  late final TextEditingController _locDwellMinutesC = TextEditingController();
+
   static const _weekdays = <int, String>{
     DateTime.monday: 'Mon',
     DateTime.tuesday: 'Tue',
@@ -143,9 +163,31 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
         final cs = cbt.confidenceScore;
         if (cs != null) _confidence = cs.clamp(0, 10).toDouble();
       }
+
+      final tb = initialHabit.timeBound;
+      if (tb != null && tb.enabled) {
+        _timeBoundEnabled = true;
+        _timeBoundDuration = tb.duration <= 0 ? 15 : tb.duration;
+        _timeBoundUnit = (tb.unit.trim().isEmpty) ? 'minutes' : tb.unit.trim().toLowerCase();
+      }
+
+      final lb = initialHabit.locationBound;
+      if (lb != null && lb.enabled) {
+        _locationBoundEnabled = true;
+        _locLat = lb.lat;
+        _locLng = lb.lng;
+        _locRadiusMeters = lb.radiusMeters <= 0 ? 150 : lb.radiusMeters;
+        _locTriggerMode = (lb.triggerMode.trim().isEmpty) ? 'arrival' : lb.triggerMode.trim().toLowerCase();
+        final dm = lb.dwellMinutes;
+        if (dm != null && dm > 0) _locDwellMinutes = dm;
+      }
     } else {
       _name.text = (widget.initialName ?? '').trim();
     }
+
+    _timeBoundDurationC.text = _timeBoundDuration.toString();
+    _locRadiusC.text = _locRadiusMeters.toString();
+    _locDwellMinutesC.text = _locDwellMinutes.toString();
   }
 
   @override
@@ -156,6 +198,9 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
     _predictedObstacle.dispose();
     _ifThenPlan.dispose();
     _reward.dispose();
+    _timeBoundDurationC.dispose();
+    _locRadiusC.dispose();
+    _locDwellMinutesC.dispose();
     super.dispose();
   }
 
@@ -227,6 +272,19 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
     final name = _name.text.trim();
     if (name.isEmpty) return;
 
+    if (_timeBoundEnabled && _timeBoundDuration <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Timebound duration must be at least 1.')),
+      );
+      return;
+    }
+    if (_locationBoundEnabled && (_locLat == null || _locLng == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a location (Use current location) or turn off location-based.')),
+      );
+      return;
+    }
+
     String? freqNorm = (_frequency ?? '').trim();
     freqNorm = freqNorm.isEmpty ? null : freqNorm;
     List<int> weeklyDays = (_frequency == 'Weekly') ? (_weeklyDays.toList()..sort()) : const <int>[];
@@ -262,6 +320,29 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
         (cbt.ifThenPlan ?? '').isNotEmpty ||
         (cbt.reward ?? '').isNotEmpty;
 
+    final timeBound = _timeBoundEnabled
+        ? HabitTimeBoundSpec(
+            enabled: true,
+            duration: _timeBoundDuration <= 0 ? 1 : _timeBoundDuration,
+            unit: _timeBoundUnit,
+          )
+        : null;
+
+    final locationBound = _locationBoundEnabled
+        ? ((_locLat == null || _locLng == null)
+            ? null
+            : HabitLocationBoundSpec(
+                enabled: true,
+                lat: _locLat!,
+                lng: _locLng!,
+                radiusMeters: _locRadiusMeters <= 0 ? 150 : _locRadiusMeters,
+                triggerMode: _locTriggerMode,
+                dwellMinutes: (_locTriggerMode == 'dwell' || _locTriggerMode == 'both')
+                    ? (_locDwellMinutes <= 0 ? 1 : _locDwellMinutes)
+                    : null,
+              ))
+        : null;
+
     Navigator.of(context).pop(
       HabitCreateRequest(
         name: name,
@@ -274,8 +355,45 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
         reminderEnabled: _reminderEnabled,
         chaining: chaining,
         cbtEnhancements: hasCbt ? cbt : null,
+        timeBound: timeBound,
+        locationBound: locationBound,
       ),
     );
+  }
+
+  Future<void> _useCurrentLocation() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enable location services to use current location.')),
+        );
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission denied.')),
+        );
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (!mounted) return;
+      setState(() {
+        _locLat = pos.latitude;
+        _locLng = pos.longitude;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not get current location: ${e.toString()}')),
+      );
+    }
   }
 
   @override
@@ -507,6 +625,115 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
                               border: OutlineInputBorder(),
                             ),
                           ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Timebound habit (timer)'),
+                            subtitle: const Text('Track time spent today with pause/resume.'),
+                            value: _timeBoundEnabled,
+                            onChanged: (v) => setState(() => _timeBoundEnabled = v),
+                          ),
+                          if (_timeBoundEnabled) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Duration',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    controller: _timeBoundDurationC,
+                                    onChanged: (v) => setState(() => _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 140,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _timeBoundUnit,
+                                    items: const [
+                                      DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                    ],
+                                    onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Unit',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Location-based habit'),
+                            subtitle: const Text('Start/pause tracking when you enter/exit a place, with optional dwell time.'),
+                            value: _locationBoundEnabled,
+                            onChanged: (v) => setState(() => _locationBoundEnabled = v),
+                          ),
+                          if (_locationBoundEnabled) ...[
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _useCurrentLocation,
+                              icon: const Icon(Icons.my_location),
+                              label: Text(
+                                (_locLat == null || _locLng == null)
+                                    ? 'Use current location'
+                                    : 'Location set (${_locLat!.toStringAsFixed(5)}, ${_locLng!.toStringAsFixed(5)})',
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Radius (meters)',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    controller: _locRadiusC,
+                                    onChanged: (v) => setState(() => _locRadiusMeters = int.tryParse(v) ?? _locRadiusMeters),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 160,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _locTriggerMode,
+                                    items: const [
+                                      DropdownMenuItem(value: 'arrival', child: Text('Arrival')),
+                                      DropdownMenuItem(value: 'dwell', child: Text('Dwell')),
+                                      DropdownMenuItem(value: 'both', child: Text('Both')),
+                                    ],
+                                    onChanged: (v) => setState(() => _locTriggerMode = (v ?? 'arrival')),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Trigger',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_locTriggerMode == 'dwell' || _locTriggerMode == 'both') ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Dwell minutes',
+                                  border: OutlineInputBorder(),
+                                ),
+                                controller: _locDwellMinutesC,
+                                onChanged: (v) => setState(() => _locDwellMinutes = int.tryParse(v) ?? _locDwellMinutes),
+                              ),
+                            ],
+                          ],
                           const SizedBox(height: 12),
                           Row(
                             children: [

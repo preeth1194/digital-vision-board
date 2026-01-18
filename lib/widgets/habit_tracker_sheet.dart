@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/habit_item.dart';
-import '../models/cbt_enhancements.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../models/task_item.dart';
+import '../services/habit_geofence_tracking_service.dart';
 import '../services/notifications_service.dart';
 import '../services/completion_mutations.dart';
 import '../services/logical_date_service.dart';
@@ -51,6 +51,12 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     _habits = List<HabitItem>.from(widget.component.habits);
     _tasks = List<TaskItem>.from(widget.component.tasks);
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptMissedReschedule());
+    // Start/refresh geofence tracking for any location-bound habits in this component.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>(() async {
+        await HabitGeofenceTrackingService.instance.configureForHabits(_habits);
+      });
+    });
   }
 
   @override
@@ -66,6 +72,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   void _updateComponent() {
     _emitComponent(widget.component);
+    // Keep geofence tracking in sync with the latest habit list.
+    Future<void>(() async {
+      await HabitGeofenceTrackingService.instance.configureForHabits(_habits);
+    });
   }
 
   void _toggleHabitCompletion(HabitItem habit) {
@@ -127,6 +137,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         reminderEnabled: req.reminderEnabled,
         chaining: req.chaining,
         cbtEnhancements: req.cbtEnhancements,
+        timeBound: req.timeBound,
+        locationBound: req.locationBound,
       );
       _updateComponent();
     });
@@ -169,6 +181,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           reminderEnabled: req.reminderEnabled,
           chaining: req.chaining,
           cbtEnhancements: req.cbtEnhancements,
+          timeBound: req.timeBound,
+          locationBound: req.locationBound,
           completedDates: const [],
         ),
       );

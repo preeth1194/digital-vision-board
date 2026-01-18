@@ -5,6 +5,7 @@ import '../models/vision_components.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
+import 'habit_timer_screen.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
@@ -85,6 +86,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       reminderEnabled: req.reminderEnabled,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
       completedDates: const [],
     );
 
@@ -287,6 +290,46 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                         ],
                       ],
                     ),
+                    trailing: (habit.timeBound?.enabled == true)
+                        ? IconButton(
+                            tooltip: 'Timer',
+                            icon: const Icon(Icons.timer_outlined),
+                            onPressed: () async {
+                              final latestComponent = _components
+                                  .where((c) => c.id == component.id)
+                                  .cast<VisionComponent?>()
+                                  .firstWhere((_) => true, orElse: () => null);
+                              final latestHabit = (latestComponent?.habits ?? const <HabitItem>[])
+                                  .where((h) => h.id == habit.id)
+                                  .cast<HabitItem?>()
+                                  .firstWhere((_) => true, orElse: () => null);
+
+                              await Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => HabitTimerScreen(
+                                    habit: latestHabit ?? habit,
+                                    onMarkCompleted: () async {
+                                      final cNow = _components
+                                          .where((c) => c.id == component.id)
+                                          .cast<VisionComponent?>()
+                                          .firstWhere((_) => true, orElse: () => null);
+                                      if (cNow == null) return;
+                                      final hNow = cNow.habits
+                                          .where((h) => h.id == habit.id)
+                                          .cast<HabitItem?>()
+                                          .firstWhere((_) => true, orElse: () => null);
+                                      if (hNow == null) return;
+                                      final now = LogicalDateService.now();
+                                      if (!hNow.isScheduledOnDate(now)) return;
+                                      if (hNow.isCompletedForCurrentPeriod(now)) return;
+                                      await _toggleHabit(cNow, hNow);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : null,
                   );
                 }),
               ],

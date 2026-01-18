@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core_value.dart';
+
 class VisionBoardInfo {
   static const String layoutFreeform = 'freeform';
   /// New Canva-style freeform board: goals are image layers only.
@@ -9,6 +11,10 @@ class VisionBoardInfo {
   final String id;
   final String title;
   final int createdAtMs;
+  /// Which core value this board is centered on.
+  ///
+  /// Stored as a stable string id from [CoreValues].
+  final String coreValueId;
   final int iconCodePoint; // Material icon code point
   final int tileColorValue; // ARGB color value
   final String layoutType; // 'freeform' | 'goal_canvas' | 'grid'
@@ -18,6 +24,7 @@ class VisionBoardInfo {
     required this.id,
     required this.title,
     required this.createdAtMs,
+    required this.coreValueId,
     required this.iconCodePoint,
     required this.tileColorValue,
     required this.layoutType,
@@ -28,6 +35,7 @@ class VisionBoardInfo {
         'id': id,
         'title': title,
         'createdAtMs': createdAtMs,
+        'coreValueId': coreValueId,
         'iconCodePoint': iconCodePoint,
         'tileColorValue': tileColorValue,
         'layoutType': layoutType,
@@ -39,6 +47,7 @@ class VisionBoardInfo {
         title: json['title'] as String? ?? 'Untitled',
         createdAtMs: (json['createdAtMs'] as num?)?.toInt() ??
             DateTime.now().millisecondsSinceEpoch,
+        coreValueId: (json['coreValueId'] as String?) ?? CoreValues.growthMindset,
         iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
             Icons.dashboard_outlined.codePoint,
         tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??

@@ -361,3 +361,161 @@ export async function generateWizardRecommendationsWithGemini({
   throw lastValidationError ?? new Error("Gemini response invalid.");
 }
 
+function sanitizeCategoryBundle(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const category =
+    asNonEmptyString(entry.category ?? entry.categoryLabel ?? entry.category_label ?? entry.name) ?? null;
+  if (!category) return null;
+  const goalsRaw = extractGoalsArray(entry);
+  if (!goalsRaw) return null;
+  const goals = goalsRaw.map(sanitizeGoal).filter(Boolean);
+  if (goals.length < 3) return null;
+  return { category, goals: goals.slice(0, 3) };
+}
+
+function extractCategoryBundles(json) {
+  if (!json) return [];
+  if (Array.isArray(json.categories)) return json.categories;
+  if (Array.isArray(json.results)) return json.results;
+  if (json.data && Array.isArray(json.data.categories)) return json.data.categories;
+  const byCat = json.byCategory ?? json.by_category ?? null;
+  if (byCat && typeof byCat === "object") {
+    const out = [];
+    for (const [k, v] of Object.entries(byCat)) {
+      if (!v || typeof v !== "object") continue;
+      out.push({ category: k, ...v });
+    }
+    return out;
+  }
+  return [];
+}
+
+export async function generateWizardRecommendationsBatchWithGemini({
+  coreValueId,
+  coreValueLabel,
+  categories,
+  goalsPerCategory = 3,
+  habitsPerGoal = 3,
+  maxCategoriesPerCall = 6,
+}) {
+  const apiKey = requireEnv("GEMINI_API_KEY");
+  const envModel = asNonEmptyString(process.env.GEMINI_MODEL);
+
+  const modelCandidates = envModel
+    ? [envModel]
+    : ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.0-flash-001"];
+  const apiVersions = ["v1beta", "v1"];
+
+  const cats = Array.isArray(categories) ? categories.map((c) => String(c ?? "").trim()).filter(Boolean) : [];
+  if (cats.isEmpty) return {};
+
+  const chunks = [];
+  for (let i = 0; i < cats.length; i += maxCategoriesPerCall) {
+    chunks.push(cats.slice(i, i + maxCategoriesPerCall));
+  }
+
+  async function callGemini({ promptText, temperature }) {
+    const requestBody = {
+      contents: [{ role: "user", parts: [{ text: promptText }] }],
+      generationConfig: { temperature, maxOutputTokens: 2400, responseMimeType: "application/json" },
+    };
+
+    let lastErr = null;
+    let rawText = null;
+    for (const apiVersion of apiVersions) {
+      for (const model of modelCandidates) {
+        const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
+        url.searchParams.set("key", apiKey);
+
+        const max429Retries = Math.max(0, Math.min(5, Number(process.env.GEMINI_429_RETRIES ?? 3)));
+        let attempt = 0;
+        while (true) {
+          const res = await fetch(url.toString(), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          rawText = await res.text();
+          if (res.status >= 200 && res.status < 300) {
+            lastErr = null;
+            break;
+          }
+          if (res.status === 429 && attempt < max429Retries) {
+            const delayMs = parseRetryDelayMs(rawText) ?? 12000;
+            attempt++;
+            await sleepMs(delayMs);
+            continue;
+          }
+          if (res.status === 404 || res.status === 400) {
+            lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
+            break;
+          }
+          throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+        }
+        if (!lastErr) break;
+      }
+      if (!lastErr) break;
+    }
+    if (lastErr) throw lastErr;
+    if (rawText == null) throw new Error("Gemini call failed without response body");
+    return rawText;
+  }
+
+  const result = {};
+  for (const chunk of chunks) {
+    const instruction = [
+      "You are generating goal + habit recommendations for a vision board app.",
+      "Return ONLY valid JSON (no markdown, no code fences, no commentary).",
+      "Return a JSON object with this top-level schema:",
+      '{ "categories": [ { "category": "string", "goals": [ ... ] } ] }',
+      "",
+      `Constraints: For EACH category, goals.length MUST equal ${goalsPerCategory}.`,
+      `Each goal should include around ${habitsPerGoal} habits.`,
+      "Each habit MUST include cbtEnhancements with non-empty microVersion and reward.",
+    ].join("\n");
+
+    const userPrompt = [
+      `Core value: ${coreValueLabel || coreValueId}`,
+      "Categories:",
+      ...chunk.map((c) => `- ${c}`),
+      "",
+      "Generate the recommendations now.",
+    ].join("\n");
+
+    const promptText = `${instruction}\n\n${userPrompt}`;
+
+    let parsed = null;
+    let lastErr = null;
+    for (const t of [0.4, 0.15]) {
+      try {
+        const rawText = await callGemini({ promptText, temperature: t });
+        const payload = JSON.parse(rawText);
+        const text =
+          payload?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") ??
+          payload?.candidates?.[0]?.content?.parts?.[0]?.text ??
+          null;
+        const jsonText = typeof text === "string" ? text.trim() : rawText.trim();
+        let obj;
+        try {
+          obj = JSON.parse(jsonText);
+        } catch {
+          obj = payload;
+        }
+        parsed = obj;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!parsed) throw lastErr ?? new Error("Gemini batch response invalid.");
+
+    const bundles = extractCategoryBundles(parsed).map(sanitizeCategoryBundle).filter(Boolean);
+    for (const b of bundles) {
+      const key = String(b.category).trim();
+      if (!key) continue;
+      result[key] = { goals: b.goals };
+    }
+  }
+
+  return result;
+}

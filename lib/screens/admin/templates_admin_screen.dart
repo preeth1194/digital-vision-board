@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -27,6 +28,9 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   List<BoardTemplateSummary> _templates = const [];
   String? _canvaUserId;
   bool _wizardSyncing = false;
+  Timer? _wizardSyncPoll;
+  String? _wizardSyncJobId;
+  String? _wizardSyncStatusText;
 
   bool get _isLocalBackend {
     final base = DvAuthService.backendBaseUrl().toLowerCase();
@@ -40,6 +44,12 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _wizardSyncPoll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -293,26 +303,72 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
 
     setState(() => _wizardSyncing = true);
     try {
-      final res = await TemplatesService.adminSyncWizardDefaults(dvToken: token, reset: reset);
+      // Start async job to avoid mobile/Render timeouts.
+      final start = await TemplatesService.adminStartWizardSync(dvToken: token, reset: reset);
+      final jobId = (start['jobId'] as String?)?.trim();
+      if (jobId == null || jobId.isEmpty) throw Exception('Missing jobId from sync start.');
+      debugPrint('Wizard sync started: jobId=$jobId reset=$reset startResponse=$start');
       if (!mounted) return;
-      final seeded = (res['seeded'] as num?)?.toInt();
-      final resetEcho = (res['reset'] as bool?) ?? reset;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            resetEcho
-                ? 'Wizard defaults synced (reset). Seed jobs: ${seeded ?? 0}'
-                : 'Wizard defaults synced. Seed jobs: ${seeded ?? 0}',
-          ),
-        ),
-      );
+      setState(() {
+        _wizardSyncJobId = jobId;
+        _wizardSyncStatusText = 'Started…';
+      });
+
+      // Poll status until finished.
+      _wizardSyncPoll?.cancel();
+      _wizardSyncPoll = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final status = await TemplatesService.adminWizardSyncStatus(dvToken: token, jobId: jobId);
+          final job = status['job'] as Map<String, dynamic>?;
+          if (job == null) return;
+          final running = (job['running'] as bool?) ?? false;
+          final total = (job['total'] as num?)?.toInt() ?? 0;
+          final succ = (job['succeeded'] as num?)?.toInt() ?? 0;
+          final skip = (job['skipped'] as num?)?.toInt() ?? 0;
+          final fail = (job['failed'] as num?)?.toInt() ?? 0;
+          // Keep logs lightweight while polling.
+          debugPrint('Wizard sync poll: jobId=$jobId running=$running ok=$succ skipped=$skip failed=$fail total=$total');
+          if (!mounted) return;
+          setState(() {
+            _wizardSyncStatusText = running
+                ? 'Running: $succ ok • $skip skipped • $fail failed • $total total'
+                : 'Done: $succ ok • $skip skipped • $fail failed • $total total';
+          });
+          if (!running) {
+            _wizardSyncPoll?.cancel();
+            if (!mounted) return;
+            final resetEcho = (job['reset'] as bool?) ?? reset;
+            final sampleErrors = job['sampleErrors'];
+            if (fail > 0) {
+              debugPrint('Wizard sync finished with failures: jobId=$jobId sampleErrors=$sampleErrors fullJob=$job');
+            } else {
+              debugPrint('Wizard sync finished: jobId=$jobId fullJob=$job');
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  resetEcho
+                      ? 'Wizard sync finished (reset). ok=$succ, skipped=$skip, failed=$fail'
+                      : 'Wizard sync finished. ok=$succ, skipped=$skip, failed=$fail',
+                ),
+              ),
+            );
+            setState(() => _wizardSyncing = false);
+          }
+        } catch (e) {
+          // Ignore intermittent errors while polling, but log for debugging.
+          debugPrint('Wizard sync poll error: jobId=$jobId error=$e');
+        }
+      });
     } catch (e) {
       if (!mounted) return;
+      debugPrint('Wizard sync failed (start): reset=$reset error=$e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Wizard sync failed: ${e.toString()}')),
       );
     } finally {
-      if (mounted) setState(() => _wizardSyncing = false);
+      // Don't clear _wizardSyncing here; polling will end it.
+      if (mounted && _wizardSyncPoll == null) setState(() => _wizardSyncing = false);
     }
   }
 
@@ -377,7 +433,11 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.sync_outlined),
                       title: const Text('Sync wizard defaults + recommendations'),
-                      subtitle: const Text('Seeds 3 goals per default category using Gemini.'),
+                      subtitle: Text(
+                        (_wizardSyncing && (_wizardSyncStatusText ?? '').isNotEmpty)
+                            ? _wizardSyncStatusText!
+                            : 'Seeds 3 goals per default category using Gemini.',
+                      ),
                       trailing: _wizardSyncing
                           ? const SizedBox(
                               width: 18,

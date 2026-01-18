@@ -110,12 +110,7 @@ class AllBoardsHabitsTab extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'All Boards Habits',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                const Spacer(),
                 FilledButton.icon(
                   onPressed: addHabitGlobal,
                   icon: const Icon(Icons.add),

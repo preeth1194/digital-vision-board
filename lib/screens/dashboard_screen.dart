@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/core_value.dart';
 import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
-import '../models/grid_tile_model.dart';
 import '../services/boards_storage_service.dart';
-import '../services/grid_tiles_storage_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
@@ -18,6 +17,7 @@ import '../services/sync_service.dart';
 import '../services/logical_date_service.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
+import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
 import 'physical_board_editor_screen.dart';
@@ -311,69 +311,32 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       return;
     }
 
-    // Handle import options - these skip the normal board creation flow
-    if (layoutType == 'import_physical') {
-      // Create a temporary freeform board for import
-      final config = await showNewBoardDialog(context);
-      if (!mounted) return;
-      if (config == null || config.title.isEmpty) return;
-
-      final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
-      final board = VisionBoardInfo(
-        id: id,
-        title: config.title,
-        createdAtMs: DateTime.now().millisecondsSinceEpoch,
-        iconCodePoint: config.iconCodePoint,
-        tileColorValue: config.tileColorValue,
-        layoutType: VisionBoardInfo.layoutFreeform,
-        templateId: null,
+    if (layoutType == 'create_wizard') {
+      final res = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const CreateBoardWizardScreen()),
       );
-
-      final next = [board, ..._boards];
-      await _saveBoards(next);
-      await _setActiveBoard(id);
-      if (!mounted) return;
-      setState(() => _boards = next);
-
-      // Navigate to editor and trigger import
-      if (!mounted) return;
-      final result = await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PhysicalBoardEditorScreen(
-            boardId: id,
-            title: config.title,
-            autoStartImport: true,
-          ),
-        ),
-      );
-
-      if (mounted) {
-        if (result == true) await _reload();
-        setState(() => _activeBoardId = id);
+      if (mounted && res == true) {
+        await _reload();
+        await _refreshReminders();
       }
       return;
-    }
-
-    GridTemplate? gridTemplate;
-    if (layoutType == VisionBoardInfo.layoutGrid) {
-      gridTemplate = await showGridTemplateSelectorSheet(context);
-      if (!mounted) return;
-      if (gridTemplate == null) return;
     }
 
     final config = await showNewBoardDialog(context);
     if (!mounted) return;
     if (config == null || config.title.isEmpty) return;
 
+    final core = CoreValues.byId(config.coreValueId);
     final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
     final board = VisionBoardInfo(
       id: id,
       title: config.title,
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
-      iconCodePoint: config.iconCodePoint,
-      tileColorValue: config.tileColorValue,
+      coreValueId: core.id,
+      iconCodePoint: core.icon.codePoint,
+      tileColorValue: core.tileColor.toARGB32(),
       layoutType: layoutType,
-      templateId: gridTemplate?.id,
+      templateId: null,
     );
 
     final next = [board, ..._boards];
@@ -382,32 +345,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (!mounted) return;
     setState(() => _boards = next);
 
-    if (layoutType == VisionBoardInfo.layoutGrid && gridTemplate != null) {
-      // Initialize the fixed template tiles (empty placeholders).
-      final tiles = List<GridTileModel>.generate(
-        gridTemplate.tiles.length,
-        (i) => GridTileModel(
-          id: 'tile_$i',
-          type: 'empty',
-          content: null,
-          crossAxisCellCount: gridTemplate!.tiles[i].crossAxisCount,
-          mainAxisCellCount: gridTemplate.tiles[i].mainAxisCount,
-          index: i,
-        ),
-      );
-      await GridTilesStorageService.saveTiles(id, tiles, prefs: _prefs);
-    }
-
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => switch (layoutType) {
-          VisionBoardInfo.layoutGrid => GridEditorScreen(
-              boardId: id,
-              title: board.title,
-              initialIsEditing: true,
-              template: gridTemplate ?? GridTemplates.hero,
-            ),
           VisionBoardInfo.layoutGoalCanvas => GoalCanvasEditorScreen(
               boardId: id,
               title: board.title,
@@ -585,7 +526,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.today_outlined), label: 'Daily'),
           BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
           BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),

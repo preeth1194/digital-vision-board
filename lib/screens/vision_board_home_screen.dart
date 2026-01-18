@@ -1,0 +1,110 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/vision_board_info.dart';
+import '../services/boards_storage_service.dart';
+import '../widgets/flip/flip_card.dart';
+import 'dashboard_screen.dart';
+import 'vision_board_home_widgets.dart';
+
+/// Landing screen:
+/// - If no boards exist => show Dashboard
+/// - If boards exist => show a flip-card view for the default (active) board
+class VisionBoardHomeScreen extends StatefulWidget {
+  const VisionBoardHomeScreen({super.key});
+
+  @override
+  State<VisionBoardHomeScreen> createState() => _VisionBoardHomeScreenState();
+}
+
+class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
+  bool _loading = true;
+  SharedPreferences? _prefs;
+  List<VisionBoardInfo> _boards = const [];
+  String? _activeBoardId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: prefs);
+    final activeId = await BoardsStorageService.loadActiveBoardId(prefs: prefs);
+    if (!mounted) return;
+    setState(() {
+      _prefs = prefs;
+      _boards = boards;
+      _activeBoardId = activeId;
+      _loading = false;
+    });
+  }
+
+  VisionBoardInfo? _activeBoard() {
+    if (_boards.isEmpty) return null;
+    final activeId = (_activeBoardId ?? '').trim();
+    final found = _boards.cast<VisionBoardInfo?>().firstWhere(
+          (b) => b?.id == activeId,
+          orElse: () => null,
+        );
+    return found ?? _boards.first;
+  }
+
+  Future<void> _pickDefaultBoard() async {
+    if (_boards.length < 2) return;
+    final picked = await showBoardPickerSheet(context, boards: _boards, activeBoardId: _activeBoardId);
+    if (picked == null) return;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await BoardsStorageService.setActiveBoardId(picked.id, prefs: prefs);
+    if (!mounted) return;
+    setState(() => _activeBoardId = picked.id);
+  }
+
+  Future<void> _openDashboard() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_boards.isEmpty) {
+      return const DashboardScreen();
+    }
+
+    final board = _activeBoard();
+    if (board == null) return const DashboardScreen();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(board.title),
+        actions: [
+          if (_boards.length > 1)
+            IconButton(
+              tooltip: 'Change default board',
+              icon: const Icon(Icons.swap_horiz),
+              onPressed: _pickDefaultBoard,
+            ),
+          IconButton(
+            tooltip: 'Dashboard',
+            icon: const Icon(Icons.dashboard_outlined),
+            onPressed: _openDashboard,
+          ),
+        ],
+      ),
+      body: FlipCard(
+        front: VisionBoardHomeFront(board: board),
+        back: VisionBoardHomeBack(board: board),
+      ),
+    );
+  }
+}
+

@@ -26,6 +26,9 @@ class GridEditorScreen extends StatefulWidget {
   final String title;
   final bool initialIsEditing;
   final GridTemplate template;
+  /// When true, show a wizard-only AppBar action to proceed (closes editor with `true`).
+  final bool wizardShowNext;
+  final String wizardNextLabel;
 
   const GridEditorScreen({
     super.key,
@@ -33,6 +36,8 @@ class GridEditorScreen extends StatefulWidget {
     required this.title,
     required this.initialIsEditing,
     required this.template,
+    this.wizardShowNext = false,
+    this.wizardNextLabel = 'Next',
   });
 
   @override
@@ -593,6 +598,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         title: Text(_isEditing ? 'Edit: ${widget.title}' : viewTitle),
         leading: const BackButton(),
         actions: [
+          if (widget.wizardShowNext)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(widget.wizardNextLabel),
+            ),
           IconButton(
             tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
             icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
@@ -814,6 +824,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                             }
                                             if (tile.type == 'text') {
                                               await _editText(i);
+                                              return;
+                                            }
+                                            if (tile.type == 'image') {
+                                              await _pickAndSetImage(i);
                                             }
                                           },
                                     child: tileStack,

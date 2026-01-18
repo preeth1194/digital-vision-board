@@ -48,7 +48,7 @@ import {
   listTemplatesPg,
   upsertTemplatePg,
 } from "./templates_pg.js";
-import { generateWizardRecommendationsWithGemini } from "./gemini.js";
+import { generateWizardRecommendationsBatchWithGemini, generateWizardRecommendationsWithGemini } from "./gemini.js";
 
 const app = express();
 
@@ -357,61 +357,106 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
 
   const categoriesByCore = defaults.categoriesByCoreValueId ?? {};
 
-  // Build tasks list
+  // Build task list (for progress counts)
   const tasks = [];
   for (const coreValueId of Object.keys(categoriesByCore)) {
     const cats = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
-    const coreLabel = defaults.coreValues.find((c) => c.id === coreValueId)?.label ?? coreValueId;
     for (const cat of cats) {
       const category = String(cat ?? "").trim();
       if (!category) continue;
-      const categoryKey = normalizeCategoryKey(category);
-      tasks.push({ coreValueId, coreLabel, category, categoryKey });
+      tasks.push({ coreValueId, category, categoryKey: normalizeCategoryKey(category) });
     }
   }
-
   if (job) job.total = tasks.length;
 
-  // Concurrency limit to avoid rate limits.
-  // Default to 1 to be safe on Gemini free-tier quotas (5 req/min).
-  const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 1)));
-  let idx = 0;
-  const sampleErrors = [];
   let succeeded = 0;
   let skipped = 0;
   let failed = 0;
+  const sampleErrors = [];
 
-  async function worker() {
-    while (idx < tasks.length) {
-      const i = idx++;
-      const t = tasks[i];
-      try {
-        if (!reset) {
-          const existing = await getWizardRecommendations({ coreValueId: t.coreValueId, categoryKey: t.categoryKey });
-          if (existing?.recommendations) {
-            skipped++;
-            if (job) job.skipped = skipped;
-            continue;
-          }
+  // Batch by core value to reduce Gemini requests (fits free-tier daily quotas).
+  for (const coreValueId of Object.keys(categoriesByCore)) {
+    const coreLabel = defaults.coreValues.find((c) => c.id === coreValueId)?.label ?? coreValueId;
+    const catsRaw = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
+    const cats = catsRaw.map((c) => String(c ?? "").trim()).filter(Boolean);
+    if (cats.length === 0) continue;
+
+    // If not reset, filter to only missing categories (reduces calls further).
+    let toGenerate = cats;
+    if (!reset) {
+      const missing = [];
+      for (const category of cats) {
+        const categoryKey = normalizeCategoryKey(category);
+        const existing = await getWizardRecommendations({ coreValueId, categoryKey });
+        if (existing?.recommendations) {
+          skipped++;
+          if (job) job.skipped = skipped;
+        } else {
+          missing.push(category);
         }
-        const recommendations = await generateWizardRecommendationsWithGemini({
-          coreValueId: t.coreValueId,
-          coreValueLabel: t.coreLabel,
-          category: t.category,
-          goalsPerCategory: 3,
-          habitsPerGoal: 3,
-        });
+      }
+      toGenerate = missing;
+    }
+    if (toGenerate.length === 0) continue;
+
+    try {
+      const batch = await generateWizardRecommendationsBatchWithGemini({
+        coreValueId,
+        coreValueLabel: coreLabel,
+        categories: toGenerate,
+        goalsPerCategory: 3,
+        habitsPerGoal: 3,
+        maxCategoriesPerCall: Number(process.env.WIZARD_BATCH_MAX_CATEGORIES ?? 6),
+      });
+
+      for (const category of toGenerate) {
+        const found = batch[category] ?? batch[String(category).toLowerCase()] ?? null;
+        if (!found?.goals || !Array.isArray(found.goals) || found.goals.length < 3) {
+          // Fallback to single-category generation for this category.
+          try {
+            const recommendations = await generateWizardRecommendationsWithGemini({
+              coreValueId,
+              coreValueLabel: coreLabel,
+              category,
+              goalsPerCategory: 3,
+              habitsPerGoal: 3,
+            });
+            await upsertWizardRecommendations({
+              coreValueId,
+              categoryKey: normalizeCategoryKey(category),
+              categoryLabel: category,
+              recommendations,
+              source: "gemini",
+              createdBy,
+            });
+            succeeded++;
+            if (job) job.succeeded = succeeded;
+          } catch (e) {
+            failed++;
+            const err = String(e?.message ?? e);
+            if (sampleErrors.length < 3) sampleErrors.push(err);
+            if (job) {
+              job.failed = failed;
+              job.sampleErrors = sampleErrors;
+            }
+          }
+          continue;
+        }
+
         await upsertWizardRecommendations({
-          coreValueId: t.coreValueId,
-          categoryKey: t.categoryKey,
-          categoryLabel: t.category,
-          recommendations,
+          coreValueId,
+          categoryKey: normalizeCategoryKey(category),
+          categoryLabel: category,
+          recommendations: { goals: found.goals },
           source: "gemini",
           createdBy,
         });
         succeeded++;
         if (job) job.succeeded = succeeded;
-      } catch (e) {
+      }
+    } catch (e) {
+      // If a whole batch fails (quota, parse, etc), mark each category as failed but keep going.
+      for (let i = 0; i < toGenerate.length; i++) {
         failed++;
         const err = String(e?.message ?? e);
         if (sampleErrors.length < 3) sampleErrors.push(err);
@@ -423,15 +468,7 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
     }
   }
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-  return {
-    total: tasks.length,
-    succeeded,
-    skipped,
-    failed,
-    sampleErrors,
-  };
+  return { total: tasks.length, succeeded, skipped, failed, sampleErrors };
 }
 
 /**

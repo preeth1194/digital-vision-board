@@ -31,6 +31,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   Timer? _wizardSyncPoll;
   String? _wizardSyncJobId;
   String? _wizardSyncStatusText;
+  int _wizardSyncLastLoggedFailed = 0;
 
   bool get _isLocalBackend {
     final base = DvAuthService.backendBaseUrl().toLowerCase();
@@ -312,6 +313,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       setState(() {
         _wizardSyncJobId = jobId;
         _wizardSyncStatusText = 'Started…';
+        _wizardSyncLastLoggedFailed = 0;
       });
 
       // Poll status until finished.
@@ -328,6 +330,11 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
           final fail = (job['failed'] as num?)?.toInt() ?? 0;
           // Keep logs lightweight while polling.
           debugPrint('Wizard sync poll: jobId=$jobId running=$running ok=$succ skipped=$skip failed=$fail total=$total');
+          final sampleErrors = job['sampleErrors'];
+          if (fail > _wizardSyncLastLoggedFailed && sampleErrors != null) {
+            _wizardSyncLastLoggedFailed = fail;
+            debugPrint('Wizard sync sampleErrors (jobId=$jobId): $sampleErrors');
+          }
           if (!mounted) return;
           setState(() {
             _wizardSyncStatusText = running
@@ -338,7 +345,6 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
             _wizardSyncPoll?.cancel();
             if (!mounted) return;
             final resetEcho = (job['reset'] as bool?) ?? reset;
-            final sampleErrors = job['sampleErrors'];
             if (fail > 0) {
               debugPrint('Wizard sync finished with failures: jobId=$jobId sampleErrors=$sampleErrors fullJob=$job');
             } else {

@@ -189,12 +189,39 @@ final class TemplatesService {
     required String dvToken,
     required bool reset,
   }) async {
+    // Back-compat: still supported, but may time out on hosted backends.
     final json = await _postJson(
       path: '/admin/wizard/sync-defaults',
       dvToken: dvToken,
       body: {'reset': reset},
     );
     return json;
+  }
+
+  static Future<Map<String, dynamic>> adminStartWizardSync({
+    required String dvToken,
+    required bool reset,
+  }) async {
+    final json = await _postJson(
+      path: '/admin/wizard/sync-defaults/start',
+      dvToken: dvToken,
+      body: {'reset': reset},
+    );
+    return json;
+  }
+
+  static Future<Map<String, dynamic>> adminWizardSyncStatus({
+    required String dvToken,
+    required String jobId,
+  }) async {
+    final uri = _url('/admin/wizard/sync-defaults/status').replace(
+      queryParameters: {'jobId': jobId},
+    );
+    final res = await http.get(uri, headers: {'Authorization': 'Bearer $dvToken'});
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Request failed (${res.statusCode}): ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 }
 

@@ -69,6 +69,10 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
 });
 
+// In-memory job tracker for long-running admin operations (Render/mobile requests can time out).
+// This keeps the HTTP request short and lets clients poll.
+const wizardSyncJobs = new Map(); // jobId -> { ...status }
+
 function normalizeCategoryKey(category) {
   return String(category ?? "")
     .trim()
@@ -232,6 +236,50 @@ app.post("/wizard/recommendations/generate", async (req, res) => {
 // ---- Wizard sync/reset (admin) ----
 app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
   try {
+    // Back-compat endpoint.
+    // If called directly, start an async job by default to avoid client timeouts.
+    const asyncDefault = String(process.env.WIZARD_SYNC_ASYNC_DEFAULT ?? "true").trim().toLowerCase() !== "false";
+    const wantsSync = String(req.query.wait ?? "").trim().toLowerCase() === "true";
+    if (asyncDefault && !wantsSync) {
+      // Delegate to start endpoint semantics.
+      const reset = Boolean(req.body?.reset);
+      const createdBy = req.dvUser?.canvaUserId ?? null;
+      const jobId = `wjob_${randomId(12)}`;
+      const job = {
+        jobId,
+        reset,
+        createdBy,
+        running: true,
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
+        total: 0,
+        succeeded: 0,
+        skipped: 0,
+        failed: 0,
+        sampleErrors: [],
+      };
+      wizardSyncJobs.set(jobId, job);
+      // Fire and forget.
+      (async () => {
+        try {
+          const result = await runWizardSyncDefaultsJob({ reset, createdBy, job });
+          Object.assign(job, result, { running: false, finishedAt: new Date().toISOString() });
+        } catch (e) {
+          job.running = false;
+          job.finishedAt = new Date().toISOString();
+          job.failed = job.failed ?? 0;
+          job.sampleErrors = [...(job.sampleErrors ?? []), String(e?.message ?? e)].slice(0, 5);
+        }
+      })();
+
+      return res.status(202).json({
+        ok: true,
+        async: true,
+        jobId,
+        statusUrl: `/admin/wizard/sync-defaults/status?jobId=${encodeURIComponent(jobId)}`,
+      });
+    }
+
     const reset = Boolean(req.body?.reset);
     const defaults = defaultWizardDefaults();
     // Always re-write defaults (idempotent).
@@ -240,79 +288,151 @@ app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
     const categoriesByCore = defaults.categoriesByCoreValueId ?? {};
     const createdBy = req.dvUser?.canvaUserId ?? null;
 
-    // Optionally re-seed default-category recommendations (Gemini).
-    // Note: we don't delete rows in reset; we upsert so this is safe and simple.
-    const jobs = [];
-    for (const coreValueId of Object.keys(categoriesByCore)) {
-      const cats = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
-      const coreLabel = defaults.coreValues.find((c) => c.id === coreValueId)?.label ?? coreValueId;
-      for (const cat of cats) {
-        const category = String(cat ?? "").trim();
-        if (!category) continue;
-        const categoryKey = normalizeCategoryKey(category);
-        jobs.push(async () => {
-          try {
-            if (!reset) {
-              const existing = await getWizardRecommendations({ coreValueId, categoryKey });
-              if (existing?.recommendations) return { skipped: true };
-            }
-            const recommendations = await generateWizardRecommendationsWithGemini({
-              coreValueId,
-              coreValueLabel: coreLabel,
-              category,
-              goalsPerCategory: 3,
-              habitsPerGoal: 3,
-            });
-            await upsertWizardRecommendations({
-              coreValueId,
-              categoryKey,
-              categoryLabel: category,
-              recommendations,
-              source: "gemini",
-              createdBy,
-            });
-            return { ok: true };
-          } catch (e) {
-            return { ok: false, error: String(e?.message ?? e) };
-          }
-        });
-      }
-    }
-
-    // Concurrency limit to avoid rate limits.
-    // Default to 1 to be safe on Gemini free-tier quotas (5 req/min).
-    const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 1)));
-    let idx = 0;
-    const results = [];
-    async function worker() {
-      while (idx < jobs.length) {
-        const i = idx++;
-        results[i] = await jobs[i]();
-      }
-    }
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-    const succeeded = results.filter((r) => r && r.ok === true).length;
-    const skipped = results.filter((r) => r && r.skipped === true).length;
-    const failed = results.filter((r) => r && r.ok === false).length;
-    const sampleErrors = results
-      .filter((r) => r && r.ok === false && typeof r.error === "string" && r.error)
-      .slice(0, 3)
-      .map((r) => r.error);
+    const result = await runWizardSyncDefaultsJob({ reset, createdBy, job: null });
 
     res.json({
       ok: true,
       reset,
-      seeded: jobs.length,
-      succeeded,
-      skipped,
-      failed,
-      sampleErrors,
+      seeded: result.total,
+      succeeded: result.succeeded,
+      skipped: result.skipped,
+      failed: result.failed,
+      sampleErrors: result.sampleErrors,
     });
   } catch (e) {
     res.status(500).json({ error: "wizard_sync_failed", message: String(e?.message ?? e) });
   }
 });
+
+app.post("/admin/wizard/sync-defaults/start", requireAdmin(), async (req, res) => {
+  const reset = Boolean(req.body?.reset);
+  const createdBy = req.dvUser?.canvaUserId ?? null;
+  const jobId = `wjob_${randomId(12)}`;
+  const job = {
+    jobId,
+    reset,
+    createdBy,
+    running: true,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    total: 0,
+    succeeded: 0,
+    skipped: 0,
+    failed: 0,
+    sampleErrors: [],
+  };
+  wizardSyncJobs.set(jobId, job);
+
+  (async () => {
+    try {
+      const result = await runWizardSyncDefaultsJob({ reset, createdBy, job });
+      Object.assign(job, result, { running: false, finishedAt: new Date().toISOString() });
+    } catch (e) {
+      job.running = false;
+      job.finishedAt = new Date().toISOString();
+      job.failed = job.failed ?? 0;
+      job.sampleErrors = [...(job.sampleErrors ?? []), String(e?.message ?? e)].slice(0, 5);
+    }
+  })();
+
+  res.status(202).json({
+    ok: true,
+    async: true,
+    jobId,
+    statusUrl: `/admin/wizard/sync-defaults/status?jobId=${encodeURIComponent(jobId)}`,
+  });
+});
+
+app.get("/admin/wizard/sync-defaults/status", requireAdmin(), async (req, res) => {
+  const jobId = typeof req.query.jobId === "string" ? req.query.jobId.trim() : "";
+  if (!jobId) return res.status(400).json({ error: "missing_jobId" });
+  const job = wizardSyncJobs.get(jobId);
+  if (!job) return res.status(404).json({ error: "job_not_found" });
+  res.json({ ok: true, job });
+});
+
+async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
+  const defaults = defaultWizardDefaults();
+  await putWizardDefaults({ defaults });
+
+  const categoriesByCore = defaults.categoriesByCoreValueId ?? {};
+
+  // Build tasks list
+  const tasks = [];
+  for (const coreValueId of Object.keys(categoriesByCore)) {
+    const cats = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
+    const coreLabel = defaults.coreValues.find((c) => c.id === coreValueId)?.label ?? coreValueId;
+    for (const cat of cats) {
+      const category = String(cat ?? "").trim();
+      if (!category) continue;
+      const categoryKey = normalizeCategoryKey(category);
+      tasks.push({ coreValueId, coreLabel, category, categoryKey });
+    }
+  }
+
+  if (job) job.total = tasks.length;
+
+  // Concurrency limit to avoid rate limits.
+  // Default to 1 to be safe on Gemini free-tier quotas (5 req/min).
+  const concurrency = Math.max(1, Math.min(3, Number(process.env.WIZARD_SEED_CONCURRENCY ?? 1)));
+  let idx = 0;
+  const sampleErrors = [];
+  let succeeded = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++;
+      const t = tasks[i];
+      try {
+        if (!reset) {
+          const existing = await getWizardRecommendations({ coreValueId: t.coreValueId, categoryKey: t.categoryKey });
+          if (existing?.recommendations) {
+            skipped++;
+            if (job) job.skipped = skipped;
+            continue;
+          }
+        }
+        const recommendations = await generateWizardRecommendationsWithGemini({
+          coreValueId: t.coreValueId,
+          coreValueLabel: t.coreLabel,
+          category: t.category,
+          goalsPerCategory: 3,
+          habitsPerGoal: 3,
+        });
+        await upsertWizardRecommendations({
+          coreValueId: t.coreValueId,
+          categoryKey: t.categoryKey,
+          categoryLabel: t.category,
+          recommendations,
+          source: "gemini",
+          createdBy,
+        });
+        succeeded++;
+        if (job) job.succeeded = succeeded;
+      } catch (e) {
+        failed++;
+        const err = String(e?.message ?? e);
+        if (sampleErrors.length < 3) sampleErrors.push(err);
+        if (job) {
+          job.failed = failed;
+          job.sampleErrors = sampleErrors;
+        }
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+  return {
+    total: tasks.length,
+    succeeded,
+    skipped,
+    failed,
+    sampleErrors,
+  };
+}
 
 /**
  * Guest auth (no Canva required).

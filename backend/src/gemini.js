@@ -86,8 +86,26 @@ function parseRetryDelayMs(rawText) {
   return null;
 }
 
+function extractGoalsArray(json) {
+  if (!json) return null;
+  // Common case: { goals: [...] }
+  if (Array.isArray(json.goals)) return json.goals;
+  // Sometimes: { recommendations: { goals: [...] } }
+  if (json.recommendations && Array.isArray(json.recommendations.goals)) return json.recommendations.goals;
+  // Sometimes: { recommendations: [...] } (array of goals)
+  if (Array.isArray(json.recommendations)) return json.recommendations;
+  // Sometimes: { items: [...] } or { suggestions: [...] }
+  if (Array.isArray(json.items)) return json.items;
+  if (Array.isArray(json.suggestions)) return json.suggestions;
+  // Sometimes the model returns the array directly.
+  if (Array.isArray(json)) return json;
+  // One more nesting level (defensive)
+  if (json.data && Array.isArray(json.data.goals)) return json.data.goals;
+  return null;
+}
+
 export function validateAndNormalizeRecommendationsJson(json) {
-  const goalsRaw = Array.isArray(json?.goals) ? json.goals : null;
+  const goalsRaw = extractGoalsArray(json);
   if (!goalsRaw) return null;
   const goals = goalsRaw.map(sanitizeGoal).filter(Boolean);
   if (goals.length < 3) return null;
@@ -220,7 +238,8 @@ export async function generateWizardRecommendationsWithGemini({
     return rawText;
   }
 
-  // Some models occasionally omit fields; retry once with lower temperature.
+  // Some models occasionally omit fields; retry with lower temperature,
+  // and as a last resort tighten the prompt.
   const attemptTemps = [0.6, 0.2];
   let lastValidationError = null;
   for (const t of attemptTemps) {
@@ -252,6 +271,91 @@ export async function generateWizardRecommendationsWithGemini({
     const validated = validateAndNormalizeRecommendationsJson(obj);
     if (validated) return validated;
     lastValidationError = new Error("Gemini response did not match expected recommendations schema (need >= 3 goals).");
+  }
+
+  // Last resort: ask again with stricter phrasing to force 3 items.
+  async function callGeminiOnceWithPrompt({ temperature, promptText }) {
+    const requestBody = {
+      contents: [{ role: "user", parts: [{ text: promptText }] }],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: 1400,
+        responseMimeType: "application/json",
+      },
+    };
+
+    let lastErr = null;
+    let rawText = null;
+    for (const apiVersion of apiVersions) {
+      for (const model of modelCandidates) {
+        const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
+        url.searchParams.set("key", apiKey);
+
+        const max429Retries = Math.max(0, Math.min(5, Number(process.env.GEMINI_429_RETRIES ?? 3)));
+        let attempt = 0;
+        while (true) {
+          const res = await fetch(url.toString(), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          rawText = await res.text();
+          if (res.status >= 200 && res.status < 300) {
+            lastErr = null;
+            break;
+          }
+
+          if (res.status === 429 && attempt < max429Retries) {
+            const delayMs = parseRetryDelayMs(rawText) ?? 12000;
+            attempt++;
+            await sleepMs(delayMs);
+            continue;
+          }
+
+          if (res.status === 404 || res.status === 400) {
+            lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
+            break;
+          }
+
+          throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+        }
+        if (!lastErr) break;
+      }
+      if (!lastErr) break;
+    }
+    if (lastErr) throw lastErr;
+    if (rawText == null) throw new Error("Gemini call failed without response body");
+    return rawText;
+  }
+
+  const strictPromptText = [
+    instruction,
+    "",
+    `IMPORTANT: Return EXACTLY ${goalsPerCategory} goals in a top-level "goals" array (no fewer).`,
+    `If you are unsure, still return ${goalsPerCategory} plausible goals.`,
+    "",
+    userPrompt,
+  ].join("\n");
+
+  const strictRaw = await callGeminiOnceWithPrompt({ temperature: 0.1, promptText: strictPromptText });
+  try {
+    const payload = JSON.parse(strictRaw);
+    const text =
+      payload?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("") ??
+      payload?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      null;
+    const jsonText = typeof text === "string" ? text.trim() : strictRaw.trim();
+    let obj;
+    try {
+      obj = JSON.parse(jsonText);
+    } catch {
+      obj = payload;
+    }
+    const validated = validateAndNormalizeRecommendationsJson(obj);
+    if (validated) return validated;
+  } catch (e) {
+    // fall through
+    lastValidationError = e;
   }
 
   throw lastValidationError ?? new Error("Gemini response invalid.");

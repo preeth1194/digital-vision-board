@@ -251,26 +251,30 @@ app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
         if (!category) continue;
         const categoryKey = normalizeCategoryKey(category);
         jobs.push(async () => {
-          if (!reset) {
-            const existing = await getWizardRecommendations({ coreValueId, categoryKey });
-            if (existing?.recommendations) return { skipped: true };
+          try {
+            if (!reset) {
+              const existing = await getWizardRecommendations({ coreValueId, categoryKey });
+              if (existing?.recommendations) return { skipped: true };
+            }
+            const recommendations = await generateWizardRecommendationsWithGemini({
+              coreValueId,
+              coreValueLabel: coreLabel,
+              category,
+              goalsPerCategory: 3,
+              habitsPerGoal: 3,
+            });
+            await upsertWizardRecommendations({
+              coreValueId,
+              categoryKey,
+              categoryLabel: category,
+              recommendations,
+              source: "gemini",
+              createdBy,
+            });
+            return { ok: true };
+          } catch (e) {
+            return { ok: false, error: String(e?.message ?? e) };
           }
-          const recommendations = await generateWizardRecommendationsWithGemini({
-            coreValueId,
-            coreValueLabel: coreLabel,
-            category,
-            goalsPerCategory: 3,
-            habitsPerGoal: 3,
-          });
-          await upsertWizardRecommendations({
-            coreValueId,
-            categoryKey,
-            categoryLabel: category,
-            recommendations,
-            source: "gemini",
-            createdBy,
-          });
-          return { ok: true };
         });
       }
     }
@@ -288,10 +292,22 @@ app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
     }
     await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
+    const succeeded = results.filter((r) => r && r.ok === true).length;
+    const skipped = results.filter((r) => r && r.skipped === true).length;
+    const failed = results.filter((r) => r && r.ok === false).length;
+    const sampleErrors = results
+      .filter((r) => r && r.ok === false && typeof r.error === "string" && r.error)
+      .slice(0, 3)
+      .map((r) => r.error);
+
     res.json({
       ok: true,
       reset,
       seeded: jobs.length,
+      succeeded,
+      skipped,
+      failed,
+      sampleErrors,
     });
   } catch (e) {
     res.status(500).json({ error: "wizard_sync_failed", message: String(e?.message ?? e) });

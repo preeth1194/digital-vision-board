@@ -26,6 +26,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   bool _isAdmin = false;
   List<BoardTemplateSummary> _templates = const [];
   String? _canvaUserId;
+  bool _wizardSyncing = false;
 
   @override
   void initState() {
@@ -276,6 +277,37 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
     }
   }
 
+  Future<void> _syncWizardDefaults({required bool reset}) async {
+    if (!_isAdmin) return;
+    if (_wizardSyncing) return;
+    final token = await DvAuthService.getDvToken();
+    if (token == null) throw Exception('Not authenticated.');
+
+    setState(() => _wizardSyncing = true);
+    try {
+      final res = await TemplatesService.adminSyncWizardDefaults(dvToken: token, reset: reset);
+      if (!mounted) return;
+      final seeded = (res['seeded'] as num?)?.toInt();
+      final resetEcho = (res['reset'] as bool?) ?? reset;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            resetEcho
+                ? 'Wizard defaults synced (reset). Seed jobs: ${seeded ?? 0}'
+                : 'Wizard defaults synced. Seed jobs: ${seeded ?? 0}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Wizard sync failed: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) setState(() => _wizardSyncing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -327,6 +359,56 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
                     onPressed: (_isAdmin && !_loading) ? _publishFromExistingBoard : null,
                     icon: const Icon(Icons.publish_outlined),
                     label: const Text('Publish from existing board'),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.sync_outlined),
+                      title: const Text('Sync wizard defaults + recommendations'),
+                      subtitle: const Text('Seeds 3 goals per default category using Gemini.'),
+                      trailing: _wizardSyncing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : PopupMenuButton<String>(
+                              enabled: _isAdmin && !_loading,
+                              onSelected: (v) async {
+                                if (v == 'seed') {
+                                  await _syncWizardDefaults(reset: false);
+                                } else if (v == 'reset') {
+                                  final ok = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Reset wizard recommendations?'),
+                                          content: const Text(
+                                            'This will regenerate recommendations for all default categories '
+                                            'using Gemini. Continue?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.of(ctx).pop(false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () => Navigator.of(ctx).pop(true),
+                                              child: const Text('Reset'),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                      false;
+                                  if (!ok) return;
+                                  await _syncWizardDefaults(reset: true);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(value: 'seed', child: Text('Seed missing')),
+                                PopupMenuItem(value: 'reset', child: Text('Reset + reseed')),
+                              ],
+                            ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Card(

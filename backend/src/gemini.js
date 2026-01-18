@@ -75,7 +75,7 @@ export async function generateWizardRecommendationsWithGemini({
   habitsPerGoal = 3,
 }) {
   const apiKey = requireEnv("GEMINI_API_KEY");
-  const model = asNonEmptyString(process.env.GEMINI_MODEL) ?? "gemini-1.5-flash";
+  const envModel = asNonEmptyString(process.env.GEMINI_MODEL);
 
   const instruction = [
     "You are generating goal + habit recommendations for a vision board app.",
@@ -115,25 +115,65 @@ export async function generateWizardRecommendationsWithGemini({
     "Generate the recommendations now.",
   ].join("\n");
 
-  const url = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`);
-  url.searchParams.set("key", apiKey);
+  // Model availability differs between accounts/regions and API versions.
+  // We'll try a small set of common model ids unless explicitly configured.
+  const modelCandidates = envModel
+    ? [envModel]
+    : [
+        // Prefer "latest" aliases when available
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro-latest",
+        "gemini-1.5-pro",
+        // Newer families (if enabled on the key)
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-latest",
+        "gemini-2.0-pro",
+        "gemini-2.0-pro-latest",
+      ];
 
-  const res = await fetch(url.toString(), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: `${instruction}\n\n${userPrompt}` }] }],
-      generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 1200,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
-  const rawText = await res.text();
-  if (res.status < 200 || res.status >= 300) {
-    throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+  const apiVersions = ["v1beta", "v1"];
+
+  const requestBody = {
+    contents: [{ role: "user", parts: [{ text: `${instruction}\n\n${userPrompt}` }] }],
+    generationConfig: {
+      temperature: 0.6,
+      maxOutputTokens: 1200,
+      responseMimeType: "application/json",
+    },
+  };
+
+  let lastErr = null;
+  let rawText = null;
+  for (const apiVersion of apiVersions) {
+    for (const model of modelCandidates) {
+      const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent`);
+      url.searchParams.set("key", apiKey);
+
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      rawText = await res.text();
+      if (res.status >= 200 && res.status < 300) {
+        lastErr = null;
+        break;
+      }
+
+      // Retry on "model not found / unsupported" style responses.
+      if (res.status === 404 || res.status === 400) {
+        lastErr = new Error(`Gemini generateContent failed (${res.status}) for ${apiVersion}/${model}: ${rawText}`);
+        continue;
+      }
+
+      // Other failures: don't spam retries; bubble up.
+      throw new Error(`Gemini generateContent failed (${res.status}): ${rawText}`);
+    }
+    if (!lastErr) break;
   }
+  if (lastErr) throw lastErr;
+  if (rawText == null) throw new Error("Gemini call failed without response body");
 
   let payload;
   try {

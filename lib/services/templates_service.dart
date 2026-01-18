@@ -184,5 +184,17 @@ final class TemplatesService {
     );
     return json;
   }
+
+  static Future<Map<String, dynamic>> adminSyncWizardDefaults({
+    required String dvToken,
+    required bool reset,
+  }) async {
+    final json = await _postJson(
+      path: '/admin/wizard/sync-defaults',
+      dvToken: dvToken,
+      body: {'reset': reset},
+    );
+    return json;
+  }
 }
 

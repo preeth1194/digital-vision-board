@@ -1,13 +1,65 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
-Last updated: 2026-01-17
+Last updated: 2026-01-19
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
----
+IMPORTANT: The codebase has been reorganized into a feature-based structure. See `lib/CODE_ORGANIZATION.md` and `lib/NAMING_CONVENTIONS.md` for detailed structure and naming conventions.
 
+---
+## 0) Codebase Organization (NEW - 2026-01-19)
+
+### Folder Structure
+- **Screens**: Organized by feature in `lib/screens/`
+  - `/board/` - Vision board screens
+  - `/habits/` - Habit tracking screens
+  - `/journal/` - Journal/notes screens
+  - `/todos/` - Todo list screens
+  - `/dashboard/` - Dashboard and overview screens
+  - `/settings/` - Settings screen
+  - `/auth/` - Authentication screens
+  - `/wizard/` - Board creation wizard
+  - `/templates/` - Template gallery
+  - `/admin/` - Admin screens
+  - `/onboarding/` - Onboarding screens
+
+- **Widgets**: Organized by feature in `lib/widgets/`
+  - `/board/` - Board-related widgets
+  - `/habits/` - Habit tracking widgets
+  - `/dashboard/` - Dashboard widgets
+  - `/common/` - Shared widgets (dialogs, editor, manipulable, flip)
+  - `/todos/` - Todo widgets
+  - `/archive/` - Unused/deprecated widgets
+
+- **Services**: Organized by domain in `lib/services/`
+  - `/board/` - Board-related services
+  - `/habits/` - Habit tracking services
+  - `/journal/` - Journal services
+  - `/auth/` - Authentication services
+  - `/image/` - Image processing services
+  - `/sync/` - Sync and backup services
+  - `/widgets/` - Home screen widget services
+  - `/utils/` - Utility services
+
+- **Theme Configuration**: `lib/config/app_theme.dart`
+  - Centralized theme with easily configurable colors, fonts, spacing
+  - Use `AppTheme.primaryColor`, `AppTheme.spacingM`, etc.
+  - Light/dark themes: `AppTheme.buildLightTheme()`, `AppTheme.buildDarkTheme()`
+
+### Import Patterns
+- Use relative imports for files in the same feature/domain
+- Use absolute imports (from `lib/`) for cross-feature imports
+- Example: `import '../../services/board/boards_storage_service.dart';`
+
+### Naming Conventions
+- Screens: `*_screen.dart` (e.g., `grid_editor_screen.dart`)
+- Classes: `*Screen` (e.g., `GridEditorScreen`)
+- Services: `*_service.dart` (e.g., `boards_storage_service.dart`)
+- See `lib/NAMING_CONVENTIONS.md` for full details
+
+---
 ## 1) What the app does (product mental model)
 
-Digital Vision Board lets users create “boards” and attach “goals” to them. Each goal can have:
+Digital Vision Board lets users create "boards" and attach "goals" to them. Each goal can have:
 - Habits (daily/weekly scheduled completion tracking)
 - Tasks (each task has a checklist; checklist items can be completed per-day and can store completion feedback)
 
@@ -18,39 +70,37 @@ Daily loop:
 - Review progress/insights
 
 ---
-
 ## 2) Board types (UIs) and how they map to storage
 
-There are multiple board “canvas” experiences. They differ in how goals are represented and how they are stored.
+There are multiple board "canvas" experiences. They differ in how goals are represented and how they are stored.
 
-### A) Freeform “Vision Board” (Canva-like editor)
-- Editor: `lib/screens/vision_board_editor_screen.dart`
-- Model storage: `VisionBoardComponentsStorageService` (components keyed by boardId)
+### A) Freeform "Vision Board" (Canva-like editor)
+- Editor: `lib/screens/board/vision_board_editor_screen.dart`
+- Model storage: `lib/services/board/vision_board_components_storage_service.dart` (components keyed by boardId)
 
 ### B) Goal Canvas (freeform layers over optional background)
-- Viewer: `lib/screens/goal_canvas_viewer_screen.dart`
-- Editor: `lib/screens/goal_canvas_editor_screen.dart`
-- Storage: `lib/services/vision_board_components_storage_service.dart`
-- Supports “Layers” UI via `showLayersSheet` (see section 6)
+- Viewer: `lib/screens/board/goal_canvas_viewer_screen.dart`
+- Editor: `lib/screens/board/goal_canvas_editor_screen.dart`
+- Storage: `lib/services/board/vision_board_components_storage_service.dart`
+- Supports "Layers" UI via `showLayersSheet` (see section 6)
 
 ### C) Physical Board (photo background + goal overlays)
-- Viewer: `lib/screens/physical_board_viewer_screen.dart`
-- Editor: `lib/screens/physical_board_editor_screen.dart`
+- Viewer: `lib/screens/board/physical_board_viewer_screen.dart`
+- Editor: `lib/screens/board/physical_board_editor_screen.dart`
 - Storage:
-  - Components: `lib/services/vision_board_components_storage_service.dart`
-  - Background image path: `BoardsStorageService.boardImagePathKey(boardId)`
+  - Components: `lib/services/board/vision_board_components_storage_service.dart`
+  - Background image path: `lib/services/board/boards_storage_service.dart` → `boardImagePathKey(boardId)`
 - Goals are `GoalOverlayComponent` anchored in image pixel space (`lib/models/goal_overlay_component.dart`).
 
 ### D) Grid Board (structured tile layout)
-- Editor: `lib/screens/grid_board_editor.dart`
-- Storage: `lib/services/grid_tiles_storage_service.dart` (tiles keyed by boardId)
-- Single “goal” viewer: `lib/screens/grid_goal_viewer_screen.dart`
+- Editor: `lib/screens/board/grid_editor_screen.dart` (exported via `grid_editor.dart`)
+- Storage: `lib/services/board/grid_tiles_storage_service.dart` (tiles keyed by boardId)
+- Single "goal" viewer: `lib/screens/board/grid_goal_viewer_screen.dart`
 
 ---
+## 3) Core data model (what "goal", "habit", "task" mean in code)
 
-## 3) Core data model (what “goal”, “habit”, “task” mean in code)
-
-### VisionComponent (core “node”)
+### VisionComponent (core "node")
 `VisionComponent` is the base type for nodes on freeform canvases.
 - Location/size/z-index exist for visuals.
 - It also owns the tracker data:
@@ -65,7 +115,7 @@ Key files:
 - `lib/models/goal_overlay_component.dart` (physical board goal overlay)
 
 ### GridTileModel
-Grid boards don’t store `VisionComponent`s directly. They store tiles:
+Grid boards don't store `VisionComponent`s directly. They store tiles:
 - `lib/models/grid_tile_model.dart`
 - Each tile can have: `goal`, `habits`, `tasks`
 
@@ -90,26 +140,24 @@ For tracking UI, `GridGoalViewerScreen` converts a tile into an `ImageComponent`
 Important bug fix: `ChecklistItem.copyWith` uses a sentinel so callers can explicitly clear nullable fields like `completedOn` (unchecking).
 
 ---
-
 ## 4) Persistence (where data is saved)
 
 ### Boards list + board metadata
-- `lib/services/boards_storage_service.dart`
+- `lib/services/board/boards_storage_service.dart`
 
 ### Components (freeform boards: vision board / goal canvas / physical board)
-- `lib/services/vision_board_components_storage_service.dart`
+- `lib/services/board/vision_board_components_storage_service.dart`
 - Components are JSON encoded and stored keyed by `boardId`.
 
 ### Grid tiles
-- `lib/services/grid_tiles_storage_service.dart`
+- `lib/services/board/grid_tiles_storage_service.dart`
 - Tiles are JSON encoded and stored keyed by `boardId`.
 
 ---
-
 ## 5) The tracker UI: HabitTrackerSheet
 
 Main tracker UI:
-- `lib/widgets/habit_tracker_sheet.dart`
+- `lib/widgets/habits/habit_tracker_sheet.dart`
 
 Usage patterns:
 - Shown as a bottom sheet from viewers (Goal canvas / Physical board viewers).
@@ -123,24 +171,22 @@ Tabs:
 It emits updated `VisionComponent` back to the caller via `onComponentUpdated`, and callers persist the updated component list/tile.
 
 ---
-
 ## 6) Layers UI (showLayersSheet)
 
-Shared “Layers” bottom sheet:
-- `lib/widgets/editor/layers_sheet.dart` → `showLayersSheet(...)`
+Shared "Layers" bottom sheet:
+- `lib/widgets/common/editor/layers_sheet.dart` → `showLayersSheet(...)`
 
-Where it’s used:
-- Goal canvas viewer: `GoalCanvasViewerScreen._showLayers` (AppBar button on Canvas tab)
-- Physical board viewer: `PhysicalBoardViewerScreen._showLayers` (AppBar button on Photo tab)
+Where it's used:
+- Goal canvas viewer: `lib/screens/board/goal_canvas_viewer_screen.dart` → `_showLayers` (AppBar button on Canvas tab)
+- Physical board viewer: `lib/screens/board/physical_board_viewer_screen.dart` → `_showLayers` (AppBar button on Photo tab)
   - also supports toggling `isDisabled` (mark completed)
-- Grid goal viewer: `GridGoalViewerScreen._showLayers` (top-right overlay button)
+- Grid goal viewer: `lib/screens/board/grid_goal_viewer_screen.dart` → `_showLayers` (top-right overlay button)
   - used to jump between tile-goals without backing out
 
 Selection behavior:
-- Selecting a layer updates the viewer’s selected id (highlights it visually).
+- Selecting a layer updates the viewer's selected id (highlights it visually).
 
 ---
-
 ## 7) Completion semantics + feedback prompts (unified behavior)
 
 ### Habit completion
@@ -153,43 +199,41 @@ Selection behavior:
 - If that check causes the task to become fully complete:
   - If task-level feedback missing for today → prompt for task-level feedback.
 - Special case: if the task has exactly 1 checklist item, do NOT show two prompts back-to-back.
-  - In that case, skip item-level feedback and only ask the task-level “Task completed” feedback.
+  - In that case, skip item-level feedback and only ask the task-level "Task completed" feedback.
 
 Shared helpers:
-- Mutation / state derivation: `lib/services/completion_mutations.dart`
-- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
+- Mutation / state derivation: `lib/services/habits/habit_completion_applier.dart` (or similar completion service)
+- Feedback UI: `lib/widgets/common/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
 
 Where completion+feedback is implemented (must stay consistent):
-- `lib/widgets/habit_tracker_sheet.dart`
-- `lib/screens/tasks_list_screen.dart`
-- `lib/widgets/dashboard/all_boards_tasks_tab.dart`
+- `lib/widgets/habits/habit_tracker_sheet.dart`
+- `lib/screens/todos/todos_list_screen.dart`
+- `lib/widgets/dashboard/all_boards_todos_tab.dart`
 - Habits equivalents:
-  - `lib/screens/habits_list_screen.dart`
+  - `lib/screens/habits/habits_list_screen.dart`
   - `lib/widgets/dashboard/all_boards_habits_tab.dart`
 
 ---
-
 ## 8) Add flows (goal picker + creation dialogs)
 
 Goal picker (select goal to attach habit/task to):
-- `lib/widgets/dialogs/goal_picker_sheet.dart`
+- `lib/widgets/common/dialogs/goal_picker_sheet.dart`
 
 Add/edit dialogs (shared, reused across screens):
-- Habits: `lib/widgets/dialogs/add_habit_dialog.dart`
+- Habits: `lib/widgets/common/dialogs/add_habit_dialog.dart`
   - Compact layout is bounded below the status bar (prevents dialog covering notification bar).
-- Tasks (full dialog with optional CBT fields): `lib/widgets/dialogs/add_task_dialog.dart`
-- Checklist items (due date + optional CBT): `lib/widgets/dialogs/add_checklist_item_dialog.dart`
+- Tasks (full dialog with optional CBT fields): `lib/widgets/common/dialogs/add_task_dialog.dart` (if exists)
+- Checklist items (due date + optional CBT): `lib/widgets/common/dialogs/add_checklist_item_dialog.dart` (if exists)
 
 Global aggregation screens:
 - Per-board lists:
-  - `lib/screens/habits_list_screen.dart`
-  - `lib/screens/tasks_list_screen.dart` (supports adding checklist items inside tasks)
+  - `lib/screens/habits/habits_list_screen.dart`
+  - `lib/screens/todos/todos_list_screen.dart` (supports adding checklist items inside tasks)
 - All-boards dashboard tabs:
   - `lib/widgets/dashboard/all_boards_habits_tab.dart` (Add habit = pick board → pick goal → dialog → save)
-  - `lib/widgets/dashboard/all_boards_tasks_tab.dart` (Add task + Add checklist item; same pattern)
+  - `lib/widgets/dashboard/all_boards_todos_tab.dart` (Add task + Add checklist item; same pattern)
 
 ---
-
 ## 9) Viewer-specific behaviors and UX constraints
 
 ### PhysicalBoardViewerScreen
@@ -201,112 +245,149 @@ Global aggregation screens:
 - Uses a `ValueKey(tile.id)` when switching tiles so the sheet remounts cleanly.
 
 ---
-
-## 10) Stability / “gotchas” (important for AI edits)
+## 10) Stability / "gotchas" (important for AI edits)
 
 ### A) TextEditingController + dialogs
 Avoid creating a controller outside a dialog and disposing it immediately after `await showDialog(...)`.
-This can crash during route pop animations on some devices (“used after being disposed”).
+This can crash during route pop animations on some devices ("used after being disposed").
 
 Example fix:
-- `lib/screens/tasks_list_screen.dart` add-task dialog returns a string without an external controller.
+- `lib/screens/todos/todos_list_screen.dart` add-task dialog returns a string without an external controller.
 
 ### B) Checklist uncheck bug
-If you see “can’t uncheck checklist items”, check `ChecklistItem.copyWith` semantics:
+If you see "can't uncheck checklist items", check `ChecklistItem.copyWith` semantics:
 - Clearing `completedOn` requires allowing `null` to be passed through (sentinel pattern).
 - File: `lib/models/task_item.dart`
 
 ### C) Avoid duplicate symbol definitions
 Keep shared dialogs/services single-defined. Some files previously contained duplicated class definitions; those were deduped.
 
----
+### D) Import paths
+After reorganization (2026-01-19), all imports use feature-based paths:
+- Services: `../../services/{domain}/{service_name}.dart`
+- Widgets: `../../widgets/{feature}/{widget_name}.dart`
+- Screens: `../{feature}/{screen_name}.dart`
 
-## 11) Quick entry points (if you’re new)
+---
+## 11) Quick entry points (if you're new)
 
 - App entry: `lib/main.dart`
-- Main dashboard: `lib/screens/dashboard_screen.dart`
-- Tracker: `lib/widgets/habit_tracker_sheet.dart`
-- Completion/feedback: `lib/services/completion_mutations.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
-- “All boards” tabs: `lib/widgets/dashboard/*`
-- Physical board viewer/editor: `lib/screens/physical_board_*`
-- Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
-- Grid board editor + goal viewer: `lib/screens/grid_board_editor.dart`, `lib/screens/grid_goal_viewer_screen.dart`
+- Theme config: `lib/config/app_theme.dart`
+- Main dashboard: `lib/screens/dashboard/dashboard_screen.dart`
+- Tracker: `lib/widgets/habits/habit_tracker_sheet.dart`
+- Completion/feedback: `lib/services/habits/habit_completion_applier.dart`, `lib/widgets/common/dialogs/completion_feedback_sheet.dart`
+- "All boards" tabs: `lib/widgets/dashboard/*`
+- Physical board viewer/editor: `lib/screens/board/physical_board_*`
+- Goal canvas viewer/editor: `lib/screens/board/goal_canvas_*`
+- Grid board editor + goal viewer: `lib/screens/board/grid_editor_screen.dart`, `lib/screens/board/grid_goal_viewer_screen.dart`
 
 ---
-
 ## 12) User journeys (end-to-end flows with code entry points)
 
-These are the most common “click paths” and what files implement them.
+These are the most common "click paths" and what files implement them.
 
 ### A) Create a new board from the dashboard
-- Start: `lib/screens/dashboard_screen.dart`
-- Create/import: `lib/widgets/dialogs/new_board_dialog.dart`
-- Storage for board list/metadata: `lib/services/boards_storage_service.dart`
+- Start: `lib/screens/dashboard/dashboard_screen.dart`
+- Create/import: `lib/widgets/common/dialogs/new_board_dialog.dart`
+- Storage for board list/metadata: `lib/services/board/boards_storage_service.dart`
 
 ### B) Goal canvas: open a goal and track habits/tasks
-- Viewer screen: `lib/screens/goal_canvas_viewer_screen.dart`
+- Viewer screen: `lib/screens/board/goal_canvas_viewer_screen.dart`
 - Tap a goal layer → opens tracker:
   - `GoalCanvasViewerScreen._openHabitTracker` → `HabitTrackerSheet`
 - Persist updates:
-  - `GoalCanvasViewerScreen._saveComponents` → `VisionBoardComponentsStorageService`
+  - `GoalCanvasViewerScreen._saveComponents` → `lib/services/board/vision_board_components_storage_service.dart`
 
 ### C) Physical board: scan/import photo → create overlays → track
-- Editor: `lib/screens/physical_board_editor_screen.dart`
-  - Imports photo via `lib/services/board_scan_service.dart`
+- Editor: `lib/screens/board/physical_board_editor_screen.dart`
+  - Imports photo via `lib/services/board/board_scan_service.dart`
   - Creates overlay goals: `GoalOverlayComponent` (`lib/models/goal_overlay_component.dart`)
-  - Persists components: `VisionBoardComponentsStorageService`
-- Viewer: `lib/screens/physical_board_viewer_screen.dart`
+  - Persists components: `lib/services/board/vision_board_components_storage_service.dart`
+- Viewer: `lib/screens/board/physical_board_viewer_screen.dart`
   - Tap overlay → `_openHabitTracker` (bottom sheet) → `HabitTrackerSheet`
   - Bottom sheet height is constrained so it does not cover the AppBar.
 
 ### D) Grid board: open a tile-goal and track
-- Grid editor: `lib/screens/grid_board_editor.dart`
-- Tile-goal viewer: `lib/screens/grid_goal_viewer_screen.dart`
+- Grid editor: `lib/screens/board/grid_editor_screen.dart`
+- Tile-goal viewer: `lib/screens/board/grid_goal_viewer_screen.dart`
   - Converts `GridTileModel` → `ImageComponent` for `HabitTrackerSheet`
-  - Persists updates back into the tile via `GridTilesStorageService`
+  - Persists updates back into the tile via `lib/services/board/grid_tiles_storage_service.dart`
 
 ### E) Add a habit/task from global lists (single-board)
-- All habits: `lib/screens/habits_list_screen.dart`
-  - Flow: goal picker (`goal_picker_sheet.dart`) → `add_habit_dialog.dart` → persist via callback
-- All tasks: `lib/screens/tasks_list_screen.dart`
+- All habits: `lib/screens/habits/habits_list_screen.dart`
+  - Flow: goal picker (`lib/widgets/common/dialogs/goal_picker_sheet.dart`) → `lib/widgets/common/dialogs/add_habit_dialog.dart` → persist via callback
+- All tasks: `lib/screens/todos/todos_list_screen.dart`
   - Add task: goal picker → simple title prompt → persist via callback
-  - Add checklist item inside a task: inline “Add checklist item”
+  - Add checklist item inside a task: inline "Add checklist item"
 
-### F) Add a habit/task from “All boards” dashboard tabs
+### F) Add a habit/task from "All boards" dashboard tabs
 - All boards habits tab: `lib/widgets/dashboard/all_boards_habits_tab.dart`
-  - Flow: pick board → goal picker → `add_habit_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
-- All boards tasks tab: `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-  - Flow: pick board → goal picker → `add_task_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
-  - Add checklist item inside a task: `add_checklist_item_dialog.dart`
+  - Flow: pick board → goal picker → `lib/widgets/common/dialogs/add_habit_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
+- All boards tasks tab: `lib/widgets/dashboard/all_boards_todos_tab.dart`
+  - Flow: pick board → goal picker → `lib/widgets/common/dialogs/add_task_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
+  - Add checklist item inside a task: `lib/widgets/common/dialogs/add_checklist_item_dialog.dart`
 
 ### G) Completion + feedback prompts (shared semantics)
-- Mutation logic: `lib/services/completion_mutations.dart`
-- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Mutation logic: `lib/services/habits/habit_completion_applier.dart`
+- Feedback UI: `lib/widgets/common/dialogs/completion_feedback_sheet.dart`
 - Implemented consistently across:
-  - `lib/widgets/habit_tracker_sheet.dart`
-  - `lib/screens/tasks_list_screen.dart`
-  - `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-  - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
+  - `lib/widgets/habits/habit_tracker_sheet.dart`
+  - `lib/screens/todos/todos_list_screen.dart`
+  - `lib/widgets/dashboard/all_boards_todos_tab.dart`
+  - (habits) `lib/screens/habits/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
 
 ---
-
 ## 13) Glossary (UI term → code type)
 
 - Board:
-  - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `BoardsStorageService`
+  - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `lib/services/board/boards_storage_service.dart`
 - Goal (general concept: something you attach habits/tasks to):
   - Freeform/goal canvas: usually an `ImageComponent` with `goal` metadata
   - Physical board: `GoalOverlayComponent`
   - Grid: `GridTileModel` (converted to `ImageComponent` for tracker UI)
 - Layer:
-  - A `VisionComponent` entry in the board’s components list (ordered by `zIndex`)
-  - Managed via `showLayersSheet` in `lib/widgets/editor/layers_sheet.dart`
+  - A `VisionComponent` entry in the board's components list (ordered by `zIndex`)
+  - Managed via `showLayersSheet` in `lib/widgets/common/editor/layers_sheet.dart`
 - Habit:
-  - `HabitItem` (`lib/models/habit_item.dart`) stored on a goal’s component/tile
+  - `HabitItem` (`lib/models/habit_item.dart`) stored on a goal's component/tile
 - Task:
-  - `TaskItem` (`lib/models/task_item.dart`) stored on a goal’s component/tile
+  - `TaskItem` (`lib/models/task_item.dart`) stored on a goal's component/tile
 - Checklist item:
   - `ChecklistItem` (`lib/models/task_item.dart`)
   - Completion stored in `completedOn` (YYYY-MM-DD) and per-day feedback in `feedbackByDate`
-- “Tracker”:
-  - The per-goal tracking UI: `HabitTrackerSheet` (`lib/widgets/habit_tracker_sheet.dart`)
+- "Tracker":
+  - The per-goal tracking UI: `HabitTrackerSheet` (`lib/widgets/habits/habit_tracker_sheet.dart`)
+
+---
+## 14) Theme and Styling
+
+### Centralized Theme Configuration
+- Location: `lib/config/app_theme.dart`
+- Usage: Import and use `AppTheme` constants and builders
+
+### Customizing Colors
+```dart
+// In app_theme.dart
+static const Color primaryColor = Color(0xFF6B46C1);
+static const Color secondaryColor = Color(0xFF9333EA);
+```
+
+### Customizing Fonts
+```dart
+// In app_theme.dart
+static const String primaryFontFamily = 'Roboto';
+```
+
+### Using Theme Values
+```dart
+// In widgets
+Theme.of(context).colorScheme.primary
+Theme.of(context).textTheme.titleLarge
+AppTheme.spacingM
+AppTheme.radiusM
+```
+
+### Theme Builders
+- `AppTheme.buildLightTheme()` - Returns light theme
+- `AppTheme.buildDarkTheme()` - Returns dark theme
+- Used in `lib/main.dart` for MaterialApp theme configuration

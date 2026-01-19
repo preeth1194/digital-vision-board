@@ -65,6 +65,32 @@ jobs:
           keyAlias=$KEY_ALIAS
           EOF
 
+          # Verify keystore and key.properties were created
+          echo "Verifying signing configuration..."
+          if [ -f android/upload-keystore.jks ]; then
+            echo "✅ Keystore file created"
+            ls -lh android/upload-keystore.jks
+          else
+            echo "❌ Keystore file not found!"
+            exit 1
+          fi
+          
+          if [ -f android/key.properties ]; then
+            echo "✅ key.properties created"
+            echo "Key alias configured: $KEY_ALIAS"
+            # Don't print passwords, just verify file exists
+            grep -q "keyAlias=" android/key.properties && echo "✅ keyAlias found in key.properties" || echo "❌ keyAlias missing"
+          else
+            echo "❌ key.properties not found!"
+            exit 1
+          fi
+          
+          # Verify keystore contains the expected alias
+          if command -v keytool &> /dev/null; then
+            echo "Checking keystore aliases..."
+            keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep -q "$KEY_ALIAS" && echo "✅ Alias '$KEY_ALIAS' found in keystore" || echo "⚠️  Alias '$KEY_ALIAS' not found in keystore (will fail during build)"
+          fi
+
       - name: Build AAB (release)
         run: flutter build appbundle --release
 

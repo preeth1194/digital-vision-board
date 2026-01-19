@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
-import '../services/board_scan_service.dart';
+import '../../services/board/board_scan_service.dart';
 import '../../services/board/boards_storage_service.dart';
 import '../../services/board/vision_board_components_storage_service.dart';
 import '../../widgets/common/editor/add_name_dialog.dart';

@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
 import '../../services/board/boards_storage_service.dart';
-import '../services/google_drive_backup_service.dart';
+import '../../services/sync/google_drive_backup_service.dart';
 import '../../services/image/image_persistence.dart';
 import '../../services/board/vision_board_components_storage_service.dart';
 import '../../widgets/common/editor/layers_sheet.dart';

@@ -608,7 +608,6 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
           id: 'todo_${now}_$i',
           text: lines[i],
           habit: null,
-          task: null,
         ),
     ];
     widget.onChanged(next);

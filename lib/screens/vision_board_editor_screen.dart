@@ -731,7 +731,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     return _components.map((c) => c.zIndex).reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  Future<void> _openHabitTrackerForComponent(VisionComponent component) async {
+  Future<void> _openHabitTrackerForComponent(VisionComponent component, {int initialTabIndex = 0}) async {
     if (!mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -743,6 +743,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       builder: (_) => HabitTrackerSheet(
         boardId: widget.boardId,
         component: component,
+        initialTabIndex: initialTabIndex,
         onComponentUpdated: (updated) {
           final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
           _onComponentsChanged(next);

@@ -14,6 +14,7 @@ final class DvAuthService {
 
   static const _dvTokenKey = 'dv_auth_token_v1';
   static const _expiresAtMsKey = 'dv_auth_expires_at_ms_v1'; // unix ms
+  static const _firstInstallMsKey = 'dv_first_install_ms_v1'; // unix ms
   static const _homeTimezoneKey = 'dv_home_timezone_v1';
   static const _genderKey = 'dv_gender_v1';
   static const _canvaUserIdKey = 'dv_canva_user_id_v1';
@@ -128,6 +129,27 @@ final class DvAuthService {
     return v;
   }
 
+  static Future<void> ensureFirstInstallRecorded({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final existing = p.getInt(_firstInstallMsKey);
+    if (existing != null && existing > 0) return;
+    await p.setInt(_firstInstallMsKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<int?> getFirstInstallMs({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = p.getInt(_firstInstallMsKey);
+    return v;
+  }
+
+  static Future<bool> isGuestSession({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final token = await getDvToken(prefs: p);
+    if (token == null) return false;
+    final expiresAtMs = await getExpiresAtMs(prefs: p);
+    return expiresAtMs != null;
+  }
+
   static Future<bool> isGuestExpired({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final token = await getDvToken(prefs: p);
@@ -169,6 +191,43 @@ final class DvAuthService {
   }
 
   static Uri _url(String path) => Uri.parse('${backendBaseUrl()}$path');
+
+  /// Exchange a Firebase Auth ID token for a dvToken used by this backend.
+  ///
+  /// Backend endpoint: POST /auth/firebase/exchange { idToken }
+  static Future<FirebaseExchangeResult> exchangeFirebaseIdTokenForDvToken(
+    String idToken, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final token = idToken.trim();
+    if (token.isEmpty) throw Exception('Missing Firebase idToken');
+
+    final res = await http.post(
+      _url('/auth/firebase/exchange'),
+      headers: {
+        'content-type': 'application/json',
+        'accept': 'application/json',
+      },
+      body: jsonEncode({'idToken': token}),
+    );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Firebase exchange failed (${res.statusCode}): ${res.body}');
+    }
+    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final ok = decoded['ok'];
+    if (ok != true) {
+      throw Exception('Firebase exchange failed: ${decoded['error'] ?? 'unknown_error'}');
+    }
+    final dvToken = (decoded['dvToken'] as String?)?.trim();
+    final userId = (decoded['userId'] as String?)?.trim();
+    if ((dvToken ?? '').isEmpty || (userId ?? '').isEmpty) {
+      throw Exception('Firebase exchange response missing dvToken/userId');
+    }
+
+    await _setDvToken(dvToken!, canvaUserId: userId, prefs: p);
+    return FirebaseExchangeResult(dvToken: dvToken, userId: userId);
+  }
 
   /// Best-effort server update (requires dvToken and a DB-backed backend).
   static Future<void> putUserSettings({
@@ -257,6 +316,13 @@ final class DvAuthService {
       gender: (returnedGender == null || returnedGender.isEmpty) ? 'prefer_not_to_say' : returnedGender,
     );
   }
+}
+
+final class FirebaseExchangeResult {
+  final String dvToken;
+  final String userId;
+
+  const FirebaseExchangeResult({required this.dvToken, required this.userId});
 }
 
 final class CanvaOAuthResult {

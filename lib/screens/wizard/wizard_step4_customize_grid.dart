@@ -7,6 +7,9 @@ import '../../models/grid_template.dart';
 import '../../models/grid_tile_model.dart';
 import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_board_builder.dart';
+import '../../services/category_images_service.dart';
+import '../../services/stock_images_service.dart';
+import '../../models/core_value.dart';
 import '../grid_editor.dart';
 
 class WizardStep4CustomizeGrid extends StatefulWidget {
@@ -70,6 +73,58 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
           _boardTitle = createdTitle;
           _templateId = createdTemplateId;
         });
+      }
+
+      // Prefill images for predefined categories (best effort).
+      final boardIdPrefill = _boardId;
+      if (boardIdPrefill != null && boardIdPrefill.trim().isNotEmpty) {
+        try {
+          final tiles = await GridTilesStorageService.loadTiles(boardIdPrefill, prefs: prefs);
+          final needs = tiles.where((t) => t.type == 'image' && ((t.content ?? '').trim().isEmpty)).toList();
+          if (needs.isNotEmpty) {
+            final cats = needs
+                .map((t) => (t.goal?.category ?? '').trim())
+                .where((s) => s.isNotEmpty)
+                .toSet()
+                .toList();
+            final coreValueId = widget.state.majorCoreValueId.trim();
+            final coreLabel = CoreValues.byId(coreValueId).label;
+            final byCat = <String, List<String>>{};
+            for (final c in cats) {
+              final urls = await CategoryImagesService.getCategoryImageUrls(
+                coreValueId: coreValueId,
+                category: c,
+                limit: 10,
+              );
+              if (urls.isNotEmpty) {
+                byCat[c] = urls;
+              } else {
+                // Fallback: hit Pexels directly with a more “minimalist vision board” query.
+                final q = '$c $coreLabel minimal simple clean aesthetic';
+                final pexels = await StockImagesService.searchPexelsUrls(query: q, perPage: 8);
+                if (pexels.isNotEmpty) byCat[c] = pexels;
+              }
+            }
+
+            if (byCat.isNotEmpty) {
+              final idxByCat = <String, int>{for (final k in byCat.keys) k: 0};
+              final updated = tiles.map((t) {
+                if (t.type != 'image') return t;
+                if ((t.content ?? '').trim().isNotEmpty) return t;
+                final cat = (t.goal?.category ?? '').trim();
+                final list = byCat[cat];
+                if (list == null || list.isEmpty) return t;
+                final i = idxByCat[cat] ?? 0;
+                final url = list[i % list.length];
+                idxByCat[cat] = i + 1;
+                return t.copyWith(content: url);
+              }).toList();
+              await GridTilesStorageService.saveTiles(boardIdPrefill, updated, prefs: prefs);
+            }
+          }
+        } catch (_) {
+          // non-fatal
+        }
       }
 
       if (!mounted) return;

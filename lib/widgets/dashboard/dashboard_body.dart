@@ -6,6 +6,7 @@ import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../../screens/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/daily_overview_screen.dart';
@@ -119,34 +120,7 @@ class DashboardBody extends StatelessWidget {
           onDeleteBoard: onDeleteBoard,
         ),
       1 => const DailyOverviewScreen(),
-      2 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
-          future: _loadBoardComponents(activeBoard),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return HabitsListScreen(
-              boardId: boardId,
-              components: snap.data ?? const <VisionComponent>[],
-              onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
-              showAppBar: false,
-              showDueDate: false,
-            );
-          },
-        ),
-      2 => FutureBuilder<Map<String, List<VisionComponent>>>(
-          future: _loadAllBoardsComponents(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return AllBoardsHabitsTab(
-              boards: boards,
-              componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
-              onSaveBoardComponents: (id, updated) async {
-                final b = _boardById(id);
-                if (b == null) return;
-                await _saveBoardComponents(b, updated);
-              },
-            );
-          },
-        ),
+      2 => const JournalNotesScreen(embedded: true),
       3 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {

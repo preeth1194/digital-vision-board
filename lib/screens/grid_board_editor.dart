@@ -14,7 +14,9 @@ import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/image_service.dart';
 import '../services/stock_images_service.dart';
+import '../services/templates_service.dart';
 import '../utils/file_image_provider.dart';
+import '../widgets/grid/pexels_search_sheet.dart';
 import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
@@ -205,21 +207,24 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
 
     final next = List<GridTileModel>.from(normalized);
-    if (existing.isEmpty) {
-      for (int i = next.length; i < widget.template.tiles.length; i++) {
-        final blueprint = widget.template.tiles[i];
-        next.add(
-          GridTileModel(
-            id: 'tile_$i',
-            type: 'empty',
-            content: null,
-            crossAxisCellCount: blueprint.crossAxisCount,
-            mainAxisCellCount: blueprint.mainAxisCount,
-            index: i,
-          ),
-        );
-      }
+
+    // Always ensure at least the template's tile count so the grid fills the screen.
+    // (Wizard-generated boards may start with fewer tiles than the chosen template.)
+    final minCount = widget.template.tiles.length;
+    for (int i = next.length; i < minCount; i++) {
+      final blueprint = widget.template.tiles[i];
+      next.add(
+        GridTileModel(
+          id: 'tile_$i',
+          type: 'empty',
+          content: null,
+          crossAxisCellCount: blueprint.crossAxisCount,
+          mainAxisCellCount: blueprint.mainAxisCount,
+          index: i,
+        ),
+      );
     }
+
     return GridTilesStorageService.sortTiles(next);
   }
 
@@ -468,6 +473,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
+              leading: const Icon(Icons.public_outlined),
+              title: const Text('Search from web (Pexels)'),
+              onTap: () => Navigator.of(context).pop('pexels'),
+            ),
+            ListTile(
               leading: const Icon(Icons.text_fields),
               title: const Text('Add Text'),
               onTap: () => Navigator.of(context).pop('text'),
@@ -480,6 +490,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (choice == null) return;
     if (choice == 'image') {
       await _pickAndSetImage(index);
+      return;
+    }
+    if (choice == 'pexels') {
+      final tile = _tileAt(index);
+      final cat = (tile.goal?.category ?? '').trim();
+      final cv = (tile.goal?.cbt?.coreValue ?? '').trim();
+      final q = [cat, cv, 'minimal', 'simple', 'clean', 'aesthetic'].where((s) => s.trim().isNotEmpty).join(' ');
+      final selectedUrl = await showPexelsSearchSheet(context, initialQuery: q.isEmpty ? null : q);
+      if (!mounted) return;
+      final u = (selectedUrl ?? '').trim();
+      if (u.isEmpty) return;
+      final saved = await ImageService.downloadResizeAndPersistJpegFromUrl(
+        context,
+        url: u,
+        maxSidePx: _pickedImageMaxSide.toInt(),
+        jpegQuality: _pickedImageQuality,
+      );
+      if (!mounted) return;
+      final content = (saved ?? '').trim();
+      if (content.isEmpty) return;
+      await _setTile(index, _tileAt(index).copyWith(type: 'image', content: content));
+      await _ensureGoalTitle(index, suggestedTitle: cat.isNotEmpty ? cat : 'Goal');
       return;
     }
     if (choice == 'text') {
@@ -595,18 +627,21 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   }
 
   Widget _tileChild(GridTileModel tile) {
-    final borderRadius = BorderRadius.zero;
+    final borderRadius = BorderRadius.circular(14);
     final isSelected = _isEditing && _selectedIndex == tile.index;
     final goalTitle = (tile.goal?.title ?? '').trim();
+    final goalCategory = (tile.goal?.category ?? '').trim();
     final fallbackTitle = tile.type == 'text'
         ? (tile.content ?? '').trim()
-        : (tile.type == 'image' ? 'Goal' : '');
+        : (tile.type == 'image' ? (goalCategory.isNotEmpty ? goalCategory : 'Goal') : '');
     final title = goalTitle.isNotEmpty ? goalTitle : fallbackTitle;
     final showTitle = title.isNotEmpty && tile.type != 'empty';
 
     Widget base;
     if (tile.type == 'image') {
-      final provider = fileImageProviderFromPath(tile.content ?? '');
+      final raw = (tile.content ?? '').trim();
+      final src = raw.isEmpty ? '' : TemplatesService.absolutizeMaybe(raw);
+      final provider = fileImageProviderFromPath(src);
       base = Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
@@ -615,7 +650,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.antiAlias,
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
@@ -696,8 +731,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Removed the fixed 12px spacing toggle; keep the grid compact by default.
-    const spacing = 0.0;
+    // Slight spacing improves readability and makes the grid feel intentional.
+    const spacing = 10.0;
     final selected = _selectedTile();
     final viewTitle = _viewTabIndex == 0
         ? widget.title
@@ -768,13 +803,15 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                     physics: (_isEditing && _isCornerHandle(_selectedResizeHandle))
                         ? const NeverScrollableScrollPhysics()
                         : null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: StaggeredGrid.count(
-                        crossAxisCount: _crossAxisCount,
-                        mainAxisSpacing: spacing,
-                        crossAxisSpacing: spacing,
-                        children: [
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        child: StaggeredGrid.count(
+                          crossAxisCount: _crossAxisCount,
+                          mainAxisSpacing: spacing,
+                          crossAxisSpacing: spacing,
+                          children: [
                           for (int i = 0; i < _tiles.length; i++)
                             StaggeredGridTile.count(
                               crossAxisCellCount: _tileAt(i).crossAxisCellCount,
@@ -1002,7 +1039,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                 },
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

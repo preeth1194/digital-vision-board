@@ -223,5 +223,31 @@ final class TemplatesService {
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
+
+  static Future<Map<String, dynamic>> adminStartStockImagesSync({
+    required String dvToken,
+    int perCategory = 12,
+  }) async {
+    final json = await _postJson(
+      path: '/admin/stock/sync-category-images/start',
+      dvToken: dvToken,
+      body: {'perCategory': perCategory},
+    );
+    return json;
+  }
+
+  static Future<Map<String, dynamic>> adminStockImagesSyncStatus({
+    required String dvToken,
+    required String jobId,
+  }) async {
+    final uri = _url('/admin/stock/sync-category-images/status').replace(
+      queryParameters: {'jobId': jobId},
+    );
+    final res = await http.get(uri, headers: {'Authorization': 'Bearer $dvToken'});
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Request failed (${res.statusCode}): ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
 }
 

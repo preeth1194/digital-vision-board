@@ -6,10 +6,10 @@ import '../models/grid_tile_model.dart';
 import '../models/journal_entry.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
-import '../services/boards_storage_service.dart';
-import '../services/grid_tiles_storage_service.dart';
-import '../services/journal_storage_service.dart';
-import '../services/vision_board_components_storage_service.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/board/grid_tiles_storage_service.dart';
+import '../../services/journal/journal_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
   final bool embedded;

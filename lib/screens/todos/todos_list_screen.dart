@@ -4,9 +4,9 @@ import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../utils/component_label_utils.dart';
-import '../widgets/dialogs/add_habit_dialog.dart';
-import '../widgets/dialogs/goal_picker_sheet.dart';
-import '../widgets/dialogs/text_input_dialog.dart';
+import '../../widgets/common/dialogs/add_habit_dialog.dart';
+import '../../widgets/common/dialogs/goal_picker_sheet.dart';
+import '../../widgets/common/dialogs/text_input_dialog.dart';
 
 typedef OpenComponentCallback = Future<void> Function(VisionComponent component);
 

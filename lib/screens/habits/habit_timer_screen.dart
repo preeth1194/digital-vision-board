@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
-import '../services/habit_timer_state_service.dart';
-import '../services/logical_date_service.dart';
+import '../../services/habits/habit_timer_state_service.dart';
+import '../../services/utils/logical_date_service.dart';
 
 class HabitTimerScreen extends StatefulWidget {
   final HabitItem habit;

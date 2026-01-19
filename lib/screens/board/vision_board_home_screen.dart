@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_board_info.dart';
-import '../services/boards_storage_service.dart';
-import '../services/dv_auth_service.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/auth/dv_auth_service.dart';
 import '../widgets/flip/flip_card.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'dashboard_screen.dart';

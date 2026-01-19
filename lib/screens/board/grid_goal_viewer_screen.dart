@@ -5,8 +5,8 @@ import '../models/grid_tile_model.dart';
 import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
 import '../models/vision_components.dart';
-import '../services/grid_tiles_storage_service.dart';
-import '../widgets/habit_tracker_sheet.dart';
+import '../../services/board/grid_tiles_storage_service.dart';
+import '../../widgets/habits/habit_tracker_sheet.dart';
 
 /// Full-screen viewer for a single grid tile treated as a goal.
 ///

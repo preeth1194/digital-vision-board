@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
-import '../services/notifications_service.dart';
-import '../services/logical_date_service.dart';
-import '../services/sync_service.dart';
-import '../services/habit_geofence_tracking_service.dart';
+import '../../services/utils/notifications_service.dart';
+import '../../services/utils/logical_date_service.dart';
+import '../../services/sync/sync_service.dart';
+import '../../services/habits/habit_geofence_tracking_service.dart';
 import 'habit_timer_screen.dart';
 import '../utils/component_label_utils.dart';
-import '../widgets/dialogs/add_habit_dialog.dart';
-import '../widgets/dialogs/completion_feedback_sheet.dart';
-import '../widgets/dialogs/goal_picker_sheet.dart';
+import '../../widgets/common/dialogs/add_habit_dialog.dart';
+import '../../widgets/common/dialogs/completion_feedback_sheet.dart';
+import '../../widgets/common/dialogs/goal_picker_sheet.dart';
 
 class HabitsListScreen extends StatefulWidget {
   final String? boardId;

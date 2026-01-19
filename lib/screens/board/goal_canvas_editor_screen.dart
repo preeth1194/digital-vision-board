@@ -8,17 +8,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
-import '../services/boards_storage_service.dart';
-import '../services/vision_board_components_storage_service.dart';
-import '../services/image_persistence.dart';
-import '../services/image_service.dart';
-import '../widgets/editor/add_name_dialog.dart';
-import '../widgets/editor/background_options_sheet.dart';
-import '../widgets/editor/layers_sheet.dart';
-import '../widgets/editor/text_editor_dialog.dart';
-import '../widgets/dialogs/goal_details_dialog.dart';
-import '../widgets/grid/image_source_sheet.dart';
-import '../widgets/vision_board_builder.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
+import '../../services/image/image_persistence.dart';
+import '../../services/image/image_service.dart';
+import '../../widgets/common/editor/add_name_dialog.dart';
+import '../../widgets/common/editor/background_options_sheet.dart';
+import '../../widgets/common/editor/layers_sheet.dart';
+import '../../widgets/common/editor/text_editor_dialog.dart';
+import '../../widgets/common/dialogs/goal_details_dialog.dart';
+import '../../widgets/board/image_source_sheet.dart';
+import '../../widgets/board/vision_board_builder.dart';
 
 /// Canva-style freeform canvas for **goal images only**.
 ///

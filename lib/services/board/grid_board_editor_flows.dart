@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/grid_tile_model.dart';
-import '../services/image_service.dart';
-import '../widgets/dialogs/text_input_dialog.dart';
-import '../widgets/grid/image_source_sheet.dart';
+import '../../services/image/image_service.dart';
+import '../../widgets/common/dialogs/text_input_dialog.dart';
+import '../../widgets/board/image_source_sheet.dart';
 
 String _newTileId() => 'tile_${DateTime.now().millisecondsSinceEpoch}';
 

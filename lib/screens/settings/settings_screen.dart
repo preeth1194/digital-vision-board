@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'onboarding/onboarding_carousel_screen.dart';
 import 'admin/templates_admin_screen.dart';
-import '../services/dv_auth_service.dart';
-import '../services/app_settings_service.dart';
-import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import '../../services/auth/dv_auth_service.dart';
+import '../../services/utils/app_settings_service.dart';
+import '../../widgets/common/dialogs/home_screen_widget_instructions_sheet.dart';
 
 final class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

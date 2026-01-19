@@ -7,11 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/goal_overlay_component.dart';
 import '../models/vision_components.dart';
-import '../services/boards_storage_service.dart';
-import '../services/vision_board_components_storage_service.dart';
-import '../widgets/editor/layers_sheet.dart';
-import '../widgets/habit_tracker_sheet.dart';
-import '../widgets/physical_board/goal_overlay_canvas_view.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
+import '../../widgets/common/editor/layers_sheet.dart';
+import '../../widgets/habits/habit_tracker_sheet.dart';
+import '../../widgets/board/physical_board/goal_overlay_canvas_view.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
 import 'physical_board_editor_screen.dart';

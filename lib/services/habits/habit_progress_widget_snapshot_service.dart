@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_board_info.dart';
-import '../services/boards_storage_service.dart';
-import '../services/grid_tiles_storage_service.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/board/grid_tiles_storage_service.dart';
 import '../services/habit_progress_widget_native_bridge.dart';
-import '../services/habit_timer_state_service.dart';
-import '../services/logical_date_service.dart';
-import '../services/vision_board_components_storage_service.dart';
+import '../../services/habits/habit_timer_state_service.dart';
+import '../../services/utils/logical_date_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
 
 /// Builds and stores a compact JSON snapshot for the native home-screen widgets.
 ///

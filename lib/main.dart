@@ -5,15 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/vision_board_home_screen.dart';
-import 'services/habit_geofence_tracking_service.dart';
-import 'services/dv_auth_service.dart';
-import 'services/app_settings_service.dart';
-import 'services/logical_date_service.dart';
-import 'services/habit_progress_widget_snapshot_service.dart';
-import 'services/widget_deeplink_service.dart';
-import 'services/habit_progress_widget_action_queue_service.dart';
-import 'services/wizard_defaults_service.dart';
+import 'config/app_theme.dart';
+import 'screens/board/vision_board_home_screen.dart';
+import 'services/habits/habit_geofence_tracking_service.dart';
+import 'services/auth/dv_auth_service.dart';
+import 'services/utils/app_settings_service.dart';
+import 'services/utils/logical_date_service.dart';
+import 'services/widgets/habit_progress_widget_snapshot_service.dart';
+import 'services/widgets/widget_deeplink_service.dart';
+import 'services/widgets/habit_progress_widget_action_queue_service.dart';
+import 'services/board/wizard_defaults_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,14 +56,8 @@ class DigitalVisionBoardApp extends StatelessWidget {
           title: 'Digital Vision Board',
           localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
           supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
-            useMaterial3: true,
-          ),
+          theme: AppTheme.buildLightTheme(),
+          darkTheme: AppTheme.buildDarkTheme(),
           themeMode: mode,
           home: const VisionBoardHomeScreen(),
         );

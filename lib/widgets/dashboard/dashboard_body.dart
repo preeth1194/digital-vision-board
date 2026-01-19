@@ -4,16 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
-import '../../services/grid_tiles_storage_service.dart';
-import '../../services/vision_board_components_storage_service.dart';
-import '../../screens/journal_notes_screen.dart';
-import '../../screens/habits_list_screen.dart';
-import '../../screens/todos_list_screen.dart';
-import '../../screens/daily_overview_screen.dart';
+import '../../services/board/grid_tiles_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
+import '../../screens/journal/journal_notes_screen.dart';
+import '../../screens/habits/habits_list_screen.dart';
+import '../../screens/todos/todos_list_screen.dart';
+import '../../screens/dashboard/daily_overview_screen.dart';
+import '../../screens/dashboard/global_insights_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
-import '../../screens/global_insights_screen.dart';
 
 class DashboardBody extends StatelessWidget {
   final int tabIndex;

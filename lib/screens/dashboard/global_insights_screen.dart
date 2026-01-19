@@ -3,9 +3,9 @@ import 'package:intl/intl.dart';
 
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
-import '../widgets/insights/stat_card.dart';
-import '../widgets/insights/today_progress_card.dart';
-import '../widgets/insights/weekly_activity_card.dart';
+import '../../widgets/dashboard/stat_card.dart';
+import '../../widgets/dashboard/today_progress_card.dart';
+import '../../widgets/dashboard/weekly_activity_card.dart';
 
 class GlobalInsightsScreen extends StatelessWidget {
   final List<VisionComponent> components;

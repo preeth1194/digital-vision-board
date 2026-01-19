@@ -6,13 +6,13 @@ import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
-import '../services/grid_tiles_storage_service.dart';
-import '../services/vision_board_components_storage_service.dart';
-import '../services/logical_date_service.dart';
-import '../services/sync_service.dart';
+import '../../services/board/grid_tiles_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
+import '../../services/utils/logical_date_service.dart';
+import '../../services/sync/sync_service.dart';
 import 'habit_timer_screen.dart';
-import '../widgets/dialogs/completion_feedback_sheet.dart';
-import '../widgets/vision_board/component_image.dart';
+import '../../widgets/common/dialogs/completion_feedback_sheet.dart';
+import '../../widgets/board/vision_board/component_image.dart';
 
 class VisionBoardHomeFront extends StatelessWidget {
   final VisionBoardInfo board;

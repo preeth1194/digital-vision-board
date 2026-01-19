@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../services/daily_overview_service.dart';
-import '../services/logical_date_service.dart';
-import '../widgets/insights/mood_contribution_graph.dart';
+import '../../services/utils/daily_overview_service.dart';
+import '../../services/utils/logical_date_service.dart';
+import '../../widgets/dashboard/mood_contribution_graph.dart';
 
 class DailyOverviewScreen extends StatefulWidget {
   const DailyOverviewScreen({super.key});

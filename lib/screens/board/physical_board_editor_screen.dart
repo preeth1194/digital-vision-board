@@ -8,12 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../services/board_scan_service.dart';
-import '../services/boards_storage_service.dart';
-import '../services/vision_board_components_storage_service.dart';
-import '../widgets/editor/add_name_dialog.dart';
-import '../widgets/editor/layers_sheet.dart';
-import '../widgets/habit_tracker_sheet.dart';
-import '../widgets/physical_board/goal_overlay_canvas_view.dart';
+import '../../services/board/boards_storage_service.dart';
+import '../../services/board/vision_board_components_storage_service.dart';
+import '../../widgets/common/editor/add_name_dialog.dart';
+import '../../widgets/common/editor/layers_sheet.dart';
+import '../../widgets/habits/habit_tracker_sheet.dart';
+import '../../widgets/board/physical_board/goal_overlay_canvas_view.dart';
 
 /// Physical-board editor:
 /// - scanned/photo image as background

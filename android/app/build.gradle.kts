@@ -45,15 +45,6 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    sourceSets {
-        getByName("main") {
-            java {
-                // Exclude old package directory to prevent duplicate class errors
-                exclude("**/com/example/**")
-            }
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

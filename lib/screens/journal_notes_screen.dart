@@ -12,7 +12,9 @@ import '../services/journal_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
-  const JournalNotesScreen({super.key});
+  final bool embedded;
+
+  const JournalNotesScreen({super.key, this.embedded = false});
 
   @override
   State<JournalNotesScreen> createState() => _JournalNotesScreenState();
@@ -436,46 +438,96 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   @override
   Widget build(BuildContext context) {
     final showGoalLogs = _hasGoalLogs;
+    final embedded = widget.embedded;
+    final title = showGoalLogs ? 'Journal & Notes' : 'Journal';
     return DefaultTabController(
       key: ValueKey<bool>(showGoalLogs),
       length: showGoalLogs ? 2 : 1,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(showGoalLogs ? 'Journal & Notes' : 'Journal'),
-          bottom: _loading
-              ? null
-              : showGoalLogs
-                  ? const TabBar(
-                      tabs: [
-                        Tab(text: 'Journal'),
-                        Tab(text: 'Goal logs'),
-                      ],
-                    )
-                  : null,
-          actions: [
-            IconButton(
-              tooltip: 'Refresh',
-              icon: const Icon(Icons.refresh),
-              onPressed: () async {
-                final prefs = _prefs ?? await SharedPreferences.getInstance();
-                _prefs ??= prefs;
-                await _reload(prefs: prefs);
-              },
-            ),
-          ],
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : showGoalLogs
-                ? TabBarView(
-                    key: const ValueKey<String>('with_goal_logs'),
+      child: embedded
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+                  child: Row(
                     children: [
-                      _journalTab(),
-                      _notesTab(),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh',
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () async {
+                          final prefs = _prefs ?? await SharedPreferences.getInstance();
+                          _prefs ??= prefs;
+                          await _reload(prefs: prefs);
+                        },
+                      ),
                     ],
-                  )
-                : _journalTab(),
-      ),
+                  ),
+                ),
+                if (!_loading && showGoalLogs)
+                  const TabBar(
+                    tabs: [
+                      Tab(text: 'Journal'),
+                      Tab(text: 'Goal logs'),
+                    ],
+                  ),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : showGoalLogs
+                          ? TabBarView(
+                              key: const ValueKey<String>('with_goal_logs'),
+                              children: [
+                                _journalTab(),
+                                _notesTab(),
+                              ],
+                            )
+                          : _journalTab(),
+                ),
+              ],
+            )
+          : Scaffold(
+              appBar: AppBar(
+                title: Text(title),
+                bottom: _loading
+                    ? null
+                    : showGoalLogs
+                        ? const TabBar(
+                            tabs: [
+                              Tab(text: 'Journal'),
+                              Tab(text: 'Goal logs'),
+                            ],
+                          )
+                        : null,
+                actions: [
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () async {
+                      final prefs = _prefs ?? await SharedPreferences.getInstance();
+                      _prefs ??= prefs;
+                      await _reload(prefs: prefs);
+                    },
+                  ),
+                ],
+              ),
+              body: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : showGoalLogs
+                      ? TabBarView(
+                          key: const ValueKey<String>('with_goal_logs'),
+                          children: [
+                            _journalTab(),
+                            _notesTab(),
+                          ],
+                        )
+                      : _journalTab(),
+            ),
     );
   }
 }

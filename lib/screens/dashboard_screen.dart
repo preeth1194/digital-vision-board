@@ -27,6 +27,7 @@ import 'templates/template_gallery_screen.dart';
 import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
 import 'journal_notes_screen.dart';
+import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,10 +37,12 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+  static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
   int _tabIndex = 0;
   bool _loading = true;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
+  bool _checkedMandatoryLogin = false;
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
@@ -73,6 +76,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshReminders();
+      // Best-effort: if user is still on a guest session after 10 days, re-prompt.
+      _maybeShowAuthGatewayIfMandatoryAfterTenDays();
     }
   }
 
@@ -94,6 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _refreshReminders();
     await _maybeShowAuthGatewayIfGuestExpired();
+    await _maybeShowAuthGatewayIfMandatoryAfterTenDays();
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -107,6 +113,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       }
     };
     SyncService.authExpired.addListener(_syncAuthListener!);
+  }
+
+  Future<void> _maybeShowAuthGatewayIfMandatoryAfterTenDays() async {
+    if (_checkedMandatoryLogin) return;
+    _checkedMandatoryLogin = true;
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+
+    final firstInstallMs = await DvAuthService.getFirstInstallMs(prefs: prefs);
+    if (firstInstallMs == null || firstInstallMs <= 0) return;
+    final ageMs = DateTime.now().millisecondsSinceEpoch - firstInstallMs;
+    if (ageMs < const Duration(days: 10).inMilliseconds) return;
+
+    // Only force prompt for guest users (logged-in users should not be interrupted).
+    final isGuest = await DvAuthService.isGuestSession(prefs: prefs);
+    if (!isGuest) return;
+    if (!mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const AuthGatewayScreen(forced: true),
+          fullscreenDialog: true,
+        ),
+      );
+    });
   }
 
   Future<void> _maybeShowAuthGatewayIfGuestExpired() async {
@@ -189,13 +223,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final endOfMonth = DateTime(now.year, now.month + 1, 0);
-
-    List<DateTime> days = [];
-    for (DateTime d = today; !d.isAfter(endOfMonth); d = d.add(const Duration(days: 1))) {
-      days.add(d);
-    }
+    final todayIso = ReminderSummaryService.toIsoDate(today);
+    final todayItems = summary.itemsByIsoDate[todayIso] ?? const <ReminderItem>[];
 
     await showModalBottomSheet<void>(
       context: context,
@@ -220,54 +249,25 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   child: ListView(
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + paddingBottom),
                     children: [
-                      for (final d in days) ...[
-                        Builder(
-                          builder: (_) {
-                            final iso = ReminderSummaryService.toIsoDate(d);
-                            final items = summary.itemsByIsoDate[iso] ?? const <ReminderItem>[];
-                            if (items.isEmpty) return const SizedBox.shrink();
-                            final title = (d == today)
-                                ? 'Today'
-                                : (d == tomorrow)
-                                    ? 'Tomorrow'
-                                    : _monthDayLabel(d);
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 10),
-                                Text(
-                                  title,
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 8),
-                                ...items.map((it) {
-                                  final leading = it.kind == ReminderKind.habit
-                                      ? const Icon(Icons.notifications_active_outlined)
-                                      : const Icon(Icons.event_outlined);
-                                  final time = it.minutesSinceMidnight == null
-                                      ? null
-                                      : _timeLabel(it.minutesSinceMidnight!);
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    child: ListTile(
-                                      leading: leading,
-                                      title: Text(it.label),
-                                      subtitle: Text(
-                                        time == null ? it.boardTitle : '${it.boardTitle} • $time',
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                      if (summary.itemsByIsoDate.isEmpty)
+                      if (todayItems.isEmpty)
                         const Padding(
                           padding: EdgeInsets.only(top: 24),
-                          child: Center(child: Text('No reminders for the rest of this month.')),
+                          child: Center(child: Text('No reminders today.')),
                         ),
+                      ...todayItems.map((it) {
+                        final leading = it.kind == ReminderKind.habit
+                            ? const Icon(Icons.notifications_active_outlined)
+                            : const Icon(Icons.event_outlined);
+                        final time = it.minutesSinceMidnight == null ? null : _timeLabel(it.minutesSinceMidnight!);
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            leading: leading,
+                            title: Text(it.label),
+                            subtitle: Text(time == null ? it.boardTitle : '${it.boardTitle} • $time'),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -277,6 +277,77 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         );
       },
     );
+  }
+
+  Future<void> _maybePromptAddWidgetIfFirstBoardCreated({required int boardsBefore}) async {
+    if (boardsBefore != 0) return;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final already = prefs.getBool(_addWidgetPromptShownKey) ?? false;
+    if (already) return;
+    if (_boards.isEmpty) return;
+    if (!mounted) return;
+
+    // Mark as shown up-front so it remains one-time even if user background-kills mid-sheet.
+    await prefs.setBool(_addWidgetPromptShownKey, true);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Add home-screen widget?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text('Get a quick view of today’s habits and mark them complete from your home screen.'),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    showHomeScreenWidgetInstructionsSheet(context);
+                  },
+                  child: const Text('Yes'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Not now'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openAccount() async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const AuthGatewayScreen(forced: false),
+        fullscreenDialog: true,
+      ),
+    );
+    if (res == true) {
+      // Token refreshed (guest) or user logged in. Attempt bootstrap/sync/prune.
+      await SyncService.bootstrapIfNeeded(prefs: _prefs);
+      await LogicalDateService.reloadHomeTimezone(prefs: _prefs);
+      await SyncService.pruneLocalFeedback(prefs: _prefs);
+      await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
+      await _reload();
+    }
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
@@ -299,6 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   Future<void> _createBoard() async {
+    final boardsBefore = _boards.length;
     final layoutType = await showTemplatePickerSheet(context);
     if (!mounted) return;
     if (layoutType == null) return;
@@ -310,6 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       if (mounted && res == true) {
         await _reload();
         await _refreshReminders();
+        await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
       }
       return;
     }
@@ -321,6 +394,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       if (mounted && res == true) {
         await _reload();
         await _refreshReminders();
+        await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
       }
       return;
     }
@@ -363,6 +437,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _clearActiveBoard();
     await _reload();
     await _refreshReminders();
+    await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
   }
 
   Future<void> _deleteBoard(VisionBoardInfo board) async {
@@ -438,17 +513,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    // Hide Habits/Tasks from the Dashboard bottom nav, but keep the underlying
-    // tab indices stable (so the rest of the screen switch logic doesn't need
-    // to be refactored).
-    const int journalSentinelTab = -1;
-    const visibleTabIndices = <int>[0, 1, journalSentinelTab, 4]; // Dashboard, Daily, Journal, Insights
+    const visibleTabIndices = <int>[0, 1, 2, 4]; // Dashboard, Daily, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final appBarTitle = _tabIndex == 1
         ? 'Daily'
         : _tabIndex == 2
-            ? 'Habits'
+            ? 'Journal'
             : _tabIndex == 3
                 ? 'Todo'
                 : _tabIndex == 4
@@ -468,41 +539,66 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
 
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Digital Vision Board',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder<String?>(
+                    future: DvAuthService.getCanvaUserId(prefs: _prefs),
+                    builder: (context, snap) {
+                      final id = (snap.data ?? '').trim();
+                      final label = id.isEmpty ? 'Guest session' : 'Signed in';
+                      return Text(label, style: const TextStyle(color: Colors.black54));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('User profile'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _openAccount();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('Notifications'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _openRemindersSheet();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openSettings();
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
         title: Text(appBarTitle),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
         // Material 3认为 AppBar can be translucent; make it solid so navigation is always visible.
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
-          IconButton(
-            tooltip: 'Account',
-            icon: const Icon(Icons.person_outline),
-            onPressed: () async {
-              final res = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                  builder: (_) => const AuthGatewayScreen(forced: false),
-                  fullscreenDialog: true,
-                ),
-              );
-              if (res == true) {
-                // Token refreshed (guest). Attempt bootstrap/sync/prune.
-                await SyncService.bootstrapIfNeeded(prefs: _prefs);
-                await LogicalDateService.reloadHomeTimezone(prefs: _prefs);
-                await SyncService.pruneLocalFeedback(prefs: _prefs);
-                await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
-                await _reload();
-              }
-            },
-          ),
-          IconButton(
-            tooltip: 'Settings',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            },
-          ),
           Builder(
             builder: (ctx) {
               final count = _reminderSummary?.todayPendingCount ?? 0;
@@ -542,12 +638,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
         onTap: (i) {
           final nextTab = visibleTabIndices[i];
-          if (nextTab == journalSentinelTab) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const JournalNotesScreen()),
-            );
-            return;
-          }
           setState(() => _tabIndex = nextTab);
           _refreshReminders();
         },

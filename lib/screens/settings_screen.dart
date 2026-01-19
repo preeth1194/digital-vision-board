@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'onboarding/onboarding_carousel_screen.dart';
 import 'admin/templates_admin_screen.dart';
 import '../services/dv_auth_service.dart';
+import '../services/app_settings_service.dart';
+import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 
 final class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +15,7 @@ final class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _gender = 'prefer_not_to_say';
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -22,8 +25,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final g = await DvAuthService.getGender();
+    final mode = AppSettingsService.themeMode.value;
     if (!mounted) return;
-    setState(() => _gender = g);
+    setState(() {
+      _gender = g;
+      _themeMode = mode;
+    });
   }
 
   String _genderLabel(String v) {
@@ -67,6 +74,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await DvAuthService.putUserSettings(gender: selected);
   }
 
+  String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.system:
+        return 'System';
+    }
+  }
+
+  Future<void> _pickThemeMode() async {
+    final selected = await showModalBottomSheet<ThemeMode>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            const Text('Theme', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            for (final v in const [ThemeMode.system, ThemeMode.light, ThemeMode.dark])
+              RadioListTile<ThemeMode>(
+                value: v,
+                groupValue: _themeMode,
+                title: Text(_themeModeLabel(v)),
+                onChanged: (x) => Navigator.of(ctx).pop(x),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    setState(() => _themeMode = selected);
+    await AppSettingsService.setThemeMode(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -79,6 +124,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.dark_mode_outlined),
+            title: const Text('Appearance'),
+            subtitle: Text(_themeModeLabel(_themeMode)),
+            onTap: _pickThemeMode,
+          ),
+          const Divider(height: 0),
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Gender (for recommendations)'),
@@ -110,6 +162,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
             },
+          ),
+          const Divider(height: 0),
+          ListTile(
+            leading: const Icon(Icons.widgets_outlined),
+            title: const Text('Add home-screen widget'),
+            subtitle: const Text('See step-by-step instructions'),
+            onTap: () => showHomeScreenWidgetInstructionsSheet(context),
           ),
           const Divider(height: 0),
         ],

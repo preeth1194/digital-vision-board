@@ -12,6 +12,7 @@ import '../models/vision_components.dart';
 import 'boards_storage_service.dart';
 import 'dv_auth_service.dart';
 import 'grid_tiles_storage_service.dart';
+import 'habit_progress_widget_snapshot_service.dart';
 import 'logical_date_service.dart';
 import 'vision_board_components_storage_service.dart';
 
@@ -141,6 +142,11 @@ final class SyncService {
       },
       prefs: prefs,
     );
+
+    // Best-effort: keep widget snapshot current for the active board.
+    Future<void>(() async {
+      await HabitProgressWidgetSnapshotService.refreshIfAffectedBoardBestEffort(boardId, prefs: prefs);
+    });
   }
 
   static Future<void> enqueueBoardSnapshot({

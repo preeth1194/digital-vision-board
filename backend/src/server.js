@@ -5,6 +5,7 @@ import multer from "multer";
 import sharp from "sharp";
 
 import { randomId, sha256Base64Url } from "./crypto.js";
+import { admin, ensureFirebaseAdmin } from "./firebase_admin.js";
 import {
   canvaAuthorizeUrl,
   createExportJob,
@@ -803,6 +804,52 @@ app.post("/auth/guest", async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: "guest_auth_failed", message: String(e?.message ?? e) });
+  }
+});
+
+/**
+ * Exchange a Firebase Auth ID token for a dvToken used by this backend.
+ * Body: { idToken: string }
+ */
+app.post("/auth/firebase/exchange", async (req, res) => {
+  try {
+    const idToken = typeof req.body?.idToken === "string" ? req.body.idToken.trim() : "";
+    if (!idToken) return res.status(400).json({ ok: false, error: "missing_idToken" });
+
+    ensureFirebaseAdmin();
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const uid = typeof decoded?.uid === "string" ? decoded.uid : null;
+    if (!uid) return res.status(401).json({ ok: false, error: "invalid_firebase_token" });
+
+    const userId = `fb_${uid}`;
+    const existing = (await getUserRecord(userId)) ?? null;
+    const dvToken = existing?.dvToken ?? randomId(24);
+
+    const record = {
+      ...(existing && typeof existing === "object" ? existing : {}),
+      canvaUserId: userId, // backend uses canvaUserId as the primary key
+      teamId: null,
+      dvToken,
+      isGuest: false,
+      guestExpiresAtMs: null,
+      firebase: {
+        uid,
+        signInProvider: decoded?.firebase?.sign_in_provider ?? null,
+        email: decoded?.email ?? null,
+        phoneNumber: decoded?.phone_number ?? null,
+      },
+      // Keep existing arrays if present.
+      habits: Array.isArray(existing?.habits) ? existing.habits : [],
+      packages: Array.isArray(existing?.packages) ? existing.packages : [],
+    };
+
+    await putUserRecord(userId, record);
+
+    return res.json({ ok: true, dvToken, userId });
+  } catch (e) {
+    const msg = String(e?.message ?? e);
+    // Common misconfig: firebase-admin not configured.
+    return res.status(500).json({ ok: false, error: "firebase_exchange_failed", message: msg });
   }
 });
 

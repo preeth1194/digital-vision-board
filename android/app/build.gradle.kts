@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -17,7 +19,7 @@ if (file("google-services.json").exists() || file("src/debug/google-services.jso
 
 // Load keystore properties from key.properties file if it exists
 val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = java.util.Properties()
+val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
@@ -34,9 +36,7 @@ android {
     }
 
     kotlinOptions {
-        compilerOptions {
-            jvmTarget.set("17")
-        }
+        jvmTarget = "17"
     }
 
     defaultConfig {

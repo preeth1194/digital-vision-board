@@ -43,27 +43,23 @@ class GoalTodoTab extends StatelessWidget {
   Future<void> _addTodos(BuildContext context) async {
     final text = await showTextInputDialog(
       context,
-      title: 'Add todo items (one per line)',
+      title: 'Add todo',
       initialText: '',
+      hintText: 'e.g. Drink water',
     );
-    final lines = (text ?? '')
-        .split('\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) return;
+    final next = (text ?? '').trim();
+    if (next.isEmpty) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     onTodosChanged([
       ...todos,
-      for (int i = 0; i < lines.length; i++)
-        GoalTodoItem(
-          id: 'todo_${now}_$i',
-          text: lines[i],
-          isCompleted: false,
-          completedAtMs: null,
-          habitId: null,
-          taskId: null,
-        ),
+      GoalTodoItem(
+        id: 'todo_${now}_0',
+        text: next,
+        isCompleted: false,
+        completedAtMs: null,
+        habitId: null,
+        taskId: null,
+      ),
     ]);
   }
 

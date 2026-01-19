@@ -123,28 +123,24 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
     final text = await showTextInputDialog(
       context,
-      title: 'Add todo items (one per line)',
+      title: 'Add todo',
       initialText: '',
+      hintText: 'e.g. Drink water',
     );
-    final lines = (text ?? '')
-        .split('\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) return;
+    final nextText = (text ?? '').trim();
+    if (nextText.isEmpty) return;
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final nextItems = [
       ...meta.todoItems,
-      for (int i = 0; i < lines.length; i++)
-        GoalTodoItem(
-          id: 'todo_${now}_$i',
-          text: lines[i],
-          isCompleted: false,
-          completedAtMs: null,
-          habitId: null,
-          taskId: null,
-        ),
+      GoalTodoItem(
+        id: 'todo_${now}_0',
+        text: nextText,
+        isCompleted: false,
+        completedAtMs: null,
+        habitId: null,
+        taskId: null,
+      ),
     ];
     final nextMeta = meta.copyWith(todoItems: nextItems);
 

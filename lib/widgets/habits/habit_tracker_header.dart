@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/goal_metadata.dart';
 import '../../models/vision_components.dart';
+import '../../utils/component_label_utils.dart';
 import '../dialogs/goal_details_dialog.dart';
 import '../goal_details_sheet.dart';
 
@@ -30,7 +31,9 @@ class HabitTrackerHeader extends StatelessWidget {
     final goal = goalCarrier is ImageComponent
         ? goalCarrier.goal
         : (goalCarrier is GoalOverlayComponent ? goalCarrier.goal : null);
-    final displayTitle = (goal?.title ?? '').trim().isNotEmpty ? goal!.title!.trim() : component.id;
+    final displayTitle = ComponentLabelUtils.categoryOrTitleOrId(component);
+    final goalTitle = (goal?.title ?? '').trim();
+    final dialogGoalTitle = goalTitle.isNotEmpty ? goalTitle : displayTitle;
     final microHabit = goal?.actionPlan?.microHabit?.trim();
     final frequency = goal?.actionPlan?.frequency?.trim();
     final weeklyDays = goal?.actionPlan?.weeklyDays ?? const <int>[];
@@ -84,7 +87,7 @@ class HabitTrackerHeader extends StatelessWidget {
               tooltip: 'CBT & goal details',
               icon: const Icon(Icons.psychology_outlined),
               onPressed: () {
-                final existing = goal ?? GoalMetadata(title: displayTitle);
+                final existing = goal;
                 showGoalDetailsSheet(
                   context,
                   goal: existing,
@@ -93,7 +96,7 @@ class HabitTrackerHeader extends StatelessWidget {
                       : (_) async {
                           final updated = await showGoalDetailsDialog(
                             context,
-                            goalTitle: displayTitle,
+                            goalTitle: dialogGoalTitle,
                             initial: existing,
                           );
                           if (updated == null) return;

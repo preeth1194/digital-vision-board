@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_tile_model.dart';
 import '../models/habit_item.dart';
-import '../models/task_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import 'boards_storage_service.dart';
@@ -138,33 +137,6 @@ final class SyncService {
     );
   }
 
-  static Future<void> enqueueChecklistEvent({
-    required String boardId,
-    required String componentId,
-    required String taskId,
-    required String itemId,
-    required String logicalDate,
-    int? rating,
-    String? note,
-    bool deleted = false,
-    SharedPreferences? prefs,
-  }) async {
-    await _enqueue(
-      {
-        'kind': 'checklist',
-        'boardId': boardId,
-        'componentId': componentId,
-        'taskId': taskId,
-        'itemId': itemId,
-        'logicalDate': logicalDate,
-        'rating': rating,
-        'note': note,
-        'deleted': deleted,
-      },
-      prefs: prefs,
-    );
-  }
-
   static Future<void> enqueueBoardSnapshot({
     required String boardId,
     required Map<String, dynamic> boardJson,
@@ -233,7 +205,6 @@ final class SyncService {
 
     final boards = <Map<String, dynamic>>[];
     final habitCompletions = <Map<String, dynamic>>[];
-    final checklistEvents = <Map<String, dynamic>>[];
 
     for (final it in outbox) {
       final kind = it['kind'];
@@ -246,14 +217,14 @@ final class SyncService {
       } else if (kind == 'habit') {
         habitCompletions.add(Map<String, dynamic>.from(it)..remove('kind'));
       } else if (kind == 'checklist') {
-        checklistEvents.add(Map<String, dynamic>.from(it)..remove('kind'));
+        // Legacy outbox entry type (tasks/checklists removed). Drop on flush.
+        continue;
       }
     }
 
     final body = <String, dynamic>{
       if (boards.isNotEmpty) 'boards': boards,
       if (habitCompletions.isNotEmpty) 'habitCompletions': habitCompletions,
-      if (checklistEvents.isNotEmpty) 'checklistEvents': checklistEvents,
     };
 
     if (body.isEmpty) return;
@@ -308,23 +279,7 @@ final class SyncService {
       }
       return h.copyWith(feedbackByDate: nextFb);
     }).toList();
-
-    final tasks = c.tasks.map((t) {
-      final nextTaskFb = <String, CompletionFeedback>{};
-      for (final e in t.completionFeedbackByDate.entries) {
-        if (e.key.compareTo(cutoffIso) >= 0) nextTaskFb[e.key] = e.value;
-      }
-      final nextChecklist = t.checklist.map((ci) {
-        final nextItemFb = <String, CompletionFeedback>{};
-        for (final e in ci.feedbackByDate.entries) {
-          if (e.key.compareTo(cutoffIso) >= 0) nextItemFb[e.key] = e.value;
-        }
-        return ci.copyWith(feedbackByDate: nextItemFb);
-      }).toList();
-      return t.copyWith(checklist: nextChecklist, completionFeedbackByDate: nextTaskFb);
-    }).toList();
-
-    return c.copyWithCommon(habits: habits, tasks: tasks);
+    return c.copyWithCommon(habits: habits, tasks: const []);
   }
 
   static GridTileModel _pruneTile(GridTileModel t, String cutoffIso) {
@@ -335,23 +290,7 @@ final class SyncService {
       }
       return h.copyWith(feedbackByDate: nextFb);
     }).toList();
-
-    final tasks = t.tasks.map((task) {
-      final nextTaskFb = <String, CompletionFeedback>{};
-      for (final e in task.completionFeedbackByDate.entries) {
-        if (e.key.compareTo(cutoffIso) >= 0) nextTaskFb[e.key] = e.value;
-      }
-      final nextChecklist = task.checklist.map((ci) {
-        final nextItemFb = <String, CompletionFeedback>{};
-        for (final e in ci.feedbackByDate.entries) {
-          if (e.key.compareTo(cutoffIso) >= 0) nextItemFb[e.key] = e.value;
-        }
-        return ci.copyWith(feedbackByDate: nextItemFb);
-      }).toList();
-      return task.copyWith(checklist: nextChecklist, completionFeedbackByDate: nextTaskFb);
-    }).toList();
-
-    return t.copyWith(habits: habits, tasks: tasks);
+    return t.copyWith(habits: habits, tasks: const []);
   }
 
   static Future<void> _enqueue(Map<String, dynamic> item, {SharedPreferences? prefs}) async {

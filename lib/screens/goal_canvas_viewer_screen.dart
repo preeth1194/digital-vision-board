@@ -18,7 +18,7 @@ import '../widgets/vision_board_builder.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
-import 'tasks_list_screen.dart';
+import 'todos_list_screen.dart';
 
 /// View-only screen for Goal Canvas.
 ///
@@ -45,7 +45,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   Size? _canvasSize;
   String? _selectedId;
   bool _uploading = false;
-  int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Tasks, 3: Insights
+  int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Todo, 3: Insights
 
   final GlobalKey _exportKey = GlobalKey();
 
@@ -91,7 +91,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
     setState(() => _components = updated);
   }
 
-  Future<void> _openHabitTracker(VisionComponent component) async {
+  Future<void> _openHabitTracker(VisionComponent component, {int initialTabIndex = 0}) async {
     if (component is! ImageComponent) return; // only image goals have habits
     await showModalBottomSheet(
       context: context,
@@ -103,6 +103,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
       builder: (_) => HabitTrackerSheet(
         boardId: widget.boardId,
         component: component,
+        initialTabIndex: initialTabIndex,
         onComponentUpdated: (updated) {
           final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
           _saveComponents(next);
@@ -197,7 +198,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
         : _tabIndex == 1
             ? 'Habits'
             : _tabIndex == 2
-                ? 'Tasks'
+                ? 'Todo'
                 : 'Insights';
 
     return Scaffold(
@@ -273,10 +274,11 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
                 ),
-              2 => TasksListScreen(
+              2 => TodosListScreen(
                   components: _components,
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
+                  onOpenComponent: (c) => _openHabitTracker(c, initialTabIndex: 1),
                 ),
               3 => GlobalInsightsScreen(components: _components),
               _ => RepaintBoundary(
@@ -287,7 +289,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                     selectedComponentId: _selectedId,
                     onSelectedComponentIdChanged: (id) => setState(() => _selectedId = id),
                     onComponentsChanged: _saveComponents,
-                    onOpenComponent: _openHabitTracker,
+                    onOpenComponent: (c) => _openHabitTracker(c),
                     backgroundColor: _backgroundColor,
                     backgroundImage: _backgroundImage,
                     backgroundImageSize: null,
@@ -309,8 +311,8 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
             label: 'Habits',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.checklist),
-            label: 'Tasks',
+            icon: Icon(Icons.playlist_add_check),
+            label: 'Todo',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.insights),

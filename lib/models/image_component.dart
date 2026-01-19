@@ -79,7 +79,6 @@ final class ImageComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
-        'tasks': VisionComponent.tasksToJson(tasks),
         'isDisabled': isDisabled,
         'imagePath': imagePath,
         'goal': goal?.toJson(),

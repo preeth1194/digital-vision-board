@@ -7,6 +7,8 @@ import '../../services/notifications_service.dart';
 import '../../services/logical_date_service.dart';
 import '../../services/sync_service.dart';
 import '../../screens/habit_timer_screen.dart';
+import '../../services/habit_geofence_tracking_service.dart';
+import '../../utils/component_label_utils.dart';
 import '../dialogs/add_habit_dialog.dart';
 import '../dialogs/goal_picker_sheet.dart';
 import '../dialogs/completion_feedback_sheet.dart';
@@ -99,6 +101,15 @@ class AllBoardsHabitsTab extends StatelessWidget {
 
           await onSaveBoardComponents(board.id, nextComponents);
           setLocal(() => componentsByBoardId[board.id] = nextComponents);
+
+          Future<void>(() async {
+            // Keep location tracking in sync when new location-based habits are added.
+            await HabitGeofenceTrackingService.instance.configureForComponent(
+              boardId: board.id,
+              componentId: selected.id,
+              habits: nextComponents.where((c) => c.id == selected.id).first.habits,
+            );
+          });
 
           Future<void>(() async {
             if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
@@ -215,7 +226,7 @@ class AllBoardsHabitsTab extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                             child: Text(
-                              component.id,
+                              ComponentLabelUtils.categoryOrTitleOrId(component),
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -238,7 +249,8 @@ class AllBoardsHabitsTab extends StatelessWidget {
                                   : null,
                               title: Text(habit.name),
                               subtitle: scheduledToday ? null : const Text('Not scheduled today'),
-                              secondary: (habit.timeBound?.enabled == true)
+                              tileColor: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
+                              secondary: (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
                                   ? IconButton(
                                       tooltip: 'Timer',
                                       icon: const Icon(Icons.timer_outlined),

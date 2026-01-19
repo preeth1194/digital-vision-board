@@ -3,13 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_tile_model.dart';
 import '../models/habit_item.dart';
-import '../models/task_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import 'grid_tiles_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 
-enum ReminderKind { habit, taskDue }
+enum ReminderKind { habit }
 
 class ReminderItem {
   final ReminderKind kind;
@@ -102,7 +101,6 @@ class ReminderSummaryService {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
-          tasks: t.tasks,
         ),
       );
     }
@@ -164,33 +162,6 @@ class ReminderSummaryService {
             );
             (itemsByIso[item.isoDate] ??= []).add(item);
             if (d == today) todayPending++;
-          }
-        }
-      }
-
-      // Tasks due dates (checklist items)
-      for (final c in components) {
-        for (final t in c.tasks) {
-          for (final ci in t.checklist) {
-            if (ci.isCompleted) continue;
-            final dueIso = (ci.dueDate ?? '').trim();
-            final dueKey = _parseIsoToComparable(dueIso);
-            if (dueKey == null) continue;
-            if (dueKey < todayKey || dueKey > endKey) continue;
-
-            final dueDate = _parseIsoDate(dueIso);
-            if (dueDate == null) continue;
-
-            final item = ReminderItem(
-              kind: ReminderKind.taskDue,
-              date: dueDate,
-              minutesSinceMidnight: null,
-              boardId: b.id,
-              boardTitle: b.title,
-              label: '${t.title}: ${ci.text}',
-            );
-            (itemsByIso[item.isoDate] ??= []).add(item);
-            if (dueDate == today) todayPending++;
           }
         }
       }

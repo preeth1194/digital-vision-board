@@ -7,10 +7,10 @@ import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../screens/habits_list_screen.dart';
-import '../../screens/tasks_list_screen.dart';
+import '../../screens/todos_list_screen.dart';
 import '../../screens/daily_overview_screen.dart';
 import 'all_boards_habits_tab.dart';
-import 'all_boards_tasks_tab.dart';
+import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
 import '../../screens/global_insights_screen.dart';
 
@@ -19,6 +19,7 @@ class DashboardBody extends StatelessWidget {
   final List<VisionBoardInfo> boards;
   final String? activeBoardId;
   final SharedPreferences? prefs;
+  final ValueNotifier<int> boardDataVersion;
 
   final VoidCallback onCreateBoard;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
@@ -31,6 +32,7 @@ class DashboardBody extends StatelessWidget {
     required this.boards,
     required this.activeBoardId,
     required this.prefs,
+    required this.boardDataVersion,
     required this.onCreateBoard,
     required this.onOpenEditor,
     required this.onOpenViewer,
@@ -56,7 +58,6 @@ class DashboardBody extends StatelessWidget {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
-          tasks: t.tasks,
         ),
       );
     }
@@ -82,13 +83,14 @@ class DashboardBody extends StatelessWidget {
         return t.copyWith(
           goal: img?.goal ?? t.goal,
           habits: c.habits,
-          tasks: c.tasks,
         );
       }).toList();
       await GridTilesStorageService.saveTiles(board.id, nextTiles, prefs: prefs);
+      boardDataVersion.value = boardDataVersion.value + 1;
       return;
     }
     await VisionBoardComponentsStorageService.saveComponents(board.id, updated, prefs: prefs);
+    boardDataVersion.value = boardDataVersion.value + 1;
   }
 
   Future<Map<String, List<VisionComponent>>> _loadAllBoardsComponents() async {
@@ -103,7 +105,11 @@ class DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final boardId = activeBoardId;
     final activeBoard = (boardId == null) ? null : _boardById(boardId);
-    return switch (tabIndex) {
+    // Force reload of board components across tabs whenever board data changes.
+    return ValueListenableBuilder<int>(
+      valueListenable: boardDataVersion,
+      builder: (context, _, __) {
+        return switch (tabIndex) {
       0 => DashboardTab(
           boards: boards,
           activeBoardId: activeBoardId,
@@ -121,6 +127,8 @@ class DashboardBody extends StatelessWidget {
               boardId: boardId,
               components: snap.data ?? const <VisionComponent>[],
               onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
+              showAppBar: false,
+              showDueDate: false,
             );
           },
         ),
@@ -143,10 +151,10 @@ class DashboardBody extends StatelessWidget {
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return TasksListScreen(
-              boardId: boardId,
+            return TodosListScreen(
               components: snap.data ?? const <VisionComponent>[],
               onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
+              onOpenComponent: (_) async {},
               showAppBar: false,
             );
           },
@@ -155,7 +163,7 @@ class DashboardBody extends StatelessWidget {
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return AllBoardsTasksTab(
+            return AllBoardsTodosTab(
               boards: boards,
               componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
               onSaveBoardComponents: (id, updated) async {
@@ -184,7 +192,9 @@ class DashboardBody extends StatelessWidget {
             return GlobalInsightsScreen(components: all);
           },
         ),
-    };
+        };
+      },
+    );
   }
 }
 

@@ -15,7 +15,7 @@ import '../widgets/physical_board/goal_overlay_canvas_view.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
 import 'physical_board_editor_screen.dart';
-import 'tasks_list_screen.dart';
+import 'todos_list_screen.dart';
 
 /// View-only screen for Physical Vision Boards.
 ///
@@ -38,7 +38,7 @@ class PhysicalBoardViewerScreen extends StatefulWidget {
 
 class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
   bool _loading = true;
-  int _tabIndex = 0; // 0: Photo, 1: Habits, 2: Tasks, 3: Insights
+  int _tabIndex = 0; // 0: Photo, 1: Habits, 2: Todo, 3: Insights
   String? _selectedId;
 
   SharedPreferences? _prefs;
@@ -109,7 +109,7 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
     setState(() => _components = updated);
   }
 
-  Future<void> _openHabitTracker(VisionComponent component) async {
+  Future<void> _openHabitTracker(VisionComponent component, {int initialTabIndex = 0}) async {
     if (!mounted) return;
     setState(() => _selectedId = component.id);
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
@@ -125,6 +125,7 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
       builder: (_) => HabitTrackerSheet(
         boardId: widget.boardId,
         component: component,
+        initialTabIndex: initialTabIndex,
         onComponentUpdated: (updated) {
           final next = _components.map((c) => c.id == updated.id ? updated : c).toList();
           _saveComponents(next);
@@ -193,7 +194,7 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
         : _tabIndex == 1
             ? 'Habits'
             : _tabIndex == 2
-                ? 'Tasks'
+                ? 'Todo'
                 : 'Insights';
 
     final bg = _bgProvider;
@@ -225,10 +226,11 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
                 ),
-              2 => TasksListScreen(
+              2 => TodosListScreen(
                   components: _components,
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
+                  onOpenComponent: (c) => _openHabitTracker(c, initialTabIndex: 1),
                 ),
               3 => GlobalInsightsScreen(components: _components),
               _ => (bg == null || bgSize == null)
@@ -252,7 +254,7 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.photo_outlined), label: 'Photo'),
           BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
-          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.playlist_add_check), label: 'Todo'),
           BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
         ],
       ),

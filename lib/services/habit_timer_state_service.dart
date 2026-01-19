@@ -12,6 +12,7 @@ final class HabitTimerStateService {
   HabitTimerStateService._();
 
   static const String _prefix = 'habit_timer_state_v1';
+  static const int defaultLocationOnlyMinutes = 15;
 
   static String _key(String habitId, String isoDate) => '$_prefix:$habitId:$isoDate';
 
@@ -202,6 +203,11 @@ final class HabitTimerStateService {
         (lb.triggerMode == 'dwell' || lb.triggerMode == 'both') &&
         (lb.dwellMinutes != null && lb.dwellMinutes! > 0)) {
       return lb.dwellMinutes! * 60 * 1000;
+    }
+
+    // Location-only arrival: user chose "start timer anyway" -> use a default dwell target.
+    if (lb != null && lb.enabled && (lb.triggerMode == 'arrival')) {
+      return defaultLocationOnlyMinutes * 60 * 1000;
     }
 
     return 0;

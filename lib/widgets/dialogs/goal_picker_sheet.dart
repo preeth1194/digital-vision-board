@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/goal_overlay_component.dart';
 import '../../models/vision_components.dart';
+import '../../utils/component_label_utils.dart';
 
 Future<VisionComponent?> showGoalPickerSheet(
   BuildContext context, {
@@ -42,15 +43,11 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
   String _query = '';
 
   static String _labelFor(VisionComponent c) {
-    if (c is GoalOverlayComponent) {
-      final t = (c.goal.title ?? '').trim();
-      return t.isEmpty ? c.id : t;
-    }
-    if (c is ImageComponent) {
-      final t = (c.goal?.title ?? '').trim();
-      return t.isEmpty ? c.id : t;
-    }
-    return c.id;
+    return ComponentLabelUtils.categoryOrTitleOrId(c);
+  }
+
+  static bool _looksLikeInternalTileId(String s) {
+    return s.trim().toLowerCase().startsWith('tile_');
   }
 
   @override
@@ -98,9 +95,12 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
                     itemBuilder: (ctx, i) {
                       final c = filtered[i];
                       final label = _labelFor(c);
+                      final showIdSubtitle = !_looksLikeInternalTileId(c.id) && label != c.id;
                       return ListTile(
                         title: Text(label),
-                        subtitle: label == c.id ? null : Text(c.id, style: const TextStyle(color: Colors.black54)),
+                        subtitle: showIdSubtitle
+                            ? Text(c.id, style: const TextStyle(color: Colors.black54))
+                            : null,
                         onTap: () => Navigator.of(context).pop(c),
                       );
                     },

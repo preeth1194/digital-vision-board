@@ -62,6 +62,7 @@ final class WizardBoardBuilderService {
             category: g.category,
             cbt: GoalCbtMetadata(coreValue: CoreValues.byId(g.coreValueId).label, visualization: g.whyImportant),
             actionPlan: g.wantsActionPlan ? const GoalActionPlan(frequency: 'Daily') : null,
+            todoItems: g.todoItems,
           ),
           habits: g.wantsActionPlan ? g.habits : const [],
           tasks: g.wantsActionPlan ? g.tasks : const [],

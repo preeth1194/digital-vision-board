@@ -29,9 +29,9 @@ final class _OnboardingCarouselScreenState extends State<OnboardingCarouselScree
     ),
     _OnboardingSlide(
       icon: Icons.check_circle_outline,
-      title: 'Attach Habits + Tasks to goals',
+      title: 'Attach Habits + Todo to goals',
       body:
-          'Link actionable Habits and Tasks directly to your visuals, so each goal becomes trackable and measurable—not just inspirational.',
+          'Link actionable Habits and Todo items directly to your visuals, so each goal becomes trackable and measurable—not just inspirational.',
     ),
     _OnboardingSlide(
       icon: Icons.mood_outlined,

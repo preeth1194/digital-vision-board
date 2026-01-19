@@ -277,6 +277,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
+              color: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
               child: ListTile(
                 leading: Checkbox(
                   value: isTodayCompleted,
@@ -312,8 +313,11 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                         runSpacing: 6,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (habit.timeBound?.enabled == true) const Chip(label: Text('Timer')),
-                          if (habit.locationBound?.enabled == true) const Chip(label: Text('Location')),
+                          if (habit.timeBound?.enabled == true)
+                            Icon(Icons.timer_outlined, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          if (habit.locationBound?.enabled == true)
+                            Icon(Icons.location_on_outlined,
+                                size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           if (targetMs > 0)
                             Text(
                               '${_fmt(accMs)} / ${_fmt(targetMs)}',
@@ -352,7 +356,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (habit.timeBound?.enabled == true)
+                    if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
                       IconButton(
                         tooltip: 'Timer',
                         icon: const Icon(Icons.timer_outlined),

@@ -4,16 +4,21 @@ import 'package:geofence_service/geofence_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
+import '../models/vision_board_info.dart';
+import 'boards_storage_service.dart';
+import 'grid_tiles_storage_service.dart';
+import 'habit_completion_applier.dart';
 import 'habit_timer_state_service.dart';
 import 'logical_date_service.dart';
+import 'vision_board_components_storage_service.dart';
 
 /// App-level geofence tracker for location-bound habits.
 ///
 /// Notes:
-/// - `geofence_service` runs while the app process is alive. On Android it can
-///   keep running via a foreground service depending on platform/plugin setup.
-/// - We only use ENTER/EXIT to accumulate time-inside via [HabitTimerStateService].
-/// - Completion is applied by the UI (when opened) via the normal toggle flow.
+/// - `geofence_service` runs while the app process is alive.
+/// - We use ENTER/DWELL/EXIT to accumulate time-inside via [HabitTimerStateService].
+/// - We can optionally auto-complete habits by persisting completion to local storage
+///   and enqueuing sync, without requiring UI to be open.
 final class HabitGeofenceTrackingService {
   HabitGeofenceTrackingService._();
 
@@ -22,8 +27,8 @@ final class HabitGeofenceTrackingService {
   final GeofenceService _svc = GeofenceService.instance;
   bool _initialized = false;
 
-  // Keep the last set of habit geofences we registered so we can cheaply refresh.
-  final Set<String> _registeredHabitIds = <String>{};
+  // Map per component so UI screens can refresh just their component’s habits.
+  final Map<String, List<_HabitGeoTarget>> _targetsByComponentKey = <String, List<_HabitGeoTarget>>{};
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
@@ -33,7 +38,6 @@ final class HabitGeofenceTrackingService {
     _svc.setup(
       interval: 5000,
       accuracy: 100,
-      // We don't rely on DWELL events; we compute dwell via enter/exit timestamps.
       loiteringDelayMs: 60000,
       statusChangeDelayMs: 10000,
       useActivityRecognition: false,
@@ -47,25 +51,82 @@ final class HabitGeofenceTrackingService {
     _initialized = true;
   }
 
-  Future<void> configureForHabits(List<HabitItem> habits) async {
+  /// Register/refresh geofence targets for one component (board + componentId).
+  Future<void> configureForComponent({
+    required String boardId,
+    required String componentId,
+    required List<HabitItem> habits,
+  }) async {
     _ensureInitialized();
+    final key = '$boardId::$componentId';
+    final enabled = habits
+        .where((h) => h.locationBound?.enabled == true)
+        .map((h) => _HabitGeoTarget(boardId: boardId, componentId: componentId, habit: h))
+        .toList();
+    _targetsByComponentKey[key] = enabled;
+    await _rebuildService();
+  }
 
-    final enabled = habits.where((h) {
-      final lb = h.locationBound;
-      return lb != null && lb.enabled;
-    }).toList();
+  /// Bootstraps geofence targets from local storage for all boards.
+  Future<void> bootstrapFromStorage({required SharedPreferences prefs}) async {
+    _ensureInitialized();
+    await LogicalDateService.ensureInitialized(prefs: prefs);
 
-    // Remove any old geofences first to avoid duplicates.
+    final boards = await BoardsStorageService.loadBoards(prefs: prefs);
+    _targetsByComponentKey.clear();
+
+    for (final b in boards) {
+      if (b.layoutType.trim() == VisionBoardInfo.layoutGrid) {
+        final tiles = await GridTilesStorageService.loadTiles(b.id, prefs: prefs);
+        for (final t in tiles) {
+          final enabled = t.habits
+              .where((h) => h.locationBound?.enabled == true)
+              .map((h) => _HabitGeoTarget(boardId: b.id, componentId: t.id, habit: h))
+              .toList();
+          if (enabled.isEmpty) continue;
+          _targetsByComponentKey['${b.id}::${t.id}'] = enabled;
+        }
+      } else {
+        final comps = await VisionBoardComponentsStorageService.loadComponents(b.id, prefs: prefs);
+        for (final c in comps) {
+          final enabled = c.habits
+              .where((h) => h.locationBound?.enabled == true)
+              .map((h) => _HabitGeoTarget(boardId: b.id, componentId: c.id, habit: h))
+              .toList();
+          if (enabled.isEmpty) continue;
+          _targetsByComponentKey['${b.id}::${c.id}'] = enabled;
+        }
+      }
+    }
+
+    await _rebuildService(prefs: prefs);
+  }
+
+  Future<void> stop() async {
+    if (!_svc.isRunningService) return;
+    await _svc.stop();
+  }
+
+  Future<void> _rebuildService({SharedPreferences? prefs}) async {
+    // Rebuild the full geofence list from our component-target map.
     _svc.clearGeofenceList();
-    _registeredHabitIds
-      ..clear()
-      ..addAll(enabled.map((h) => h.id));
 
-    for (final h in enabled) {
-      final lb = h.locationBound!;
+    final targets = _targetsByComponentKey.values.expand((x) => x).toList();
+    for (final t in targets) {
+      final h = t.habit;
+      final lb = h.locationBound;
+      if (lb == null || !lb.enabled) continue;
+
+      final targetMs = HabitTimerStateService.targetMsForHabit(h);
+
       final geofence = Geofence(
-        id: 'habit:${h.id}',
-        data: <String, dynamic>{'habitId': h.id},
+        id: 'habit:${t.boardId}:${t.componentId}:${h.id}',
+        data: <String, dynamic>{
+          'habitId': h.id,
+          'boardId': t.boardId,
+          'componentId': t.componentId,
+          'targetMs': targetMs,
+        },
         latitude: lb.lat,
         longitude: lb.lng,
         radius: [
@@ -75,7 +136,7 @@ final class HabitGeofenceTrackingService {
       _svc.addGeofence(geofence);
     }
 
-    if (_registeredHabitIds.isEmpty) {
+    if (targets.isEmpty) {
       if (_svc.isRunningService) {
         await _svc.stop();
       }
@@ -86,12 +147,6 @@ final class HabitGeofenceTrackingService {
     await _svc.start().catchError(_onError);
   }
 
-  Future<void> stop() async {
-    if (!_svc.isRunningService) return;
-    await _svc.stop();
-    _registeredHabitIds.clear();
-  }
-
   Future<void> _onGeofenceStatusChanged(
     Geofence geofence,
     GeofenceRadius geofenceRadius,
@@ -99,19 +154,25 @@ final class HabitGeofenceTrackingService {
     Location location,
   ) async {
     final data = geofence.data;
-    final habitId = (data is Map && data['habitId'] is String)
-        ? (data['habitId'] as String)
-        : geofence.id.startsWith('habit:')
-            ? geofence.id.substring('habit:'.length)
-            : null;
+    if (data is! Map) return;
+
+    final habitId = data['habitId'] as String?;
+    final boardId = data['boardId'] as String?;
+    final componentId = data['componentId'] as String?;
+    final targetMs = (data['targetMs'] as num?)?.toInt() ?? 0;
+
     if (habitId == null || habitId.trim().isEmpty) return;
+    if (boardId == null || boardId.trim().isEmpty) return;
+    if (componentId == null || componentId.trim().isEmpty) return;
 
     // ENTER/DWELL -> inside, EXIT -> outside
     final inside = geofenceStatus != GeofenceStatus.EXIT;
     final eventMs = location.timestamp.millisecondsSinceEpoch;
 
     final prefs = await _prefs();
+    await LogicalDateService.ensureInitialized(prefs: prefs);
     final logicalDate = LogicalDateService.today();
+
     await HabitTimerStateService.applyGeofenceEvent(
       prefs: prefs,
       habitId: habitId,
@@ -119,10 +180,43 @@ final class HabitGeofenceTrackingService {
       inside: inside,
       eventMs: eventMs,
     );
+
+    // Auto-complete in background (process alive) when the time target is reached.
+    if (targetMs > 0) {
+      final acc = await HabitTimerStateService.accumulatedMsNow(
+        prefs: prefs,
+        habitId: habitId,
+        logicalDate: logicalDate,
+        nowMs: eventMs,
+      );
+      if (acc >= targetMs) {
+        await HabitTimerStateService.pause(
+          prefs: prefs,
+          habitId: habitId,
+          logicalDate: logicalDate,
+          nowMs: eventMs,
+        );
+        final iso = LogicalDateService.isoToday();
+        await HabitCompletionApplier.markCompleted(
+          boardId: boardId,
+          componentId: componentId,
+          habitId: habitId,
+          logicalDateIso: iso,
+          prefs: prefs,
+        );
+      }
+    }
   }
 
   void _onError(dynamic error) {
-    // Intentionally no-op; UI can surface errors via normal permission prompts.
+    // Best-effort; errors are surfaced by permission UX elsewhere.
   }
+}
+
+final class _HabitGeoTarget {
+  final String boardId;
+  final String componentId;
+  final HabitItem habit;
+  const _HabitGeoTarget({required this.boardId, required this.componentId, required this.habit});
 }
 

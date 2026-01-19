@@ -141,6 +141,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       'category': goal['category'],
       'cbt_metadata': null,
       'action_plan': null,
+      'todo_items': [],
     };
   }
 

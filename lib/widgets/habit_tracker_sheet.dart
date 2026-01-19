@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
-import '../models/task_item.dart';
 import '../services/habit_geofence_tracking_service.dart';
 import '../services/notifications_service.dart';
-import '../services/completion_mutations.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import 'habits/habit_tracker_header.dart';
-import 'habits/habit_tracker_insights_tab.dart';
 import 'habits/habit_tracker_tracker_tab.dart';
 import 'dialogs/add_habit_dialog.dart';
-import 'dialogs/add_task_dialog.dart';
-import 'dialogs/add_checklist_item_dialog.dart';
 import 'dialogs/completion_feedback_sheet.dart';
-import 'tasks/task_tracker_tab.dart';
+import 'todos/goal_todo_tab.dart';
 
 /// Modal bottom sheet for tracking habits associated with a canvas component.
 class HabitTrackerSheet extends StatefulWidget {
@@ -24,6 +18,8 @@ class HabitTrackerSheet extends StatefulWidget {
   final VisionComponent component;
   final ValueChanged<VisionComponent> onComponentUpdated;
   final bool fullScreen;
+  /// 0: Tracker, 1: Todo
+  final int initialTabIndex;
 
   const HabitTrackerSheet({
     super.key,
@@ -31,6 +27,7 @@ class HabitTrackerSheet extends StatefulWidget {
     required this.component,
     required this.onComponentUpdated,
     this.fullScreen = false,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -39,22 +36,29 @@ class HabitTrackerSheet extends StatefulWidget {
 
 class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   late List<HabitItem> _habits;
-  late List<TaskItem> _tasks;
+  late List<GoalTodoItem> _todos;
   final TextEditingController _newHabitController = TextEditingController();
-  DateTime _focusedDay = LogicalDateService.today();
-  DateTime _selectedDay = LogicalDateService.today();
   bool _checkedMissed = false;
 
   @override
   void initState() {
     super.initState();
     _habits = List<HabitItem>.from(widget.component.habits);
-    _tasks = List<TaskItem>.from(widget.component.tasks);
+    final meta = _goalMetadataOrNull(widget.component);
+    _todos = List<GoalTodoItem>.from(meta?.todoItems ?? const []);
+    // Tasks are removed across the app; ensure any legacy todo links are cleared.
+    _todos = _todos.map((t) => t.copyWith(taskId: null)).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptMissedReschedule());
     // Start/refresh geofence tracking for any location-bound habits in this component.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future<void>(() async {
-        await HabitGeofenceTrackingService.instance.configureForHabits(_habits);
+        final boardId = widget.boardId;
+        if (boardId == null || boardId.trim().isEmpty) return;
+        await HabitGeofenceTrackingService.instance.configureForComponent(
+          boardId: boardId,
+          componentId: widget.component.id,
+          habits: _habits,
+        );
       });
     });
   }
@@ -66,15 +70,50 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   void _emitComponent(VisionComponent base) {
-    final updatedComponent = base.copyWithCommon(habits: _habits, tasks: _tasks);
+    // Tasks are removed; always clear tasks on update.
+    final updatedComponent = base.copyWithCommon(habits: _habits, tasks: const []);
     widget.onComponentUpdated(updatedComponent);
+  }
+
+  static GoalMetadata? _goalMetadataOrNull(VisionComponent c) {
+    if (c is ImageComponent) return c.goal;
+    if (c is GoalOverlayComponent) return c.goal;
+    return null;
+  }
+
+  void _emitGoalMetadata(GoalMetadata nextGoal) {
+    final c = widget.component;
+    final VisionComponent updated;
+    if (c is ImageComponent) {
+      updated = c.copyWith(goal: nextGoal);
+    } else if (c is GoalOverlayComponent) {
+      updated = c.copyWith(goal: nextGoal);
+    } else {
+      return;
+    }
+    _emitComponent(updated);
+  }
+
+  void _updateTodos(List<GoalTodoItem> next) {
+    setState(() {
+      _todos = next;
+    });
+    final current = _goalMetadataOrNull(widget.component);
+    final updated = (current ?? const GoalMetadata()).copyWith(todoItems: next);
+    _emitGoalMetadata(updated);
   }
 
   void _updateComponent() {
     _emitComponent(widget.component);
     // Keep geofence tracking in sync with the latest habit list.
     Future<void>(() async {
-      await HabitGeofenceTrackingService.instance.configureForHabits(_habits);
+      final boardId = widget.boardId;
+      if (boardId == null || boardId.trim().isEmpty) return;
+      await HabitGeofenceTrackingService.instance.configureForComponent(
+        boardId: boardId,
+        componentId: widget.component.id,
+        habits: _habits,
+      );
     });
   }
 
@@ -387,310 +426,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     return LogicalDateService.toIsoDate(d);
   }
 
-  Future<void> _addTask() async {
-    final res = await showAddTaskDialog(
-      context,
-      dialogTitle: 'Add task',
-      primaryActionText: 'Add',
-    );
-    if (res == null) return;
-    if (!mounted) return;
-
-    setState(() {
-      final id = DateTime.now().millisecondsSinceEpoch.toString();
-      _tasks = [
-        ..._tasks,
-        TaskItem(
-          id: id,
-          title: res.title,
-          checklist: const [],
-          cbtEnhancements: res.cbtEnhancements,
-        ),
-      ];
-      _updateComponent();
-    });
-  }
-
-  Future<void> _editTask(TaskItem task) async {
-    final res = await showEditTaskDialog(
-      context,
-      dialogTitle: 'Edit task',
-      primaryActionText: 'Save',
-      initialTitle: task.title,
-      initialCbt: task.cbtEnhancements,
-    );
-    if (res == null) return;
-    if (!mounted) return;
-
-    setState(() {
-      _tasks = _tasks.map((t) {
-        if (t.id != task.id) return t;
-        return t.copyWith(
-          title: res.title,
-          cbtEnhancements: res.cbtEnhancements,
-        );
-      }).toList();
-      _updateComponent();
-    });
-  }
-
-  Future<void> _editChecklistItem(String taskId, ChecklistItem item) async {
-    final res = await showEditChecklistItemDialog(
-      context,
-      dialogTitle: 'Edit checklist item',
-      primaryActionText: 'Save',
-      initialText: item.text,
-      initialDueDate: (item.dueDate ?? '').trim().isEmpty ? null : item.dueDate,
-      initialCbt: item.cbtEnhancements,
-    );
-    if (res == null) return;
-    if (!mounted) return;
-
-    setState(() {
-      _tasks = _tasks.map((t) {
-        if (t.id != taskId) return t;
-        return t.copyWith(
-          checklist: t.checklist.map((c) {
-            if (c.id != item.id) return c;
-            return c.copyWith(
-              text: res.text,
-              dueDate: res.dueDate,
-              cbtEnhancements: res.cbtEnhancements,
-            );
-          }).toList(),
-        );
-      }).toList();
-      _updateComponent();
-    });
-  }
-
-  void _deleteTask(String taskId) {
-    setState(() {
-      _tasks = _tasks.where((t) => t.id != taskId).toList();
-      _updateComponent();
-    });
-  }
-
-  Future<void> _addChecklistItem(String taskId) async {
-    final res = await showAddChecklistItemDialog(
-      context,
-      dialogTitle: 'Add checklist item',
-      primaryActionText: 'Add',
-    );
-    if (res == null) return;
-    if (!mounted) return;
-
-    setState(() {
-      _tasks = _tasks.map((t) {
-        if (t.id != taskId) return t;
-        final id = DateTime.now().millisecondsSinceEpoch.toString();
-        return t.copyWith(
-          checklist: [
-            ...t.checklist,
-            ChecklistItem(
-              id: id,
-              text: res.text,
-              dueDate: res.dueDate,
-              completedOn: null,
-              cbtEnhancements: res.cbtEnhancements,
-            ),
-          ],
-        );
-      }).toList();
-      _updateComponent();
-    });
-  }
-
-  void _deleteChecklistItem(String taskId, String itemId) {
-    setState(() {
-      _tasks = _tasks.map((t) {
-        if (t.id != taskId) return t;
-        return t.copyWith(checklist: t.checklist.where((c) => c.id != itemId).toList());
-      }).toList();
-      _updateComponent();
-    });
-  }
-
-  void _toggleChecklistItem(String taskId, ChecklistItem item) {
-    Future<void>(() async {
-      final now = LogicalDateService.now();
-      final idx = _tasks.indexWhere((t) => t.id == taskId);
-      if (idx == -1) return;
-      final task = _tasks[idx];
-
-      final toggle = CompletionMutations.toggleChecklistItemForToday(task, item, now: now);
-      if (!mounted) return;
-      setState(() {
-        _tasks = _tasks.map((t) => t.id == taskId ? toggle.updatedTask : t).toList();
-        _updateComponent();
-      });
-
-      final boardId = widget.boardId;
-      if (boardId != null && boardId.isNotEmpty) {
-        Future<void>(() async {
-          await SyncService.enqueueChecklistEvent(
-            boardId: boardId,
-            componentId: widget.component.id,
-            taskId: taskId,
-            itemId: item.id,
-            logicalDate: toggle.isoDate,
-            deleted: toggle.wasItemCompleted && !toggle.isItemCompleted,
-          );
-          if (toggle.wasTaskComplete && !toggle.isTaskComplete) {
-            await SyncService.enqueueChecklistEvent(
-              boardId: boardId,
-              componentId: widget.component.id,
-              taskId: taskId,
-              itemId: '__task__',
-              logicalDate: toggle.isoDate,
-              deleted: true,
-            );
-          }
-        });
-      }
-
-      // Checklist item completion feedback.
-      if (!toggle.wasItemCompleted && toggle.isItemCompleted) {
-        var currentTask = toggle.updatedTask;
-
-        final updatedItem = currentTask.checklist.firstWhere((c) => c.id == item.id);
-        final isSingleItemTask = currentTask.checklist.length == 1;
-        final shouldSkipItemFeedback = isSingleItemTask && !toggle.wasTaskComplete && toggle.isTaskComplete;
-
-        if (!shouldSkipItemFeedback && !updatedItem.feedbackByDate.containsKey(toggle.isoDate)) {
-          final res = await showCompletionFeedbackSheet(
-            context,
-            title: 'How did it go?',
-            subtitle: '${task.title}: ${updatedItem.text}',
-          );
-          if (res != null) {
-            currentTask = CompletionMutations.applyChecklistItemFeedback(
-              currentTask,
-              itemId: updatedItem.id,
-              isoDate: toggle.isoDate,
-              feedback: CompletionFeedback(rating: res.rating, note: res.note),
-            );
-            if (!mounted) return;
-            setState(() {
-              _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
-              _updateComponent();
-            });
-
-            final boardId2 = widget.boardId;
-            if (boardId2 != null && boardId2.isNotEmpty) {
-              Future<void>(() async {
-                await SyncService.enqueueChecklistEvent(
-                  boardId: boardId2,
-                  componentId: widget.component.id,
-                  taskId: taskId,
-                  itemId: updatedItem.id,
-                  logicalDate: toggle.isoDate,
-                  rating: res.rating,
-                  note: res.note,
-                  deleted: false,
-                );
-              });
-            }
-          }
-        }
-
-        // Task-level completion feedback (when task becomes fully complete).
-        if (!toggle.wasTaskComplete && toggle.isTaskComplete) {
-          if (!currentTask.completionFeedbackByDate.containsKey(toggle.isoDate)) {
-            final res = await showCompletionFeedbackSheet(
-              context,
-              title: 'Task completed',
-              subtitle: task.title,
-            );
-            if (res != null) {
-              currentTask = CompletionMutations.applyTaskCompletionFeedback(
-                currentTask,
-                isoDate: toggle.isoDate,
-                feedback: CompletionFeedback(rating: res.rating, note: res.note),
-              );
-              if (!mounted) return;
-              setState(() {
-                _tasks = _tasks.map((t) => t.id == taskId ? currentTask : t).toList();
-                _updateComponent();
-              });
-
-              final boardId3 = widget.boardId;
-              if (boardId3 != null && boardId3.isNotEmpty) {
-                Future<void>(() async {
-                  await SyncService.enqueueChecklistEvent(
-                    boardId: boardId3,
-                    componentId: widget.component.id,
-                    taskId: taskId,
-                    itemId: '__task__',
-                    logicalDate: toggle.isoDate,
-                    rating: res.rating,
-                    note: res.note,
-                    deleted: false,
-                  );
-                });
-              }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  /// Check if any habit was completed on a specific date
-  bool _isAnyHabitCompletedOnDate(DateTime date) {
-    final DateTime normalizedDate = DateTime(date.year, date.month, date.day);
-    final anyHabit = _habits.any((habit) => habit.isCompletedOnDate(normalizedDate));
-    final iso = _toIsoDate(normalizedDate);
-    final anyChecklist = _tasks.any((t) => t.checklist.any((c) => c.completedOn == iso));
-    return anyHabit || anyChecklist;
-  }
-
-  /// Get the total number of habits completed on a specific date
-  int _getCompletionCountForDate(DateTime date) {
-    final DateTime normalizedDate = DateTime(date.year, date.month, date.day);
-    int count = 0;
-    for (final habit in _habits) {
-      if (habit.isCompletedOnDate(normalizedDate)) {
-        count++;
-      }
-    }
-    final iso = _toIsoDate(normalizedDate);
-    for (final t in _tasks) {
-      for (final c in t.checklist) {
-        if (c.completedOn == iso) count++;
-      }
-    }
-    return count;
-  }
-
-  /// Get completion data for the last 7 days
-  List<Map<String, dynamic>> _getLast7DaysData() {
-    final List<Map<String, dynamic>> data = [];
-    final DateTime now = LogicalDateService.now();
-    
-    for (int i = 6; i >= 0; i--) {
-      final DateTime date = now.subtract(Duration(days: i));
-      final DateTime normalizedDate = DateTime(date.year, date.month, date.day);
-      final int count = _getCompletionCountForDate(normalizedDate);
-      final String dayName = DateFormat('EEE').format(date);
-      
-      data.add({
-        'date': normalizedDate,
-        'count': count,
-        'dayName': dayName,
-      });
-    }
-    
-    return data;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final last7DaysData = _getLast7DaysData();
-    final maxCount = last7DaysData.isEmpty
-        ? 1
-        : last7DaysData.map((d) => d['count'] as int).reduce((a, b) => a > b ? a : b);
-
     final insetBottom = MediaQuery.viewInsetsOf(context).bottom;
     final screenH = MediaQuery.of(context).size.height;
     final baseHeight = widget.fullScreen ? screenH : screenH * 0.9;
@@ -702,7 +439,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       child: DefaultTabController(
-        length: 3,
+        length: 2,
+        initialIndex: widget.initialTabIndex.clamp(0, 1),
         child: Container(
           height: height,
           decoration: BoxDecoration(
@@ -733,8 +471,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
               const TabBar(
                 tabs: [
                   Tab(text: 'Tracker', icon: Icon(Icons.check_circle_outline)),
-                  Tab(text: 'Tasks', icon: Icon(Icons.checklist)),
-                  Tab(text: 'Insights', icon: Icon(Icons.insights)),
+                  Tab(text: 'Todo', icon: Icon(Icons.playlist_add_check)),
                 ],
               ),
               Expanded(
@@ -748,24 +485,16 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
                       onDeleteHabit: _deleteHabit,
                       onEditHabit: _editHabit,
                     ),
-                    TaskTrackerTab(
-                      tasks: _tasks,
-                      onAddTask: _addTask,
-                      onEditTask: _editTask,
-                      onDeleteTask: _deleteTask,
-                      onAddChecklistItem: _addChecklistItem,
-                      onToggleChecklistItem: _toggleChecklistItem,
-                      onDeleteChecklistItem: _deleteChecklistItem,
-                      onEditChecklistItem: _editChecklistItem,
-                    ),
-                    HabitInsightsTab(
-                      focusedDay: _focusedDay,
-                      selectedDay: _selectedDay,
-                      onFocusedDayChanged: (d) => setState(() => _focusedDay = d),
-                      onSelectedDayChanged: (d) => setState(() => _selectedDay = d),
-                      isAnyHabitCompletedOnDate: _isAnyHabitCompletedOnDate,
-                      last7DaysData: last7DaysData,
-                      maxCount: maxCount,
+                    GoalTodoTab(
+                      todos: _todos,
+                      habits: _habits,
+                      onTodosChanged: _updateTodos,
+                      onHabitsChanged: (next) {
+                        setState(() {
+                          _habits = next;
+                          _updateComponent();
+                        });
+                      },
                     ),
                   ],
                 ),

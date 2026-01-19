@@ -77,7 +77,6 @@ class GridTileModel {
         'index': index,
         'goal': goal?.toJson(),
         'habits': habits.map((h) => h.toJson()).toList(),
-        'tasks': tasks.map((t) => t.toJson()).toList(),
       };
 
   factory GridTileModel.fromJson(Map<String, dynamic> json) {

@@ -22,7 +22,7 @@ import '../services/image_region_cropper.dart';
 import '../services/image_service.dart';
 import '../screens/global_insights_screen.dart';
 import '../screens/habits_list_screen.dart';
-import '../screens/tasks_list_screen.dart';
+import '../screens/todos_list_screen.dart';
 import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/editor/background_options_sheet.dart';
 import '../widgets/editor/layers_sheet.dart';
@@ -63,7 +63,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
   late bool _isEditing;
   bool _isLoading = true;
-  int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Tasks, 3: Insights
+  int _viewModeIndex = 0; // 0: Vision Board, 1: Habits, 2: Todo, 3: Insights
 
   SharedPreferences? _prefs;
   final ImagePicker _imagePicker = ImagePicker();
@@ -999,8 +999,19 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
     }
 
     return switch (_viewModeIndex) {
-      1 => HabitsListScreen(components: _components, onComponentsUpdated: _onComponentsChanged),
-      2 => TasksListScreen(components: _components, onComponentsUpdated: _onComponentsChanged),
+      1 => HabitsListScreen(
+          boardId: widget.boardId,
+          components: _components,
+          onComponentsUpdated: _onComponentsChanged,
+          showAppBar: false,
+          showDueDate: false,
+        ),
+      2 => TodosListScreen(
+          components: _components,
+          onComponentsUpdated: _onComponentsChanged,
+          onOpenComponent: (c) => _openHabitTrackerForComponent(c, initialTabIndex: 1),
+          showAppBar: false,
+        ),
       3 => GlobalInsightsScreen(components: _components),
       _ => VisionBoardBuilder(
           components: _components,
@@ -1071,8 +1082,8 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                   label: 'Habits',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.checklist),
-                  label: 'Tasks',
+                  icon: Icon(Icons.playlist_add_check),
+                  label: 'Todo',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.insights),
@@ -1096,18 +1107,19 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
                   : _viewModeIndex == 1
                       ? 'Habits'
                       : _viewModeIndex == 2
-                          ? 'Tasks'
+                          ? 'Todo'
                           : 'Insights'),
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         automaticallyImplyLeading: false,
         leading: const BackButton(),
         actions: [
-          IconButton(
-            tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
-            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
-            onPressed: _toggleEditMode,
-          ),
+          if (_viewModeIndex == 0 || _isEditing)
+            IconButton(
+              tooltip: _isEditing ? 'Complete' : 'Edit',
+              icon: Icon(_isEditing ? Icons.check_circle : Icons.edit),
+              onPressed: _toggleEditMode,
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {

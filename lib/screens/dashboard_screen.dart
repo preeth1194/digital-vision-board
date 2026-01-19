@@ -26,6 +26,7 @@ import 'settings_screen.dart';
 import 'templates/template_gallery_screen.dart';
 import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
+import 'journal_notes_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -47,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
   VoidCallback? _syncAuthListener;
+  final ValueNotifier<int> _boardDataVersion = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -62,6 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (_syncAuthListener != null) {
       SyncService.authExpired.removeListener(_syncAuthListener!);
     }
+    _boardDataVersion.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -435,11 +438,29 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
+    // Hide Habits/Tasks from the Dashboard bottom nav, but keep the underlying
+    // tab indices stable (so the rest of the screen switch logic doesn't need
+    // to be refactored).
+    const int journalSentinelTab = -1;
+    const visibleTabIndices = <int>[0, 1, journalSentinelTab, 4]; // Dashboard, Daily, Journal, Insights
+    final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
+
+    final appBarTitle = _tabIndex == 1
+        ? 'Daily'
+        : _tabIndex == 2
+            ? 'Habits'
+            : _tabIndex == 3
+                ? 'Todo'
+                : _tabIndex == 4
+                    ? 'Insights'
+                    : 'Digital Vision Board';
+
     final body = DashboardBody(
       tabIndex: _tabIndex,
       boards: _boards,
       activeBoardId: _activeBoardId,
       prefs: _prefs,
+      boardDataVersion: _boardDataVersion,
       onCreateBoard: _createBoard,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
@@ -448,7 +469,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Digital Vision Board'),
+        title: Text(appBarTitle),
         automaticallyImplyLeading: false,
         // Material 3认为 AppBar can be translucent; make it solid so navigation is always visible.
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -518,9 +539,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       ),
       body: body,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabIndex,
+        currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
         onTap: (i) {
-          setState(() => _tabIndex = i);
+          final nextTab = visibleTabIndices[i];
+          if (nextTab == journalSentinelTab) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const JournalNotesScreen()),
+            );
+            return;
+          }
+          setState(() => _tabIndex = nextTab);
           _refreshReminders();
         },
         type: BottomNavigationBarType.fixed,
@@ -528,8 +556,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.today_outlined), label: 'Daily'),
-          BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
-          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
         ],
       ),

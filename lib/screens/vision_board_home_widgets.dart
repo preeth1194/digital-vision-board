@@ -98,7 +98,6 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
-          tasks: t.tasks,
         ),
       );
     }
@@ -119,7 +118,6 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
         return t.copyWith(
           goal: img?.goal ?? t.goal,
           habits: c.habits,
-          tasks: c.tasks,
         );
       }).toList();
       final normalized = await GridTilesStorageService.saveTiles(widget.board.id, nextTiles, prefs: prefs);
@@ -312,6 +310,8 @@ class _PreviewTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final goalTitle = (tile.goal?.title ?? '').trim();
     final category = (tile.goal?.category ?? '').trim();
+    final showCategoryLine = category.isNotEmpty && goalTitle.isNotEmpty;
+    final displayTitle = goalTitle.isNotEmpty ? goalTitle : (category.isNotEmpty ? category : 'Goal');
     final path = (tile.type == 'image') ? (tile.content ?? '').trim() : '';
     final hasImage = path.isNotEmpty;
     return Container(
@@ -324,7 +324,7 @@ class _PreviewTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (category.isNotEmpty)
+          if (showCategoryLine)
             Text(
               category,
               style: const TextStyle(fontSize: 11, color: Colors.black54),
@@ -346,7 +346,7 @@ class _PreviewTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            goalTitle.isEmpty ? tile.id : goalTitle,
+            displayTitle,
             style: const TextStyle(fontWeight: FontWeight.w700),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -542,8 +542,9 @@ class _PendingHabitsToday extends StatelessWidget {
                           for (final it in items) ...[
                             // Compute completion at render time so completed habits remain visible.
                             // (This also keeps the checkbox state consistent after toggles.)
-                            SizedBox(
+                            Container(
                               height: 56,
+                              color: (it.habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
                               child: Row(
                                 children: [
                                   Checkbox(
@@ -557,7 +558,7 @@ class _PendingHabitsToday extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  if (it.habit.timeBound?.enabled == true)
+                                  if (it.habit.timeBound?.enabled == true || it.habit.locationBound?.enabled == true)
                                     IconButton(
                                       tooltip: 'Timer',
                                       icon: const Icon(Icons.timer_outlined),

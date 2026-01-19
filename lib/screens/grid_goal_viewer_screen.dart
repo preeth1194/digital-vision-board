@@ -6,7 +6,6 @@ import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
-import '../widgets/editor/layers_sheet.dart';
 import '../widgets/habit_tracker_sheet.dart';
 
 /// Full-screen viewer for a single grid tile treated as a goal.
@@ -68,7 +67,6 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
   }
 
   ImageComponent _componentFromTile(GridTileModel tile) {
-    final goal = tile.goal ?? GoalMetadata(title: tile.id);
     return ImageComponent(
       id: tile.id,
       position: Offset.zero,
@@ -77,47 +75,10 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
       scale: 1,
       zIndex: 0,
       imagePath: (tile.type == 'image') ? (tile.content ?? '') : '',
-      goal: goal,
+      // Important: don't synthesize a fake goal title like "tile_0".
+      goal: tile.goal,
       habits: tile.habits,
       tasks: tile.tasks,
-    );
-  }
-
-  Future<void> _showLayers() async {
-    final goals = _tiles.where((t) {
-      if ((t.goal?.title ?? '').trim().isNotEmpty) return true;
-      if (t.habits.isNotEmpty || t.tasks.isNotEmpty) return true;
-      return false;
-    }).toList()
-      ..sort((a, b) => a.index.compareTo(b.index));
-
-    if (goals.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No goals yet.')),
-      );
-      return;
-    }
-
-    final layers = goals.map<VisionComponent>(_componentFromTile).toList();
-
-    await showLayersSheet(
-      context,
-      componentsTopToBottom: layers,
-      selectedId: _tile?.id,
-      allowReorder: false,
-      allowDelete: false,
-      onReorder: (_) {},
-      onDelete: (_) {},
-      onSelect: (id) {
-        final selected = _tiles.cast<GridTileModel?>().firstWhere(
-              (t) => t?.id == id,
-              orElse: () => null,
-            );
-        if (selected == null) return;
-        setState(() => _tile = selected);
-        Navigator.of(context).pop();
-      },
     );
   }
 
@@ -152,20 +113,6 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
                 );
                 _saveTile(nextTile);
               },
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Material(
-                color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
-                shape: const CircleBorder(),
-                elevation: 2,
-                child: IconButton(
-                  tooltip: 'Layers',
-                  icon: const Icon(Icons.layers_outlined),
-                  onPressed: _showLayers,
-                ),
-              ),
             ),
           ],
         ),

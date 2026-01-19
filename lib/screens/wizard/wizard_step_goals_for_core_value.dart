@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import '../../models/core_value.dart';
 import '../../models/cbt_enhancements.dart';
 import '../../models/habit_item.dart';
-import '../../models/task_item.dart';
+import '../../models/goal_metadata.dart';
 import '../../models/wizard/wizard_goal.dart';
 import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_recommendations_service.dart';
 import '../../widgets/dialogs/add_habit_dialog.dart';
-import '../../widgets/dialogs/add_task_dialog.dart';
 
 class WizardStepGoalsForCoreValue extends StatefulWidget {
   final CreateBoardWizardState state;
@@ -133,8 +132,7 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
     if (category.trim().isEmpty && categories.isNotEmpty) category = categories.first;
     String? deadline = seed?.deadline;
     bool wantsActionPlan = seed?.wantsActionPlan ?? false;
-    List<HabitItem> habits = List<HabitItem>.from(seed?.habits ?? const []);
-    List<TaskItem> tasks = List<TaskItem>.from(seed?.tasks ?? const []);
+    List<_WizardTodoDraft> todoItems = _WizardTodoDraft.fromSeed(seed);
 
     final res = await showModalBottomSheet<WizardGoalDraft>(
       context: context,
@@ -208,19 +206,14 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
                       SwitchListTile(
                         value: wantsActionPlan,
                         onChanged: (v) => setLocal(() => wantsActionPlan = v),
-                        title: const Text('Create action plan (habits + tasks)'),
-                        subtitle: const Text('Add habits and tasks linked to this goal.'),
+                        title: const Text('Create todo list'),
+                        subtitle: const Text('Add an ordered list of items, then optionally turn each into a habit and/or task.'),
                       ),
                       if (wantsActionPlan) ...[
                         const SizedBox(height: 8),
-                        _WizardHabitsEditor(
-                          habits: habits,
-                          onChanged: (next) => setLocal(() => habits = next),
-                        ),
-                        const SizedBox(height: 12),
-                        _WizardTasksEditor(
-                          tasks: tasks,
-                          onChanged: (next) => setLocal(() => tasks = next),
+                        _WizardTodoListEditor(
+                          todos: todoItems,
+                          onChanged: (next) => setLocal(() => todoItems = next),
                         ),
                       ],
                       const SizedBox(height: 14),
@@ -231,6 +224,8 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
                           if (nm.isEmpty) return;
                           final cat = category.trim();
                           if (cat.isEmpty) return;
+                          final habits = wantsActionPlan ? _WizardTodoDraft.habitsFrom(todoItems) : const <HabitItem>[];
+                          final todoPersisted = wantsActionPlan ? _WizardTodoDraft.todoItemsFrom(todoItems) : const <GoalTodoItem>[];
                           Navigator.of(ctx).pop(
                             WizardGoalDraft(
                               id: existing?.id ?? 'goal_${DateTime.now().millisecondsSinceEpoch}',
@@ -240,8 +235,9 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
                               whyImportant: wi,
                               deadline: deadline,
                               wantsActionPlan: wantsActionPlan,
-                              habits: wantsActionPlan ? habits : const [],
-                              tasks: wantsActionPlan ? tasks : const [],
+                              habits: habits,
+                              tasks: const [],
+                              todoItems: todoPersisted,
                             ),
                           );
                         },
@@ -361,6 +357,7 @@ class _WizardStepGoalsForCoreValueState extends State<WizardStepGoalsForCoreValu
                   wantsActionPlan: true,
                   habits: habits,
                   tasks: const [],
+                  todoItems: const [],
                 ),
               );
             },
@@ -506,11 +503,118 @@ class _WizardRecommendedCategoryCardState extends State<_WizardRecommendedCatego
   }
 }
 
-class _WizardHabitsEditor extends StatelessWidget {
-  final List<HabitItem> habits;
-  final ValueChanged<List<HabitItem>> onChanged;
+final class _WizardTodoDraft {
+  final String id;
+  final String text;
+  final HabitItem? habit;
 
-  const _WizardHabitsEditor({required this.habits, required this.onChanged});
+  const _WizardTodoDraft({
+    required this.id,
+    required this.text,
+    required this.habit,
+  });
+
+  static const Object _unset = Object();
+
+  _WizardTodoDraft copyWith({
+    String? id,
+    String? text,
+    Object? habit = _unset,
+  }) {
+    return _WizardTodoDraft(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      habit: identical(habit, _unset) ? this.habit : habit as HabitItem?,
+    );
+  }
+
+  static List<_WizardTodoDraft> fromSeed(WizardGoalDraft? seed) {
+    if (seed == null) return const <_WizardTodoDraft>[];
+    final habits = seed.habits;
+    final byHabitId = <String, HabitItem>{for (final h in habits) h.id: h};
+
+    // Prefer persisted ordering if present.
+    final persisted = seed.todoItems;
+    if (persisted.isNotEmpty) {
+      return <_WizardTodoDraft>[
+        for (final t in persisted)
+          _WizardTodoDraft(
+            id: t.id,
+            text: t.text,
+            habit: (t.habitId == null) ? null : byHabitId[t.habitId],
+          ),
+      ];
+    }
+
+    // Fallback for older drafts: derive from habits list.
+    return <_WizardTodoDraft>[
+      for (final h in habits)
+        _WizardTodoDraft(id: 'todo_${h.id}', text: h.name, habit: h),
+    ];
+  }
+
+  static List<HabitItem> habitsFrom(List<_WizardTodoDraft> todos) {
+    return todos.map((t) => t.habit).whereType<HabitItem>().toList();
+  }
+
+  static List<GoalTodoItem> todoItemsFrom(List<_WizardTodoDraft> todos) {
+    final out = <GoalTodoItem>[];
+    for (final src in todos) {
+      final text = src.text.trim();
+      if (text.isEmpty) continue;
+      out.add(
+        GoalTodoItem(
+          id: src.id,
+          text: text,
+          isCompleted: false,
+          completedAtMs: null,
+          habitId: src.habit?.id,
+          taskId: null,
+        ),
+      );
+    }
+    return out;
+  }
+}
+
+class _WizardTodoListEditor extends StatefulWidget {
+  final List<_WizardTodoDraft> todos;
+  final ValueChanged<List<_WizardTodoDraft>> onChanged;
+
+  const _WizardTodoListEditor({required this.todos, required this.onChanged});
+
+  @override
+  State<_WizardTodoListEditor> createState() => _WizardTodoListEditorState();
+}
+
+class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
+  final TextEditingController _bulkAddC = TextEditingController();
+
+  @override
+  void dispose() {
+    _bulkAddC.dispose();
+    super.dispose();
+  }
+
+  void _addItems() {
+    final raw = _bulkAddC.text;
+    final lines = raw.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (lines.isEmpty) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final next = <_WizardTodoDraft>[
+      ...widget.todos,
+      for (int i = 0; i < lines.length; i++)
+        _WizardTodoDraft(
+          id: 'todo_${now}_$i',
+          text: lines[i],
+          habit: null,
+          task: null,
+        ),
+    ];
+    widget.onChanged(next);
+    _bulkAddC.clear();
+    FocusScope.of(context).unfocus();
+  }
 
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
@@ -529,35 +633,62 @@ class _WizardHabitsEditor extends StatelessWidget {
     );
   }
 
-  Future<void> _add(BuildContext context) async {
-    final req = await showAddHabitDialog(
-      context,
-      existingHabits: habits,
-      suggestedGoalDeadline: null,
-      initialName: null,
-    );
+  Future<void> _configureHabit(int index) async {
+    final item = widget.todos[index];
+    final existing = item.habit;
+    final otherHabits = widget.todos
+        .where((t) => t.id != item.id)
+        .map((t) => t.habit)
+        .whereType<HabitItem>()
+        .toList();
+
+    final HabitCreateRequest? req = (existing == null)
+        ? await showAddHabitDialog(
+            context,
+            existingHabits: otherHabits,
+            suggestedGoalDeadline: null,
+            initialName: item.text.trim().isEmpty ? null : item.text.trim(),
+          )
+        : await showEditHabitDialog(
+            context,
+            habit: existing,
+            suggestedGoalDeadline: null,
+            existingHabits: otherHabits,
+          );
+
     if (req == null) return;
-    final newId = 'habit_${DateTime.now().millisecondsSinceEpoch}';
-    onChanged([
-      ...habits,
-      _applyHabitRequest(
-        HabitItem(id: newId, name: req.name, completedDates: const []),
-        req,
-      ),
-    ]);
+    final HabitItem nextHabit = _applyHabitRequest(
+      existing ??
+          HabitItem(
+            id: 'habit_${DateTime.now().millisecondsSinceEpoch}',
+            name: req.name,
+            completedDates: const [],
+          ),
+      req,
+    );
+    final next = [...widget.todos];
+    next[index] = item.copyWith(text: nextHabit.name, habit: nextHabit);
+    widget.onChanged(next);
   }
 
-  Future<void> _edit(BuildContext context, HabitItem habit) async {
-    final req = await showEditHabitDialog(
-      context,
-      habit: habit,
-      suggestedGoalDeadline: null,
-      existingHabits: habits.where((h) => h.id != habit.id).toList(),
-    );
-    if (req == null) return;
-    onChanged(
-      habits.map((h) => h.id == habit.id ? _applyHabitRequest(h, req) : h).toList(),
-    );
+  void _removeHabit(int index) {
+    final next = [...widget.todos];
+    next[index] = next[index].copyWith(habit: null);
+    widget.onChanged(next);
+  }
+
+  void _removeRow(int index) {
+    final next = [...widget.todos]..removeAt(index);
+    widget.onChanged(next);
+  }
+
+  void _moveRow(int index, int delta) {
+    final nextIndex = index + delta;
+    if (nextIndex < 0 || nextIndex >= widget.todos.length) return;
+    final next = [...widget.todos];
+    final item = next.removeAt(index);
+    next.insert(nextIndex, item);
+    widget.onChanged(next);
   }
 
   @override
@@ -568,41 +699,53 @@ class _WizardHabitsEditor extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Habits', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                TextButton.icon(
-                  onPressed: () => _add(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
-              ],
-            ),
-            if (habits.isEmpty) const Text('No habits added.'),
-            for (final h in habits)
-              ListTile(
-                onTap: () => _edit(context, h),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(h.name),
-                subtitle: Text(
-                  [
-                    if ((h.frequency ?? '').trim().isNotEmpty) (h.frequency ?? '').trim(),
-                    if ((h.deadline ?? '').trim().isNotEmpty) 'Due ${h.deadline}',
-                    if (h.reminderEnabled && h.reminderMinutes != null) 'Reminder set',
-                    if ((h.cbtEnhancements?.microVersion ?? '').trim().isNotEmpty)
-                      'Micro: ${(h.cbtEnhancements?.microVersion ?? '').trim()}',
-                    if ((h.cbtEnhancements?.reward ?? '').trim().isNotEmpty)
-                      'Reward: ${(h.cbtEnhancements?.reward ?? '').trim()}',
-                  ].join(' • '),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => onChanged(habits.where((x) => x.id != h.id).toList()),
-                ),
+            const Text('Todo list', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _bulkAddC,
+              minLines: 1,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Add todo items (one per line)',
+                border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _addItems,
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (widget.todos.isEmpty)
+              const Text('No todo items added.')
+            else
+              for (int i = 0; i < widget.todos.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _TodoRow(
+                    key: ValueKey(widget.todos[i].id),
+                    index: i,
+                    total: widget.todos.length,
+                    item: widget.todos[i],
+                    onMoveUp: () => _moveRow(i, -1),
+                    onMoveDown: () => _moveRow(i, 1),
+                    onTextChanged: (txt) {
+                      final next = [...widget.todos];
+                      final updated = next[i].copyWith(text: txt);
+                      next[i] = updated.copyWith(
+                        habit: updated.habit?.copyWith(name: txt),
+                      );
+                      widget.onChanged(next);
+                    },
+                    onConfigureHabit: () => _configureHabit(i),
+                    onRemoveHabit: () => _removeHabit(i),
+                    onDelete: () => _removeRow(i),
+                  ),
+                ),
           ],
         ),
       ),
@@ -610,83 +753,87 @@ class _WizardHabitsEditor extends StatelessWidget {
   }
 }
 
-class _WizardTasksEditor extends StatelessWidget {
-  final List<TaskItem> tasks;
-  final ValueChanged<List<TaskItem>> onChanged;
+class _TodoRow extends StatelessWidget {
+  final int index;
+  final int total;
+  final _WizardTodoDraft item;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+  final ValueChanged<String> onTextChanged;
+  final VoidCallback onConfigureHabit;
+  final VoidCallback onRemoveHabit;
+  final VoidCallback onDelete;
 
-  const _WizardTasksEditor({required this.tasks, required this.onChanged});
-
-  Future<void> _add(BuildContext context) async {
-    final res = await showAddTaskDialog(context);
-    if (res == null) return;
-    onChanged([
-      ...tasks,
-      TaskItem(
-        id: 'task_${DateTime.now().millisecondsSinceEpoch}',
-        title: res.title,
-        cbtEnhancements: res.cbtEnhancements,
-      ),
-    ]);
-  }
-
-  Future<void> _edit(BuildContext context, TaskItem task) async {
-    final res = await showEditTaskDialog(
-      context,
-      initialTitle: task.title,
-      initialCbt: task.cbtEnhancements,
-    );
-    if (res == null) return;
-    onChanged(
-      tasks
-          .map(
-            (t) => t.id == task.id
-                ? t.copyWith(title: res.title, cbtEnhancements: res.cbtEnhancements)
-                : t,
-          )
-          .toList(),
-    );
-  }
+  const _TodoRow({
+    super.key,
+    required this.index,
+    required this.total,
+    required this.item,
+    required this.onMoveUp,
+    required this.onMoveDown,
+    required this.onTextChanged,
+    required this.onConfigureHabit,
+    required this.onRemoveHabit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                TextButton.icon(
-                  onPressed: () => _add(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
-              ],
+            IconButton(
+              tooltip: 'Move up',
+              onPressed: index == 0 ? null : onMoveUp,
+              icon: const Icon(Icons.keyboard_arrow_up),
             ),
-            if (tasks.isEmpty) const Text('No tasks added.'),
-            for (final t in tasks)
-              ListTile(
-                onTap: () => _edit(context, t),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(t.title),
-                subtitle: Text(
-                  (t.cbtEnhancements == null) ? '' : 'CBT added',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => onChanged(tasks.where((x) => x.id != t.id).toList()),
-                ),
-              ),
+            IconButton(
+              tooltip: 'Move down',
+              onPressed: index == (total - 1) ? null : onMoveDown,
+              icon: const Icon(Icons.keyboard_arrow_down),
+            ),
           ],
         ),
-      ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                initialValue: item.text,
+                decoration: InputDecoration(
+                  labelText: 'Item ${index + 1}',
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: onTextChanged,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  InputChip(
+                    selected: item.habit != null,
+                    label: Text((item.habit == null) ? 'Habit' : 'Habit ✓'),
+                    onPressed: onConfigureHabit,
+                    onDeleted: (item.habit == null) ? null : onRemoveHabit,
+                    deleteIcon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Delete item',
+          onPressed: onDelete,
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
     );
   }
 }

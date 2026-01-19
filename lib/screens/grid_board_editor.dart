@@ -18,7 +18,7 @@ import '../widgets/grid/image_source_sheet.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
 import 'grid_goal_viewer_screen.dart';
-import 'tasks_list_screen.dart';
+import 'todos_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -53,7 +53,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   late bool _isEditing;
   bool _loading = true;
-  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Tasks, 3: Insights (view mode only)
+  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Todo, 3: Insights (view mode only)
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
@@ -457,7 +457,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           scale: 1,
           zIndex: t.index,
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-          goal: t.goal ?? GoalMetadata(title: t.id),
+          // Important: don't synthesize a fake goal title like "tile_0".
+          // If there's no goal metadata, keep it null so labels can fall back cleanly.
+          goal: t.goal,
           habits: t.habits,
           tasks: t.tasks,
         ),
@@ -591,7 +593,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         : _viewTabIndex == 1
             ? 'Habits'
             : _viewTabIndex == 2
-                ? 'Tasks'
+                ? 'Todo'
                 : 'Insights';
     return Scaffold(
       appBar: AppBar(
@@ -603,11 +605,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(widget.wizardNextLabel),
             ),
-          IconButton(
-            tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
-            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
-            onPressed: _toggleEditMode,
-          ),
+          if (_viewTabIndex == 0 || _isEditing)
+            IconButton(
+              tooltip: _isEditing ? 'Complete' : 'Edit',
+              icon: Icon(_isEditing ? Icons.check_circle : Icons.edit),
+              onPressed: _toggleEditMode,
+            ),
         ],
       ),
       body: _loading
@@ -619,9 +622,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   showAppBar: false,
                 )
               : (!_isEditing && _viewTabIndex == 2)
-                  ? TasksListScreen(
+                  ? TodosListScreen(
                       components: _componentsFromTiles(),
                       onComponentsUpdated: _applyComponentUpdates,
+                      onOpenComponent: (_) async {},
                       showAppBar: false,
                     )
                   : (!_isEditing && _viewTabIndex == 3)
@@ -919,7 +923,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Grid'),
                 BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
-                BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
+                BottomNavigationBarItem(icon: Icon(Icons.playlist_add_check), label: 'Todo'),
                 BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
               ],
             ),

@@ -58,6 +58,12 @@ final class SyncService {
       await DvAuthService.setHomeTimezone(homeTz.trim(), prefs: p);
       await LogicalDateService.reloadHomeTimezone(prefs: p);
     }
+    final gender = decoded['gender'] as String?;
+    if (gender != null && gender.trim().isNotEmpty) {
+      await DvAuthService.setGender(gender.trim(), prefs: p);
+    } else {
+      await DvAuthService.setGender('prefer_not_to_say', prefs: p);
+    }
 
     final boardsRaw = decoded['boards'];
     if (boardsRaw is! List) {
@@ -222,9 +228,15 @@ final class SyncService {
       }
     }
 
+    final tz = await DvAuthService.getHomeTimezone(prefs: p);
+    final gender = await DvAuthService.getGender(prefs: p);
     final body = <String, dynamic>{
       if (boards.isNotEmpty) 'boards': boards,
       if (habitCompletions.isNotEmpty) 'habitCompletions': habitCompletions,
+      'userSettings': {
+        if (tz != null && tz.trim().isNotEmpty) 'homeTimezone': tz.trim(),
+        'gender': gender,
+      },
     };
 
     if (body.isEmpty) return;

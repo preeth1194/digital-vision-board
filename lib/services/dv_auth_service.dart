@@ -15,6 +15,7 @@ final class DvAuthService {
   static const _dvTokenKey = 'dv_auth_token_v1';
   static const _expiresAtMsKey = 'dv_auth_expires_at_ms_v1'; // unix ms
   static const _homeTimezoneKey = 'dv_home_timezone_v1';
+  static const _genderKey = 'dv_gender_v1';
   static const _canvaUserIdKey = 'dv_canva_user_id_v1';
 
   // Legacy key used by Canva OAuth flow.
@@ -142,6 +143,15 @@ final class DvAuthService {
     return (tz != null && tz.trim().isNotEmpty) ? tz.trim() : null;
   }
 
+  /// Stored values:
+  /// - 'male' | 'female' | 'non_binary' | 'prefer_not_to_say'
+  static Future<String> getGender({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_genderKey) ?? '').trim();
+    if (v.isEmpty) return 'prefer_not_to_say';
+    return v;
+  }
+
   static Future<void> setHomeTimezone(String? tz, {SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final v = (tz ?? '').trim();
@@ -152,22 +162,63 @@ final class DvAuthService {
     }
   }
 
+  static Future<void> setGender(String? gender, {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (gender ?? '').trim();
+    await p.setString(_genderKey, v.isEmpty ? 'prefer_not_to_say' : v);
+  }
+
+  static Uri _url(String path) => Uri.parse('${backendBaseUrl()}$path');
+
+  /// Best-effort server update (requires dvToken and a DB-backed backend).
+  static Future<void> putUserSettings({
+    String? homeTimezone,
+    String? gender,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final token = await getDvToken(prefs: p);
+    if (token == null) return;
+    final body = <String, dynamic>{};
+    if (homeTimezone != null) body['home_timezone'] = homeTimezone;
+    if (gender != null) body['gender'] = gender;
+    if (body.isEmpty) return;
+    try {
+      final res = await http.put(
+        _url('/user/settings'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'content-type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+      if (res.statusCode < 200 || res.statusCode >= 300) return;
+    } catch (_) {
+      // non-fatal
+    }
+  }
+
   static Future<void> clear({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     await p.remove(_dvTokenKey);
     await p.remove(_expiresAtMsKey);
     await p.remove(_canvaUserIdKey);
+    await p.remove(_genderKey);
   }
 
   static Future<GuestAuthResult> continueAsGuest({
     String? homeTimezone,
+    String? gender,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final url = Uri.parse('${backendBaseUrl()}/auth/guest');
+    final url = _url('/auth/guest');
     final body = <String, dynamic>{};
     final tz = (homeTimezone ?? '').trim();
     if (tz.isNotEmpty) body['home_timezone'] = tz;
+    final g = (gender ?? '').trim();
+    if (g.isNotEmpty) body['gender'] = g;
 
     final res = await http.post(
       url,
@@ -192,11 +243,18 @@ final class DvAuthService {
     if (returnedTz != null && returnedTz.trim().isNotEmpty) {
       await setHomeTimezone(returnedTz, prefs: p);
     }
+    final returnedGender = (decoded['gender'] as String?)?.trim();
+    if (returnedGender != null && returnedGender.isNotEmpty) {
+      await setGender(returnedGender, prefs: p);
+    } else {
+      await setGender('prefer_not_to_say', prefs: p);
+    }
 
     return GuestAuthResult(
       dvToken: dvToken,
       expiresAtMs: expiresAtMs,
       homeTimezone: returnedTz?.trim().isEmpty ?? true ? null : returnedTz!.trim(),
+      gender: (returnedGender == null || returnedGender.isEmpty) ? 'prefer_not_to_say' : returnedGender,
     );
   }
 }
@@ -212,11 +270,13 @@ final class GuestAuthResult {
   final String dvToken;
   final int expiresAtMs;
   final String? homeTimezone;
+  final String gender;
 
   const GuestAuthResult({
     required this.dvToken,
     required this.expiresAtMs,
     required this.homeTimezone,
+    required this.gender,
   });
 }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/wizard/wizard_state.dart';
+import '../../services/wizard_board_builder.dart';
 import 'wizard_step1_board_setup.dart';
 import 'wizard_step_goals_for_core_value.dart';
-import 'wizard_step3_generate_grid_preview.dart';
-import 'wizard_step4_customize_grid.dart';
+import '../grid_editor.dart';
+import '../../models/grid_template.dart';
 
 /// Wizard shell that hosts the multi-step create-board flow.
 ///
@@ -20,8 +22,9 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
   int _stepIndex = 0;
   CreateBoardWizardState _state = CreateBoardWizardState.initial();
   int _coreValueGoalsIndex = 0;
+  bool _openingEditor = false;
 
-  int get _totalSteps => 5; // step1 + goals + preview + customize + done (goals step expands internally)
+  int get _totalSteps => 4; // step1 + goals + editor + done (goals step expands internally)
 
   void _showCongratsSnack({required String message}) {
     final remaining = (_totalSteps - 1 - _stepIndex).clamp(0, _totalSteps);
@@ -46,16 +49,53 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
     _showCongratsSnack(message: 'Nice! Your board has a clear focus.');
   }
 
-  void _nextGoalsStep(CreateBoardWizardState next) {
+  Future<void> _createAndOpenEditorFor(CreateBoardWizardState next) async {
+    if (_openingEditor) return;
+    setState(() => _openingEditor = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final createdId = 'board_${DateTime.now().millisecondsSinceEpoch}';
+      final result = WizardBoardBuilderService.build(boardId: createdId, state: next);
+      await WizardBoardBuilderService.persist(result: result, prefs: prefs);
+      if (!mounted) return;
+      final template = GridTemplates.byId(result.board.templateId);
+      final pressed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => GridEditorScreen(
+            boardId: createdId,
+            title: result.board.title,
+            initialIsEditing: true,
+            template: template,
+            wizardShowNext: true,
+            wizardNextLabel: 'Continue',
+          ),
+        ),
+      );
+      if (!mounted) return;
+      if (pressed == true) {
+        setState(() => _stepIndex = 3);
+        _showCongratsSnack(message: 'Boom — your vision board is ready!');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open grid editor: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) setState(() => _openingEditor = false);
+    }
+  }
+
+  void _nextGoalsStep(CreateBoardWizardState next) async {
     final total = _state.coreValues.length.clamp(1, 9999);
     final nextIndex = (_coreValueGoalsIndex + 1).clamp(0, total);
     if (nextIndex >= total) {
-      // Step 3 preview (next)
       setState(() {
         _state = next;
-        _stepIndex = 2;
+        _stepIndex = 2; // editor
       });
       _showCongratsSnack(message: 'Amazing — your goals are taking shape.');
+      await _createAndOpenEditorFor(next);
       return;
     }
     setState(() {
@@ -64,11 +104,6 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
       _coreValueGoalsIndex = nextIndex;
     });
     _showCongratsSnack(message: 'Great progress!');
-  }
-
-  void _nextFromPreview() {
-    setState(() => _stepIndex = 3);
-    _showCongratsSnack(message: 'Awesome — now add images to bring it to life.');
   }
 
   @override
@@ -104,18 +139,28 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
                   coreValueIndex: _coreValueGoalsIndex,
                   onNext: _nextGoalsStep,
                 ),
-              2 => WizardStep3GenerateGridPreview(
-                  state: _state,
-                  onBack: () => setState(() => _stepIndex = 1),
-                  onNext: _nextFromPreview,
-                ),
-              3 => WizardStep4CustomizeGrid(
-                  state: _state,
-                  onBack: () => setState(() => _stepIndex = 2),
-                  onCreated: () {
-                    setState(() => _stepIndex = 4);
-                    _showCongratsSnack(message: 'Boom — your vision board is ready!');
-                  },
+              2 => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_openingEditor) const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
+                        Text(
+                          _openingEditor ? 'Opening your grid editor…' : 'Opening editor…',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'You can change images, text, and layout inside the grid.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               _ => Center(
                   child: Column(

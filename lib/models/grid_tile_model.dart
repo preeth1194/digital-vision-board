@@ -13,6 +13,9 @@ class GridTileModel {
   final String id;
   final String type; // 'empty' | 'image' | 'text'
   final String? content;
+  /// True when this tile was auto-filled by the wizard (quotes/stock images).
+  /// Helps UX: we can style/shuffle placeholders without affecting user-created tiles.
+  final bool isPlaceholder;
   final int crossAxisCellCount;
   final int mainAxisCellCount;
   final int index;
@@ -27,6 +30,7 @@ class GridTileModel {
     required this.id,
     required this.type,
     required this.content,
+    this.isPlaceholder = false,
     required this.crossAxisCellCount,
     required this.mainAxisCellCount,
     required this.index,
@@ -48,6 +52,7 @@ class GridTileModel {
     String? id,
     String? type,
     String? content,
+    bool? isPlaceholder,
     int? crossAxisCellCount,
     int? mainAxisCellCount,
     int? index,
@@ -59,6 +64,7 @@ class GridTileModel {
       id: id ?? this.id,
       type: type ?? this.type,
       content: content ?? this.content,
+      isPlaceholder: isPlaceholder ?? this.isPlaceholder,
       crossAxisCellCount: crossAxisCellCount ?? this.crossAxisCellCount,
       mainAxisCellCount: mainAxisCellCount ?? this.mainAxisCellCount,
       index: index ?? this.index,
@@ -72,6 +78,7 @@ class GridTileModel {
         'id': id,
         'type': type,
         'content': content,
+        'is_placeholder': isPlaceholder,
         'crossAxisCellCount': crossAxisCellCount,
         'mainAxisCellCount': mainAxisCellCount,
         'index': index,
@@ -84,6 +91,7 @@ class GridTileModel {
       id: json['id'] as String,
       type: json['type'] as String? ?? 'empty',
       content: json['content'] as String?,
+      isPlaceholder: (json['is_placeholder'] as bool?) ?? (json['isPlaceholder'] as bool?) ?? false,
       crossAxisCellCount: (json['crossAxisCellCount'] as num?)?.toInt() ?? 1,
       mainAxisCellCount: (json['mainAxisCellCount'] as num?)?.toInt() ?? 1,
       index: (json['index'] as num?)?.toInt() ?? 0,

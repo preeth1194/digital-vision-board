@@ -20,6 +20,7 @@ class BoardsStorageService {
   static String boardGridTilesV2Key(String boardId) => 'vision_board_${boardId}_grid_tiles_v2';
   static String boardGridCompactSpacingKey(String boardId) =>
       'vision_board_${boardId}_grid_compact_spacing_v1';
+  static String boardGridStyleSeedKey(String boardId) => 'vision_board_${boardId}_grid_style_seed_v1';
 
   static Future<List<VisionBoardInfo>> loadBoards({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -42,6 +43,20 @@ class BoardsStorageService {
       boardsKey,
       jsonEncode(boards.map((b) => b.toJson()).toList()),
     );
+  }
+
+  static Future<void> updateBoardTemplateId(
+    String boardId,
+    String? templateId, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final boards = await loadBoards(prefs: p);
+    if (boards.isEmpty) return;
+    final next = boards
+        .map((b) => b.id == boardId ? b.copyWith(templateId: templateId) : b)
+        .toList();
+    await saveBoards(next, prefs: p);
   }
 
   static Future<String?> loadActiveBoardId({SharedPreferences? prefs}) async {

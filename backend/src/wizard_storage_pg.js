@@ -28,19 +28,21 @@ export async function putWizardDefaultsPg({ defaults }) {
   });
 }
 
-export async function getWizardRecommendationsPg({ coreValueId, categoryKey }) {
+export async function getWizardRecommendationsPg({ coreValueId, categoryKey, genderKey }) {
   return await withClient(async (c) => {
+    const gk = (genderKey ?? "").trim() || "unisex";
     const r = await c.query(
-      `select core_value_id, category_key, category_label, recommendations_json, source, created_by, updated_at
-       from dv_wizard_recommendations
-       where core_value_id = $1 and category_key = $2`,
-      [coreValueId, categoryKey],
+      `select core_value_id, category_key, gender_key, category_label, recommendations_json, source, created_by, updated_at
+       from dv_wizard_recommendations_v2
+       where core_value_id = $1 and category_key = $2 and gender_key = $3`,
+      [coreValueId, categoryKey, gk],
     );
     if (!r.rowCount) return null;
     const row = r.rows[0];
     return {
       coreValueId: row.core_value_id,
       categoryKey: row.category_key,
+      genderKey: row.gender_key,
       categoryLabel: row.category_label,
       recommendations: row.recommendations_json ?? null,
       source: row.source ?? null,
@@ -53,17 +55,19 @@ export async function getWizardRecommendationsPg({ coreValueId, categoryKey }) {
 export async function upsertWizardRecommendationsPg({
   coreValueId,
   categoryKey,
+  genderKey,
   categoryLabel,
   recommendations,
   source,
   createdBy,
 }) {
   return await withClient(async (c) => {
+    const gk = (genderKey ?? "").trim() || "unisex";
     await c.query(
-      `insert into dv_wizard_recommendations (
-         core_value_id, category_key, category_label, recommendations_json, source, created_by
-       ) values ($1,$2,$3,$4,$5,$6)
-       on conflict (core_value_id, category_key) do update set
+      `insert into dv_wizard_recommendations_v2 (
+         core_value_id, category_key, gender_key, category_label, recommendations_json, source, created_by
+       ) values ($1,$2,$3,$4,$5,$6,$7)
+       on conflict (core_value_id, category_key, gender_key) do update set
          category_label = excluded.category_label,
          recommendations_json = excluded.recommendations_json,
          source = excluded.source,
@@ -72,6 +76,7 @@ export async function upsertWizardRecommendationsPg({
       [
         coreValueId,
         categoryKey,
+        gk,
         categoryLabel,
         JSON.stringify(recommendations ?? {}),
         source ?? null,

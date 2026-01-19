@@ -104,13 +104,13 @@ function extractGoalsArray(json) {
   return null;
 }
 
-export function validateAndNormalizeRecommendationsJson(json) {
+export function validateAndNormalizeRecommendationsJson(json, { requiredGoals = 3 } = {}) {
   const goalsRaw = extractGoalsArray(json);
   if (!goalsRaw) return null;
   const goals = goalsRaw.map(sanitizeGoal).filter(Boolean);
-  if (goals.length < 3) return null;
-  // Enforce exactly 3 for the app spec by truncating extras.
-  return { goals: goals.slice(0, 3) };
+  if (goals.length < requiredGoals) return null;
+  // Enforce exact count by truncating extras.
+  return { goals: goals.slice(0, requiredGoals) };
 }
 
 export async function generateWizardRecommendationsWithGemini({
@@ -119,6 +119,7 @@ export async function generateWizardRecommendationsWithGemini({
   category,
   goalsPerCategory = 3,
   habitsPerGoal = 3,
+  audienceGender = "unisex",
 }) {
   const apiKey = requireEnv("GEMINI_API_KEY");
   const envModel = asNonEmptyString(process.env.GEMINI_MODEL);
@@ -158,6 +159,7 @@ export async function generateWizardRecommendationsWithGemini({
   const userPrompt = [
     `Core value: ${coreValueLabel || coreValueId}`,
     `Category: ${category}`,
+    `Audience gender: ${audienceGender}`,
     "",
     "Generate the recommendations now.",
   ].join("\n");
@@ -268,9 +270,11 @@ export async function generateWizardRecommendationsWithGemini({
       obj = payload;
     }
 
-    const validated = validateAndNormalizeRecommendationsJson(obj);
+    const validated = validateAndNormalizeRecommendationsJson(obj, { requiredGoals: goalsPerCategory });
     if (validated) return validated;
-    lastValidationError = new Error("Gemini response did not match expected recommendations schema (need >= 3 goals).");
+    lastValidationError = new Error(
+      `Gemini response did not match expected recommendations schema (need >= ${goalsPerCategory} goals).`,
+    );
   }
 
   // Last resort: ask again with stricter phrasing to force 3 items.
@@ -351,7 +355,7 @@ export async function generateWizardRecommendationsWithGemini({
     } catch {
       obj = payload;
     }
-    const validated = validateAndNormalizeRecommendationsJson(obj);
+    const validated = validateAndNormalizeRecommendationsJson(obj, { requiredGoals: goalsPerCategory });
     if (validated) return validated;
   } catch (e) {
     // fall through
@@ -361,7 +365,7 @@ export async function generateWizardRecommendationsWithGemini({
   throw lastValidationError ?? new Error("Gemini response invalid.");
 }
 
-function sanitizeCategoryBundle(entry) {
+function sanitizeCategoryBundle(entry, { requiredGoals = 3 } = {}) {
   if (!entry || typeof entry !== "object") return null;
   const category =
     asNonEmptyString(entry.category ?? entry.categoryLabel ?? entry.category_label ?? entry.name) ?? null;
@@ -369,8 +373,8 @@ function sanitizeCategoryBundle(entry) {
   const goalsRaw = extractGoalsArray(entry);
   if (!goalsRaw) return null;
   const goals = goalsRaw.map(sanitizeGoal).filter(Boolean);
-  if (goals.length < 3) return null;
-  return { category, goals: goals.slice(0, 3) };
+  if (goals.length < requiredGoals) return null;
+  return { category, goals: goals.slice(0, requiredGoals) };
 }
 
 function extractCategoryBundles(json) {
@@ -509,7 +513,9 @@ export async function generateWizardRecommendationsBatchWithGemini({
     }
     if (!parsed) throw lastErr ?? new Error("Gemini batch response invalid.");
 
-    const bundles = extractCategoryBundles(parsed).map(sanitizeCategoryBundle).filter(Boolean);
+    const bundles = extractCategoryBundles(parsed)
+      .map((e) => sanitizeCategoryBundle(e, { requiredGoals: goalsPerCategory }))
+      .filter(Boolean);
     for (const b of bundles) {
       const key = String(b.category).trim();
       if (!key) continue;

@@ -7,11 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
 import '../../services/boards_storage_service.dart';
+import '../../services/category_images_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../models/board_template.dart';
 import '../../services/templates_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../../services/wizard_defaults_service.dart';
 import '../../widgets/dialogs/text_input_dialog.dart';
 
 class TemplatesAdminScreen extends StatefulWidget {
@@ -19,6 +21,90 @@ class TemplatesAdminScreen extends StatefulWidget {
 
   @override
   State<TemplatesAdminScreen> createState() => _TemplatesAdminScreenState();
+}
+
+class _SyncedCategorySection extends StatefulWidget {
+  final String category;
+  final List<CategoryImageItem> images;
+  final bool loading;
+  final String? error;
+  final VoidCallback onExpand;
+  final ValueChanged<CategoryImageItem> onTapImage;
+
+  const _SyncedCategorySection({
+    required this.category,
+    required this.images,
+    required this.loading,
+    required this.error,
+    required this.onExpand,
+    required this.onTapImage,
+  });
+
+  @override
+  State<_SyncedCategorySection> createState() => _SyncedCategorySectionState();
+}
+
+class _SyncedCategorySectionState extends State<_SyncedCategorySection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = widget.category.trim();
+    final err = (widget.error ?? '').trim();
+
+    return ExpansionTile(
+      initiallyExpanded: _expanded,
+      title: Text(cat.isNotEmpty ? cat : 'Category'),
+      onExpansionChanged: (v) {
+        setState(() => _expanded = v);
+        if (v) widget.onExpand();
+      },
+      children: [
+        if (widget.loading)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (err.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(err, style: const TextStyle(color: Colors.red)),
+          )
+        else if (_expanded && widget.images.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('No synced images found for this category.'),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: widget.images.length,
+              itemBuilder: (ctx, i) {
+                final item = widget.images[i];
+                return InkWell(
+                  onTap: () => widget.onTapImage(item),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(border: Border.all(color: Colors.black12)),
+                      child: Image.network(item.url, fit: BoxFit.cover),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
@@ -32,6 +118,16 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   String? _wizardSyncJobId;
   String? _wizardSyncStatusText;
   int _wizardSyncLastLoggedFailed = 0;
+
+  bool _stockSyncing = false;
+  Timer? _stockSyncPoll;
+  String? _stockSyncJobId;
+  String? _stockSyncStatusText;
+
+  WizardDefaultsPayload? _defaults;
+  final Map<String, List<CategoryImageItem>> _syncedImagesByKey = {};
+  final Map<String, bool> _syncedLoadingByKey = {};
+  final Map<String, String?> _syncedErrorByKey = {};
 
   bool get _isLocalBackend {
     final base = DvAuthService.backendBaseUrl().toLowerCase();
@@ -50,6 +146,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
   @override
   void dispose() {
     _wizardSyncPoll?.cancel();
+    _stockSyncPoll?.cancel();
     super.dispose();
   }
 
@@ -63,11 +160,13 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       final token = await DvAuthService.getDvToken();
       if (token == null) throw Exception('Not authenticated.');
       final list = await TemplatesService.adminListTemplates(dvToken: token);
+      final defaults = await WizardDefaultsService.getDefaults();
       if (!mounted) return;
       setState(() {
         _isAdmin = true;
         _templates = list;
         _canvaUserId = canvaUserId;
+        _defaults = defaults;
       });
     } catch (e) {
       if (!mounted) return;
@@ -79,6 +178,72 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _syncedKey(String coreValueId, String category) => '${coreValueId.trim()}::${category.trim()}';
+
+  Future<void> _ensureSyncedImagesLoaded({
+    required String coreValueId,
+    required String category,
+  }) async {
+    final cv = coreValueId.trim();
+    final cat = category.trim();
+    if (cv.isEmpty || cat.isEmpty) return;
+    final key = _syncedKey(cv, cat);
+    if (_syncedImagesByKey.containsKey(key)) return;
+    if (_syncedLoadingByKey[key] == true) return;
+
+    setState(() {
+      _syncedLoadingByKey[key] = true;
+      _syncedErrorByKey[key] = null;
+    });
+    try {
+      final images = await CategoryImagesService.getCategoryImages(coreValueId: cv, category: cat, limit: 24);
+      if (!mounted) return;
+      setState(() {
+        _syncedImagesByKey[key] = images;
+        _syncedLoadingByKey[key] = false;
+        _syncedErrorByKey[key] = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _syncedLoadingByKey[key] = false;
+        _syncedErrorByKey[key] = e.toString();
+      });
+    }
+  }
+
+  Future<void> _showImagePreview(CategoryImageItem item) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item.categoryLabel.isNotEmpty ? item.categoryLabel : 'Image'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(item.url, fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 10),
+              if (item.photographer.trim().isNotEmpty)
+                Text('Photographer: ${item.photographer}', style: const TextStyle(color: Colors.black54)),
+              if (item.alt.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(item.alt, style: const TextStyle(color: Colors.black87)),
+              ],
+              const SizedBox(height: 10),
+              SelectableText(item.url, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+        ],
+      ),
+    );
   }
 
   Future<void> _connectCanvaOAuth() async {
@@ -379,8 +544,66 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
     }
   }
 
+  Future<void> _syncStockImages() async {
+    if (!_isAdmin) return;
+    if (_stockSyncing) return;
+    final token = await DvAuthService.getDvToken();
+    if (token == null) throw Exception('Not authenticated.');
+
+    setState(() => _stockSyncing = true);
+    try {
+      final start = await TemplatesService.adminStartStockImagesSync(dvToken: token, perCategory: 12);
+      final jobId = (start['jobId'] as String?)?.trim();
+      if (jobId == null || jobId.isEmpty) throw Exception('Missing jobId from sync start.');
+      if (!mounted) return;
+      setState(() {
+        _stockSyncJobId = jobId;
+        _stockSyncStatusText = 'Started…';
+      });
+
+      _stockSyncPoll?.cancel();
+      _stockSyncPoll = Timer.periodic(const Duration(seconds: 2), (_) async {
+        try {
+          final status = await TemplatesService.adminStockImagesSyncStatus(dvToken: token, jobId: jobId);
+          final job = status['job'] as Map<String, dynamic>?;
+          if (job == null) return;
+          final running = (job['running'] as bool?) ?? false;
+          final total = (job['total'] as num?)?.toInt() ?? 0;
+          final succ = (job['succeeded'] as num?)?.toInt() ?? 0;
+          final skip = (job['skipped'] as num?)?.toInt() ?? 0;
+          final fail = (job['failed'] as num?)?.toInt() ?? 0;
+          if (!mounted) return;
+          setState(() {
+            _stockSyncStatusText = running
+                ? 'Running: $succ ok • $skip skipped • $fail failed • $total total'
+                : 'Done: $succ ok • $skip skipped • $fail failed • $total total';
+          });
+          if (!running) {
+            _stockSyncPoll?.cancel();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Image sync finished. ok=$succ, skipped=$skip, failed=$fail')),
+            );
+            setState(() => _stockSyncing = false);
+          }
+        } catch (e) {
+          debugPrint('Stock images sync poll error: jobId=$jobId error=$e');
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Image sync failed: ${e.toString()}')),
+      );
+      setState(() => _stockSyncing = false);
+    } finally {
+      if (mounted && _stockSyncPoll == null) setState(() => _stockSyncing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final defaults = _defaults;
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Templates')),
       body: _loading
@@ -490,6 +713,54 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.image_outlined),
+                      title: const Text('Sync category images (Pexels)'),
+                      subtitle: Text(
+                        (_stockSyncing && (_stockSyncStatusText ?? '').isNotEmpty)
+                            ? _stockSyncStatusText!
+                            : 'Caches minimal, category-relevant images for predefined categories.',
+                      ),
+                      trailing: _stockSyncing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : FilledButton(
+                              onPressed: (_isAdmin || _isLocalBackend) && !_loading ? _syncStockImages : null,
+                              child: const Text('Sync'),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (defaults != null) ...[
+                    const Divider(),
+                    const Text('Synced category images', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    for (final cv in defaults.coreValues)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: ExpansionTile(
+                            title: Text(cv.label),
+                            children: [
+                              for (final cat in (defaults.categoriesByCoreValueId[cv.id] ?? const <String>[]))
+                                _SyncedCategorySection(
+                                  category: cat,
+                                  images: _syncedImagesByKey[_syncedKey(cv.id, cat)] ?? const [],
+                                  loading: _syncedLoadingByKey[_syncedKey(cv.id, cat)] == true,
+                                  error: _syncedErrorByKey[_syncedKey(cv.id, cat)],
+                                  onExpand: () => _ensureSyncedImagesLoaded(coreValueId: cv.id, category: cat),
+                                  onTapImage: _showImagePreview,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                  ],
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.auto_awesome_outlined),

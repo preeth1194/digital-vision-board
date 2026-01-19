@@ -50,6 +50,7 @@ import {
 } from "./templates_pg.js";
 import { generateWizardRecommendationsBatchWithGemini, generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
+import { listStockCategoryImagesPg, upsertStockCategoryImagePg } from "./stock_category_images_pg.js";
 
 const app = express();
 
@@ -73,12 +74,17 @@ const upload = multer({
 // In-memory job tracker for long-running admin operations (Render/mobile requests can time out).
 // This keeps the HTTP request short and lets clients poll.
 const wizardSyncJobs = new Map(); // jobId -> { ...status }
+const stockImagesSyncJobs = new Map(); // jobId -> { ...status }
 
 function normalizeCategoryKey(category) {
   return String(category ?? "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+function normalizeCoreValueKey(coreValueId) {
+  return String(coreValueId ?? "").trim();
 }
 
 function normalizeGenderKey(gender) {
@@ -155,6 +161,77 @@ app.get("/stock/pexels/search", async (req, res) => {
     return res.json(result);
   } catch (e) {
     res.status(500).json({ ok: false, error: "pexels_search_failed", message: String(e?.message ?? e) });
+  }
+});
+
+function buildStockQuery({ coreValueLabel, categoryLabel }) {
+  // Keep queries deterministic and “vision-board friendly”.
+  // Add “minimal / simple / aesthetic” bias to reduce noisy results.
+  const cat = String(categoryLabel ?? "").trim();
+  const core = String(coreValueLabel ?? "").trim();
+  const key = normalizeCategoryKey(cat);
+  const hintsByCategory = {
+    health: "wellness healthy lifestyle calm",
+    learning: "books study desk focus",
+    mindfulness: "meditation zen calm minimal",
+    confidence: "confident portrait self belief",
+    skills: "workspace laptop craft focus",
+    promotion: "career success office professional",
+    income: "finance money savings freedom",
+    leadership: "leader team meeting vision",
+    art: "art studio creative minimal",
+    writing: "writing notebook journaling minimal",
+    music: "music instrument practice minimal",
+    content: "content creation camera creator",
+    travel: "travel destination adventure minimalist",
+    fitness: "fitness workout gym strength",
+    experiences: "adventure experience outdoors lifestyle",
+    home: "minimal home interior cozy clean",
+    family: "family together warm",
+    friends: "friends laughing connection",
+    community: "community volunteering together",
+    relationships: "relationship couple love connection",
+  };
+  const hint = hintsByCategory[key] ?? "";
+  const parts = [cat, core, hint, "minimal", "simple", "clean", "aesthetic"].filter(Boolean);
+  // Keep length reasonable for search relevance.
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function defaultWizardCoreLabel(coreValueId) {
+  const cv = normalizeCoreValueKey(coreValueId);
+  const defaults = defaultWizardDefaults();
+  const found = Array.isArray(defaults?.coreValues) ? defaults.coreValues.find((c) => c?.id === cv) : null;
+  return found?.label ?? cv;
+}
+
+// ---- Stock category images (cached in DB) ----
+app.get("/stock/category-images", async (req, res) => {
+  try {
+    if (!ensureDbOr501(res)) return;
+    const coreValueId = typeof req.query.coreValueId === "string" ? req.query.coreValueId.trim() : "";
+    const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 12;
+    if (!coreValueId) return res.status(400).json({ ok: false, error: "missing_coreValueId" });
+    if (!category) return res.status(400).json({ ok: false, error: "missing_category" });
+    const categoryKey = normalizeCategoryKey(category);
+    const images = await listStockCategoryImagesPg({ coreValueId, categoryKey, limit });
+    return res.json({
+      ok: true,
+      status: images.length ? "hit" : "miss",
+      coreValueId,
+      categoryKey,
+      categoryLabel: category,
+      images: images.map((i) => ({
+        id: i.id,
+        url: i.imageUrl,
+        alt: i.alt,
+        photographer: i.photographer,
+        categoryLabel: i.categoryLabel,
+      })),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "stock_category_images_failed", message: String(e?.message ?? e) });
   }
 });
 
@@ -394,6 +471,119 @@ app.post("/admin/wizard/sync-defaults", requireAdmin(), async (req, res) => {
     res.status(500).json({ error: "wizard_sync_failed", message: String(e?.message ?? e) });
   }
 });
+
+// ---- Stock category images sync (admin) ----
+app.post("/admin/stock/sync-category-images/start", requireAdmin(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  const perCategory = typeof req.body?.perCategory === "number" ? Math.trunc(req.body.perCategory) : 12;
+  const pp = Math.max(1, Math.min(30, perCategory));
+  const jobId = `simg_${randomId(12)}`;
+  const job = {
+    jobId,
+    perCategory: pp,
+    running: true,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    total: 0,
+    succeeded: 0,
+    skipped: 0,
+    failed: 0,
+    sampleErrors: [],
+  };
+  stockImagesSyncJobs.set(jobId, job);
+
+  (async () => {
+    try {
+      const result = await runStockCategoryImagesSyncJob({ perCategory: pp, job });
+      Object.assign(job, result, { running: false, finishedAt: new Date().toISOString() });
+    } catch (e) {
+      job.running = false;
+      job.finishedAt = new Date().toISOString();
+      job.failed = job.failed ?? 0;
+      job.sampleErrors = [...(job.sampleErrors ?? []), String(e?.message ?? e)].slice(0, 5);
+    }
+  })();
+
+  res.status(202).json({
+    ok: true,
+    async: true,
+    jobId,
+    statusUrl: `/admin/stock/sync-category-images/status?jobId=${encodeURIComponent(jobId)}`,
+  });
+});
+
+app.get("/admin/stock/sync-category-images/status", requireAdmin(), async (req, res) => {
+  const jobId = typeof req.query.jobId === "string" ? req.query.jobId.trim() : "";
+  if (!jobId) return res.status(400).json({ error: "missing_jobId" });
+  const job = stockImagesSyncJobs.get(jobId);
+  if (!job) return res.status(404).json({ error: "job_not_found" });
+  res.json({ ok: true, job });
+});
+
+async function runStockCategoryImagesSyncJob({ perCategory, job }) {
+  const defaults = defaultWizardDefaults();
+  const categoriesByCore = defaults.categoriesByCoreValueId ?? {};
+
+  const tasks = [];
+  for (const coreValueId of Object.keys(categoriesByCore)) {
+    const coreLabel = defaultWizardCoreLabel(coreValueId);
+    const cats = Array.isArray(categoriesByCore[coreValueId]) ? categoriesByCore[coreValueId] : [];
+    for (const cat of cats) {
+      const categoryLabel = String(cat ?? "").trim();
+      if (!categoryLabel) continue;
+      tasks.push({ coreValueId, coreLabel, categoryLabel, categoryKey: normalizeCategoryKey(categoryLabel) });
+    }
+  }
+  if (job) job.total = tasks.length;
+
+  let succeeded = 0;
+  let skipped = 0;
+  let failed = 0;
+  const sampleErrors = [];
+
+  for (const t of tasks) {
+    try {
+      const query = buildStockQuery({ coreValueLabel: t.coreLabel, categoryLabel: t.categoryLabel });
+      const result = await searchPexelsPhotos({ query, perPage: Math.max(1, Math.min(30, perCategory)) });
+      if (!result.ok) throw new Error(result.error ?? "pexels_search_failed");
+      const photos = Array.isArray(result.photos) ? result.photos : [];
+      if (!photos.length) {
+        skipped++;
+        if (job) job.skipped = skipped;
+        continue;
+      }
+      for (const p of photos) {
+        const pexelsId = p?.id ?? null;
+        const url = p?.src?.large ?? p?.src?.medium ?? p?.src?.original ?? p?.src?.small ?? null;
+        if (!url) continue;
+        const id = `pimg_${t.coreValueId}_${t.categoryKey}_${String(pexelsId ?? randomId(10))}`.slice(0, 80);
+        await upsertStockCategoryImagePg({
+          id,
+          coreValueId: t.coreValueId,
+          categoryKey: t.categoryKey,
+          categoryLabel: t.categoryLabel,
+          pexelsPhotoId: pexelsId,
+          query,
+          imageUrl: url,
+          alt: p?.alt ?? "",
+          photographer: p?.photographer ?? "",
+        });
+      }
+      succeeded++;
+      if (job) job.succeeded = succeeded;
+    } catch (e) {
+      failed++;
+      const err = String(e?.message ?? e);
+      if (sampleErrors.length < 5) sampleErrors.push(`${t.categoryLabel}: ${err}`);
+      if (job) {
+        job.failed = failed;
+        job.sampleErrors = sampleErrors;
+      }
+    }
+  }
+
+  return { total: tasks.length, succeeded, skipped, failed, sampleErrors };
+}
 
 app.post("/admin/wizard/sync-defaults/start", requireAdmin(), async (req, res) => {
   const reset = Boolean(req.body?.reset);

@@ -51,6 +51,19 @@
 	<string>Allow access to photos to import and crop your physical vision board.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Allow saving cropped images for your digital vision board.</string>
+	<!-- Location (for location-bound habits / geofencing) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allow location access to track location-based habits.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Allow background location access to track location-based habits automatically.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Allow background location access to track location-based habits automatically.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Used to recognize user activity information for location-based habits.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

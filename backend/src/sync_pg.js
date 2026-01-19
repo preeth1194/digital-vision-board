@@ -8,21 +8,25 @@ export function isLogicalDate(v) {
 
 export async function getUserSettingsPg(canvaUserId) {
   return await withClient(async (c) => {
-    const r = await c.query("select home_timezone from dv_user_settings where canva_user_id = $1", [canvaUserId]);
-    if (!r.rowCount) return { homeTimezone: null };
-    return { homeTimezone: r.rows[0].home_timezone ?? null };
+    const r = await c.query("select home_timezone, gender from dv_user_settings where canva_user_id = $1", [canvaUserId]);
+    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say" };
+    return {
+      homeTimezone: r.rows[0].home_timezone ?? null,
+      gender: r.rows[0].gender ?? "prefer_not_to_say",
+    };
   });
 }
 
-export async function putUserSettingsPg(canvaUserId, { homeTimezone }) {
+export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender }) {
   return await withClient(async (c) => {
     await c.query(
-      `insert into dv_user_settings (canva_user_id, home_timezone)
-       values ($1, $2)
+      `insert into dv_user_settings (canva_user_id, home_timezone, gender)
+       values ($1, $2, $3)
        on conflict (canva_user_id) do update set
          home_timezone = excluded.home_timezone,
+         gender = excluded.gender,
          updated_at = now()`,
-      [canvaUserId, homeTimezone ?? null],
+      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say"],
     );
   });
 }
@@ -105,13 +109,18 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
     try {
       if (userSettings && typeof userSettings === "object") {
         const tz = typeof userSettings.homeTimezone === "string" ? userSettings.homeTimezone : null;
+        const gender =
+          typeof userSettings.gender === "string" && userSettings.gender.trim()
+            ? userSettings.gender.trim()
+            : "prefer_not_to_say";
         await c.query(
-          `insert into dv_user_settings (canva_user_id, home_timezone)
-           values ($1, $2)
+          `insert into dv_user_settings (canva_user_id, home_timezone, gender)
+           values ($1, $2, $3)
            on conflict (canva_user_id) do update set
              home_timezone = excluded.home_timezone,
+             gender = excluded.gender,
              updated_at = now()`,
-          [canvaUserId, tz],
+          [canvaUserId, tz, gender],
         );
       }
 

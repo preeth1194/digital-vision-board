@@ -87,7 +87,6 @@ final class TextComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
-        'tasks': VisionComponent.tasksToJson(tasks),
         'isDisabled': isDisabled,
         'text': text,
         'style': VisionComponent.textStyleToJson(style),

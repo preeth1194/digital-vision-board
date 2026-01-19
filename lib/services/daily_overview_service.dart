@@ -219,46 +219,6 @@ final class DailyOverviewService {
             );
           }
         }
-
-        // Tasks + checklist
-        for (final t in c.tasks) {
-          for (final entry in t.completionFeedbackByDate.entries) {
-            final iso = entry.key;
-            final fb = entry.value;
-            if (fb.rating <= 0) continue;
-            (byIso[iso] ??= []).add(
-              DailyRatingItem(
-                isoDate: iso,
-                boardId: b.id,
-                boardTitle: b.title,
-                componentId: c.id,
-                kind: DailyRatingKind.task,
-                title: t.title,
-                rating: fb.rating,
-                note: fb.note,
-              ),
-            );
-          }
-          for (final item in t.checklist) {
-            for (final entry in item.feedbackByDate.entries) {
-              final iso = entry.key;
-              final fb = entry.value;
-              if (fb.rating <= 0) continue;
-              (byIso[iso] ??= []).add(
-                DailyRatingItem(
-                  isoDate: iso,
-                  boardId: b.id,
-                  boardTitle: b.title,
-                  componentId: c.id,
-                  kind: DailyRatingKind.checklistItem,
-                  title: '${t.title}: ${item.text}',
-                  rating: fb.rating,
-                  note: fb.note,
-                ),
-              );
-            }
-          }
-        }
       }
     }
 
@@ -294,7 +254,6 @@ final class DailyOverviewService {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
-          tasks: t.tasks,
         ),
       );
     }
@@ -313,7 +272,7 @@ final class DailyOverviewService {
   }
 }
 
-enum DailyRatingKind { habit, checklistItem, task }
+enum DailyRatingKind { habit }
 
 final class BoardHabitMoodSummary {
   final String boardId;

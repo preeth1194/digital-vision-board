@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -8,8 +10,10 @@ import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
+import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/image_service.dart';
+import '../services/stock_images_service.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
@@ -18,7 +22,7 @@ import '../widgets/grid/image_source_sheet.dart';
 import 'global_insights_screen.dart';
 import 'habits_list_screen.dart';
 import 'grid_goal_viewer_screen.dart';
-import 'tasks_list_screen.dart';
+import 'todos_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -53,7 +57,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   late bool _isEditing;
   bool _loading = true;
-  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Tasks, 3: Insights (view mode only)
+  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Todo, 3: Insights (view mode only)
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
@@ -62,6 +66,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   SharedPreferences? _prefs;
   List<GridTileModel> _tiles = [];
+  int _styleSeed = 0;
 
   @override
   void initState() {
@@ -72,6 +77,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    _styleSeed = _prefs?.getInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId)) ?? 0;
+    if (_styleSeed == 0) {
+      _styleSeed = DateTime.now().millisecondsSinceEpoch;
+      await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), _styleSeed);
+    }
     final loaded = await GridTilesStorageService.loadTiles(widget.boardId, prefs: _prefs);
     final hydrated = _ensureTemplateTiles(loaded);
     await GridTilesStorageService.saveTiles(widget.boardId, hydrated, prefs: _prefs);
@@ -80,6 +90,107 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       _tiles = hydrated;
       _loading = false;
     });
+  }
+
+  int _hash32(String s) {
+    // Simple deterministic hash (not cryptographic).
+    int h = 0x811c9dc5;
+    for (int i = 0; i < s.length; i++) {
+      h ^= s.codeUnitAt(i);
+      h = (h * 0x01000193) & 0x7fffffff;
+    }
+    return h;
+  }
+
+  TextStyle _placeholderTextStyle(BuildContext context, GridTileModel tile) {
+    final v = _hash32('${tile.id}::$_styleSeed');
+    final weights = <FontWeight>[
+      FontWeight.w600,
+      FontWeight.w700,
+      FontWeight.w800,
+      FontWeight.w500,
+    ];
+    final weight = weights[v % weights.length];
+    final italic = (v % 5) == 0;
+    final size = 14.0 + ((v % 5) * 2.0);
+    final letter = ((v % 3) - 1) * 0.4; // -0.4, 0, 0.4
+    return TextStyle(
+      fontSize: size,
+      fontWeight: weight,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      letterSpacing: letter,
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.9),
+    );
+  }
+
+  Future<void> _shuffleGrid() async {
+    if (!_isEditing) return;
+    if (_tiles.isEmpty) return;
+
+    final rng = Random(DateTime.now().millisecondsSinceEpoch);
+    final nextTpl = GridTemplates.all[rng.nextInt(GridTemplates.all.length)];
+
+    // New seed => new placeholder typography.
+    final nextSeed = DateTime.now().millisecondsSinceEpoch;
+    await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), nextSeed);
+    _styleSeed = nextSeed;
+
+    // Apply new tile sizes; keep goal/user content in place.
+    final nextTiles = <GridTileModel>[];
+    for (int i = 0; i < _tiles.length; i++) {
+      final bp = (i < nextTpl.tiles.length)
+          ? nextTpl.tiles[i]
+          : const GridTileBlueprint(crossAxisCount: 1, mainAxisCount: 1);
+      nextTiles.add(
+        _tiles[i].copyWith(
+          crossAxisCellCount: bp.crossAxisCount,
+          mainAxisCellCount: bp.mainAxisCount,
+        ),
+      );
+    }
+
+    // Optional: refresh placeholder images from Pexels using a best-effort query.
+    final placeholders = nextTiles.where((t) => t.isPlaceholder).toList();
+    if (placeholders.isNotEmpty) {
+      final counts = <String, int>{};
+      for (final t in nextTiles) {
+        final cat = (t.goal?.category ?? '').trim();
+        if (cat.isEmpty) continue;
+        counts[cat] = (counts[cat] ?? 0) + 1;
+      }
+      String query = widget.title.trim();
+      if (counts.isNotEmpty) {
+        final entries = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+        query = entries.first.key;
+      }
+
+      final urls = await StockImagesService.searchPexelsUrls(
+        query: query,
+        perPage: min(12, placeholders.length),
+      );
+      if (urls.isNotEmpty) {
+        int u = 0;
+        final updated = nextTiles.map((t) {
+          if (!t.isPlaceholder) return t;
+          if (u >= urls.length) return t;
+          final url = urls[u++];
+          return t.copyWith(type: 'image', content: url);
+        }).toList();
+        nextTiles
+          ..clear()
+          ..addAll(updated);
+      }
+    }
+
+    await BoardsStorageService.updateBoardTemplateId(widget.boardId, nextTpl.id, prefs: _prefs);
+    await _saveTiles(nextTiles);
+    if (!mounted) return;
+    setState(() {
+      _selectedResizeHandle = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Shuffled layout: ${nextTpl.name}')),
+    );
   }
 
   List<GridTileModel> _ensureTemplateTiles(List<GridTileModel> existing) {
@@ -457,7 +568,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           scale: 1,
           zIndex: t.index,
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-          goal: t.goal ?? GoalMetadata(title: t.id),
+          // Important: don't synthesize a fake goal title like "tile_0".
+          // If there's no goal metadata, keep it null so labels can fall back cleanly.
+          goal: t.goal,
           habits: t.habits,
           tasks: t.tasks,
         ),
@@ -527,7 +640,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           (tile.content ?? '').trim(),
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: tile.isPlaceholder ? _placeholderTextStyle(context, tile) : const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       );
     } else {
@@ -591,7 +704,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         : _viewTabIndex == 1
             ? 'Habits'
             : _viewTabIndex == 2
-                ? 'Tasks'
+                ? 'Todo'
                 : 'Insights';
     return Scaffold(
       appBar: AppBar(
@@ -603,11 +716,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(widget.wizardNextLabel),
             ),
-          IconButton(
-            tooltip: _isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
-            icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
-            onPressed: _toggleEditMode,
-          ),
+          if (_isEditing && _viewTabIndex == 0)
+            IconButton(
+              tooltip: 'Shuffle layout',
+              icon: const Icon(Icons.shuffle),
+              onPressed: _shuffleGrid,
+            ),
+          if (_viewTabIndex == 0 || _isEditing)
+            IconButton(
+              tooltip: _isEditing ? 'Complete' : 'Edit',
+              icon: Icon(_isEditing ? Icons.check_circle : Icons.edit),
+              onPressed: _toggleEditMode,
+            ),
         ],
       ),
       body: _loading
@@ -619,10 +739,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   showAppBar: false,
                 )
               : (!_isEditing && _viewTabIndex == 2)
-                  ? TasksListScreen(
+                  ? TodosListScreen(
                       components: _componentsFromTiles(),
                       onComponentsUpdated: _applyComponentUpdates,
+                      onOpenComponent: (_) async {},
                       showAppBar: false,
+                      allowManageTodos: true,
                     )
                   : (!_isEditing && _viewTabIndex == 3)
                       ? GlobalInsightsScreen(components: _componentsFromTiles())
@@ -919,7 +1041,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Grid'),
                 BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
-                BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Tasks'),
+                BottomNavigationBarItem(icon: Icon(Icons.playlist_add_check), label: 'Todo'),
                 BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
               ],
             ),

@@ -31,6 +31,28 @@ class VisionBoardInfo {
     this.templateId,
   });
 
+  VisionBoardInfo copyWith({
+    String? id,
+    String? title,
+    int? createdAtMs,
+    String? coreValueId,
+    int? iconCodePoint,
+    int? tileColorValue,
+    String? layoutType,
+    String? templateId,
+  }) {
+    return VisionBoardInfo(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+      coreValueId: coreValueId ?? this.coreValueId,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+      tileColorValue: tileColorValue ?? this.tileColorValue,
+      layoutType: layoutType ?? this.layoutType,
+      templateId: templateId ?? this.templateId,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,

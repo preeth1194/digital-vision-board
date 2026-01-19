@@ -1,5 +1,6 @@
 import '../habit_item.dart';
 import '../task_item.dart';
+import '../goal_metadata.dart';
 
 final class WizardGoalDraft {
   final String id;
@@ -13,6 +14,7 @@ final class WizardGoalDraft {
   final bool wantsActionPlan;
   final List<HabitItem> habits;
   final List<TaskItem> tasks;
+  final List<GoalTodoItem> todoItems;
 
   const WizardGoalDraft({
     required this.id,
@@ -24,6 +26,7 @@ final class WizardGoalDraft {
     required this.wantsActionPlan,
     this.habits = const [],
     this.tasks = const [],
+    this.todoItems = const [],
   });
 
   WizardGoalDraft copyWith({
@@ -36,6 +39,7 @@ final class WizardGoalDraft {
     bool? wantsActionPlan,
     List<HabitItem>? habits,
     List<TaskItem>? tasks,
+    List<GoalTodoItem>? todoItems,
   }) {
     return WizardGoalDraft(
       id: id ?? this.id,
@@ -47,6 +51,7 @@ final class WizardGoalDraft {
       wantsActionPlan: wantsActionPlan ?? this.wantsActionPlan,
       habits: habits ?? this.habits,
       tasks: tasks ?? this.tasks,
+      todoItems: todoItems ?? this.todoItems,
     );
   }
 }

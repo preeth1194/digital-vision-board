@@ -5,6 +5,9 @@ import '../models/vision_components.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
+import '../services/habit_geofence_tracking_service.dart';
+import 'habit_timer_screen.dart';
+import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
@@ -14,6 +17,10 @@ class HabitsListScreen extends StatefulWidget {
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final bool showAppBar;
+  /// Whether to show the "Due YYYY-MM-DD" chip/text in habit rows.
+  ///
+  /// Some contexts (e.g. VisionBoardEditorScreen's Habits tab) want a cleaner list.
+  final bool showDueDate;
 
   const HabitsListScreen({
     super.key,
@@ -21,6 +28,7 @@ class HabitsListScreen extends StatefulWidget {
     required this.components,
     required this.onComponentsUpdated,
     this.showAppBar = true,
+    this.showDueDate = true,
   });
 
   @override
@@ -85,6 +93,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       reminderEnabled: req.reminderEnabled,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
       completedDates: const [],
     );
 
@@ -95,6 +105,23 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     setState(() => _components = nextComponents);
     widget.onComponentsUpdated(nextComponents);
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.trim().isNotEmpty) {
+      Future<void>(() async {
+        // Keep location tracking in sync when new location-based habits are added.
+        final updatedSelected = nextComponents
+            .where((c) => c.id == selected.id)
+            .cast<VisionComponent?>()
+            .firstWhere((_) => true, orElse: () => null);
+        if (updatedSelected == null) return;
+        await HabitGeofenceTrackingService.instance.configureForComponent(
+          boardId: boardId,
+          componentId: selected.id,
+          habits: updatedSelected.habits,
+        );
+      });
+    }
 
     Future<void>(() async {
       if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
@@ -175,6 +202,133 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     }
   }
 
+  Future<void> _editHabit(VisionComponent component, HabitItem habit) async {
+    final cNow = _components
+        .where((c) => c.id == component.id)
+        .cast<VisionComponent?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final baseComponent = cNow ?? component;
+    final hNow = baseComponent.habits
+        .where((h) => h.id == habit.id)
+        .cast<HabitItem?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final baseHabit = hNow ?? habit;
+
+    final goalDeadline = baseComponent is ImageComponent
+        ? baseComponent.goal?.deadline
+        : (baseComponent is GoalOverlayComponent ? baseComponent.goal.deadline : null);
+
+    final req = await showEditHabitDialog(
+      context,
+      habit: baseHabit,
+      suggestedGoalDeadline: goalDeadline,
+      existingHabits: baseComponent.habits.where((h) => h.id != baseHabit.id).toList(),
+    );
+    if (req == null) return;
+    if (!mounted) return;
+
+    final updatedHabit = baseHabit.copyWith(
+      name: req.name,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+    );
+
+    final nextComponents = _components.map((c) {
+      if (c.id != baseComponent.id) return c;
+      final nextHabits = c.habits.map((h) => h.id == baseHabit.id ? updatedHabit : h).toList();
+      return c.copyWithCommon(habits: nextHabits);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.trim().isNotEmpty) {
+      Future<void>(() async {
+        await HabitGeofenceTrackingService.instance.configureForComponent(
+          boardId: boardId,
+          componentId: baseComponent.id,
+          habits: nextComponents.where((c) => c.id == baseComponent.id).first.habits,
+        );
+      });
+    }
+
+    // Best-effort: re-schedule notifications for the updated habit.
+    Future<void>(() async {
+      await NotificationsService.cancelHabitReminders(updatedHabit);
+      if (!updatedHabit.reminderEnabled || updatedHabit.reminderMinutes == null) return;
+      final ok = await NotificationsService.requestPermissionsIfNeeded();
+      if (!ok) return;
+      await NotificationsService.scheduleHabitReminders(updatedHabit);
+    });
+  }
+
+  Future<void> _deleteHabit(VisionComponent component, HabitItem habit) async {
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete habit?'),
+            content: Text('Delete "${habit.name}"?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    if (!mounted) return;
+
+    final cNow = _components
+        .where((c) => c.id == component.id)
+        .cast<VisionComponent?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final baseComponent = cNow ?? component;
+
+    final nextComponents = _components.map((c) {
+      if (c.id != baseComponent.id) return c;
+      final nextHabits = c.habits.where((h) => h.id != habit.id).toList();
+      return c.copyWithCommon(habits: nextHabits);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+
+    // Best-effort: cancel reminders for this habit.
+    Future<void>(() async {
+      await NotificationsService.cancelHabitReminders(habit);
+    });
+
+    // Keep geofence tracking in sync after deletion.
+    final boardId = widget.boardId;
+    if (boardId != null && boardId.trim().isNotEmpty) {
+      Future<void>(() async {
+        final updatedComponent = nextComponents
+            .where((c) => c.id == baseComponent.id)
+            .cast<VisionComponent?>()
+            .firstWhere((_) => true, orElse: () => null);
+        if (updatedComponent == null) return;
+        await HabitGeofenceTrackingService.instance.configureForComponent(
+          boardId: boardId,
+          componentId: baseComponent.id,
+          habits: updatedComponent.habits,
+        );
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final componentsWithHabits =
@@ -208,13 +362,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Expanded(
-              child: Text(
-                'Habits',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
             FilledButton.icon(
               onPressed: _addHabitFromGoalPicker,
               icon: const Icon(Icons.add),
@@ -224,10 +373,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         ),
         const SizedBox(height: 12),
         ...componentsWithHabits.map((component) {
-          final displayTitle =
-              (component is ImageComponent && (component.goal?.title ?? '').trim().isNotEmpty)
-                  ? component.goal!.title!.trim()
-                  : component.id;
+          final displayTitle = ComponentLabelUtils.categoryOrTitleOrId(component);
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
@@ -252,7 +398,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   ),
                 ),
                 ...component.habits.map((habit) {
-                  final now = DateTime.now();
+                  final now = LogicalDateService.now();
                   final scheduledToday = habit.isScheduledOnDate(now);
                   final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
                   return ListTile(
@@ -260,6 +406,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                       value: isCompleted,
                       onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
                     ),
+                    tileColor: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
                     title: Text(
                       habit.name,
                       style: TextStyle(
@@ -267,24 +414,76 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                         color: isCompleted ? Colors.grey : null,
                       ),
                     ),
-                    subtitle: Row(
+                    subtitle: Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (!scheduledToday)
                           const Text('Not scheduled today', style: TextStyle(color: Colors.grey)),
                         if (habit.currentStreak > 0) ...[
                           const Icon(Icons.local_fire_department, size: 14, color: Colors.orange),
-                          const SizedBox(width: 4),
                           Text(
                             '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
                           ),
                         ] else
                           const Text('No streak yet', style: TextStyle(color: Colors.grey)),
-                        if ((habit.deadline ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(width: 10),
-                          const Text('•', style: TextStyle(color: Colors.grey)),
-                          const SizedBox(width: 10),
+                        if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
                           Text('Due ${habit.deadline}', style: const TextStyle(color: Colors.grey)),
-                        ],
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
+                          IconButton(
+                            tooltip: 'Timer',
+                            icon: const Icon(Icons.timer_outlined),
+                            onPressed: () async {
+                              final latestComponent = _components
+                                  .where((c) => c.id == component.id)
+                                  .cast<VisionComponent?>()
+                                  .firstWhere((_) => true, orElse: () => null);
+                              final latestHabit = (latestComponent?.habits ?? const <HabitItem>[])
+                                  .where((h) => h.id == habit.id)
+                                  .cast<HabitItem?>()
+                                  .firstWhere((_) => true, orElse: () => null);
+
+                              await Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => HabitTimerScreen(
+                                    habit: latestHabit ?? habit,
+                                    onMarkCompleted: () async {
+                                      final cNow = _components
+                                          .where((c) => c.id == component.id)
+                                          .cast<VisionComponent?>()
+                                          .firstWhere((_) => true, orElse: () => null);
+                                      if (cNow == null) return;
+                                      final hNow = cNow.habits
+                                          .where((h) => h.id == habit.id)
+                                          .cast<HabitItem?>()
+                                          .firstWhere((_) => true, orElse: () => null);
+                                      if (hNow == null) return;
+                                      final now = LogicalDateService.now();
+                                      if (!hNow.isScheduledOnDate(now)) return;
+                                      if (hNow.isCompletedForCurrentPeriod(now)) return;
+                                      await _toggleHabit(cNow, hNow);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        IconButton(
+                          tooltip: 'Edit habit',
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => _editHabit(component, habit),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete habit',
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _deleteHabit(component, habit),
+                        ),
                       ],
                     ),
                   );

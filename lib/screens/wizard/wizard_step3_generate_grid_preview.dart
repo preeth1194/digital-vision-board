@@ -163,7 +163,7 @@ class _TilePreview extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           Text(
-            title.isEmpty ? tile.id : title,
+            title.isNotEmpty ? title : (category.isNotEmpty ? category : 'Goal'),
             style: const TextStyle(fontWeight: FontWeight.w700),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

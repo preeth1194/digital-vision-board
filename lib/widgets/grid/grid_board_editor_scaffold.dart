@@ -53,8 +53,8 @@ class GridBoardEditorScaffold extends StatelessWidget {
         leading: const BackButton(),
         actions: [
           IconButton(
-            tooltip: isEditing ? 'Switch to View Mode' : 'Switch to Edit Mode',
-            icon: Icon(isEditing ? Icons.visibility : Icons.edit),
+            tooltip: isEditing ? 'Complete' : 'Edit',
+            icon: Icon(isEditing ? Icons.check_circle : Icons.edit),
             onPressed: onToggleEditMode,
           ),
           if (isEditing)

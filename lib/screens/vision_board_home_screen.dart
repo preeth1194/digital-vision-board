@@ -22,6 +22,7 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
   SharedPreferences? _prefs;
   List<VisionBoardInfo> _boards = const [];
   String? _activeBoardId;
+  int _refreshNonce = 0;
 
   @override
   void initState() {
@@ -68,6 +69,10 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
     );
     await _load();
+    if (!mounted) return;
+    // Force the flip-card children to remount so they re-load tiles/components
+    // and reflect completions made in Dashboard / other screens.
+    setState(() => _refreshNonce++);
   }
 
   @override
@@ -101,8 +106,9 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
         ],
       ),
       body: FlipCard(
-        front: VisionBoardHomeFront(board: board),
-        back: VisionBoardHomeBack(board: board),
+        key: ValueKey('flip-${board.id}-$_refreshNonce'),
+        front: VisionBoardHomeFront(key: ValueKey('front-${board.id}-$_refreshNonce'), board: board),
+        back: VisionBoardHomeBack(key: ValueKey('back-${board.id}-$_refreshNonce'), board: board),
       ),
     );
   }

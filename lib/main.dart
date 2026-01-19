@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'screens/vision_board_home_screen.dart';
+import 'services/habit_geofence_tracking_service.dart';
 import 'services/logical_date_service.dart';
 import 'services/wizard_defaults_service.dart';
 
@@ -13,6 +15,8 @@ Future<void> main() async {
   await LogicalDateService.ensureInitialized(prefs: prefs);
   // Lazy prefetch: do not block app startup (keeps loading screens minimal).
   unawaited(WizardDefaultsService.prefetchDefaults(prefs: prefs));
+  // Lazy start geofence tracking from local storage (best-effort).
+  unawaited(HabitGeofenceTrackingService.instance.bootstrapFromStorage(prefs: prefs));
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -27,6 +31,8 @@ class DigitalVisionBoardApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Digital Vision Board',
+      localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
+      supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,

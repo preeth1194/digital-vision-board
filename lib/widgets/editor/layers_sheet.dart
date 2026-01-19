@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/vision_components.dart';
+import '../../utils/component_label_utils.dart';
 
 Future<void> showLayersSheet(
   BuildContext context, {
@@ -57,6 +58,8 @@ class _LayersSheet extends StatefulWidget {
 class _LayersSheetState extends State<_LayersSheet> {
   late List<VisionComponent> _list;
 
+  static bool _looksLikeInternalTileId(String s) => s.trim().toLowerCase().startsWith('tile_');
+
   @override
   void initState() {
     super.initState();
@@ -101,7 +104,8 @@ class _LayersSheetState extends State<_LayersSheet> {
                     for (final c in _list)
                       ListTile(
                         key: ValueKey(c.id),
-                        title: Text(c.id),
+                        title: Text(ComponentLabelUtils.categoryOrTitleOrId(c)),
+                        subtitle: _looksLikeInternalTileId(c.id) ? null : Text(c.id),
                         leading: Icon(_getIconForType(c)),
                         selected: c.id == widget.selectedId,
                         onTap: () => widget.onSelect(c.id),
@@ -132,7 +136,8 @@ class _LayersSheetState extends State<_LayersSheet> {
                     for (final c in _list)
                       ListTile(
                         key: ValueKey(c.id),
-                        title: Text(c.id),
+                        title: Text(ComponentLabelUtils.categoryOrTitleOrId(c)),
+                        subtitle: _looksLikeInternalTileId(c.id) ? null : Text(c.id),
                         leading: Icon(_getIconForType(c)),
                         selected: c.id == widget.selectedId,
                         onTap: () => widget.onSelect(c.id),

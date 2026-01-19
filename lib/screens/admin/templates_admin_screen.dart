@@ -120,7 +120,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
           children: [
             const ListTile(
               title: Text('Pick a board', style: TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text('We will publish a sanitized snapshot (no habits/tasks/CBT).'),
+              subtitle: Text('We will publish a sanitized snapshot (no habits/tasks/mindset & coping).'),
             ),
             for (final b in boards)
               ListTile(
@@ -141,6 +141,7 @@ class _TemplatesAdminScreenState extends State<TemplatesAdminScreen> {
       'category': goal['category'],
       'cbt_metadata': null,
       'action_plan': null,
+      'todo_items': [],
     };
   }
 

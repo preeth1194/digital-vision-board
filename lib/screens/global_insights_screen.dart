@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/vision_components.dart';
+import '../models/goal_metadata.dart';
 import '../widgets/insights/stat_card.dart';
 import '../widgets/insights/today_progress_card.dart';
 import '../widgets/insights/weekly_activity_card.dart';
@@ -14,12 +15,9 @@ class GlobalInsightsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final allHabits = components.expand((c) => c.habits).toList();
-    final allChecklist = components
-        .expand((c) => c.tasks)
-        .expand((t) => t.checklist)
-        .toList();
+    final allTodos = _allGoalTodos(components);
 
-    if (allHabits.isEmpty && allChecklist.isEmpty) {
+    if (allHabits.isEmpty && allTodos.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -39,32 +37,31 @@ class GlobalInsightsScreen extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final isoToday = _toIsoDate(today);
     final completedHabitsToday = allHabits.where((h) => h.isCompletedOnDate(today)).length;
-    final completedChecklistToday = allChecklist.where((c) => c.completedOn == isoToday).length;
-    final totalTrackables = allHabits.length + allChecklist.length;
-    final completedToday = completedHabitsToday + completedChecklistToday;
+    final completedTodosToday = allTodos.where((t) => t.isCompleted && (t.completedAtMs != null)).length;
+    final totalTrackables = allHabits.length + allTodos.length;
+    final completedToday = completedHabitsToday + completedTodosToday;
     final completionRate = totalTrackables > 0 ? (completedToday / totalTrackables * 100) : 0.0;
 
     final weeklyData = <({String day, int count})>[];
     for (int i = 6; i >= 0; i--) {
       final date = today.subtract(Duration(days: i));
       final dateOnly = DateTime(date.year, date.month, date.day);
-      final iso = _toIsoDate(dateOnly);
       final count =
           allHabits.where((h) => h.isCompletedOnDate(dateOnly)).length +
-          allChecklist.where((c) => c.completedOn == iso).length;
+          allTodos.where((t) {
+            final ms = t.completedAtMs;
+            if (ms == null) return false;
+            final d = DateTime.fromMillisecondsSinceEpoch(ms);
+            return d.year == dateOnly.year && d.month == dateOnly.month && d.day == dateOnly.day;
+          }).length;
       weeklyData.add((day: DateFormat('E').format(date), count: count));
     }
     final maxWeeklyCount = weeklyData.isEmpty
         ? 0
         : weeklyData.map((d) => d.count).reduce((a, b) => a > b ? a : b);
 
-    final checklistDueToday = allChecklist.where((c) => (c.dueDate ?? '') == isoToday && !c.isCompleted).length;
-    final checklistOverdue = allChecklist.where((c) {
-      final due = (c.dueDate ?? '').trim();
-      if (due.isEmpty) return false;
-      if (c.isCompleted) return false;
-      return due.compareTo(isoToday) < 0;
-    }).length;
+    final totalTodos = allTodos.length;
+    final completedTodos = allTodos.where((t) => t.isCompleted).length;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -104,27 +101,39 @@ class GlobalInsightsScreen extends StatelessWidget {
               color: Colors.red,
             ),
             StatCard(
-              title: 'Checklist done today',
-              value: completedChecklistToday.toString(),
-              icon: Icons.checklist,
+              title: 'Todos done',
+              value: completedTodos.toString(),
+              icon: Icons.playlist_add_check,
               color: Colors.blue,
             ),
             StatCard(
-              title: 'Checklist due today',
-              value: checklistDueToday.toString(),
-              icon: Icons.event_outlined,
+              title: 'Todos total',
+              value: totalTodos.toString(),
+              icon: Icons.list_alt_outlined,
               color: Colors.purple,
             ),
             StatCard(
-              title: 'Checklist overdue',
-              value: checklistOverdue.toString(),
-              icon: Icons.warning_amber_outlined,
+              title: 'Todos done today',
+              value: completedTodosToday.toString(),
+              icon: Icons.today_outlined,
               color: Colors.amber,
             ),
           ],
         ),
       ],
     );
+  }
+
+  static List<GoalTodoItem> _allGoalTodos(List<VisionComponent> components) {
+    final out = <GoalTodoItem>[];
+    for (final c in components) {
+      GoalMetadata? meta;
+      if (c is ImageComponent) meta = c.goal;
+      if (c is GoalOverlayComponent) meta = c.goal;
+      if (meta == null) continue;
+      out.addAll(meta.todoItems.where((t) => t.text.trim().isNotEmpty));
+    }
+    return out;
   }
 
   static int _calculateLongestStreak(List<dynamic> habits) {

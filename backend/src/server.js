@@ -49,6 +49,7 @@ import {
   upsertTemplatePg,
 } from "./templates_pg.js";
 import { generateWizardRecommendationsBatchWithGemini, generateWizardRecommendationsWithGemini } from "./gemini.js";
+import { searchPexelsPhotos } from "./pexels.js";
 
 const app = express();
 
@@ -78,6 +79,18 @@ function normalizeCategoryKey(category) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+function normalizeGenderKey(gender) {
+  const v = String(gender ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  if (v === "male") return "male";
+  if (v === "female") return "female";
+  if (v === "non_binary" || v === "nonbinary") return "non_binary";
+  if (v === "prefer_not_to_say" || v === "pnts" || v === "na" || v === "none") return "prefer_not_to_say";
+  return "prefer_not_to_say";
 }
 
 function defaultWizardDefaults() {
@@ -132,6 +145,19 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
+// ---- Stock images (Pexels proxy; key stays on backend) ----
+app.get("/stock/pexels/search", async (req, res) => {
+  try {
+    const query = typeof req.query.query === "string" ? req.query.query : "";
+    const perPage = typeof req.query.perPage === "string" ? Number(req.query.perPage) : undefined;
+    const result = await searchPexelsPhotos({ query, perPage });
+    if (!result.ok) return res.status(400).json(result);
+    return res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "pexels_search_failed", message: String(e?.message ?? e) });
+  }
+});
+
 // ---- Wizard defaults + recommendations (public) ----
 app.get("/wizard/defaults", async (req, res) => {
   try {
@@ -151,23 +177,38 @@ app.get("/wizard/recommendations", async (req, res) => {
   try {
     const coreValueId = typeof req.query.coreValueId === "string" ? req.query.coreValueId.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category : "";
+    const gender = typeof req.query.gender === "string" ? req.query.gender : "";
     if (!coreValueId) return res.status(400).json({ error: "missing_coreValueId" });
     if (!String(category).trim()) return res.status(400).json({ error: "missing_category" });
 
     const categoryKey = normalizeCategoryKey(category);
-    const found = await getWizardRecommendations({ coreValueId, categoryKey });
-    if (!found?.recommendations) {
-      return res.json({ ok: true, status: "miss", coreValueId, categoryKey });
-    }
+    const genderKey = normalizeGenderKey(gender);
+    const wantsGender = genderKey === "male" || genderKey === "female" || genderKey === "non_binary";
+    const unisexLimit = wantsGender ? 2 : 5;
+
+    const [uni, gen] = await Promise.all([
+      getWizardRecommendations({ coreValueId, categoryKey, genderKey: "unisex" }),
+      wantsGender ? getWizardRecommendations({ coreValueId, categoryKey, genderKey }) : Promise.resolve(null),
+    ]);
+
+    const uniGoals = Array.isArray(uni?.recommendations?.goals) ? uni.recommendations.goals.slice(0, unisexLimit) : [];
+    const genGoals = Array.isArray(gen?.recommendations?.goals) ? gen.recommendations.goals.slice(0, 3) : [];
+    const merged = [...uniGoals, ...genGoals];
+    if (!merged.length) return res.json({ ok: true, status: "miss", coreValueId, categoryKey, genderKey });
+
+    const updatedAt = gen?.updatedAt ?? uni?.updatedAt ?? null;
+    const source = gen?.source ?? uni?.source ?? null;
+    const categoryLabel = gen?.categoryLabel ?? uni?.categoryLabel ?? category;
     return res.json({
       ok: true,
       status: "hit",
       coreValueId,
       categoryKey,
-      categoryLabel: found.categoryLabel ?? category,
-      recommendations: found.recommendations,
-      updatedAt: found.updatedAt ?? null,
-      source: found.source ?? null,
+      genderKey,
+      categoryLabel,
+      recommendations: { goals: merged },
+      updatedAt,
+      source,
     });
   } catch (e) {
     res.status(500).json({ error: "wizard_recommendations_failed", message: String(e?.message ?? e) });
@@ -178,21 +219,34 @@ app.post("/wizard/recommendations/generate", async (req, res) => {
   try {
     const coreValueId = typeof req.body?.coreValueId === "string" ? req.body.coreValueId.trim() : "";
     const category = typeof req.body?.category === "string" ? req.body.category : "";
+    const gender = typeof req.body?.gender === "string" ? req.body.gender : "";
     if (!coreValueId) return res.status(400).json({ error: "missing_coreValueId" });
     if (!String(category).trim()) return res.status(400).json({ error: "missing_category" });
 
     const categoryKey = normalizeCategoryKey(category);
-    const existing = await getWizardRecommendations({ coreValueId, categoryKey });
-    if (existing?.recommendations) {
+    const genderKey = normalizeGenderKey(gender);
+    const wantsGender = genderKey === "male" || genderKey === "female" || genderKey === "non_binary";
+
+    const [existingUni, existingGen] = await Promise.all([
+      getWizardRecommendations({ coreValueId, categoryKey, genderKey: "unisex" }),
+      wantsGender ? getWizardRecommendations({ coreValueId, categoryKey, genderKey }) : Promise.resolve(null),
+    ]);
+
+    if (existingUni?.recommendations && (!wantsGender || existingGen?.recommendations)) {
+      // Fully satisfied.
+      const uniGoals = Array.isArray(existingUni.recommendations?.goals) ? existingUni.recommendations.goals.slice(0, wantsGender ? 2 : 5) : [];
+      const genGoals = wantsGender && Array.isArray(existingGen?.recommendations?.goals) ? existingGen.recommendations.goals.slice(0, 3) : [];
+      const merged = [...uniGoals, ...genGoals];
       return res.json({
         ok: true,
         status: "hit",
         coreValueId,
         categoryKey,
-        categoryLabel: existing.categoryLabel ?? category,
-        recommendations: existing.recommendations,
-        updatedAt: existing.updatedAt ?? null,
-        source: existing.source ?? null,
+        genderKey,
+        categoryLabel: existingGen?.categoryLabel ?? existingUni.categoryLabel ?? category,
+        recommendations: { goals: merged },
+        updatedAt: existingGen?.updatedAt ?? existingUni?.updatedAt ?? null,
+        source: existingGen?.source ?? existingUni?.source ?? null,
       });
     }
 
@@ -203,30 +257,67 @@ app.post("/wizard/recommendations/generate", async (req, res) => {
         ? defaults.coreValues.find((c) => c?.id === coreValueId)?.label ?? coreValueId
         : coreValueId;
 
-    const recommendations = await generateWizardRecommendationsWithGemini({
-      coreValueId,
-      coreValueLabel: coreLabel,
-      category: String(category).trim(),
-      goalsPerCategory: 3,
-      habitsPerGoal: 3,
-    });
+    let createdAny = false;
 
-    await upsertWizardRecommendations({
-      coreValueId,
-      categoryKey,
-      categoryLabel: String(category).trim(),
-      recommendations,
-      source: "gemini",
-      createdBy: null,
-    });
+    // Ensure unisex cache exists (5 goals; later we slice to 2 for gendered).
+    let unisexRec = existingUni?.recommendations ? existingUni : null;
+    if (!unisexRec?.recommendations) {
+      const recommendations = await generateWizardRecommendationsWithGemini({
+        coreValueId,
+        coreValueLabel: coreLabel,
+        category: String(category).trim(),
+        goalsPerCategory: 5,
+        habitsPerGoal: 3,
+        audienceGender: "unisex",
+      });
+      await upsertWizardRecommendations({
+        coreValueId,
+        categoryKey,
+        genderKey: "unisex",
+        categoryLabel: String(category).trim(),
+        recommendations,
+        source: "gemini",
+        createdBy: null,
+      });
+      unisexRec = { categoryLabel: String(category).trim(), recommendations, source: "gemini", updatedAt: new Date().toISOString() };
+      createdAny = true;
+    }
+
+    let genderRec = existingGen?.recommendations ? existingGen : null;
+    if (wantsGender && !genderRec?.recommendations) {
+      const recommendations = await generateWizardRecommendationsWithGemini({
+        coreValueId,
+        coreValueLabel: coreLabel,
+        category: String(category).trim(),
+        goalsPerCategory: 3,
+        habitsPerGoal: 3,
+        audienceGender: genderKey,
+      });
+      await upsertWizardRecommendations({
+        coreValueId,
+        categoryKey,
+        genderKey,
+        categoryLabel: String(category).trim(),
+        recommendations,
+        source: "gemini",
+        createdBy: null,
+      });
+      genderRec = { categoryLabel: String(category).trim(), recommendations, source: "gemini", updatedAt: new Date().toISOString() };
+      createdAny = true;
+    }
+
+    const uniGoals = Array.isArray(unisexRec?.recommendations?.goals) ? unisexRec.recommendations.goals.slice(0, wantsGender ? 2 : 5) : [];
+    const genGoals = wantsGender && Array.isArray(genderRec?.recommendations?.goals) ? genderRec.recommendations.goals.slice(0, 3) : [];
+    const merged = [...uniGoals, ...genGoals];
 
     return res.json({
       ok: true,
-      status: "generated",
+      status: createdAny ? "generated" : "hit",
       coreValueId,
       categoryKey,
-      categoryLabel: String(category).trim(),
-      recommendations,
+      genderKey,
+      categoryLabel: (wantsGender ? genderRec?.categoryLabel : null) ?? unisexRec?.categoryLabel ?? String(category).trim(),
+      recommendations: { goals: merged },
     });
   } catch (e) {
     res.status(500).json({ error: "wizard_generate_failed", message: String(e?.message ?? e) });
@@ -387,7 +478,7 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
       const missing = [];
       for (const category of cats) {
         const categoryKey = normalizeCategoryKey(category);
-        const existing = await getWizardRecommendations({ coreValueId, categoryKey });
+        const existing = await getWizardRecommendations({ coreValueId, categoryKey, genderKey: "unisex" });
         if (existing?.recommendations) {
           skipped++;
           if (job) job.skipped = skipped;
@@ -404,26 +495,28 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
         coreValueId,
         coreValueLabel: coreLabel,
         categories: toGenerate,
-        goalsPerCategory: 3,
+        goalsPerCategory: 5,
         habitsPerGoal: 3,
         maxCategoriesPerCall: Number(process.env.WIZARD_BATCH_MAX_CATEGORIES ?? 6),
       });
 
       for (const category of toGenerate) {
         const found = batch[category] ?? batch[String(category).toLowerCase()] ?? null;
-        if (!found?.goals || !Array.isArray(found.goals) || found.goals.length < 3) {
+        if (!found?.goals || !Array.isArray(found.goals) || found.goals.length < 5) {
           // Fallback to single-category generation for this category.
           try {
             const recommendations = await generateWizardRecommendationsWithGemini({
               coreValueId,
               coreValueLabel: coreLabel,
               category,
-              goalsPerCategory: 3,
+              goalsPerCategory: 5,
               habitsPerGoal: 3,
+              audienceGender: "unisex",
             });
             await upsertWizardRecommendations({
               coreValueId,
               categoryKey: normalizeCategoryKey(category),
+              genderKey: "unisex",
               categoryLabel: category,
               recommendations,
               source: "gemini",
@@ -446,6 +539,7 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
         await upsertWizardRecommendations({
           coreValueId,
           categoryKey: normalizeCategoryKey(category),
+          genderKey: "unisex",
           categoryLabel: category,
           recommendations: { goals: found.goals },
           source: "gemini",
@@ -477,10 +571,12 @@ async function runWizardSyncDefaultsJob({ reset, createdBy, job }) {
  *
  * Body (optional):
  * - home_timezone: IANA timezone string (e.g. "America/Los_Angeles")
+ * - gender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say'
  */
 app.post("/auth/guest", async (req, res) => {
   try {
     const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
+    const gender = typeof req.body?.gender === "string" ? req.body.gender.trim() : "prefer_not_to_say";
     const now = Date.now();
     const expiresAtMs = now + 10 * 24 * 60 * 60 * 1000;
     const dvToken = randomId(24);
@@ -504,8 +600,8 @@ app.post("/auth/guest", async (req, res) => {
       packages: [],
     });
 
-    if (hasDatabase() && homeTimezone) {
-      await putUserSettingsPg(guestId, { homeTimezone });
+    if (hasDatabase()) {
+      await putUserSettingsPg(guestId, { homeTimezone, gender: gender || "prefer_not_to_say" });
     }
 
     res.json({
@@ -513,6 +609,7 @@ app.post("/auth/guest", async (req, res) => {
       dvToken,
       expiresAt: new Date(expiresAtMs).toISOString(),
       home_timezone: homeTimezone,
+      gender: gender || "prefer_not_to_say",
     });
   } catch (e) {
     res.status(500).json({ error: "guest_auth_failed", message: String(e?.message ?? e) });
@@ -1289,8 +1386,9 @@ const SYNC_RETAIN_DAYS = Number(process.env.SYNC_RETAIN_DAYS ?? 90);
 app.put("/user/settings", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone });
-  res.json({ ok: true, home_timezone: homeTimezone });
+  const gender = typeof req.body?.gender === "string" ? req.body.gender.trim() : "prefer_not_to_say";
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say" });
+  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say" });
 });
 
 app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
@@ -1310,6 +1408,7 @@ app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
   res.json({
     ok: true,
     home_timezone: settings?.homeTimezone ?? null,
+    gender: settings?.gender ?? "prefer_not_to_say",
     boards,
     habit_completions: habitCompletions,
     checklist_events: checklistEvents,
@@ -1322,7 +1421,7 @@ app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
  * Body:
  * {
  *   boards?: [{ boardId, boardJson }],
- *   userSettings?: { homeTimezone },
+ *   userSettings?: { homeTimezone, gender },
  *   habitCompletions?: [{ boardId, componentId, habitId, logicalDate, rating?, note?, deleted? }],
  *   checklistEvents?: [{ boardId, componentId, taskId, itemId, logicalDate, rating?, note?, deleted? }]
  * }

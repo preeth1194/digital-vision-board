@@ -86,10 +86,12 @@ final class WizardRecommendationsService {
     required String coreValueId,
     required String category,
   }) async {
+    final gender = await DvAuthService.getGender();
     final uri = _url('/wizard/recommendations').replace(
       queryParameters: {
         'coreValueId': coreValueId,
         'category': category,
+        'gender': gender,
       },
     );
     final res = await http.get(uri, headers: {'accept': 'application/json'});
@@ -108,13 +110,14 @@ final class WizardRecommendationsService {
     required String coreValueId,
     required String category,
   }) async {
+    final gender = await DvAuthService.getGender();
     final res = await http.post(
       _url('/wizard/recommendations/generate'),
       headers: {
         'content-type': 'application/json',
         'accept': 'application/json',
       },
-      body: jsonEncode({'coreValueId': coreValueId, 'category': category}),
+      body: jsonEncode({'coreValueId': coreValueId, 'category': category, 'gender': gender}),
     );
     if (res.statusCode < 200 || res.statusCode >= 300) return null;
     final decoded = jsonDecode(res.body);

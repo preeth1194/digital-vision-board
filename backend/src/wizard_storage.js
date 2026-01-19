@@ -17,7 +17,7 @@ function defaultsFile() {
 }
 
 function recommendationsFile() {
-  return path.join(dataDir, "wizard_recommendations.json");
+  return path.join(dataDir, "wizard_recommendations_v2.json");
 }
 
 async function ensureDir(dirPath) {
@@ -60,16 +60,18 @@ export async function putWizardDefaults({ defaults }) {
   await atomicWriteJson(defaultsFile(), payload);
 }
 
-export async function getWizardRecommendations({ coreValueId, categoryKey }) {
-  if (hasDatabase()) return await getWizardRecommendationsPg({ coreValueId, categoryKey });
+export async function getWizardRecommendations({ coreValueId, categoryKey, genderKey }) {
+  if (hasDatabase()) return await getWizardRecommendationsPg({ coreValueId, categoryKey, genderKey });
   const all = await readJson(recommendationsFile(), {});
-  const k = `${coreValueId}::${categoryKey}`;
+  const gk = String(genderKey ?? "").trim() || "unisex";
+  const k = `${coreValueId}::${categoryKey}::${gk}`;
   return all[k] ?? null;
 }
 
 export async function upsertWizardRecommendations({
   coreValueId,
   categoryKey,
+  genderKey,
   categoryLabel,
   recommendations,
   source,
@@ -79,6 +81,7 @@ export async function upsertWizardRecommendations({
     return await upsertWizardRecommendationsPg({
       coreValueId,
       categoryKey,
+      genderKey,
       categoryLabel,
       recommendations,
       source,
@@ -86,10 +89,12 @@ export async function upsertWizardRecommendations({
     });
   }
   const all = await readJson(recommendationsFile(), {});
-  const k = `${coreValueId}::${categoryKey}`;
+  const gk = String(genderKey ?? "").trim() || "unisex";
+  const k = `${coreValueId}::${categoryKey}::${gk}`;
   all[k] = {
     coreValueId,
     categoryKey,
+    genderKey: gk,
     categoryLabel,
     recommendations: recommendations ?? {},
     source: source ?? null,

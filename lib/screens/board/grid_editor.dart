@@ -1,2 +1,2 @@
-export 'grid_board_editor.dart';
+export 'grid_editor_screen.dart';
 

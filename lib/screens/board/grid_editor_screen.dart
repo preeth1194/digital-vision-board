@@ -6,25 +6,25 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/grid_template.dart';
-import '../models/grid_tile_model.dart';
-import '../models/goal_metadata.dart';
-import '../models/vision_components.dart';
+import '../../models/grid_template.dart';
+import '../../models/grid_tile_model.dart';
+import '../../models/goal_metadata.dart';
+import '../../models/vision_components.dart';
 import '../../services/board/boards_storage_service.dart';
 import '../../services/board/grid_tiles_storage_service.dart';
+import '../../services/board/stock_images_service.dart';
+import '../../services/board/templates_service.dart';
 import '../../services/image/image_service.dart';
-import '../services/stock_images_service.dart';
-import '../services/templates_service.dart';
-import '../utils/file_image_provider.dart';
+import '../../utils/file_image_provider.dart';
 import '../../widgets/board/pexels_search_sheet.dart';
 import '../../widgets/common/editor/add_name_dialog.dart';
-import '../widgets/manipulable/resize_handle.dart';
+import '../../widgets/common/manipulable/resize_handle.dart';
 import '../../widgets/common/dialogs/text_input_dialog.dart';
 import '../../widgets/board/image_source_sheet.dart';
-import 'global_insights_screen.dart';
-import 'habits_list_screen.dart';
+import '../dashboard/global_insights_screen.dart';
+import '../habits/habits_list_screen.dart';
 import 'grid_goal_viewer_screen.dart';
-import 'todos_list_screen.dart';
+import '../todos/todos_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {

@@ -5,7 +5,7 @@ import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_board_builder.dart';
 import 'wizard_step1_board_setup.dart';
 import 'wizard_step_goals_for_core_value.dart';
-import '../grid_editor.dart';
+import '../board/grid_editor.dart';
 import '../../models/grid_template.dart';
 
 /// Wizard shell that hosts the multi-step create-board flow.

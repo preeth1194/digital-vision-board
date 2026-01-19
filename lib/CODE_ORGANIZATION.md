@@ -23,8 +23,7 @@ Screens are organized by feature/domain:
   - `vision_board_editor_screen.dart`
   - `goal_canvas_editor_screen.dart`
   - `goal_canvas_viewer_screen.dart`
-  - `grid_editor.dart`
-  - `grid_board_editor.dart`
+  - `grid_editor_screen.dart` (exported via `grid_editor.dart`)
   - `grid_goal_viewer_screen.dart`
   - `physical_board_editor_screen.dart`
   - `physical_board_viewer_screen.dart`

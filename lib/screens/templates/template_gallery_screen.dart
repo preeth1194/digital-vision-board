@@ -14,7 +14,7 @@ import '../../services/templates_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../widgets/dialogs/new_board_dialog.dart';
 import '../goal_canvas_editor_screen.dart';
-import '../grid_editor.dart';
+import '../board/grid_editor.dart';
 
 class TemplateGalleryScreen extends StatefulWidget {
   const TemplateGalleryScreen({super.key});

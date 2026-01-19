@@ -10,7 +10,7 @@ import '../../services/wizard_board_builder.dart';
 import '../../services/category_images_service.dart';
 import '../../services/stock_images_service.dart';
 import '../../models/core_value.dart';
-import '../grid_editor.dart';
+import '../board/grid_editor.dart';
 
 class WizardStep4CustomizeGrid extends StatefulWidget {
   final CreateBoardWizardState state;

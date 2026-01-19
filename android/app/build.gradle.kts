@@ -15,6 +15,13 @@ if (file("google-services.json").exists() || file("src/debug/google-services.jso
     logger.lifecycle("google-services.json not found; skipping com.google.gms.google-services")
 }
 
+// Load keystore properties from key.properties file if it exists
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = java.util.Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "com.example.digital_vision_board"
     compileSdk = flutter.compileSdkVersion
@@ -27,7 +34,9 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        compilerOptions {
+            jvmTarget.set("17")
+        }
     }
 
     defaultConfig {

@@ -24,10 +24,35 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+// Remove old package directory to prevent duplicate class errors
+tasks.register("cleanOldPackage") {
+    doLast {
+        val oldPackageDir = file("src/main/kotlin/com/example")
+        if (oldPackageDir.exists()) {
+            logger.warn("Removing old package directory: ${oldPackageDir.absolutePath}")
+            oldPackageDir.deleteRecursively()
+        }
+    }
+}
+
+// Ensure old package is removed before compilation
+tasks.named("preBuild").configure {
+    dependsOn("cleanOldPackage")
+}
+
 android {
     namespace = "com.intent.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    sourceSets {
+        getByName("main") {
+            java {
+                // Exclude old package directory to prevent duplicate class errors
+                exclude("**/com/example/**")
+            }
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

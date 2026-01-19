@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: Production  # Use Production environment for secrets
 
     steps:
       - name: Checkout
@@ -45,19 +46,23 @@ jobs:
         # Using env variables fixes the "Unrecognized named-value" error
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         if: env.KEYSTORE_BASE64 != ''
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          # Save keystore to android/ directory (standard location)
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
 
-          # Fixed: Removed the "<-- CHANGE THIS" text and corrected the path
-          cat > android/key.properties <<'EOF'
+          # Create key.properties with paths relative to android/ directory
+          cat > android/key.properties <<EOF
           storeFile=upload-keystore.jks
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
           EOF
 
       - name: Build AAB (release)

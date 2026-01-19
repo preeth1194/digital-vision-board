@@ -62,10 +62,16 @@ android {
                 keyAliasValue != null &&
                 keyPasswordValue != null
             ) {
-                storeFile = file(storeFilePath)
-                storePassword = storePasswordValue
-                keyAlias = keyAliasValue
-                keyPassword = keyPasswordValue
+                // Resolve keystore path relative to android directory
+                val keystoreFile = rootProject.file(storeFilePath)
+                if (keystoreFile.exists()) {
+                    storeFile = keystoreFile
+                    storePassword = storePasswordValue
+                    keyAlias = keyAliasValue
+                    keyPassword = keyPasswordValue
+                } else {
+                    logger.warn("Keystore file not found: ${keystoreFile.absolutePath}")
+                }
             }
         }
     }

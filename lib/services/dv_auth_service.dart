@@ -225,8 +225,10 @@ final class DvAuthService {
       throw Exception('Firebase exchange response missing dvToken/userId');
     }
 
-    await _setDvToken(dvToken!, canvaUserId: userId, prefs: p);
-    return FirebaseExchangeResult(dvToken: dvToken, userId: userId);
+    final dvTokenValue = dvToken!;
+    final userIdValue = userId!;
+    await _setDvToken(dvTokenValue, canvaUserId: userIdValue, prefs: p);
+    return FirebaseExchangeResult(dvToken: dvTokenValue, userId: userIdValue);
   }
 
   /// Best-effort server update (requires dvToken and a DB-backed backend).

@@ -5,7 +5,7 @@ import '../../models/habit_item.dart';
 import '../dialogs/add_habit_dialog.dart';
 import '../dialogs/text_input_dialog.dart';
 
-class GoalTodoTab extends StatelessWidget {
+class GoalTodoTab extends StatefulWidget {
   final List<GoalTodoItem> todos;
   final List<HabitItem> habits;
   final ValueChanged<List<GoalTodoItem>> onTodosChanged;
@@ -18,6 +18,28 @@ class GoalTodoTab extends StatelessWidget {
     required this.onTodosChanged,
     required this.onHabitsChanged,
   });
+
+  @override
+  State<GoalTodoTab> createState() => _GoalTodoTabState();
+}
+
+class _GoalTodoTabState extends State<GoalTodoTab> {
+  late final TextEditingController _newTodoC;
+  late final FocusNode _newTodoFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _newTodoC = TextEditingController();
+    _newTodoFocus = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _newTodoC.dispose();
+    _newTodoFocus.dispose();
+    super.dispose();
+  }
 
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
@@ -41,17 +63,11 @@ class GoalTodoTab extends StatelessWidget {
   }
 
   Future<void> _addTodos(BuildContext context) async {
-    final text = await showTextInputDialog(
-      context,
-      title: 'Add todo',
-      initialText: '',
-      hintText: 'e.g. Drink water',
-    );
-    final next = (text ?? '').trim();
+    final next = _newTodoC.text.trim();
     if (next.isEmpty) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    onTodosChanged([
-      ...todos,
+    widget.onTodosChanged([
+      ...widget.todos,
       GoalTodoItem(
         id: 'todo_${now}_0',
         text: next,
@@ -61,6 +77,8 @@ class GoalTodoTab extends StatelessWidget {
         taskId: null,
       ),
     ]);
+    _newTodoC.clear();
+    _newTodoFocus.requestFocus();
   }
 
   Future<void> _editTodoText(BuildContext context, GoalTodoItem item) async {
@@ -72,26 +90,26 @@ class GoalTodoTab extends StatelessWidget {
     if (res == null) return;
     final nextText = _normalizeTodoText(res);
     if (nextText.isEmpty) return;
-    final nextTodos = todos
+    final nextTodos = widget.todos
         .map((t) => t.id == item.id ? t.copyWith(text: nextText) : t)
         .toList();
-    onTodosChanged(nextTodos);
+    widget.onTodosChanged(nextTodos);
 
     // Keep linked entities in sync (optional but improves UX).
     final linkedHabitId = item.habitId;
     if (linkedHabitId != null && linkedHabitId.trim().isNotEmpty) {
-      final nextHabits = habits
+      final nextHabits = widget.habits
           .map((h) => h.id == linkedHabitId ? h.copyWith(name: nextText) : h)
           .toList();
-      onHabitsChanged(nextHabits);
+      widget.onHabitsChanged(nextHabits);
     }
   }
 
   void _toggleComplete(GoalTodoItem item, bool? v) {
     final nextDone = v == true;
     final now = DateTime.now().millisecondsSinceEpoch;
-    onTodosChanged(
-      todos
+    widget.onTodosChanged(
+      widget.todos
           .map(
             (t) => t.id == item.id
                 ? t.copyWith(
@@ -105,12 +123,12 @@ class GoalTodoTab extends StatelessWidget {
   }
 
   void _deleteTodo(GoalTodoItem item) {
-    onTodosChanged(todos.where((t) => t.id != item.id).toList());
+    widget.onTodosChanged(widget.todos.where((t) => t.id != item.id).toList());
   }
 
   void _unlinkHabit(GoalTodoItem item) {
-    onTodosChanged(
-      todos
+    widget.onTodosChanged(
+      widget.todos
           .map((t) => t.id == item.id ? t.copyWith(habitId: null) : t)
           .toList(),
     );
@@ -119,8 +137,8 @@ class GoalTodoTab extends StatelessWidget {
   Future<void> _convertToHabit(BuildContext context, GoalTodoItem item) async {
     final existing = (item.habitId == null)
         ? null
-        : habits.cast<HabitItem?>().firstWhere((h) => h?.id == item.habitId, orElse: () => null);
-    final otherHabits = habits.where((h) => h.id != existing?.id).toList();
+        : widget.habits.cast<HabitItem?>().firstWhere((h) => h?.id == item.habitId, orElse: () => null);
+    final otherHabits = widget.habits.where((h) => h.id != existing?.id).toList();
 
     final HabitCreateRequest? req = (existing == null)
         ? await showAddHabitDialog(
@@ -148,13 +166,13 @@ class GoalTodoTab extends StatelessWidget {
     );
 
     final nextHabits = (existing == null)
-        ? [...habits, nextHabit]
-        : habits.map((h) => h.id == existing.id ? nextHabit : h).toList();
-    onHabitsChanged(nextHabits);
+        ? [...widget.habits, nextHabit]
+        : widget.habits.map((h) => h.id == existing.id ? nextHabit : h).toList();
+    widget.onHabitsChanged(nextHabits);
 
     final nextText = nextHabit.name.trim().isEmpty ? item.text : nextHabit.name.trim();
-    onTodosChanged(
-      todos
+    widget.onTodosChanged(
+      widget.todos
           .map(
             (t) => t.id == item.id
                 ? t.copyWith(text: nextText, habitId: nextHabit.id)
@@ -166,28 +184,44 @@ class GoalTodoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canSave = _newTodoC.text.trim().isNotEmpty;
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
       children: [
         Row(
           children: [
-            const Expanded(
-              child: Text('Todo list', style: TextStyle(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: TextField(
+                controller: _newTodoC,
+                focusNode: _newTodoFocus,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _addTodos(context),
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  hintText: 'Add a todo…',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
             ),
-            TextButton.icon(
-              onPressed: () => _addTodos(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 40,
+              child: FilledButton(
+                onPressed: canSave ? () => _addTodos(context) : null,
+                child: const Text('Save'),
+              ),
             ),
           ],
         ),
-        if (todos.isEmpty)
+        const SizedBox(height: 12),
+        if (widget.todos.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text('No todo items yet.'),
           )
         else
-          for (final item in todos)
+          for (final item in widget.todos)
             Card(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),

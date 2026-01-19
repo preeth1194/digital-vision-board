@@ -83,7 +83,7 @@ class _GoalDetailsSheet extends StatelessWidget {
           _kv('Deadline', goal.deadline),
           if (cbt != null) ...[
             const Divider(),
-            const Text('CBT', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Mindset & coping', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             _kv('Core value', cbt.coreValue),
             _kv('Visualization', cbt.visualization),

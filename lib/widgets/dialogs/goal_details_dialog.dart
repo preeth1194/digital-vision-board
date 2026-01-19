@@ -273,7 +273,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text('CBT', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Mindset & coping', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: _coreValue,

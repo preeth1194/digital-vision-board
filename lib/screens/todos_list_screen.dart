@@ -36,11 +36,22 @@ class TodosListScreen extends StatefulWidget {
 
 class _TodosListScreenState extends State<TodosListScreen> {
   late List<VisionComponent> _components;
+  late final TextEditingController _newTodoC;
+  late final FocusNode _newTodoFocus;
 
   @override
   void initState() {
     super.initState();
     _components = widget.components;
+    _newTodoC = TextEditingController();
+    _newTodoFocus = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _newTodoC.dispose();
+    _newTodoFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -121,14 +132,11 @@ class _TodosListScreenState extends State<TodosListScreen> {
     final meta = _goalMeta(target);
     if (meta == null) return;
 
-    final text = await showTextInputDialog(
-      context,
-      title: 'Add todo',
-      initialText: '',
-      hintText: 'e.g. Drink water',
-    );
-    final nextText = (text ?? '').trim();
-    if (nextText.isEmpty) return;
+    final nextText = _newTodoC.text.trim();
+    if (nextText.isEmpty) {
+      _newTodoFocus.requestFocus();
+      return;
+    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final nextItems = [
@@ -151,6 +159,8 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
     setState(() => _components = nextComponents);
     widget.onComponentsUpdated(nextComponents);
+    _newTodoC.clear();
+    _newTodoFocus.requestFocus();
   }
 
   Future<void> _editTodoText(BuildContext context, VisionComponent component, GoalMetadata meta, GoalTodoItem item) async {
@@ -343,19 +353,34 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
     Widget body = list;
     if (!widget.showAppBar && widget.allowManageTodos) {
+      final canSave = _newTodoC.text.trim().isNotEmpty;
       body = Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: Row(
               children: [
-                const Expanded(
-                  child: Text('Todo', style: TextStyle(fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: TextField(
+                    controller: _newTodoC,
+                    focusNode: _newTodoFocus,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _addTodos(context),
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'Add a todo…',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
                 ),
-                TextButton.icon(
-                  onPressed: () => _addTodos(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 40,
+                  child: FilledButton(
+                    onPressed: canSave ? () => _addTodos(context) : null,
+                    child: const Text('Save'),
+                  ),
                 ),
               ],
             ),
@@ -369,16 +394,43 @@ class _TodosListScreenState extends State<TodosListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Todo'),
-        actions: [
-          if (widget.allowManageTodos)
-            IconButton(
-              tooltip: 'Add todo',
-              onPressed: () => _addTodos(context),
-              icon: const Icon(Icons.add),
-            ),
-        ],
       ),
-      body: body,
+      body: widget.allowManageTodos
+          ? Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _newTodoC,
+                          focusNode: _newTodoFocus,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _addTodos(context),
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            hintText: 'Add a todo…',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        height: 40,
+                        child: FilledButton(
+                          onPressed: _newTodoC.text.trim().isNotEmpty ? () => _addTodos(context) : null,
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: list),
+              ],
+            )
+          : body,
     );
   }
 }

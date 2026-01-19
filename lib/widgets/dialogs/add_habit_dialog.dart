@@ -86,6 +86,7 @@ class _AddHabitDialog extends StatefulWidget {
 }
 
 class _AddHabitDialogState extends State<_AddHabitDialog> {
+  final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _timeOfDay = TextEditingController();
   int? _reminderMinutes;
@@ -100,6 +101,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
   String _anchorHabitText = '';
   String? _anchorHabitInitialText;
   String _relationship = 'Immediately';
+  bool _advancedExpanded = false;
 
   // CBT
   final _microVersion = TextEditingController();
@@ -181,8 +183,16 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
         final dm = lb.dwellMinutes;
         if (dm != null && dm > 0) _locDwellMinutes = dm;
       }
+
+      // If the habit already uses any advanced settings, expand Advanced by default on edit.
+      _advancedExpanded = _afterHabitId != null ||
+          (_anchorHabitInitialText ?? '').trim().isNotEmpty ||
+          (_deadline ?? '').trim().isNotEmpty ||
+          _timeBoundEnabled ||
+          _locationBoundEnabled;
     } else {
       _name.text = (widget.initialName ?? '').trim();
+      _advancedExpanded = false;
     }
 
     _timeBoundDurationC.text = _timeBoundDuration.toString();
@@ -269,6 +279,9 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
   }
 
   void _submit() {
+    final formOk = _formKey.currentState?.validate() ?? true;
+    if (!formOk) return;
+
     final name = _name.text.trim();
     if (name.isEmpty) return;
 
@@ -436,7 +449,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
           const TabBar(
             tabs: [
               Tab(text: 'Details'),
-              Tab(text: 'CBT plan'),
+              Tab(text: 'Coping plan'),
             ],
           ),
           Expanded(
@@ -445,17 +458,28 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
                     // Tab 1: What
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextField(
-                            controller: _name,
-                            decoration: const InputDecoration(
-                              labelText: 'Name',
-                              border: OutlineInputBorder(),
+                      child: Form(
+                        key: _formKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextFormField(
+                              controller: _name,
+                              autofocus: widget.initialHabit == null,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                labelText: 'Name',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) {
+                                final s = (v ?? '').trim();
+                                if (s.isEmpty) return 'Please enter a habit name.';
+                                return null;
+                              },
                             ),
-                          ),
                           const SizedBox(height: 12),
+                          // Basics
                           TextField(
                             controller: _timeOfDay,
                             readOnly: true,
@@ -556,225 +580,253 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
                             ),
                           ],
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String?>(
-                            value: _afterHabitId,
-                            items: [
-                              const DropdownMenuItem(value: null, child: Text('Anchor habit (optional)')),
-                              ...widget.existingHabits.map(
-                                (h) => DropdownMenuItem(value: h.id, child: Text(h.name)),
-                              ),
-                            ],
-                            onChanged: (v) {
-                              setState(() {
-                                _afterHabitId = v;
-                                final selected = widget.existingHabits.where((h) => h.id == v).toList();
-                                if (selected.isNotEmpty) {
-                                  _anchorHabitText = selected.first.name;
-                                }
-                              });
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Chaining: pick anchor habit',
-                              border: OutlineInputBorder(),
+                          // Advanced options (collapsed by default for new habits).
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            childrenPadding: EdgeInsets.zero,
+                            initiallyExpanded: _advancedExpanded,
+                            onExpansionChanged: (v) => setState(() => _advancedExpanded = v),
+                            title: const Text(
+                              'Advanced options',
+                              style: TextStyle(fontWeight: FontWeight.w700),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          Autocomplete<String>(
-                            optionsBuilder: (TextEditingValue t) {
-                              final q = t.text.trim().toLowerCase();
-                              if (anchorSuggestions.isEmpty) return const Iterable<String>.empty();
-                              if (q.isEmpty) return anchorSuggestions;
-                              return anchorSuggestions.where((s) => s.toLowerCase().contains(q));
-                            },
-                            onSelected: (v) {
-                              _anchorHabitText = v;
-                            },
-                            fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-                              if ((_anchorHabitInitialText ?? '').trim().isNotEmpty &&
-                                  textController.text.trim().isEmpty &&
-                                  _anchorHabitText.trim().isEmpty) {
-                                _anchorHabitText = _anchorHabitInitialText!;
-                                textController.text = _anchorHabitText;
-                              } else if (_anchorHabitText.trim().isNotEmpty &&
-                                  textController.text != _anchorHabitText) {
-                                // Keep the field in sync with our snapshot when changed externally.
-                                textController.text = _anchorHabitText;
-                              }
-                              return TextField(
-                                controller: textController,
-                                focusNode: focusNode,
-                                onChanged: (v) => _anchorHabitText = v,
-                                decoration: const InputDecoration(
-                                  labelText: 'Chaining: anchor habit (type or pick)',
-                                  border: OutlineInputBorder(),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            value: _relationship,
-                            items: const [
-                              DropdownMenuItem(value: 'Immediately', child: Text('Immediately')),
-                              DropdownMenuItem(value: 'After', child: Text('After')),
-                              DropdownMenuItem(value: 'Before', child: Text('Before')),
-                            ],
-                            onChanged: (v) => setState(() => _relationship = v ?? 'Immediately'),
-                            decoration: const InputDecoration(
-                              labelText: 'Chaining relationship',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Timebound habit (timer)'),
-                            subtitle: const Text('Track time spent today with pause/resume.'),
-                            value: _timeBoundEnabled,
-                            onChanged: (v) => setState(() => _timeBoundEnabled = v),
-                          ),
-                          if (_timeBoundEnabled) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Duration',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    controller: _timeBoundDurationC,
-                                    onChanged: (v) => setState(() => _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 140,
-                                  child: DropdownButtonFormField<String>(
-                                    value: _timeBoundUnit,
-                                    items: const [
-                                      DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
-                                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
-                                    ],
-                                    onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Unit',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Location-based habit'),
-                            subtitle: const Text('Start/pause tracking when you enter/exit a place, with optional dwell time.'),
-                            value: _locationBoundEnabled,
-                            onChanged: (v) => setState(() => _locationBoundEnabled = v),
-                          ),
-                          if (_locationBoundEnabled) ...[
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              onPressed: _useCurrentLocation,
-                              icon: const Icon(Icons.my_location),
-                              label: Text(
-                                (_locLat == null || _locLng == null)
-                                    ? 'Use current location'
-                                    : 'Location set (${_locLat!.toStringAsFixed(5)}, ${_locLng!.toStringAsFixed(5)})',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Radius (meters)',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    controller: _locRadiusC,
-                                    onChanged: (v) => setState(() => _locRadiusMeters = int.tryParse(v) ?? _locRadiusMeters),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 160,
-                                  child: DropdownButtonFormField<String>(
-                                    value: _locTriggerMode,
-                                    items: const [
-                                      DropdownMenuItem(value: 'arrival', child: Text('Arrival')),
-                                      DropdownMenuItem(value: 'dwell', child: Text('Dwell')),
-                                      DropdownMenuItem(value: 'both', child: Text('Both')),
-                                    ],
-                                    onChanged: (v) => setState(() => _locTriggerMode = (v ?? 'arrival')),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Trigger',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_locTriggerMode == 'dwell' || _locTriggerMode == 'both') ...[
-                              const SizedBox(height: 8),
-                              TextField(
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Dwell minutes',
-                                  border: OutlineInputBorder(),
-                                ),
-                                controller: _locDwellMinutesC,
-                                onChanged: (v) => setState(() => _locDwellMinutes = int.tryParse(v) ?? _locDwellMinutes),
-                              ),
-                            ],
-                          ],
-                          const SizedBox(height: 12),
-                          Row(
                             children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _pickDeadline,
-                                  icon: const Icon(Icons.event_outlined),
-                                  label: Text(_deadline == null ? 'Due date (optional)' : 'Due $_deadline'),
+                              const SizedBox(height: 8),
+                              const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text('Chaining (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String?>(
+                                value: _afterHabitId,
+                                items: [
+                                  const DropdownMenuItem(value: null, child: Text('Anchor habit (optional)')),
+                                  ...widget.existingHabits.map(
+                                    (h) => DropdownMenuItem(value: h.id, child: Text(h.name)),
+                                  ),
+                                ],
+                                onChanged: (v) {
+                                  setState(() {
+                                    _afterHabitId = v;
+                                    final selected = widget.existingHabits.where((h) => h.id == v).toList();
+                                    if (selected.isNotEmpty) {
+                                      _anchorHabitText = selected.first.name;
+                                    }
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Pick anchor habit',
+                                  border: OutlineInputBorder(),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                tooltip: 'Clear due date',
-                                onPressed: _deadline == null
-                                    ? null
-                                    : () => setState(() {
-                                          _deadline = null;
-                                          _useGoalDeadline = false;
-                                        }),
-                                icon: const Icon(Icons.clear),
+                              const SizedBox(height: 10),
+                              Autocomplete<String>(
+                                optionsBuilder: (TextEditingValue t) {
+                                  final q = t.text.trim().toLowerCase();
+                                  if (anchorSuggestions.isEmpty) return const Iterable<String>.empty();
+                                  if (q.isEmpty) return anchorSuggestions;
+                                  return anchorSuggestions.where((s) => s.toLowerCase().contains(q));
+                                },
+                                onSelected: (v) {
+                                  _anchorHabitText = v;
+                                },
+                                fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+                                  if ((_anchorHabitInitialText ?? '').trim().isNotEmpty &&
+                                      textController.text.trim().isEmpty &&
+                                      _anchorHabitText.trim().isEmpty) {
+                                    _anchorHabitText = _anchorHabitInitialText!;
+                                    textController.text = _anchorHabitText;
+                                  } else if (_anchorHabitText.trim().isNotEmpty &&
+                                      textController.text != _anchorHabitText) {
+                                    // Keep the field in sync with our snapshot when changed externally.
+                                    textController.text = _anchorHabitText;
+                                  }
+                                  return TextField(
+                                    controller: textController,
+                                    focusNode: focusNode,
+                                    onChanged: (v) => _anchorHabitText = v,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Or type an anchor habit',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  );
+                                },
                               ),
+                              const SizedBox(height: 10),
+                              DropdownButtonFormField<String>(
+                                value: _relationship,
+                                items: const [
+                                  DropdownMenuItem(value: 'Immediately', child: Text('Immediately')),
+                                  DropdownMenuItem(value: 'After', child: Text('After')),
+                                  DropdownMenuItem(value: 'Before', child: Text('Before')),
+                                ],
+                                onChanged: (v) => setState(() => _relationship = v ?? 'Immediately'),
+                                decoration: const InputDecoration(
+                                  labelText: 'Relationship',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickDeadline,
+                                      icon: const Icon(Icons.event_outlined),
+                                      label: Text(_deadline == null ? 'Due date (optional)' : 'Due $_deadline'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    tooltip: 'Clear due date',
+                                    onPressed: _deadline == null
+                                        ? null
+                                        : () => setState(() {
+                                              _deadline = null;
+                                              _useGoalDeadline = false;
+                                            }),
+                                    icon: const Icon(Icons.clear),
+                                  ),
+                                ],
+                              ),
+                              if (canUseGoalDeadline) ...[
+                                const SizedBox(height: 6),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text('Use goal deadline ($goalDeadline)'),
+                                  value: _useGoalDeadline,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _useGoalDeadline = v;
+                                      _deadline = v ? goalDeadline : _deadline;
+                                    });
+                                  },
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Timebound habit (timer)'),
+                                subtitle: const Text('Track time spent today with pause/resume.'),
+                                value: _timeBoundEnabled,
+                                onChanged: (v) => setState(() => _timeBoundEnabled = v),
+                              ),
+                              if (_timeBoundEnabled) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Duration',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        controller: _timeBoundDurationC,
+                                        onChanged: (v) => setState(() =>
+                                            _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 140,
+                                      child: DropdownButtonFormField<String>(
+                                        value: _timeBoundUnit,
+                                        items: const [
+                                          DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                                          DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                        ],
+                                        onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Unit',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Location-based habit'),
+                                subtitle: const Text(
+                                    'Start/pause tracking when you enter/exit a place, with optional dwell time.'),
+                                value: _locationBoundEnabled,
+                                onChanged: (v) => setState(() => _locationBoundEnabled = v),
+                              ),
+                              if (_locationBoundEnabled) ...[
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: _useCurrentLocation,
+                                  icon: const Icon(Icons.my_location),
+                                  label: Text(
+                                    (_locLat == null || _locLng == null)
+                                        ? 'Use current location'
+                                        : 'Location set (${_locLat!.toStringAsFixed(5)}, ${_locLng!.toStringAsFixed(5)})',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Radius (meters)',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        controller: _locRadiusC,
+                                        onChanged: (v) => setState(
+                                            () => _locRadiusMeters = int.tryParse(v) ?? _locRadiusMeters),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 160,
+                                      child: DropdownButtonFormField<String>(
+                                        value: _locTriggerMode,
+                                        items: const [
+                                          DropdownMenuItem(value: 'arrival', child: Text('Arrival')),
+                                          DropdownMenuItem(value: 'dwell', child: Text('Dwell')),
+                                          DropdownMenuItem(value: 'both', child: Text('Both')),
+                                        ],
+                                        onChanged: (v) => setState(() => _locTriggerMode = (v ?? 'arrival')),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Trigger',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (_locTriggerMode == 'dwell' || _locTriggerMode == 'both') ...[
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Dwell minutes',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    controller: _locDwellMinutesC,
+                                    onChanged: (v) => setState(
+                                        () => _locDwellMinutes = int.tryParse(v) ?? _locDwellMinutes),
+                                  ),
+                                ],
+                              ],
                             ],
                           ),
-                          if (canUseGoalDeadline) ...[
-                            const SizedBox(height: 6),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text('Use goal deadline ($goalDeadline)'),
-                              value: _useGoalDeadline,
-                              onChanged: (v) {
-                                setState(() {
-                                  _useGoalDeadline = v;
-                                  _deadline = v ? goalDeadline : _deadline;
-                                });
-                              },
-                            ),
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                    // Tab 2: CBT
+                    // Tab 2: Coping plan
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
                       child: Column(

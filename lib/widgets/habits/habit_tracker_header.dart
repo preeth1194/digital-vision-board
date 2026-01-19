@@ -84,7 +84,7 @@ class HabitTrackerHeader extends StatelessWidget {
           ),
           if (goal != null && onEditGoalDetails != null)
             IconButton(
-              tooltip: 'CBT & goal details',
+              tooltip: 'Mindset & coping',
               icon: const Icon(Icons.psychology_outlined),
               onPressed: () {
                 final existing = goal;

@@ -24,13 +24,18 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
-// Remove old package directory to prevent duplicate class errors
+// Remove old package directories to prevent duplicate class errors
 tasks.register("cleanOldPackage") {
     doLast {
-        val oldPackageDir = file("src/main/kotlin/com/example")
-        if (oldPackageDir.exists()) {
-            logger.warn("Removing old package directory: ${oldPackageDir.absolutePath}")
-            oldPackageDir.deleteRecursively()
+        val oldExampleDir = file("src/main/kotlin/com/example")
+        val oldIntentDir = file("src/main/kotlin/com/intent")
+        if (oldExampleDir.exists()) {
+            logger.warn("Removing old package directory: ${oldExampleDir.absolutePath}")
+            oldExampleDir.deleteRecursively()
+        }
+        if (oldIntentDir.exists()) {
+            logger.warn("Removing old package directory: ${oldIntentDir.absolutePath}")
+            oldIntentDir.deleteRecursively()
         }
     }
 }
@@ -41,7 +46,7 @@ tasks.named("preBuild").configure {
 }
 
 android {
-    namespace = "com.intent.app"
+    namespace = "com.digitalvisionboard.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -57,7 +62,7 @@ android {
 
     defaultConfig {
         // Application ID for Google Play - must be unique and not use com.example
-        applicationId = "com.intent.app"
+        applicationId = "com.digitalvisionboard.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

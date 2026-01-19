@@ -59,6 +59,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
   List<VisionComponent> _components = [];
   String? _selectedComponentId;
+  String? _lastOpenedGoalComponentId;
   List<HotspotModel> _legacyHotspots = [];
 
   late bool _isEditing;
@@ -733,6 +734,7 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
 
   Future<void> _openHabitTrackerForComponent(VisionComponent component, {int initialTabIndex = 0}) async {
     if (!mounted) return;
+    setState(() => _lastOpenedGoalComponentId = component.id);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1010,6 +1012,8 @@ class _VisionBoardEditorScreenState extends State<VisionBoardEditorScreen> {
       2 => TodosListScreen(
           components: _components,
           onComponentsUpdated: _onComponentsChanged,
+          allowManageTodos: true,
+          preferredGoalComponentId: _lastOpenedGoalComponentId,
           onOpenComponent: (c) => _openHabitTrackerForComponent(c, initialTabIndex: 1),
           showAppBar: false,
         ),

@@ -40,6 +40,7 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
   bool _loading = true;
   int _tabIndex = 0; // 0: Photo, 1: Habits, 2: Todo, 3: Insights
   String? _selectedId;
+  String? _lastOpenedGoalComponentId;
 
   SharedPreferences? _prefs;
 
@@ -111,7 +112,10 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
 
   Future<void> _openHabitTracker(VisionComponent component, {int initialTabIndex = 0}) async {
     if (!mounted) return;
-    setState(() => _selectedId = component.id);
+    setState(() {
+      _selectedId = component.id;
+      _lastOpenedGoalComponentId = component.id;
+    });
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
     final maxHeight = MediaQuery.sizeOf(context).height - topInset;
     await showModalBottomSheet(
@@ -230,6 +234,8 @@ class _PhysicalBoardViewerScreenState extends State<PhysicalBoardViewerScreen> {
                   components: _components,
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
+                  allowManageTodos: true,
+                  preferredGoalComponentId: _lastOpenedGoalComponentId,
                   onOpenComponent: (c) => _openHabitTracker(c, initialTabIndex: 1),
                 ),
               3 => GlobalInsightsScreen(components: _components),

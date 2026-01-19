@@ -44,6 +44,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
   String? _selectedId;
+  String? _lastOpenedGoalComponentId;
   bool _uploading = false;
   int _tabIndex = 0; // 0: Canvas, 1: Habits, 2: Todo, 3: Insights
 
@@ -93,6 +94,10 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
 
   Future<void> _openHabitTracker(VisionComponent component, {int initialTabIndex = 0}) async {
     if (component is! ImageComponent) return; // only image goals have habits
+    setState(() {
+      _selectedId = component.id;
+      _lastOpenedGoalComponentId = component.id;
+    });
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -278,6 +283,8 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                   components: _components,
                   onComponentsUpdated: _saveComponents,
                   showAppBar: false,
+                  allowManageTodos: true,
+                  preferredGoalComponentId: _lastOpenedGoalComponentId,
                   onOpenComponent: (c) => _openHabitTracker(c, initialTabIndex: 1),
                 ),
               3 => GlobalInsightsScreen(components: _components),

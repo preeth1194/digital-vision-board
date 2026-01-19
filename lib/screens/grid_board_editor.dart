@@ -627,6 +627,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                       onComponentsUpdated: _applyComponentUpdates,
                       onOpenComponent: (_) async {},
                       showAppBar: false,
+                      allowManageTodos: true,
                     )
                   : (!_isEditing && _viewTabIndex == 3)
                       ? GlobalInsightsScreen(components: _componentsFromTiles())

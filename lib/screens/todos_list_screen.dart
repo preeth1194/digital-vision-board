@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../utils/component_label_utils.dart';
+import '../widgets/dialogs/add_habit_dialog.dart';
+import '../widgets/dialogs/goal_picker_sheet.dart';
+import '../widgets/dialogs/text_input_dialog.dart';
 
 typedef OpenComponentCallback = Future<void> Function(VisionComponent component);
 
@@ -11,6 +15,10 @@ class TodosListScreen extends StatefulWidget {
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final OpenComponentCallback onOpenComponent;
   final bool showAppBar;
+  /// When true, enables add/edit/delete and convert-to-habit actions.
+  final bool allowManageTodos;
+  /// Preferred goal component id for "Add todo" (e.g. last-opened goal).
+  final String? preferredGoalComponentId;
 
   const TodosListScreen({
     super.key,
@@ -18,6 +26,8 @@ class TodosListScreen extends StatefulWidget {
     required this.onComponentsUpdated,
     required this.onOpenComponent,
     this.showAppBar = true,
+    this.allowManageTodos = false,
+    this.preferredGoalComponentId,
   });
 
   @override
@@ -47,6 +57,35 @@ class _TodosListScreenState extends State<TodosListScreen> {
     return null;
   }
 
+  static bool _isGoalLike(VisionComponent c) => _goalMeta(c) != null;
+
+  static VisionComponent _withGoalMeta(VisionComponent c, GoalMetadata meta) {
+    if (c is ImageComponent) return c.copyWith(goal: meta);
+    if (c is GoalOverlayComponent) return c.copyWith(goal: meta);
+    return c;
+  }
+
+  static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
+    return base.copyWith(
+      name: req.name,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+    );
+  }
+
+  static String _normalizeTodoText(String raw) {
+    return raw.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   List<({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})> _flattenTodos() {
     final out = <({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})>[];
     for (final c in _components) {
@@ -58,6 +97,104 @@ class _TodosListScreenState extends State<TodosListScreen> {
       }
     }
     return out;
+  }
+
+  Future<VisionComponent?> _pickTargetComponentForNewTodos(BuildContext context) async {
+    final preferredId = (widget.preferredGoalComponentId ?? '').trim();
+    if (preferredId.isNotEmpty) {
+      final preferred = _components
+          .cast<VisionComponent?>()
+          .firstWhere((c) => c?.id == preferredId && _isGoalLike(c!), orElse: () => null);
+      if (preferred != null) return preferred;
+    }
+
+    return showGoalPickerSheet(
+      context,
+      components: _components,
+      title: 'Select goal for todo',
+    );
+  }
+
+  Future<void> _addTodos(BuildContext context) async {
+    final target = await _pickTargetComponentForNewTodos(context);
+    if (target == null) return;
+    final meta = _goalMeta(target);
+    if (meta == null) return;
+
+    final text = await showTextInputDialog(
+      context,
+      title: 'Add todo items (one per line)',
+      initialText: '',
+    );
+    final lines = (text ?? '')
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final nextItems = [
+      ...meta.todoItems,
+      for (int i = 0; i < lines.length; i++)
+        GoalTodoItem(
+          id: 'todo_${now}_$i',
+          text: lines[i],
+          isCompleted: false,
+          completedAtMs: null,
+          habitId: null,
+          taskId: null,
+        ),
+    ];
+    final nextMeta = meta.copyWith(todoItems: nextItems);
+
+    final nextComponents = _components.map((c) {
+      if (c.id != target.id) return c;
+      return _withGoalMeta(c, nextMeta);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+  }
+
+  Future<void> _editTodoText(BuildContext context, VisionComponent component, GoalMetadata meta, GoalTodoItem item) async {
+    final res = await showTextInputDialog(
+      context,
+      title: 'Edit todo',
+      initialText: item.text,
+    );
+    if (res == null) return;
+    final nextText = _normalizeTodoText(res);
+    if (nextText.isEmpty) return;
+
+    final nextItems = meta.todoItems.map((t) => t.id == item.id ? t.copyWith(text: nextText) : t).toList();
+    final nextMeta = meta.copyWith(todoItems: nextItems);
+
+    final linkedHabitId = (item.habitId ?? '').trim();
+    final nextComponents = _components.map((c) {
+      if (c.id != component.id) return c;
+      final updatedGoal = _withGoalMeta(c, nextMeta);
+      if (linkedHabitId.isEmpty) return updatedGoal;
+      return updatedGoal.copyWithCommon(
+        habits: updatedGoal.habits.map((h) => h.id == linkedHabitId ? h.copyWith(name: nextText) : h).toList(),
+      );
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+  }
+
+  void _deleteTodo(VisionComponent component, GoalMetadata meta, GoalTodoItem item) {
+    final nextItems = meta.todoItems.where((t) => t.id != item.id).toList();
+    final nextMeta = meta.copyWith(todoItems: nextItems);
+
+    final nextComponents = _components.map((c) {
+      if (c.id != component.id) return c;
+      return _withGoalMeta(c, nextMeta);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
   }
 
   void _toggleTodo(VisionComponent component, GoalMetadata meta, GoalTodoItem item, bool nextDone) {
@@ -73,9 +210,74 @@ class _TodosListScreenState extends State<TodosListScreen> {
     final nextMeta = meta.copyWith(todoItems: nextItems);
     final nextComponents = _components.map((c) {
       if (c.id != component.id) return c;
-      if (c is ImageComponent) return c.copyWith(goal: nextMeta);
-      if (c is GoalOverlayComponent) return c.copyWith(goal: nextMeta);
-      return c;
+      return _withGoalMeta(c, nextMeta);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+  }
+
+  void _unlinkHabit(VisionComponent component, GoalMetadata meta, GoalTodoItem item) {
+    final nextItems = meta.todoItems
+        .map((t) => t.id == item.id ? t.copyWith(habitId: null) : t)
+        .toList();
+    final nextMeta = meta.copyWith(todoItems: nextItems);
+
+    final nextComponents = _components.map((c) {
+      if (c.id != component.id) return c;
+      return _withGoalMeta(c, nextMeta);
+    }).toList();
+
+    setState(() => _components = nextComponents);
+    widget.onComponentsUpdated(nextComponents);
+  }
+
+  Future<void> _convertToHabit(BuildContext context, VisionComponent component, GoalMetadata meta, GoalTodoItem item) async {
+    final linkedId = (item.habitId ?? '').trim();
+    final existing = linkedId.isEmpty
+        ? null
+        : component.habits.cast<HabitItem?>().firstWhere((h) => h?.id == linkedId, orElse: () => null);
+    final otherHabits = component.habits.where((h) => h.id != existing?.id).toList();
+
+    final HabitCreateRequest? req = (existing == null)
+        ? await showAddHabitDialog(
+            context,
+            existingHabits: otherHabits,
+            suggestedGoalDeadline: meta.deadline,
+            initialName: item.text.trim().isEmpty ? null : item.text.trim(),
+          )
+        : await showEditHabitDialog(
+            context,
+            habit: existing,
+            existingHabits: otherHabits,
+            suggestedGoalDeadline: meta.deadline,
+          );
+    if (req == null) return;
+
+    final HabitItem nextHabit = _applyHabitRequest(
+      existing ??
+          HabitItem(
+            id: 'habit_${DateTime.now().millisecondsSinceEpoch}',
+            name: req.name,
+            completedDates: const [],
+          ),
+      req,
+    );
+
+    final nextHabits = (existing == null)
+        ? [...component.habits, nextHabit]
+        : component.habits.map((h) => h.id == existing.id ? nextHabit : h).toList();
+
+    final nextText = nextHabit.name.trim().isEmpty ? item.text : nextHabit.name.trim();
+    final nextItems = meta.todoItems
+        .map((t) => t.id == item.id ? t.copyWith(text: nextText, habitId: nextHabit.id) : t)
+        .toList();
+    final nextMeta = meta.copyWith(todoItems: nextItems);
+
+    final nextComponents = _components.map((c) {
+      if (c.id != component.id) return c;
+      final updated = _withGoalMeta(c, nextMeta);
+      return updated.copyWithCommon(habits: nextHabits);
     }).toList();
 
     setState(() => _components = nextComponents);
@@ -86,7 +288,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
   Widget build(BuildContext context) {
     final rows = _flattenTodos();
 
-    final body = rows.isEmpty
+    final list = rows.isEmpty
         ? const Center(child: Text('No todo items yet.'))
         : ListView.builder(
             itemCount: rows.length,
@@ -111,22 +313,75 @@ class _TodosListScreenState extends State<TodosListScreen> {
                   runSpacing: 8,
                   children: [
                     Text(goalLabel),
-                    if (hasHabit) const Chip(label: Text('Habit ✓')),
+                    if (hasHabit)
+                      const Chip(
+                        avatar: Icon(Icons.check_circle_outline, size: 18),
+                        label: Text('Habit ✓'),
+                      ),
                   ],
                 ),
                 leading: Checkbox(
                   value: todo.isCompleted,
                   onChanged: (v) => _toggleTodo(component, meta, todo, v == true),
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: widget.allowManageTodos
+                    ? PopupMenuButton<String>(
+                        onSelected: (v) async {
+                          if (v == 'edit') await _editTodoText(context, component, meta, todo);
+                          if (v == 'delete') _deleteTodo(component, meta, todo);
+                          if (v == 'convert') await _convertToHabit(context, component, meta, todo);
+                          if (v == 'unlink') _unlinkHabit(component, meta, todo);
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          const PopupMenuItem(value: 'convert', child: Text('Convert to habit')),
+                          if (hasHabit) const PopupMenuItem(value: 'unlink', child: Text('Unlink habit')),
+                        ],
+                      )
+                    : const Icon(Icons.chevron_right),
                 onTap: () => widget.onOpenComponent(component),
               );
             },
           );
 
+    Widget body = list;
+    if (!widget.showAppBar && widget.allowManageTodos) {
+      body = Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('Todo', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                TextButton.icon(
+                  onPressed: () => _addTodos(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: list),
+        ],
+      );
+    }
+
     if (!widget.showAppBar) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Todo')),
+      appBar: AppBar(
+        title: const Text('Todo'),
+        actions: [
+          if (widget.allowManageTodos)
+            IconButton(
+              tooltip: 'Add todo',
+              onPressed: () => _addTodos(context),
+              icon: const Icon(Icons.add),
+            ),
+        ],
+      ),
       body: body,
     );
   }

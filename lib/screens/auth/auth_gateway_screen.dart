@@ -27,11 +27,13 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       _error = null;
     });
     try {
-      final googleUser = await GoogleSignIn().signIn();
+      // google_sign_in v7+ uses a singleton instance (no default constructor).
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+      final googleUser = await googleSignIn.authenticate();
       if (googleUser == null) return; // cancelled
       final auth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
-        accessToken: auth.accessToken,
         idToken: auth.idToken,
       );
       final userCred = await FirebaseAuth.instance.signInWithCredential(credential);

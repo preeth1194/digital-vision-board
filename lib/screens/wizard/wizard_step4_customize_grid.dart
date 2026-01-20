@@ -10,6 +10,8 @@ import '../../models/wizard/wizard_goal.dart';
 import '../../services/wizard_board_builder.dart';
 import '../../services/category_images_service.dart';
 import '../../services/stock_images_service.dart';
+import '../../services/image_service.dart';
+import '../../services/grid_tiles_storage_service.dart';
 import '../grid_editor.dart';
 
 class WizardStep4CustomizeGrid extends StatefulWidget {
@@ -78,7 +80,7 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
           }
         }
         
-        // Fetch images for each category
+        // Fetch images for each category and download/persist them
         for (final entry in goalsByCategory.entries) {
           final category = entry.key;
           final categoryGoals = entry.value;
@@ -96,12 +98,27 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
             urls = await StockImagesService.searchPexelsUrls(query: query, perPage: categoryGoals.length);
           }
           
-          // Assign images to goals in this category
+          // Download and persist images, then assign to goals
           if (urls.isNotEmpty) {
             for (int i = 0; i < categoryGoals.length; i++) {
               final goal = categoryGoals[i];
               final imageUrl = urls[i % urls.length];
-              defaultImageUrlsByGoalId[goal.id] = imageUrl;
+              
+              // Download and persist the image URL to local storage
+              final localPath = await ImageService.downloadResizeAndPersistJpegFromUrl(
+                context,
+                url: imageUrl,
+                maxSidePx: 2048,
+                jpegQuality: 92,
+              );
+              
+              // Use local path if download succeeded, otherwise fall back to URL
+              if (localPath != null && localPath.isNotEmpty) {
+                defaultImageUrlsByGoalId[goal.id] = localPath;
+              } else {
+                // Fallback to URL if download fails (e.g., on web)
+                defaultImageUrlsByGoalId[goal.id] = imageUrl;
+              }
             }
           }
         }
@@ -155,17 +172,38 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
 
             if (byCat.isNotEmpty) {
               final idxByCat = <String, int>{for (final k in byCat.keys) k: 0};
-              final updated = tiles.map((t) {
-                if (t.type != 'image') return t;
-                if ((t.content ?? '').trim().isNotEmpty) return t;
+              final updated = <GridTileModel>[];
+              
+              for (final t in tiles) {
+                if (t.type != 'image' || (t.content ?? '').trim().isNotEmpty) {
+                  updated.add(t);
+                  continue;
+                }
+                
                 final cat = (t.goal?.category ?? '').trim();
                 final list = byCat[cat];
-                if (list == null || list.isEmpty) return t;
+                if (list == null || list.isEmpty) {
+                  updated.add(t);
+                  continue;
+                }
+                
                 final i = idxByCat[cat] ?? 0;
                 final url = list[i % list.length];
                 idxByCat[cat] = i + 1;
-                return t.copyWith(content: url);
-              }).toList();
+                
+                // Download and persist the image URL to local storage
+                final localPath = await ImageService.downloadResizeAndPersistJpegFromUrl(
+                  context,
+                  url: url,
+                  maxSidePx: 2048,
+                  jpegQuality: 92,
+                );
+                
+                // Use local path if download succeeded, otherwise fall back to URL
+                final content = (localPath != null && localPath.isNotEmpty) ? localPath : url;
+                updated.add(t.copyWith(content: content));
+              }
+              
               await GridTilesStorageService.saveTiles(boardIdPrefill, updated, prefs: prefs);
             }
           }

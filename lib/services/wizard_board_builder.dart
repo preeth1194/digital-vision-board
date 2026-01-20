@@ -130,13 +130,15 @@ final class WizardBoardBuilderService {
       }
 
       final g = goals[i];
-      // Use default image URL if provided, otherwise null (user will pick images later)
+      // Use default image URL if provided, otherwise use goal name as text content
       final defaultImageUrl = defaultImageUrlsByGoalId?[g.id];
+      final hasImage = defaultImageUrl != null && defaultImageUrl.trim().isNotEmpty;
+      
       tiles.add(
         GridTileModel(
           id: 'tile_$i',
-          type: 'image',
-          content: defaultImageUrl, // default image URL if available, otherwise null
+          type: hasImage ? 'image' : 'text',
+          content: hasImage ? defaultImageUrl : g.name, // image URL or goal name as text
           isPlaceholder: false,
           crossAxisCellCount: blueprint.crossAxisCount,
           mainAxisCellCount: blueprint.mainAxisCount,

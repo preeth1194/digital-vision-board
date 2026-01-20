@@ -6,6 +6,7 @@ import '../../models/core_value.dart';
 import '../../models/wizard/wizard_core_value.dart';
 import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_defaults_service.dart';
+import '../../utils/app_typography.dart';
 
 class WizardStep1BoardSetup extends StatefulWidget {
   final CreateBoardWizardState initial;
@@ -230,9 +231,9 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        const Text(
+        Text(
           'Name your board',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: AppTypography.heading3(context),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -244,9 +245,9 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Major focus (core value)',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: AppTypography.heading2(context),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
@@ -265,9 +266,9 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
           },
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Other core values to include',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: AppTypography.heading2(context),
         ),
         const SizedBox(height: 8),
         for (final cv in coreValueDefs)
@@ -278,14 +279,14 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
             secondary: Icon(CoreValues.byId(cv.id).icon),
           ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Categories (per core value)',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: AppTypography.heading2(context),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Select the categories you want to use in the next steps.',
-          style: TextStyle(color: Colors.black54),
+          style: AppTypography.secondary(context),
         ),
         const SizedBox(height: 8),
         for (final id in _selectedCoreValueIds) ...[
@@ -300,7 +301,7 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
                       Expanded(
                         child: Text(
                           CoreValues.byId(id).label,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: AppTypography.heading3(context),
                         ),
                       ),
                       TextButton.icon(
@@ -314,9 +315,19 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
                   if (((_categoriesByCore[id] ?? const <String>[])).isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Selected: ${(_selectedCategoriesByCore[id] ?? const <String>{}).length}',
-                        style: const TextStyle(color: Colors.black54, fontSize: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Selected: ${(_selectedCategoriesByCore[id] ?? const <String>{}).length}',
+                            style: AppTypography.caption(context),
+                          ),
+                        ],
                       ),
                     ),
                   Wrap(
@@ -330,7 +341,23 @@ class _WizardStep1BoardSetupState extends State<WizardStep1BoardSetup> {
                           onSelected: (v) => _toggleCategory(id, c, v),
                         ),
                       if (((_categoriesByCore[id] ?? const <String>[])).isEmpty)
-                        const Text('No categories yet. Add some.'),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'No categories yet. Add some.',
+                                style: AppTypography.secondary(context),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ],

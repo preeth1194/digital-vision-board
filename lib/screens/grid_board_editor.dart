@@ -126,6 +126,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     );
   }
 
+  Alignment _getTextAlignmentForTile(GridTileModel tile) {
+    final v = _hash32('${tile.id}::alignment');
+    final alignments = [
+      Alignment.topLeft,
+      Alignment.topCenter,
+      Alignment.topRight,
+      Alignment.centerLeft,
+      Alignment.center,
+      Alignment.centerRight,
+      Alignment.bottomLeft,
+      Alignment.bottomCenter,
+      Alignment.bottomRight,
+    ];
+    return alignments[v % alignments.length];
+  }
+
+  TextAlign _getTextAlignFromAlignment(Alignment alignment) {
+    if (alignment.x < -0.3) return TextAlign.left;
+    if (alignment.x > 0.3) return TextAlign.right;
+    return TextAlign.center;
+  }
+
   Future<void> _shuffleGrid() async {
     if (!_isEditing) return;
     if (_tiles.isEmpty) return;
@@ -137,6 +159,20 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     final nextSeed = DateTime.now().millisecondsSinceEpoch;
     await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), nextSeed);
     _styleSeed = nextSeed;
+
+    // Calculate screen dimensions to ensure grid fills the screen
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final screenWidth = mediaQuery.size.width;
+    final appBarHeight = AppBar().preferredSize.height;
+    final bottomBarHeight = _isEditing ? 56.0 : 0.0; // BottomAppBar height when editing
+    final padding = 32.0; // Top and bottom padding (16px each)
+    final availableHeight = screenHeight - appBarHeight - bottomBarHeight - padding - mediaQuery.padding.top - mediaQuery.padding.bottom;
+    
+    // Calculate cell extent (same as in build method)
+    const spacing = 10.0;
+    final gridMaxWidth = (screenWidth - 32).clamp(0.0, double.infinity);
+    final cellExtent = (gridMaxWidth - (spacing * (_crossAxisCount - 1))) / _crossAxisCount;
 
     // Apply new tile sizes; keep goal/user content in place.
     final nextTiles = <GridTileModel>[];
@@ -150,6 +186,69 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           mainAxisCellCount: bp.mainAxisCount,
         ),
       );
+    }
+
+    // Ensure we have enough tiles to fill the screen
+    // For staggered grids, estimate minimum tiles needed based on average tile height
+    final avgMainAxisCells = nextTiles.isNotEmpty
+        ? (nextTiles.map((t) => t.mainAxisCount).reduce((a, b) => a + b) / nextTiles.length).ceil()
+        : 2;
+    final estimatedCellsPerRow = (_crossAxisCount * avgMainAxisCells);
+    final estimatedRowsNeeded = (availableHeight / (cellExtent + spacing)).ceil();
+    final minTilesNeeded = (estimatedRowsNeeded * _crossAxisCount / avgMainAxisCells).ceil();
+    
+    // Add more tiles if needed to fill screen
+    int templateIndex = nextTiles.length;
+    while (nextTiles.length < minTilesNeeded && templateIndex < nextTpl.tiles.length * 2) {
+      final bpIndex = templateIndex % nextTpl.tiles.length;
+      final bp = nextTpl.tiles[bpIndex];
+      
+      // Check if we have an existing tile at this index
+      if (templateIndex < _tiles.length) {
+        final existingTile = _tiles[templateIndex];
+        nextTiles.add(existingTile.copyWith(
+          crossAxisCellCount: bp.crossAxisCount,
+          mainAxisCellCount: bp.mainAxisCount,
+          index: templateIndex,
+        ));
+      } else {
+        // Create placeholder tile with text content
+        final seedGoal = _tiles.isNotEmpty ? _tiles.first : null;
+        final cat = (seedGoal?.goal?.category ?? '').trim();
+        // Use simple placeholder phrases
+        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+        final phrase = phrases[templateIndex % phrases.length];
+        nextTiles.add(
+          GridTileModel(
+            id: 'tile_$templateIndex',
+            type: 'text',
+            content: phrase,
+            isPlaceholder: true,
+            crossAxisCellCount: bp.crossAxisCount,
+            mainAxisCellCount: bp.mainAxisCount,
+            index: templateIndex,
+          ),
+        );
+      }
+      templateIndex++;
+    }
+    
+    // If still not enough, add more placeholder tiles with reasonable sizes
+    while (nextTiles.length < minTilesNeeded) {
+      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+      final phrase = phrases[templateIndex % phrases.length];
+      nextTiles.add(
+        GridTileModel(
+          id: 'tile_$templateIndex',
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
+          crossAxisCellCount: 1,
+          mainAxisCellCount: 2,
+          index: templateIndex,
+        ),
+      );
+      templateIndex++;
     }
 
     // Optional: refresh placeholder images from Pexels using a best-effort query.
@@ -214,11 +313,15 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     final minCount = widget.template.tiles.length;
     for (int i = next.length; i < minCount; i++) {
       final blueprint = widget.template.tiles[i];
+      // Create placeholder text tile instead of empty
+      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+      final phrase = phrases[i % phrases.length];
       next.add(
         GridTileModel(
           id: 'tile_$i',
-          type: 'empty',
-          content: null,
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
           crossAxisCellCount: blueprint.crossAxisCount,
           mainAxisCellCount: blueprint.mainAxisCount,
           index: i,
@@ -226,7 +329,21 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       );
     }
 
-    return GridTilesStorageService.sortTiles(next);
+    // Convert any remaining empty tiles to placeholder text tiles
+    final finalTiles = next.map((tile) {
+      if (tile.type == 'empty') {
+        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+        final phrase = phrases[tile.index % phrases.length];
+        return tile.copyWith(
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
+        );
+      }
+      return tile;
+    }).toList();
+
+    return GridTilesStorageService.sortTiles(finalTiles);
   }
 
   Future<void> _saveTiles(List<GridTileModel> tiles) async {
@@ -257,12 +374,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (!_isEditing) return;
     final id = 'tile_${DateTime.now().millisecondsSinceEpoch}';
     final index = _tiles.length;
+    // Create placeholder text tile instead of empty
+    final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+    final phrase = phrases[index % phrases.length];
     final next = [
       ..._tiles,
       GridTileModel(
         id: id,
-        type: 'empty',
-        content: null,
+        type: 'text',
+        content: phrase,
+        isPlaceholder: true,
         crossAxisCellCount: 1,
         mainAxisCellCount: 1,
         index: index,
@@ -464,6 +585,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   Future<void> _showAddContentSheet(int index) async {
     if (!_isEditing) return;
+    final tile = _tileAt(index);
+    final hasImage = tile.type == 'image';
+    final hasText = tile.type == 'text';
+    
     final choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -472,7 +597,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.image_outlined),
-              title: const Text('Add Image'),
+              title: Text(hasImage ? 'Change Image' : 'Add Image'),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
@@ -482,7 +607,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.text_fields),
-              title: const Text('Add Text'),
+              title: Text(hasText ? 'Edit Text' : 'Add Text'),
               onTap: () => Navigator.of(context).pop('text'),
             ),
           ],
@@ -496,7 +621,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       return;
     }
     if (choice == 'pexels') {
-      final tile = _tileAt(index);
       final cat = (tile.goal?.category ?? '').trim();
       final cv = (tile.goal?.cbt?.coreValue ?? '').trim();
       final q = [cat, cv, 'minimal', 'simple', 'clean', 'aesthetic'].where((s) => s.trim().isNotEmpty).join(' ');
@@ -675,6 +799,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               ),
       );
     } else if (tile.type == 'text') {
+      final textAlignment = _getTextAlignmentForTile(tile);
       base = Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
@@ -687,11 +812,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           ),
         ),
         padding: const EdgeInsets.all(8),
-        alignment: Alignment.topLeft,
+        alignment: textAlignment,
         child: Text(
           (tile.content ?? '').trim(),
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
+          textAlign: _getTextAlignFromAlignment(textAlignment),
           style: tile.isPlaceholder 
               ? _placeholderTextStyle(context, tile) 
               : TextStyle(
@@ -1007,19 +1133,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                               if (!wasSelected) _selectedResizeHandle = null;
                                             });
 
-                                            // Second tap on a selected tile edits/adds content.
+                                            // Always show edit options when tapping a selected tile in edit mode
                                             if (!wasSelected) return;
-                                            if (tile.type == 'empty') {
-                                              await _showAddContentSheet(i);
-                                              return;
-                                            }
-                                            if (tile.type == 'text') {
-                                              await _editText(i);
-                                              return;
-                                            }
-                                            if (tile.type == 'image') {
-                                              await _pickAndSetImage(i);
-                                            }
+                                            await _showAddContentSheet(i);
                                           },
                                     child: tileStack,
                                   );

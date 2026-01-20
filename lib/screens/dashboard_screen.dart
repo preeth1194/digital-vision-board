@@ -32,6 +32,7 @@ import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
+import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -43,7 +44,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
-  int _tabIndex = 0;
+  int _tabIndex = 1;
   bool _loading = true;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
@@ -64,6 +65,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _init();
     _startAutoRefreshReminders();
+    _checkPuzzleDeepLink();
+  }
+
+  Future<void> _checkPuzzleDeepLink() async {
+    // Check if puzzle should be opened from widget deep link
+    final shouldOpen = await WidgetDeepLinkService.shouldOpenPuzzle(prefs: _prefs);
+    if (shouldOpen && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _openPuzzleGame();
+        }
+      });
+    }
   }
 
   @override
@@ -572,20 +586,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[0, 1, 2, 4]; // View Goals, Dashboard, Journal, Insights
+    const visibleTabIndices = <int>[1, 2, 4]; // Dashboard, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
-    final appBarTitle = _tabIndex == 0
-        ? 'Goals'
-        : _tabIndex == 1
-            ? 'Dashboard'
-            : _tabIndex == 2
-                ? 'Journal'
-                : _tabIndex == 3
-                    ? 'Todo'
-                    : _tabIndex == 4
-                        ? 'Insights'
-                        : 'Digital Vision Board';
+    final appBarTitle = _tabIndex == 1
+        ? 'Dashboard'
+        : _tabIndex == 2
+            ? 'Journal'
+            : _tabIndex == 3
+                ? 'Todo'
+                : _tabIndex == 4
+                    ? 'Insights'
+                    : 'Digital Vision Board';
 
     final body = DashboardBody(
       tabIndex: _tabIndex,
@@ -730,7 +742,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.flip_to_front), label: 'Goals'),
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),

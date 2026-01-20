@@ -46,6 +46,10 @@ class _WidgetGuideScreenState extends State<WidgetGuideScreen> {
 
             // Setup Instructions Section
             _buildSetupInstructionsSection(context),
+            const SizedBox(height: 32),
+
+            // Puzzle Widget Section
+            _buildPuzzleWidgetSection(context),
             const SizedBox(height: 16),
           ],
         ),
@@ -478,6 +482,207 @@ class _WidgetGuideScreenState extends State<WidgetGuideScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPuzzleWidgetSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Puzzle Widget',
+          style: AppTypography.heading1(context),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Solve puzzles from your goal images directly from your home screen',
+          style: AppTypography.secondary(context),
+        ),
+        const SizedBox(height: 32),
+
+        // Puzzle Widget Preview
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Widget Preview',
+                  style: AppTypography.heading3(context),
+                ),
+                const SizedBox(height: 20),
+                // Widget Mockup
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Puzzle Challenge',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // 4x4 grid preview
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
+                        ),
+                        itemCount: 16,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              border: Border.all(color: Colors.grey[400]!),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.image_outlined,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Puzzle Widget Features
+        Text(
+          'Features',
+          style: AppTypography.heading2(context),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          context,
+          icon: Icons.extension,
+          title: 'Puzzle Preview',
+          description: 'See a 4x4 grid preview of your current puzzle challenge on your home screen.',
+        ),
+        const SizedBox(height: 12),
+        _buildFeatureCard(
+          context,
+          icon: Icons.touch_app_outlined,
+          title: 'Quick Access',
+          description: 'Tap the widget to open the puzzle game and continue solving from where you left off.',
+        ),
+        const SizedBox(height: 12),
+        _buildFeatureCard(
+          context,
+          icon: Icons.sync,
+          title: 'State Synchronization',
+          description: 'Your puzzle progress syncs between the app and widget. Rearrange pieces in either place and see updates everywhere.',
+        ),
+        const SizedBox(height: 12),
+        _buildFeatureCard(
+          context,
+          icon: Icons.celebration_outlined,
+          title: 'Goal Celebration',
+          description: 'When you complete a puzzle, the widget shows a celebration message with your goal: "You are 1 step closer in reaching your goal: [Goal Title]".',
+        ),
+        const SizedBox(height: 12),
+        _buildFeatureCard(
+          context,
+          icon: Icons.save_outlined,
+          title: 'Progress Persistence',
+          description: 'Your puzzle state is saved automatically. Continue solving the same puzzle until you complete it or assign a new image.',
+        ),
+        const SizedBox(height: 32),
+
+        // Puzzle Widget Setup Instructions
+        Text(
+          'How to Add the Puzzle Widget',
+          style: AppTypography.heading2(context),
+        ),
+        const SizedBox(height: 16),
+        // Android Instructions
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.android,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Android',
+                      style: AppTypography.heading3(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildStep(context, '1', 'Long-press your home screen.'),
+                _buildStep(context, '2', 'Tap Widgets.'),
+                _buildStep(context, '3', 'Find "Digital Vision Board".'),
+                _buildStep(context, '4', 'Add "Puzzle Challenge" widget.'),
+                _buildStep(context, '5', 'Tap the widget to open the puzzle game.'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // iOS Instructions
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.phone_iphone,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'iPhone / iPad',
+                      style: AppTypography.heading3(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildStep(context, '1', 'Long-press your home screen.'),
+                _buildStep(context, '2', 'Tap the + button (top-left).'),
+                _buildStep(context, '3', 'Search for "Digital Vision Board".'),
+                _buildStep(context, '4', 'Add "Puzzle Challenge" widget.'),
+                _buildStep(context, '5', 'Tap the widget to open the puzzle game.'),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

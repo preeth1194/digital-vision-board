@@ -5,6 +5,7 @@ import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
 import '../models/grid_tile_model.dart';
+import '../models/goal_metadata.dart';
 import 'boards_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 import 'grid_tiles_storage_service.dart';
@@ -130,5 +131,47 @@ class PuzzleService {
 
     if (remaining <= 0) return Duration.zero;
     return Duration(milliseconds: remaining);
+  }
+
+  /// Find goal metadata associated with an image path.
+  /// Searches all boards for matching image.
+  static Future<GoalMetadata?> getGoalForImagePath({
+    required String imagePath,
+    List<VisionBoardInfo>? boards,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final boardsList = boards ?? await BoardsStorageService.loadBoards(prefs: p);
+    final normalizedPath = imagePath.trim();
+
+    // Search all boards
+    for (final board in boardsList) {
+      if (board.layoutType == VisionBoardInfo.layoutGrid) {
+        // Search grid tiles
+        final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: p);
+        for (final tile in tiles) {
+          if (tile.type == 'image' && 
+              (tile.content ?? '').trim() == normalizedPath &&
+              tile.goal != null) {
+            return tile.goal;
+          }
+        }
+      } else {
+        // Search components
+        final components = await VisionBoardComponentsStorageService.loadComponents(
+          board.id,
+          prefs: p,
+        );
+        for (final component in components) {
+          if (component is ImageComponent &&
+              component.imagePath.trim() == normalizedPath &&
+              component.goal != null) {
+            return component.goal;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 }

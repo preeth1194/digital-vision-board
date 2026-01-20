@@ -1019,13 +1019,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           child: Material(
                                             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                             shape: const CircleBorder(),
-                                            child: IconButton(
-                                              visualDensity: VisualDensity.compact,
-                                              iconSize: 18,
-                                              tooltip: 'Delete',
-                                              color: Theme.of(context).colorScheme.surface,
-                                              onPressed: () => _deleteOrClearTile(i),
-                                              icon: const Icon(Icons.delete_outline),
+                                            elevation: 4,
+                                            child: InkWell(
+                                              customBorder: const CircleBorder(),
+                                              onTap: () => _deleteOrClearTile(i),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(8.0),
+                                                child: Icon(
+                                                  Icons.delete_outline,
+                                                  size: 18,
+                                                  color: Theme.of(context).colorScheme.surface,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),

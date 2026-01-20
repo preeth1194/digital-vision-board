@@ -18,6 +18,23 @@ class MainActivity : FlutterActivity() {
         }
       }
     
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dvb/puzzle_widget")
+      .setMethodCallHandler { call, result ->
+        when (call.method) {
+          "updateWidgets" -> {
+            PuzzleAppWidget.updateAll(this)
+            result.success(null)
+          }
+          "writeSnapshotToAppGroup" -> {
+            // iOS App Group write is handled in AppDelegate.swift
+            // For Android, we just update the widget
+            PuzzleAppWidget.updateAll(this)
+            result.success(null)
+          }
+          else -> result.notImplemented()
+        }
+      }
+    
     // Register music provider handler (placeholder for Spotify/Apple Music integration)
     MusicProviderHandler().setupMethodChannel(flutterEngine)
   }

@@ -11,6 +11,7 @@ import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
 import 'services/logical_date_service.dart';
 import 'services/habit_progress_widget_snapshot_service.dart';
+import 'services/puzzle_widget_snapshot_service.dart';
 import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/wizard_defaults_service.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
   await LogicalDateService.ensureInitialized(prefs: prefs);
   // Best-effort: keep home-screen widgets up-to-date (snapshot + deep-link toggles).
   unawaited(HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs));
+  unawaited(PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs));
   unawaited(WidgetDeepLinkService.start());
   HabitProgressWidgetActionQueueService.instance.start();
   // Firebase is optional at runtime until platform config files are added.

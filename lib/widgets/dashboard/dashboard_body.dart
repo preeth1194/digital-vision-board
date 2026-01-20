@@ -10,7 +10,6 @@ import '../../screens/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/daily_overview_screen.dart';
-import '../../screens/vision_board_home_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
@@ -112,7 +111,6 @@ class DashboardBody extends StatelessWidget {
       valueListenable: boardDataVersion,
       builder: (context, _, __) {
         return switch (tabIndex) {
-      0 => const VisionBoardHomeScreen(),
       1 => DashboardTab(
           boards: boards,
           activeBoardId: activeBoardId,

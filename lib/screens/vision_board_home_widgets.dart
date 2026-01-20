@@ -7,6 +7,7 @@ import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
 import '../models/goal_overlay_component.dart';
+import '../models/goal_metadata.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/logical_date_service.dart';
@@ -629,7 +630,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
 
     final items = <({String componentId, HabitItem habit})>[];
     final pendingItems = <({String componentId, HabitItem habit})>[];
-    for (final c in components) {
+    for (final c in widget.components) {
       for (final h in c.habits) {
         if (!h.isScheduledOnDate(now)) continue;
         final it = (componentId: c.id, habit: h);

@@ -7,7 +7,7 @@ import '../models/habit_item.dart';
 import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/rhythmic_timer_service.dart';
-import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerState;
+import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerState, RhythmicTimerStateService;
 
 class RhythmicTimerScreen extends StatefulWidget {
   final HabitItem habit;

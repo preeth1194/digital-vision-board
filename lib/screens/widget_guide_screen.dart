@@ -60,28 +60,61 @@ class _WidgetGuideScreenState extends State<WidgetGuideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Widget Preview',
-                  style: AppTypography.heading3(context),
-                ),
-                // State switcher
-                SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 0, label: Text('Habits')),
-                    ButtonSegment(value: 1, label: Text('Done')),
-                    ButtonSegment(value: 2, label: Text('Empty')),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Stack vertically on small screens
+                if (constraints.maxWidth < 400) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Widget Preview',
+                        style: AppTypography.heading3(context),
+                      ),
+                      const SizedBox(height: 12),
+                      SegmentedButton<int>(
+                        segments: const [
+                          ButtonSegment(value: 0, label: Text('Habits')),
+                          ButtonSegment(value: 1, label: Text('Done')),
+                          ButtonSegment(value: 2, label: Text('Empty')),
+                        ],
+                        selected: {_mockupState},
+                        onSelectionChanged: (Set<int> newSelection) {
+                          setState(() {
+                            _mockupState = newSelection.first;
+                          });
+                        },
+                      ),
+                    ],
+                  );
+                }
+                // Horizontal layout on larger screens
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Widget Preview',
+                        style: AppTypography.heading3(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment(value: 0, label: Text('Habits')),
+                        ButtonSegment(value: 1, label: Text('Done')),
+                        ButtonSegment(value: 2, label: Text('Empty')),
+                      ],
+                      selected: {_mockupState},
+                      onSelectionChanged: (Set<int> newSelection) {
+                        setState(() {
+                          _mockupState = newSelection.first;
+                        });
+                      },
+                    ),
                   ],
-                  selected: {_mockupState},
-                  onSelectionChanged: (Set<int> newSelection) {
-                    setState(() {
-                      _mockupState = newSelection.first;
-                    });
-                  },
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 20),
             // Widget Mockup

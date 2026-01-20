@@ -242,9 +242,9 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
         ),
         const SizedBox(height: 16),
         if (widget.habits.isEmpty)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(32.0),
               child: Text(
                 'No habits yet. Add one above!',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),

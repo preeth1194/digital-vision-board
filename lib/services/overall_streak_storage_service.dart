@@ -3,29 +3,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'logical_date_service.dart';
 
+/// Streak data structure.
+final class StreakData {
+  final String startDate; // ISO date (YYYY-MM-DD)
+  final int count;
+
+  const StreakData({required this.startDate, required this.count});
+
+  Map<String, dynamic> toJson() => {
+        'startDate': startDate,
+        'count': count,
+      };
+
+  factory StreakData.fromJson(Map<String, dynamic> json) => StreakData(
+        startDate: json['startDate'] as String? ?? '',
+        count: (json['count'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Service for tracking overall goal streak (maintained if at least one habit is completed per day).
 final class OverallStreakStorageService {
   OverallStreakStorageService._();
 
   static const String _key = 'dv_overall_streak_v1';
-
-  /// Streak data structure.
-  final class StreakData {
-    final String startDate; // ISO date (YYYY-MM-DD)
-    final int count;
-
-    const StreakData({required this.startDate, required this.count});
-
-    Map<String, dynamic> toJson() => {
-          'startDate': startDate,
-          'count': count,
-        };
-
-    factory StreakData.fromJson(Map<String, dynamic> json) => StreakData(
-          startDate: json['startDate'] as String? ?? '',
-          count: (json['count'] as num?)?.toInt() ?? 0,
-        );
-  }
 
   /// Load current streak data.
   static Future<StreakData> loadStreak({SharedPreferences? prefs}) async {

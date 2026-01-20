@@ -251,8 +251,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Text(
                     'Reminders',
                     style: AppTypography.heading3(context),

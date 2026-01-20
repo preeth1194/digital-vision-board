@@ -59,6 +59,26 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="dvb" android:host="puzzle" />
             </intent-filter>
+            <!-- Spotify OAuth callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
+        
+        <!-- Spotify Login Activity -->
+        <activity
+            android:name="com.spotify.sdk.android.auth.LoginActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="spotify-callback" />
+            </intent-filter>
         </activity>
 
         <receiver

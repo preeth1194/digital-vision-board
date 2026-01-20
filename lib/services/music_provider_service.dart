@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 /// Abstract interface for music providers (Spotify, Apple Music, or fallback).
 abstract class MusicProvider {
@@ -37,18 +38,39 @@ class SpotifyProvider implements MusicProvider {
   static final SpotifyProvider _instance = SpotifyProvider._();
   factory SpotifyProvider() => _instance;
 
+  static const MethodChannel _methodChannel = MethodChannel('dvb/music_provider');
+  static const EventChannel _eventChannel = EventChannel('dvb/music_provider_events');
+
   StreamController<CurrentTrack>? _trackController;
+  StreamSubscription<dynamic>? _eventSubscription;
   Timer? _pollTimer;
   String? _lastTrackId;
   bool _isListening = false;
+  bool _isAuthenticated = false;
+
+  /// Authenticate with Spotify
+  /// Note: With MediaSession/NowPlayingInfoCenter approach, authentication is not required
+  /// This method is kept for future Spotify SDK integration
+  Future<bool> authenticate() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>('authenticateSpotify');
+      if (result == true) {
+        _isAuthenticated = true;
+      }
+      return result ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if Spotify is authenticated
+  bool get isAuthenticated => _isAuthenticated;
 
   @override
   Future<bool> isAvailable() async {
     try {
-      // TODO: Implement Spotify SDK check
-      // This will require native platform channels
-      // For now, return false as placeholder
-      return false;
+      final result = await _methodChannel.invokeMethod<bool>('isSpotifyAvailable');
+      return result ?? false;
     } catch (_) {
       return false;
     }
@@ -57,10 +79,15 @@ class SpotifyProvider implements MusicProvider {
   @override
   Future<CurrentTrack?> getCurrentTrack() async {
     try {
-      // TODO: Implement Spotify SDK track retrieval
-      // This will require native platform channels
-      // For now, return null as placeholder
-      return null;
+      final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('getCurrentTrack');
+      if (result == null) return null;
+
+      return CurrentTrack(
+        title: result['title'] as String? ?? 'Unknown',
+        artist: result['artist'] as String?,
+        album: result['album'] as String?,
+        trackId: result['trackId'] as String?,
+      );
     } catch (_) {
       return null;
     }
@@ -75,7 +102,31 @@ class SpotifyProvider implements MusicProvider {
     _isListening = true;
     _trackController = StreamController<CurrentTrack>.broadcast();
 
-    // Poll for track changes (Spotify SDK may not provide direct callbacks)
+    // Start listening on native side
+    _methodChannel.invokeMethod('startListening').catchError((_) {});
+
+    // Listen to event channel for real-time updates
+    _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final track = CurrentTrack(
+            title: event['title'] as String? ?? 'Unknown',
+            artist: event['artist'] as String?,
+            album: event['album'] as String?,
+            trackId: event['trackId'] as String?,
+          );
+          if (track.trackId != _lastTrackId) {
+            _lastTrackId = track.trackId;
+            _trackController?.add(track);
+          }
+        }
+      },
+      onError: (_) {
+        // Fallback to polling if event channel fails
+      },
+    );
+
+    // Poll as fallback (in case event channel doesn't work)
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final track = await getCurrentTrack();
       if (track != null && track.trackId != _lastTrackId) {
@@ -104,18 +155,37 @@ class AppleMusicProvider implements MusicProvider {
   static final AppleMusicProvider _instance = AppleMusicProvider._();
   factory AppleMusicProvider() => _instance;
 
+  static const MethodChannel _methodChannel = MethodChannel('dvb/music_provider');
+  static const EventChannel _eventChannel = EventChannel('dvb/music_provider_events');
+
   StreamController<CurrentTrack>? _trackController;
+  StreamSubscription<dynamic>? _eventSubscription;
   Timer? _pollTimer;
   String? _lastTrackId;
   bool _isListening = false;
+  bool _hasPermission = false;
+
+  /// Request Apple Music permission
+  Future<bool> requestPermission() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>('requestAppleMusicPermission');
+      if (result == true) {
+        _hasPermission = true;
+      }
+      return result ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if Apple Music permission is granted
+  bool get hasPermission => _hasPermission;
 
   @override
   Future<bool> isAvailable() async {
     try {
-      // TODO: Implement Apple Music availability check
-      // This will require native platform channels (iOS)
-      // For now, return false as placeholder
-      return false;
+      final result = await _methodChannel.invokeMethod<bool>('isAppleMusicAvailable');
+      return result ?? false;
     } catch (_) {
       return false;
     }
@@ -124,11 +194,15 @@ class AppleMusicProvider implements MusicProvider {
   @override
   Future<CurrentTrack?> getCurrentTrack() async {
     try {
-      // TODO: Implement Apple Music track retrieval
-      // This will require native platform channels (iOS)
-      // Use MPMusicPlayerController on iOS
-      // For now, return null as placeholder
-      return null;
+      final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('getCurrentTrack');
+      if (result == null) return null;
+
+      return CurrentTrack(
+        title: result['title'] as String? ?? 'Unknown',
+        artist: result['artist'] as String?,
+        album: result['album'] as String?,
+        trackId: result['trackId'] as String?,
+      );
     } catch (_) {
       return null;
     }
@@ -143,7 +217,31 @@ class AppleMusicProvider implements MusicProvider {
     _isListening = true;
     _trackController = StreamController<CurrentTrack>.broadcast();
 
-    // Poll for track changes (Apple Music may not provide direct callbacks)
+    // Start listening on native side
+    _methodChannel.invokeMethod('startListening').catchError((_) {});
+
+    // Listen to event channel for real-time updates
+    _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final track = CurrentTrack(
+            title: event['title'] as String? ?? 'Unknown',
+            artist: event['artist'] as String?,
+            album: event['album'] as String?,
+            trackId: event['trackId'] as String?,
+          );
+          if (track.trackId != _lastTrackId) {
+            _lastTrackId = track.trackId;
+            _trackController?.add(track);
+          }
+        }
+      },
+      onError: (_) {
+        // Fallback to polling if event channel fails
+      },
+    );
+
+    // Poll as fallback
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final track = await getCurrentTrack();
       if (track != null && track.trackId != _lastTrackId) {
@@ -157,6 +255,9 @@ class AppleMusicProvider implements MusicProvider {
 
   @override
   void dispose() {
+    _methodChannel.invokeMethod('stopListening').catchError((_) {});
+    _eventSubscription?.cancel();
+    _eventSubscription = null;
     _pollTimer?.cancel();
     _pollTimer = null;
     _trackController?.close();

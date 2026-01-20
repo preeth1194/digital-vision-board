@@ -9,6 +9,21 @@ import 'logical_date_service.dart';
 import 'music_provider_service.dart';
 import 'rhythmic_timer_state_service.dart' show RhythmicTimerState, RhythmicTimerStateService;
 
+/// Get the linked music provider from user preferences
+Future<String?> _getLinkedProvider() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final provider = prefs.getString('music_provider_preference');
+    // Only return if it's a valid provider (not 'fallback')
+    if (provider == 'spotify' || provider == 'apple_music') {
+      return provider;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Main service for managing rhythmic timer (Time-Based and Song-Based modes).
 final class RhythmicTimerService {
   final String habitId;
@@ -32,17 +47,20 @@ final class RhythmicTimerService {
   });
 
   /// Get the rhythmic timer configuration from habit.
-  RhythmicTimerConfig? getConfig() {
+  Future<RhythmicTimerConfig?> getConfig() async {
     final timeBound = habit.timeBound;
     if (timeBound == null || !timeBound.enabled) return null;
 
     // For song-based mode, we need targetSongs from a separate config
     // For now, we'll use duration as song count if mode is 'song'
     if (timeBound.isSongBased) {
+      // Get linked provider from user preferences
+      final linkedProvider = await _getLinkedProvider();
+      
       return RhythmicTimerConfig(
         mode: 'song',
         targetSongs: timeBound.duration > 0 ? timeBound.duration : null,
-        linkedProvider: null, // TODO: Get from habit or settings
+        linkedProvider: linkedProvider,
         playlistId: null, // TODO: Get from habit or settings
         fallbackAudioAssets: _getDefaultAudioAssets(),
       );
@@ -71,7 +89,7 @@ final class RhythmicTimerService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final config = getConfig();
+    final config = await getConfig();
     if (config == null) return;
 
     if (config.isSongBased) {
@@ -144,7 +162,7 @@ final class RhythmicTimerService {
       await initialize();
     }
 
-    final config = getConfig();
+    final config = await getConfig();
     if (config == null) return;
 
     if (config.isSongBased) {
@@ -168,7 +186,7 @@ final class RhythmicTimerService {
         logicalDate: logicalDate,
       );
       if (state == null) {
-        final config = getConfig();
+        final config = await getConfig();
         final targetSongs = config?.targetSongs ?? 1;
         await RhythmicTimerStateService.initialize(
           prefs: prefs,
@@ -294,7 +312,7 @@ final class RhythmicTimerService {
 
   /// Get current timer state.
   Future<RhythmicTimerState?> getCurrentState() async {
-    final config = getConfig();
+    final config = await getConfig();
     if (config == null) return null;
 
     if (config.isSongBased) {

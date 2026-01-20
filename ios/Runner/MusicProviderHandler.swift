@@ -1,30 +1,39 @@
 import Flutter
 import Foundation
 import MediaPlayer
+import AVFoundation
 
 /// Handler for music provider integration (Spotify/Apple Music).
 ///
-/// NOTE: This is a placeholder implementation. To enable full integration:
-/// 1. Add Spotify SDK via CocoaPods or SPM
-/// 2. Register your app with Spotify Developer Dashboard
-/// 3. Implement authentication and player state callbacks
-/// 4. Configure Apple Music entitlements in Runner.entitlements
+/// Uses MPMusicPlayerController for Apple Music and NowPlayingInfoCenter for Spotify detection.
 class MusicProviderHandler: NSObject, FlutterPlugin {
     static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "dvb/music_provider", binaryMessenger: registrar.messenger())
+        let methodChannel = FlutterMethodChannel(name: "dvb/music_provider", binaryMessenger: registrar.messenger())
+        let eventChannel = FlutterEventChannel(name: "dvb/music_provider_events", binaryMessenger: registrar.messenger())
         let instance = MusicProviderHandler()
-        registrar.addMethodCallDelegate(instance, channel: channel)
+        registrar.addMethodCallDelegate(instance, channel: methodChannel)
+        eventChannel.setStreamHandler(instance)
     }
+
+    private var eventSink: FlutterEventSink?
+    private var notificationObserver: NSObjectProtocol?
+    private var nowPlayingObserver: NSObjectProtocol?
+    private var pollingTimer: Timer?
 
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "isSpotifyAvailable":
-            // TODO: Check if Spotify app is installed and authenticated
-            result(false)
+            // Check if Spotify app is installed
+            let spotifyInstalled = UIApplication.shared.canOpenURL(URL(string: "spotify:")!)
+            result(spotifyInstalled)
         case "isAppleMusicAvailable":
             // Check Apple Music authorization
             let status = MPMediaLibrary.authorizationStatus()
             result(status == .authorized)
+        case "requestAppleMusicPermission":
+            requestAppleMusicPermission(result: result)
+        case "authenticateSpotify":
+            authenticateSpotify(result: result)
         case "getCurrentTrack":
             getCurrentTrack(result: result)
         case "startListening":
@@ -36,45 +45,145 @@ class MusicProviderHandler: NSObject, FlutterPlugin {
         }
     }
 
+    private func requestAppleMusicPermission(result: @escaping FlutterResult) {
+        MPMediaLibrary.requestAuthorization { status in
+            DispatchQueue.main.async {
+                result(status == .authorized)
+            }
+        }
+    }
+
+    private func authenticateSpotify(result: @escaping FlutterResult) {
+        // For NowPlayingInfoCenter approach, no authentication needed
+        // Spotify tracks are detected via system NowPlayingInfoCenter
+        // If using Spotify SDK for control, implement OAuth here
+        result(true)
+    }
+
     private func getCurrentTrack(result: @escaping FlutterResult) {
-        // TODO: Get current track from Spotify SDK or Apple Music
-        // For Apple Music, use MPMusicPlayerController
+        // Try Apple Music first
         let player = MPMusicPlayerController.systemMusicPlayer
         if let nowPlaying = player.nowPlayingItem {
             let title = nowPlaying.title ?? "Unknown"
-            let artist = nowPlaying.artist ?? nil
+            let artist = nowPlaying.artist
             result([
                 "title": title,
                 "artist": artist ?? NSNull(),
                 "album": nowPlaying.albumTitle ?? NSNull(),
                 "trackId": nowPlaying.persistentID.description,
             ])
-        } else {
-            result(nil)
+            return
         }
+        
+        // Fallback to NowPlayingInfoCenter (works with Spotify and other apps)
+        if let nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+            let title = nowPlayingInfo[MPMediaItemPropertyTitle] as? String ?? "Unknown"
+            let artist = nowPlayingInfo[MPMediaItemPropertyArtist] as? String
+            let album = nowPlayingInfo[MPMediaItemPropertyAlbumTitle] as? String
+            let trackId = nowPlayingInfo[MPMediaItemPropertyPersistentID] as? NSNumber
+            
+            result([
+                "title": title,
+                "artist": artist ?? NSNull(),
+                "album": album ?? NSNull(),
+                "trackId": trackId?.stringValue ?? title,
+            ])
+            return
+        }
+        
+        result(nil)
     }
 
     private func startListening(result: @escaping FlutterResult) {
-        // TODO: Set up MPMusicPlayerController notifications for Apple Music
-        // TODO: Set up Spotify SDK player state listener
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleNowPlayingItemChanged),
-            name: .MPMusicPlayerControllerNowPlayingItemDidChange,
-            object: MPMusicPlayerController.systemMusicPlayer
-        )
+        // Set up MPMusicPlayerController notifications for Apple Music
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .MPMusicPlayerControllerNowPlayingItemDidChange,
+            object: MPMusicPlayerController.systemMusicPlayer,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleNowPlayingItemChanged()
+        }
         MPMusicPlayerController.systemMusicPlayer.beginGeneratingPlaybackNotifications()
+        
+        // Set up polling for NowPlayingInfoCenter (Spotify and other apps)
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkNowPlayingInfo()
+        }
+        
+        // Get initial track
+        DispatchQueue.main.async { [weak self] in
+            self?.handleNowPlayingItemChanged()
+        }
+        
         result(true)
     }
 
     private func stopListening(result: @escaping FlutterResult) {
-        NotificationCenter.default.removeObserver(self)
+        if let observer = notificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            notificationObserver = nil
+        }
+        pollingTimer?.invalidate()
+        pollingTimer = nil
         MPMusicPlayerController.systemMusicPlayer.endGeneratingPlaybackNotifications()
         result(true)
     }
 
     @objc private func handleNowPlayingItemChanged() {
-        // Notify Flutter of track change
-        // This would be sent via a method channel event stream
+        checkNowPlayingInfo()
     }
+    
+    private var lastTrackId: String?
+    
+    private func checkNowPlayingInfo() {
+        // Try Apple Music first
+        let player = MPMusicPlayerController.systemMusicPlayer
+        if let nowPlaying = player.nowPlayingItem {
+            let trackId = nowPlaying.persistentID.description
+            if trackId != lastTrackId {
+                lastTrackId = trackId
+                let trackInfo: [String: Any] = [
+                    "title": nowPlaying.title ?? "Unknown",
+                    "artist": nowPlaying.artist ?? NSNull(),
+                    "album": nowPlaying.albumTitle ?? NSNull(),
+                    "trackId": trackId
+                ]
+                eventSink?.success(trackInfo)
+            }
+            return
+        }
+        
+        // Fallback to NowPlayingInfoCenter (Spotify)
+        if let nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+            let title = nowPlayingInfo[MPMediaItemPropertyTitle] as? String ?? "Unknown"
+            let artist = nowPlayingInfo[MPMediaItemPropertyArtist] as? String
+            let album = nowPlayingInfo[MPMediaItemPropertyAlbumTitle] as? String
+            let trackId = (nowPlayingInfo[MPMediaItemPropertyPersistentID] as? NSNumber)?.stringValue ?? title
+            
+            if trackId != lastTrackId {
+                lastTrackId = trackId
+                let trackInfo: [String: Any] = [
+                    "title": title,
+                    "artist": artist ?? NSNull(),
+                    "album": album ?? NSNull(),
+                    "trackId": trackId
+                ]
+                eventSink?.success(trackInfo)
+            }
+        }
+    }
+}
+
+// MARK: - FlutterStreamHandler
+extension MusicProviderHandler: FlutterStreamHandler {
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        self.eventSink = events
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        eventSink = nil
+        return nil
+    }
+}
 }

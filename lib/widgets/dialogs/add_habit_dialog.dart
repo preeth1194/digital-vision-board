@@ -85,7 +85,7 @@ class _AddHabitDialog extends StatefulWidget {
   State<_AddHabitDialog> createState() => _AddHabitDialogState();
 }
 
-class _AddHabitDialogState extends State<_AddHabitDialog> {
+class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _timeOfDay = TextEditingController();
@@ -116,6 +116,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
   String _timeBoundUnit = 'minutes'; // minutes | hours
   String _timeBoundMode = 'time'; // 'time' | 'song'
   late final TextEditingController _timeBoundDurationC = TextEditingController();
+  late final TabController _timerModeTabController;
 
   bool _locationBoundEnabled = false;
   double? _locLat;
@@ -200,6 +201,23 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
     _timeBoundDurationC.text = _timeBoundDuration.toString();
     _locRadiusC.text = _locRadiusMeters.toString();
     _locDwellMinutesC.text = _locDwellMinutes.toString();
+
+    // Initialize timer mode tab controller
+    _timerModeTabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: _timeBoundMode == 'song' ? 1 : 0,
+    );
+    _timerModeTabController.addListener(() {
+      if (!_timerModeTabController.indexIsChanging) {
+        setState(() {
+          _timeBoundMode = _timerModeTabController.index == 0 ? 'time' : 'song';
+          if (_timeBoundMode == 'song') {
+            _timeBoundUnit = 'minutes'; // Keep unit for compatibility
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -213,6 +231,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
     _timeBoundDurationC.dispose();
     _locRadiusC.dispose();
     _locDwellMinutesC.dispose();
+    _timerModeTabController.dispose();
     super.dispose();
   }
 
@@ -720,75 +739,95 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
                               ),
                               if (_timeBoundEnabled) ...[
                                 const SizedBox(height: 8),
-                                DropdownButtonFormField<String>(
-                                  value: _timeBoundMode,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'time',
-                                      child: Text('Time-Based (minutes/hours)'),
+                                TabBar(
+                                  controller: _timerModeTabController,
+                                  tabs: const [
+                                    Tab(
+                                      text: 'Regular Timer',
+                                      icon: Icon(Icons.timer_outlined),
                                     ),
-                                    DropdownMenuItem(
-                                      value: 'song',
-                                      child: Text('Song-Based (number of songs)'),
+                                    Tab(
+                                      text: 'Select Song',
+                                      icon: Icon(Icons.music_note),
                                     ),
                                   ],
-                                  onChanged: (v) => setState(() {
-                                    _timeBoundMode = (v ?? 'time');
-                                    // For song-based, default unit to "songs" (though unit is not used for songs)
-                                    if (_timeBoundMode == 'song') {
-                                      _timeBoundUnit = 'minutes'; // Keep unit for compatibility
-                                    }
-                                  }),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Timer Mode',
-                                    border: OutlineInputBorder(),
-                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        keyboardType: TextInputType.number,
-                                        decoration: InputDecoration(
-                                          labelText: _timeBoundMode == 'song' ? 'Number of songs' : 'Duration',
-                                          border: const OutlineInputBorder(),
-                                        ),
-                                        controller: _timeBoundDurationC,
-                                        onChanged: (v) => setState(() =>
-                                            _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
-                                      ),
-                                    ),
-                                    if (_timeBoundMode == 'time') ...[
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                        width: 140,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _timeBoundUnit,
-                                          items: const [
-                                            DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
-                                            DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                SizedBox(
+                                  height: 200,
+                                  child: TabBarView(
+                                    controller: _timerModeTabController,
+                                    children: [
+                                      // Regular Timer Tab
+                                      Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    keyboardType: TextInputType.number,
+                                                    decoration: const InputDecoration(
+                                                      labelText: 'Duration',
+                                                      border: OutlineInputBorder(),
+                                                    ),
+                                                    controller: _timeBoundDurationC,
+                                                    onChanged: (v) => setState(() =>
+                                                        _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                SizedBox(
+                                                  width: 140,
+                                                  child: DropdownButtonFormField<String>(
+                                                    value: _timeBoundUnit,
+                                                    items: const [
+                                                      DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                                                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                                    ],
+                                                    onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
+                                                    decoration: const InputDecoration(
+                                                      labelText: 'Unit',
+                                                      border: OutlineInputBorder(),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ],
-                                          onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
-                                          decoration: const InputDecoration(
-                                            labelText: 'Unit',
-                                            border: OutlineInputBorder(),
-                                          ),
+                                        ),
+                                      ),
+                                      // Select Song Tab
+                                      Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            TextField(
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Number of songs',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              controller: _timeBoundDurationC,
+                                              onChanged: (v) => setState(() =>
+                                                  _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'Song-based mode tracks progress by number of songs played. Connect your music service in the timer screen.',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
-                                  ],
-                                ),
-                                if (_timeBoundMode == 'song') ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Song-based mode tracks progress by number of songs played. Connect your music service in the timer screen.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
                                   ),
-                                ],
+                                ),
                               ],
                               const SizedBox(height: 12),
                               const Divider(height: 1),

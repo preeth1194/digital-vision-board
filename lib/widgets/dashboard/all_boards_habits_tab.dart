@@ -28,6 +28,20 @@ class AllBoardsHabitsTab extends StatelessWidget {
 
   static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
 
+  /// Helper function to get the appropriate icon for a habit type
+  static Widget _getHabitTypeIcon(HabitItem habit) {
+    if (habit.timeBound?.isSongBased == true) {
+      return const Icon(Icons.music_note, size: 24);
+    }
+    if (habit.timeBound?.enabled == true) {
+      return const Icon(Icons.timer_outlined, size: 24);
+    }
+    if (habit.locationBound?.enabled == true) {
+      return const Icon(Icons.location_on_outlined, size: 24);
+    }
+    return const SizedBox.shrink(); // No icon for regular habits
+  }
+
   @override
   Widget build(BuildContext context) {
     final boardIds = boards.map((b) => b.id).toList();
@@ -235,90 +249,125 @@ class AllBoardsHabitsTab extends StatelessWidget {
                             final now = LogicalDateService.now();
                             final scheduledToday = habit.isScheduledOnDate(now);
                             final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
-                            return CheckboxListTile(
-                              value: isCompleted,
-                              onChanged: scheduledToday
-                                  ? (_) async {
-                                  await toggleHabitForBoard(
-                                    boardId: id,
-                                    boardTitle: board.title,
-                                    components: components,
-                                    component: component,
-                                    habit: habit,
-                                  );
-                                }
+                            return Container(
+                              color: (habit.locationBound?.enabled == true)
+                                  ? Theme.of(context).colorScheme.tertiaryContainer
                                   : null,
-                              title: Text(habit.name),
-                              subtitle: scheduledToday ? null : const Text('Not scheduled today'),
-                              tileColor: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
-                              secondary: (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
-                                  ? IconButton(
-                                      tooltip: 'Timer',
-                                      icon: const Icon(Icons.timer_outlined),
-                                      onPressed: () async {
-                                        final isSongBased = habit.timeBound?.isSongBased ?? false;
-                                        await Navigator.of(context).push(
-                                          MaterialPageRoute<void>(
-                                            builder: (_) => isSongBased
-                                                ? RhythmicTimerScreen(
-                                                    habit: habit,
-                                                    onMarkCompleted: () async {
-                                                      final latestComponents = componentsByBoardId[id] ?? const <VisionComponent>[];
-                                                      final latestComponent = latestComponents
-                                                          .where((c) => c.id == component.id)
-                                                          .cast<VisionComponent?>()
-                                                          .firstWhere((_) => true, orElse: () => null);
-                                                      if (latestComponent == null) return;
-                                                      final latestHabit = latestComponent.habits
-                                                          .where((h) => h.id == habit.id)
-                                                          .cast<HabitItem?>()
-                                                          .firstWhere((_) => true, orElse: () => null);
-                                                      if (latestHabit == null) return;
-                                                      final now2 = LogicalDateService.now();
-                                                      if (!latestHabit.isScheduledOnDate(now2)) return;
-                                                      if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                                      await toggleHabitForBoard(
-                                                        boardId: id,
-                                                        boardTitle: board.title,
-                                                        components: latestComponents,
-                                                        component: latestComponent,
-                                                        habit: latestHabit,
-                                                      );
-                                                    },
-                                                  )
-                                                : HabitTimerScreen(
-                                                    habit: habit,
-                                                    onMarkCompleted: () async {
-                                                      final latestComponents = componentsByBoardId[id] ?? const <VisionComponent>[];
-                                                      final latestComponent = latestComponents
-                                                          .where((c) => c.id == component.id)
-                                                          .cast<VisionComponent?>()
-                                                          .firstWhere((_) => true, orElse: () => null);
-                                                      if (latestComponent == null) return;
-                                                      final latestHabit = latestComponent.habits
-                                                          .where((h) => h.id == habit.id)
-                                                          .cast<HabitItem?>()
-                                                          .firstWhere((_) => true, orElse: () => null);
-                                                      if (latestHabit == null) return;
-                                                      final now2 = LogicalDateService.now();
-                                                      if (!latestHabit.isScheduledOnDate(now2)) return;
-                                                      if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                                      await toggleHabitForBoard(
-                                                        boardId: id,
-                                                        boardTitle: board.title,
-                                                        components: latestComponents,
-                                                        component: latestComponent,
-                                                        habit: latestHabit,
-                                                      );
-                                                    },
-                                                  ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isCompleted,
+                                      onChanged: scheduledToday
+                                          ? (_) async {
+                                          await toggleHabitForBoard(
+                                            boardId: id,
+                                            boardTitle: board.title,
+                                            components: components,
+                                            component: component,
+                                            habit: habit,
+                                          );
+                                        }
+                                          : null,
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            habit.name,
+                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                                           ),
-                                        );
-                                      },
-                                    )
-                                  : null,
-                              controlAffinity: ListTileControlAffinity.leading,
-                              dense: true,
+                                          if (!scheduledToday) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Not scheduled today',
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 1,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: _getHabitTypeIcon(habit),
+                                      ),
+                                    ),
+                                    if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
+                                      IconButton(
+                                        tooltip: 'Timer',
+                                        icon: const Icon(Icons.timer_outlined),
+                                        onPressed: () async {
+                                          final isSongBased = habit.timeBound?.isSongBased ?? false;
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => isSongBased
+                                                  ? RhythmicTimerScreen(
+                                                      habit: habit,
+                                                      onMarkCompleted: () async {
+                                                        final latestComponents = componentsByBoardId[id] ?? const <VisionComponent>[];
+                                                        final latestComponent = latestComponents
+                                                            .where((c) => c.id == component.id)
+                                                            .cast<VisionComponent?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestComponent == null) return;
+                                                        final latestHabit = latestComponent.habits
+                                                            .where((h) => h.id == habit.id)
+                                                            .cast<HabitItem?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestHabit == null) return;
+                                                        final now2 = LogicalDateService.now();
+                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
+                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                                        await toggleHabitForBoard(
+                                                          boardId: id,
+                                                          boardTitle: board.title,
+                                                          components: latestComponents,
+                                                          component: latestComponent,
+                                                          habit: latestHabit,
+                                                        );
+                                                      },
+                                                    )
+                                                  : HabitTimerScreen(
+                                                      habit: habit,
+                                                      onMarkCompleted: () async {
+                                                        final latestComponents = componentsByBoardId[id] ?? const <VisionComponent>[];
+                                                        final latestComponent = latestComponents
+                                                            .where((c) => c.id == component.id)
+                                                            .cast<VisionComponent?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestComponent == null) return;
+                                                        final latestHabit = latestComponent.habits
+                                                            .where((h) => h.id == habit.id)
+                                                            .cast<HabitItem?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestHabit == null) return;
+                                                        final now2 = LogicalDateService.now();
+                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
+                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                                        await toggleHabitForBoard(
+                                                          boardId: id,
+                                                          boardTitle: board.title,
+                                                          components: latestComponents,
+                                                          component: latestComponent,
+                                                          habit: latestHabit,
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
                             );
                           }),
                         ],

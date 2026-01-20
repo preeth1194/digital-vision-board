@@ -48,6 +48,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Manifest placeholders for OAuth redirects (used by plugins like google_sign_in)
+        manifestPlaceholders["redirectHostName"] = "localhost"
+        manifestPlaceholders["redirectSchemeName"] = "com.example.digital_vision_board"
     }
 
     signingConfigs {

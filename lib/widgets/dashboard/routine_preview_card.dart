@@ -27,7 +27,7 @@ class RoutinePreviewCard extends StatelessWidget {
   double _getCompletionPercentage() {
     if (routine.todos.isEmpty) return 0.0;
     if (prefs == null) return 0.0;
-    final logicalDate = LogicalDateService.getLogicalDateSync(prefs: prefs!);
+    final logicalDate = LogicalDateService.today();
     final completed = routine.todos
         .where((todo) => todo.isCompletedOnDate(logicalDate))
         .length;
@@ -40,10 +40,9 @@ class RoutinePreviewCard extends StatelessWidget {
     final tileColor = Color(routine.tileColorValue);
     final icon = IconData(routine.iconCodePoint, fontFamily: 'MaterialIcons');
     final progress = _getCompletionPercentage();
+    final logicalDate = LogicalDateService.today();
     final completedCount = routine.todos
-        .where((todo) => todo.isCompletedOnDate(
-              LogicalDateService.getLogicalDateSync(prefs: prefs),
-            ))
+        .where((todo) => todo.isCompletedOnDate(logicalDate))
         .length;
 
     return Card(

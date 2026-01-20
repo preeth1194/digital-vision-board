@@ -123,7 +123,7 @@ class _AddAffirmationDialogState extends State<_AddAffirmationDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              TextFormField(
                 controller: _textController,
                 decoration: const InputDecoration(
                   labelText: 'Affirmation text',

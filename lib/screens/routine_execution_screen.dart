@@ -87,7 +87,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
   }
 
   Future<void> _markTodoComplete(RoutineTodoItem todo) async {
-    final logicalDate = await LogicalDateService.getLogicalDate(prefs: _prefs);
+    final logicalDate = LogicalDateService.today();
     final updatedTodo = todo.toggleForDate(logicalDate);
 
     setState(() {
@@ -129,8 +129,8 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
 
   double get _progress {
     if (_routine == null || _routine!.todos.isEmpty) return 0.0;
+    final logicalDate = LogicalDateService.today();
     final completed = _routine!.todos.where((todo) {
-      final logicalDate = LogicalDateService.getLogicalDateSync(prefs: _prefs);
       return todo.isCompletedOnDate(logicalDate);
     }).length;
     return completed / _routine!.todos.length;
@@ -157,7 +157,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
 
     final icon = IconData(currentTodo.iconCodePoint, fontFamily: 'MaterialIcons');
     final isCompleted = currentTodo.isCompletedOnDate(
-      LogicalDateService.getLogicalDateSync(prefs: _prefs),
+      LogicalDateService.today(),
     );
 
     return Scaffold(

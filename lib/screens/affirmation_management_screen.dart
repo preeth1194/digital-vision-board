@@ -78,11 +78,9 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
     final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
     categories.insert(0, 'General');
     
-    final affirmation = await showDialog<Affirmation?>(
-      context: context,
-      builder: (ctx) => _AddAffirmationDialog(
-        availableCategories: categories,
-      ),
+    final affirmation = await showAddAffirmationDialog(
+      context,
+      availableCategories: categories,
     );
     
     if (affirmation == null) return;
@@ -109,12 +107,10 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
     final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
     categories.insert(0, 'General');
     
-    final updated = await showDialog<Affirmation?>(
-      context: context,
-      builder: (ctx) => _AddAffirmationDialog(
-        initialAffirmation: affirmation,
-        availableCategories: categories,
-      ),
+    final updated = await showAddAffirmationDialog(
+      context,
+      initialAffirmation: affirmation,
+      availableCategories: categories,
     );
     
     if (updated == null) return;

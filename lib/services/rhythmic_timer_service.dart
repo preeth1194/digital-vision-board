@@ -310,7 +310,7 @@ final class RhythmicTimerService {
       await initialize();
     }
 
-    final config = getConfig();
+    final config = await getConfig();
     if (config == null) return;
 
     if (config.isSongBased) {

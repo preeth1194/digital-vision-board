@@ -49,7 +49,7 @@ class IconService {
     'study': Icons.school_outlined,
     'learn': Icons.school_outlined,
     'homework': Icons.assignment_outlined,
-    'practice': Icons.practice_outlined,
+    'practice': Icons.fitness_center_outlined,
 
     // Work/Productivity
     'work': Icons.work_outline,

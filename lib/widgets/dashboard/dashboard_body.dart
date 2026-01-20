@@ -11,6 +11,7 @@ import '../../screens/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/daily_overview_screen.dart';
+import '../../screens/affirmation_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
@@ -140,7 +141,8 @@ class DashboardBody extends StatelessWidget {
           onDeleteRoutine: onDeleteRoutine,
         ),
       2 => const JournalNotesScreen(embedded: true),
-      3 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
+      3 => AffirmationScreen(prefs: prefs),
+      5 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
           future: _loadBoardComponents(activeBoard),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
@@ -152,7 +154,7 @@ class DashboardBody extends StatelessWidget {
             );
           },
         ),
-      3 => FutureBuilder<Map<String, List<VisionComponent>>>(
+      5 => FutureBuilder<Map<String, List<VisionComponent>>>(
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());

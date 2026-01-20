@@ -680,7 +680,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 2, 4]; // Dashboard, Journal, Insights
+    const visibleTabIndices = <int>[1, 2, 3, 4]; // Dashboard, Journal, Affirmations, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final appBarTitle = _tabIndex == 1
@@ -688,7 +688,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         : _tabIndex == 2
             ? 'Journal'
             : _tabIndex == 3
-                ? 'Todo'
+                ? 'Affirmations'
                 : _tabIndex == 4
                     ? 'Insights'
                     : 'Digital Vision Board';
@@ -844,6 +844,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Affirmations'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
         ],
       ),

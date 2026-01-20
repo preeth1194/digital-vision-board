@@ -52,6 +52,13 @@ import {
 import { generateWizardRecommendationsBatchWithGemini, generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg, upsertStockCategoryImagePg } from "./stock_category_images_pg.js";
+import {
+  getAllAffirmationsPg,
+  getAffirmationsPg,
+  upsertAffirmationPg,
+  deleteAffirmationPg,
+  pinAffirmationPg,
+} from "./affirmations_pg.js";
 
 const app = express();
 
@@ -1677,6 +1684,100 @@ app.post("/sync/push", requireDvAuth(), async (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+// ---- Affirmations APIs ----
+app.get("/api/affirmations", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const category = typeof req.query.category === "string" ? req.query.category.trim() : null;
+    const affirmations = await getAffirmationsPg(req.dvUser.canvaUserId, category || null);
+    res.json({ ok: true, affirmations });
+  } catch (e) {
+    res.status(500).json({ error: "affirmations_fetch_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/api/affirmations", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const body = req.body ?? {};
+    const affirmation = {
+      id: typeof body.id === "string" ? body.id : null,
+      category: typeof body.category === "string" ? body.category.trim() || null : null,
+      text: typeof body.text === "string" ? body.text.trim() : "",
+      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
+      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
+    };
+    if (!affirmation.text) {
+      return res.status(400).json({ error: "text_required" });
+    }
+    const affirmationId = await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
+    res.json({ ok: true, id: affirmationId });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_create_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.put("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const body = req.body ?? {};
+    const affirmation = {
+      id: affirmationId,
+      category: typeof body.category === "string" ? body.category.trim() || null : null,
+      text: typeof body.text === "string" ? body.text.trim() : "",
+      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
+      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
+    };
+    if (!affirmation.text) {
+      return res.status(400).json({ error: "text_required" });
+    }
+    await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_update_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.delete("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const deleted = await deleteAffirmationPg(req.dvUser.canvaUserId, affirmationId);
+    if (!deleted) {
+      return res.status(404).json({ error: "affirmation_not_found" });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_delete_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.put("/api/affirmations/:id/pin", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const body = req.body ?? {};
+    const isPinned = Boolean(body.is_pinned ?? body.isPinned ?? true);
+    const updated = await pinAffirmationPg(req.dvUser.canvaUserId, affirmationId, isPinned);
+    if (!updated) {
+      return res.status(404).json({ error: "affirmation_not_found" });
+    }
+    res.json({ ok: true, is_pinned: isPinned });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_pin_failed", message: String(e?.message ?? e) });
+  }
 });
 
 const port = Number(process.env.PORT ?? 8787);

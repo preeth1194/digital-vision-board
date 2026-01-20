@@ -114,6 +114,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
   bool _timeBoundEnabled = false;
   int _timeBoundDuration = 15;
   String _timeBoundUnit = 'minutes'; // minutes | hours
+  String _timeBoundMode = 'time'; // 'time' | 'song'
   late final TextEditingController _timeBoundDurationC = TextEditingController();
 
   bool _locationBoundEnabled = false;
@@ -171,6 +172,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
         _timeBoundEnabled = true;
         _timeBoundDuration = tb.duration <= 0 ? 15 : tb.duration;
         _timeBoundUnit = (tb.unit.trim().isEmpty) ? 'minutes' : tb.unit.trim().toLowerCase();
+        _timeBoundMode = (tb.mode.trim().isEmpty) ? 'time' : tb.mode.trim().toLowerCase();
       }
 
       final lb = initialHabit.locationBound;
@@ -338,6 +340,7 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
             enabled: true,
             duration: _timeBoundDuration <= 0 ? 1 : _timeBoundDuration,
             unit: _timeBoundUnit,
+            mode: _timeBoundMode,
           )
         : null;
 
@@ -717,38 +720,75 @@ class _AddHabitDialogState extends State<_AddHabitDialog> {
                               ),
                               if (_timeBoundEnabled) ...[
                                 const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  value: _timeBoundMode,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'time',
+                                      child: Text('Time-Based (minutes/hours)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'song',
+                                      child: Text('Song-Based (number of songs)'),
+                                    ),
+                                  ],
+                                  onChanged: (v) => setState(() {
+                                    _timeBoundMode = (v ?? 'time');
+                                    // For song-based, default unit to "songs" (though unit is not used for songs)
+                                    if (_timeBoundMode == 'song') {
+                                      _timeBoundUnit = 'minutes'; // Keep unit for compatibility
+                                    }
+                                  }),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Timer Mode',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
                                     Expanded(
                                       child: TextField(
                                         keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Duration',
-                                          border: OutlineInputBorder(),
+                                        decoration: InputDecoration(
+                                          labelText: _timeBoundMode == 'song' ? 'Number of songs' : 'Duration',
+                                          border: const OutlineInputBorder(),
                                         ),
                                         controller: _timeBoundDurationC,
                                         onChanged: (v) => setState(() =>
                                             _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    SizedBox(
-                                      width: 140,
-                                      child: DropdownButtonFormField<String>(
-                                        value: _timeBoundUnit,
-                                        items: const [
-                                          DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
-                                          DropdownMenuItem(value: 'hours', child: Text('Hours')),
-                                        ],
-                                        onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Unit',
-                                          border: OutlineInputBorder(),
+                                    if (_timeBoundMode == 'time') ...[
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        width: 140,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _timeBoundUnit,
+                                          items: const [
+                                            DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                                            DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                          ],
+                                          onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
+                                          decoration: const InputDecoration(
+                                            labelText: 'Unit',
+                                            border: OutlineInputBorder(),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ],
                                 ),
+                                if (_timeBoundMode == 'song') ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Song-based mode tracks progress by number of songs played. Connect your music service in the timer screen.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ],
                               const SizedBox(height: 12),
                               const Divider(height: 1),

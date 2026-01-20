@@ -158,32 +158,72 @@ final class RhythmicTimerService {
   }
 
   Future<void> _startSongMode() async {
-    // Set up track change listener
-    if (_musicProvider != null) {
-      _trackSubscription?.cancel();
-      _trackSubscription = _musicProvider!.trackChanges().listen((track) {
-        _onTrackChanged(_musicProvider!);
-      });
-
-      // Get initial track
-      final currentTrack = await _musicProvider!.getCurrentTrack();
-      if (currentTrack != null) {
-        await RhythmicTimerStateService.updateCurrentSong(
+    // If no music provider is available, we can still track manually
+    // User can manually mark songs as complete
+    if (_musicProvider == null) {
+      // Initialize state if not already done
+      final state = await RhythmicTimerStateService.getState(
+        prefs: prefs,
+        habitId: habitId,
+        logicalDate: logicalDate,
+      );
+      if (state == null) {
+        final config = getConfig();
+        final targetSongs = config?.targetSongs ?? 1;
+        await RhythmicTimerStateService.initialize(
           prefs: prefs,
           habitId: habitId,
           logicalDate: logicalDate,
-          songTitle: currentTrack.title,
+          totalSongs: targetSongs,
         );
       }
+      // Set a placeholder song title
+      await RhythmicTimerStateService.updateCurrentSong(
+        prefs: prefs,
+        habitId: habitId,
+        logicalDate: logicalDate,
+        songTitle: 'Manual Mode - Tap to mark songs complete',
+      );
+      return;
+    }
 
-      // If using fallback audio player, start playing
-      if (_musicProvider is FallbackAudioProvider && _audioPlayer != null) {
-        final fallback = _musicProvider as FallbackAudioProvider;
-        final track = await fallback.getCurrentTrack();
-        if (track?.trackId != null) {
+    // Set up track change listener
+    _trackSubscription?.cancel();
+    _trackSubscription = _musicProvider!.trackChanges().listen((track) {
+      _onTrackChanged(_musicProvider!);
+    });
+
+    // Get initial track
+    final currentTrack = await _musicProvider!.getCurrentTrack();
+    if (currentTrack != null) {
+      await RhythmicTimerStateService.updateCurrentSong(
+        prefs: prefs,
+        habitId: habitId,
+        logicalDate: logicalDate,
+        songTitle: currentTrack.title,
+      );
+    } else {
+      // No current track, set placeholder
+      await RhythmicTimerStateService.updateCurrentSong(
+        prefs: prefs,
+        habitId: habitId,
+        logicalDate: logicalDate,
+        songTitle: 'Waiting for music...',
+      );
+    }
+
+    // If using fallback audio player, start playing
+    if (_musicProvider is FallbackAudioProvider && _audioPlayer != null) {
+      final fallback = _musicProvider as FallbackAudioProvider;
+      final track = await fallback.getCurrentTrack();
+      if (track?.trackId != null) {
+        try {
           // Remove 'assets/' prefix for AssetSource
           final assetPath = track!.trackId!.replaceFirst('assets/', '');
           await _audioPlayer!.play(AssetSource(assetPath));
+        } catch (e) {
+          // Asset not found, continue without audio
+          print('Could not play audio asset: $e');
         }
       }
     }

@@ -179,8 +179,22 @@ class _RhythmicTimerScreenState extends State<RhythmicTimerScreen> {
     if (_isSongBased) {
       if (_running) {
         await _rhythmicTimer?.pause();
+        setState(() {
+          _running = false;
+        });
       } else {
-        await _rhythmicTimer?.start();
+        try {
+          await _rhythmicTimer?.start();
+          setState(() {
+            _running = true;
+          });
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not start timer: ${e.toString()}')),
+            );
+          }
+        }
       }
     } else {
       if (_running) {
@@ -198,9 +212,11 @@ class _RhythmicTimerScreenState extends State<RhythmicTimerScreen> {
       }
     }
     await _refresh();
-    setState(() {
-      _running = !_running;
-    });
+    if (!_isSongBased) {
+      setState(() {
+        _running = !_running;
+      });
+    }
   }
 
   Future<void> _reset() async {

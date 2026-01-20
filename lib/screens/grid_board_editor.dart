@@ -87,10 +87,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
     final loaded = await GridTilesStorageService.loadTiles(widget.boardId, prefs: _prefs);
     final hydrated = _ensureTemplateTiles(loaded);
-    await GridTilesStorageService.saveTiles(widget.boardId, hydrated, prefs: _prefs);
+    // Ensure tiles are sorted by index for consistent ordering and sizing
+    final sorted = GridTilesStorageService.sortTiles(hydrated);
+    await GridTilesStorageService.saveTiles(widget.boardId, sorted, prefs: _prefs);
     if (!mounted) return;
     setState(() {
-      _tiles = hydrated;
+      _tiles = sorted;
       _loading = false;
     });
   }
@@ -774,8 +776,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     Widget base;
     if (tile.type == 'image') {
       final raw = (tile.content ?? '').trim();
-      final src = raw.isEmpty ? '' : TemplatesService.absolutizeMaybe(raw);
-      final provider = fileImageProviderFromPath(src);
+      // Use raw path directly - fileImageProviderFromPath handles both URLs and local paths correctly
+      // No need to use absolutizeMaybe here as it can incorrectly convert local paths to server URLs
+      final provider = fileImageProviderFromPath(raw);
       base = Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
@@ -970,20 +973,24 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                           mainAxisSpacing: spacing,
                           crossAxisSpacing: spacing,
                           children: [
-                          for (int i = 0; i < _tiles.length; i++)
-                            StaggeredGridTile.count(
-                              crossAxisCellCount: _tileAt(i).crossAxisCellCount,
-                              mainAxisCellCount: _tileAt(i).mainAxisCellCount,
-                              child: DragTarget<int>(
-                                onWillAcceptWithDetails: (details) =>
-                                    _isEditing &&
-                                    details.data != i &&
-                                    (_selectedIndex == null || _draggingIndex != null),
-                                onAcceptWithDetails: (details) =>
-                                    _swapTileSlots(details.data, i),
-                                builder: (context, candidateData, rejectedData) {
-                                  final tile = _tileAt(i);
-                                  final isSelected = _isEditing && _selectedIndex == i;
+                          // Use sorted tiles directly to ensure consistent order and sizing
+                          for (int idx = 0; idx < _tiles.length; idx++)
+                            Builder(
+                              builder: (context) {
+                                final tile = _tiles[idx];
+                                final i = tile.index;
+                                return StaggeredGridTile.count(
+                                  crossAxisCellCount: tile.crossAxisCellCount,
+                                  mainAxisCellCount: tile.mainAxisCellCount,
+                                  child: DragTarget<int>(
+                                    onWillAcceptWithDetails: (details) =>
+                                        _isEditing &&
+                                        details.data != i &&
+                                        (_selectedIndex == null || _draggingIndex != null),
+                                    onAcceptWithDetails: (details) =>
+                                        _swapTileSlots(details.data, i),
+                                    builder: (context, candidateData, rejectedData) {
+                                      final isSelected = _isEditing && _selectedIndex == i;
                                   final selectionLocked =
                                       _isEditing && _selectedIndex != null && !isSelected;
                                   final isDropTarget = candidateData.isNotEmpty;
@@ -1112,13 +1119,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                     onTap: (!_isEditing)
                                         ? () async {
                                             // View mode: open the goal viewer for this tile.
-                                            final current = _tileAt(i);
-                                            if (current.type == 'empty') return;
+                                            if (tile.type == 'empty') return;
                                             await Navigator.of(context).push(
                                               MaterialPageRoute(
                                                 builder: (_) => GridGoalViewerScreen(
                                                   boardId: widget.boardId,
-                                                  tileId: current.id,
+                                                  tileId: tile.id,
                                                 ),
                                               ),
                                             );
@@ -1184,8 +1190,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                     childWhenDragging: Opacity(opacity: 0.25, child: content),
                                     child: content,
                                   );
-                                },
-                              ),
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

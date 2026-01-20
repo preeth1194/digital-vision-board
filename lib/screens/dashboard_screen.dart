@@ -572,18 +572,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[0, 1, 2, 4]; // Dashboard, Daily, Journal, Insights
+    const visibleTabIndices = <int>[0, 1, 2, 4]; // View Goals, Dashboard, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
-    final appBarTitle = _tabIndex == 1
-        ? 'Daily'
-        : _tabIndex == 2
-            ? 'Journal'
-            : _tabIndex == 3
-                ? 'Todo'
-                : _tabIndex == 4
-                    ? 'Insights'
-                    : 'Digital Vision Board';
+    final appBarTitle = _tabIndex == 0
+        ? 'Goals'
+        : _tabIndex == 1
+            ? 'Dashboard'
+            : _tabIndex == 2
+                ? 'Journal'
+                : _tabIndex == 3
+                    ? 'Todo'
+                    : _tabIndex == 4
+                        ? 'Insights'
+                        : 'Digital Vision Board';
 
     final body = DashboardBody(
       tabIndex: _tabIndex,
@@ -679,11 +681,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
-          IconButton(
-            tooltip: 'View goals',
-            icon: const Icon(Icons.flip_to_front),
-            onPressed: _openLandingScreen,
-          ),
           Builder(
             builder: (ctx) {
               final count = _reminderSummary?.todayPendingCount ?? 0;
@@ -733,8 +730,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.today_outlined), label: 'Daily'),
+          BottomNavigationBarItem(icon: Icon(Icons.flip_to_front), label: 'Goals'),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
         ],

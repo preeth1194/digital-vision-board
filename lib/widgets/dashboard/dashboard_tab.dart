@@ -67,10 +67,6 @@ class DashboardTab extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                PuzzleWidget(
-                  boards: boards,
-                  prefs: prefs,
-                ),
                 ...boards.map((b) {
                   return VisionBoardPreviewCard(
                     board: b,
@@ -81,6 +77,10 @@ class DashboardTab extends StatelessWidget {
                     onDelete: () => onDeleteBoard(b),
                   );
                 }),
+                PuzzleWidget(
+                  boards: boards,
+                  prefs: prefs,
+                ),
               ],
             ),
           ),

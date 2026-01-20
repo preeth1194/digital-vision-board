@@ -59,7 +59,7 @@ class DashboardTab extends StatelessWidget {
             // Vision Board button
             FilledButton.icon(
               onPressed: onCreateBoard,
-              icon: const Icon(Icons.dashboard_outlined, size: 24),
+              icon: const Icon(Icons.dashboard_outlined, size: 18),
               label: const Text(
                 'Create Vision Board',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -68,12 +68,15 @@ class DashboardTab extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 backgroundColor: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
             // Routine button
             FilledButton.icon(
               onPressed: onCreateRoutine,
-              icon: const Icon(Icons.list_alt, size: 24),
+              icon: const Icon(Icons.list_alt, size: 18),
               label: const Text(
                 'Create Routine',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -82,6 +85,9 @@ class DashboardTab extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 backgroundColor: colorScheme.secondary,
                 foregroundColor: colorScheme.onSecondary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ],

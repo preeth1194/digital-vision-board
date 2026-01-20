@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
+import '../models/spotify_playlist.dart';
+
 /// Abstract interface for music providers (Spotify, Apple Music, or fallback).
 abstract class MusicProvider {
   /// Check if the provider is available and linked.
@@ -12,6 +14,15 @@ abstract class MusicProvider {
   /// Start listening for track changes.
   /// Returns a stream that emits when the track changes.
   Stream<CurrentTrack> trackChanges();
+
+  /// Get user's playlists (optional - only if provider supports it)
+  Future<List<SpotifyPlaylist>> getPlaylists({int limit = 50, int offset = 0});
+
+  /// Search for tracks/songs
+  Future<List<SpotifyTrack>> searchTracks(String query, {int limit = 20});
+
+  /// Get tracks from a playlist
+  Future<List<SpotifyTrack>> getPlaylistTracks(String playlistId, {int limit = 100, int offset = 0});
 
   /// Dispose resources.
   void dispose();
@@ -139,6 +150,57 @@ class SpotifyProvider implements MusicProvider {
   }
 
   @override
+  Future<List<SpotifyPlaylist>> getPlaylists({int limit = 50, int offset = 0}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<List<dynamic>>(
+        'getSpotifyPlaylists',
+        {'limit': limit, 'offset': offset},
+      );
+      if (result == null) return [];
+      return result
+          .map((item) => SpotifyPlaylist.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } catch (e) {
+      // If not implemented, return empty list
+      return [];
+    }
+  }
+
+  @override
+  Future<List<SpotifyTrack>> searchTracks(String query, {int limit = 20}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<List<dynamic>>(
+        'searchSpotifyTracks',
+        {'query': query, 'limit': limit},
+      );
+      if (result == null) return [];
+      return result
+          .map((item) => SpotifyTrack.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } catch (e) {
+      // If not implemented, return empty list
+      return [];
+    }
+  }
+
+  @override
+  Future<List<SpotifyTrack>> getPlaylistTracks(String playlistId, {int limit = 100, int offset = 0}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<List<dynamic>>(
+        'getSpotifyPlaylistTracks',
+        {'playlistId': playlistId, 'limit': limit, 'offset': offset},
+      );
+      if (result == null) return [];
+      return result
+          .map((item) => SpotifyTrack.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } catch (e) {
+      // If not implemented, return empty list
+      return [];
+    }
+  }
+
+  @override
   void dispose() {
     _pollTimer?.cancel();
     _pollTimer = null;
@@ -254,6 +316,24 @@ class AppleMusicProvider implements MusicProvider {
   }
 
   @override
+  Future<List<SpotifyPlaylist>> getPlaylists({int limit = 50, int offset = 0}) async {
+    // Apple Music playlist support would go here
+    return [];
+  }
+
+  @override
+  Future<List<SpotifyTrack>> searchTracks(String query, {int limit = 20}) async {
+    // Apple Music search support would go here
+    return [];
+  }
+
+  @override
+  Future<List<SpotifyTrack>> getPlaylistTracks(String playlistId, {int limit = 100, int offset = 0}) async {
+    // Apple Music playlist tracks support would go here
+    return [];
+  }
+
+  @override
   void dispose() {
     _methodChannel.invokeMethod('stopListening').catchError((_) {});
     _eventSubscription?.cancel();
@@ -323,6 +403,24 @@ class FallbackAudioProvider implements MusicProvider {
   /// Reset to first track.
   void reset() {
     _currentIndex = 0;
+  }
+
+  @override
+  Future<List<SpotifyPlaylist>> getPlaylists({int limit = 50, int offset = 0}) async {
+    // Fallback provider doesn't support playlists
+    return [];
+  }
+
+  @override
+  Future<List<SpotifyTrack>> searchTracks(String query, {int limit = 20}) async {
+    // Fallback provider doesn't support search
+    return [];
+  }
+
+  @override
+  Future<List<SpotifyTrack>> getPlaylistTracks(String playlistId, {int limit = 100, int offset = 0}) async {
+    // Fallback provider doesn't support playlists
+    return [];
   }
 
   @override

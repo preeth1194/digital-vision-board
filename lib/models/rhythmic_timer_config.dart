@@ -12,6 +12,9 @@ final class RhythmicTimerConfig {
   /// Playlist ID for linked music provider.
   final String? playlistId;
 
+  /// Selected track IDs (when specific songs are selected instead of a playlist).
+  final List<String>? selectedTrackIds;
+
   /// Fallback audio assets to use when no provider is linked.
   final List<String>? fallbackAudioAssets;
 
@@ -20,6 +23,7 @@ final class RhythmicTimerConfig {
     this.targetSongs,
     this.linkedProvider,
     this.playlistId,
+    this.selectedTrackIds,
     this.fallbackAudioAssets,
   });
 
@@ -31,6 +35,7 @@ final class RhythmicTimerConfig {
         'targetSongs': targetSongs,
         'linkedProvider': linkedProvider,
         'playlistId': playlistId,
+        'selectedTrackIds': selectedTrackIds,
         'fallbackAudioAssets': fallbackAudioAssets,
       };
 
@@ -40,6 +45,9 @@ final class RhythmicTimerConfig {
       targetSongs: (json['targetSongs'] as num?)?.toInt(),
       linkedProvider: json['linkedProvider'] as String?,
       playlistId: json['playlistId'] as String?,
+      selectedTrackIds: (json['selectedTrackIds'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
       fallbackAudioAssets: (json['fallbackAudioAssets'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
@@ -51,6 +59,7 @@ final class RhythmicTimerConfig {
     int? targetSongs,
     String? linkedProvider,
     String? playlistId,
+    List<String>? selectedTrackIds,
     List<String>? fallbackAudioAssets,
   }) {
     return RhythmicTimerConfig(
@@ -58,6 +67,7 @@ final class RhythmicTimerConfig {
       targetSongs: targetSongs ?? this.targetSongs,
       linkedProvider: linkedProvider ?? this.linkedProvider,
       playlistId: playlistId ?? this.playlistId,
+      selectedTrackIds: selectedTrackIds ?? this.selectedTrackIds,
       fallbackAudioAssets: fallbackAudioAssets ?? this.fallbackAudioAssets,
     );
   }

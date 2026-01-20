@@ -3,6 +3,8 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../models/habit_item.dart';
 import '../../models/cbt_enhancements.dart';
+import '../../screens/spotify_selection_screen.dart';
+import '../../services/music_provider_service.dart';
 
 final class HabitCreateRequest {
   final String name;
@@ -117,6 +119,9 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
   String _timeBoundMode = 'time'; // 'time' | 'song'
   late final TextEditingController _timeBoundDurationC = TextEditingController();
   late final TabController _timerModeTabController;
+  String? _selectedPlaylistId;
+  List<String> _selectedTrackIds = [];
+  String? _selectedPlaylistName;
 
   bool _locationBoundEnabled = false;
   double? _locLat;
@@ -174,6 +179,8 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
         _timeBoundDuration = tb.duration <= 0 ? 15 : tb.duration;
         _timeBoundUnit = (tb.unit.trim().isEmpty) ? 'minutes' : tb.unit.trim().toLowerCase();
         _timeBoundMode = (tb.mode.trim().isEmpty) ? 'time' : tb.mode.trim().toLowerCase();
+        _selectedPlaylistId = tb.spotifyPlaylistId;
+        _selectedTrackIds = List<String>.from(tb.spotifyTrackIds ?? []);
       }
 
       final lb = initialHabit.locationBound;
@@ -360,6 +367,8 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
             duration: _timeBoundDuration <= 0 ? 1 : _timeBoundDuration,
             unit: _timeBoundUnit,
             mode: _timeBoundMode,
+            spotifyPlaylistId: _selectedPlaylistId,
+            spotifyTrackIds: _selectedTrackIds.isNotEmpty ? _selectedTrackIds : null,
           )
         : null;
 
@@ -814,9 +823,76 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
                                               onChanged: (v) => setState(() =>
                                                   _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
                                             ),
+                                            const SizedBox(height: 16),
+                                            // Music selection button
+                                            OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                                                  MaterialPageRoute(
+                                                    builder: (context) => SpotifySelectionScreen(
+                                                      selectedPlaylistId: _selectedPlaylistId,
+                                                      selectedTrackIds: _selectedTrackIds,
+                                                      allowMultipleTracks: true,
+                                                    ),
+                                                  ),
+                                                );
+                                                if (result != null && mounted) {
+                                                  setState(() {
+                                                    _selectedPlaylistId = result['playlistId'] as String?;
+                                                    _selectedPlaylistName = result['playlistName'] as String?;
+                                                    _selectedTrackIds = List<String>.from(result['trackIds'] ?? []);
+                                                    // If playlist selected, update duration to playlist track count if available
+                                                    if (_selectedPlaylistId != null && _selectedTrackIds.isEmpty) {
+                                                      // Will be set when playlist tracks are loaded
+                                                    } else if (_selectedTrackIds.isNotEmpty) {
+                                                      _timeBoundDuration = _selectedTrackIds.length;
+                                                      _timeBoundDurationC.text = _timeBoundDuration.toString();
+                                                    }
+                                                  });
+                                                }
+                                              },
+                                              icon: const Icon(Icons.music_note),
+                                              label: Text(
+                                                _selectedPlaylistId != null
+                                                    ? _selectedPlaylistName ?? 'Playlist selected'
+                                                    : _selectedTrackIds.isNotEmpty
+                                                        ? '${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'} selected'
+                                                        : 'Select playlist or songs',
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize: const Size(double.infinity, 48),
+                                              ),
+                                            ),
+                                            if (_selectedPlaylistId != null || _selectedTrackIds.isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                spacing: 8,
+                                                children: [
+                                                  if (_selectedPlaylistId != null)
+                                                    Chip(
+                                                      label: Text(_selectedPlaylistName ?? 'Playlist'),
+                                                      onDeleted: () {
+                                                        setState(() {
+                                                          _selectedPlaylistId = null;
+                                                          _selectedPlaylistName = null;
+                                                        });
+                                                      },
+                                                    ),
+                                                  if (_selectedTrackIds.isNotEmpty)
+                                                    Chip(
+                                                      label: Text('${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'}'),
+                                                      onDeleted: () {
+                                                        setState(() {
+                                                          _selectedTrackIds = [];
+                                                        });
+                                                      },
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
                                             const SizedBox(height: 12),
                                             Text(
-                                              'Song-based mode tracks progress by number of songs played. Connect your music service in the timer screen.',
+                                              'Song-based mode tracks progress by number of songs played. Select a playlist or specific songs, or leave empty to track any songs.',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Theme.of(context).colorScheme.onSurfaceVariant,

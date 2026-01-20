@@ -57,11 +57,21 @@ final class RhythmicTimerService {
       // Get linked provider from user preferences
       final linkedProvider = await _getLinkedProvider();
       
+      // Get playlist/track selection from timeBound
+      final playlistId = timeBound.spotifyPlaylistId;
+      final selectedTrackIds = timeBound.spotifyTrackIds;
+      
+      // If specific tracks are selected, use that count; otherwise use duration
+      final targetSongs = selectedTrackIds?.isNotEmpty == true
+          ? selectedTrackIds!.length
+          : (timeBound.duration > 0 ? timeBound.duration : null);
+      
       return RhythmicTimerConfig(
         mode: 'song',
-        targetSongs: timeBound.duration > 0 ? timeBound.duration : null,
+        targetSongs: targetSongs,
         linkedProvider: linkedProvider,
-        playlistId: null, // TODO: Get from habit or settings
+        playlistId: playlistId,
+        selectedTrackIds: selectedTrackIds,
         fallbackAudioAssets: _getDefaultAudioAssets(),
       );
     }

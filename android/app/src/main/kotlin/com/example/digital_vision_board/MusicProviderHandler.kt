@@ -67,6 +67,15 @@ class MusicProviderHandler(private val context: Context) {
                 "stopListening" -> {
                     stopListening(result)
                 }
+                "getSpotifyPlaylists" -> {
+                    getSpotifyPlaylists(call, result)
+                }
+                "searchSpotifyTracks" -> {
+                    searchSpotifyTracks(call, result)
+                }
+                "getSpotifyPlaylistTracks" -> {
+                    getSpotifyPlaylistTracks(call, result)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -281,6 +290,51 @@ class MusicProviderHandler(private val context: Context) {
                 "trackId" to (trackId ?: "$title-$artist")
             )
             eventSink?.success(track)
+        }
+    }
+
+    private fun getSpotifyPlaylists(call: MethodCall, result: MethodChannel.Result) {
+        // TODO: Implement Spotify Web API integration to fetch user playlists
+        // This requires:
+        // 1. Spotify SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API endpoints
+        // 3. Parse JSON responses
+        // 
+        // For now, return empty list - UI will show appropriate message
+        executor.execute {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                result.success(emptyList<Map<String, Any>>())
+            }
+        }
+    }
+
+    private fun searchSpotifyTracks(call: MethodCall, result: MethodChannel.Result) {
+        // TODO: Implement Spotify Web API integration to search tracks
+        // This requires:
+        // 1. Spotify SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API search endpoint
+        // 3. Parse JSON responses
+        //
+        // For now, return empty list - UI will show appropriate message
+        executor.execute {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                result.success(emptyList<Map<String, Any>>())
+            }
+        }
+    }
+
+    private fun getSpotifyPlaylistTracks(call: MethodCall, result: MethodChannel.Result) {
+        // TODO: Implement Spotify Web API integration to get playlist tracks
+        // This requires:
+        // 1. Spotify SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API playlist tracks endpoint
+        // 3. Parse JSON responses
+        //
+        // For now, return empty list - UI will show appropriate message
+        executor.execute {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                result.success(emptyList<Map<String, Any>>())
+            }
         }
     }
 }

@@ -61,6 +61,7 @@ dependencies:
   geofence_service: ^6.0.0
   flutter_quill: ^11.5.0
   audioplayers: ^6.1.0
+  cached_network_image: ^3.3.1
 
 dev_dependencies:
   flutter_test:

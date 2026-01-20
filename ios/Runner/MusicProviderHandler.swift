@@ -40,6 +40,12 @@ class MusicProviderHandler: NSObject, FlutterPlugin {
             startListening(result: result)
         case "stopListening":
             stopListening(result: result)
+        case "getSpotifyPlaylists":
+            getSpotifyPlaylists(call: call, result: result)
+        case "searchSpotifyTracks":
+            searchSpotifyTracks(call: call, result: result)
+        case "getSpotifyPlaylistTracks":
+            getSpotifyPlaylistTracks(call: call, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -184,6 +190,45 @@ extension MusicProviderHandler: FlutterStreamHandler {
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         eventSink = nil
         return nil
+    }
+    
+    private func getSpotifyPlaylists(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        // TODO: Implement Spotify Web API integration to fetch user playlists
+        // This requires:
+        // 1. Spotify iOS SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API endpoints
+        // 3. Parse JSON responses
+        //
+        // For now, return empty list - UI will show appropriate message
+        DispatchQueue.main.async {
+            result([])
+        }
+    }
+    
+    private func searchSpotifyTracks(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        // TODO: Implement Spotify Web API integration to search tracks
+        // This requires:
+        // 1. Spotify iOS SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API search endpoint
+        // 3. Parse JSON responses
+        //
+        // For now, return empty list - UI will show appropriate message
+        DispatchQueue.main.async {
+            result([])
+        }
+    }
+    
+    private func getSpotifyPlaylistTracks(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        // TODO: Implement Spotify Web API integration to get playlist tracks
+        // This requires:
+        // 1. Spotify iOS SDK or Web API OAuth authentication
+        // 2. HTTP client to call Spotify Web API playlist tracks endpoint
+        // 3. Parse JSON responses
+        //
+        // For now, return empty list - UI will show appropriate message
+        DispatchQueue.main.async {
+            result([])
+        }
     }
 }
 }

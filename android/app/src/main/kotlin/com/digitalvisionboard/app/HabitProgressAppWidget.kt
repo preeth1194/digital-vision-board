@@ -44,6 +44,7 @@ class HabitProgressAppWidget : AppWidgetProvider() {
       var pendingTotal = 0
       var allDone = false
       val pending = ArrayList<JSONObject>()
+      val timerStates = HashMap<String, JSONObject>()
 
       if (!raw.isNullOrBlank()) {
         try {
@@ -58,6 +59,17 @@ class HabitProgressAppWidget : AppWidgetProvider() {
             for (i in 0 until arr.length()) {
               val it = arr.optJSONObject(i) ?: continue
               pending.add(it)
+            }
+          }
+          // Load timer states for song-based habits
+          val timerStatesArr = obj.optJSONArray("timerStates")
+          if (timerStatesArr != null) {
+            for (i in 0 until timerStatesArr.length()) {
+              val timerState = timerStatesArr.optJSONObject(i) ?: continue
+              val habitId = timerState.optString("habitId", "")
+              if (habitId.isNotBlank()) {
+                timerStates[habitId] = timerState
+              }
             }
           }
         } catch (_: Throwable) {
@@ -87,6 +99,7 @@ class HabitProgressAppWidget : AppWidgetProvider() {
         textId = R.id.text1,
         item = pending.getOrNull(0),
         boardId = boardId,
+        timerState = timerStates[pending.getOrNull(0)?.optString("habitId", "")],
       )
       bindRow(
         context = context,
@@ -96,6 +109,7 @@ class HabitProgressAppWidget : AppWidgetProvider() {
         textId = R.id.text2,
         item = pending.getOrNull(1),
         boardId = boardId,
+        timerState = timerStates[pending.getOrNull(1)?.optString("habitId", "")],
       )
       bindRow(
         context = context,
@@ -105,6 +119,7 @@ class HabitProgressAppWidget : AppWidgetProvider() {
         textId = R.id.text3,
         item = pending.getOrNull(2),
         boardId = boardId,
+        timerState = timerStates[pending.getOrNull(2)?.optString("habitId", "")],
       )
 
       appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -118,6 +133,7 @@ class HabitProgressAppWidget : AppWidgetProvider() {
       textId: Int,
       item: JSONObject?,
       boardId: String,
+      timerState: JSONObject? = null,
     ) {
       if (item == null) {
         views.setViewVisibility(rowId, View.GONE)
@@ -132,7 +148,21 @@ class HabitProgressAppWidget : AppWidgetProvider() {
       }
 
       views.setViewVisibility(rowId, View.VISIBLE)
-      views.setTextViewText(textId, name)
+      
+      // Display habit name with timer info if available
+      val displayText = if (timerState != null) {
+        val songsRemaining = timerState.optInt("songsRemaining", 0)
+        val totalSongs = timerState.optInt("totalSongs", 0)
+        val currentSong = timerState.optString("currentSongTitle", "")
+        if (currentSong.isNotBlank()) {
+          "$name ($songsRemaining/$totalSongs) - $currentSong"
+        } else {
+          "$name ($songsRemaining/$totalSongs songs)"
+        }
+      } else {
+        name
+      }
+      views.setTextViewText(textId, displayText)
       views.setBoolean(cbId, "setChecked", false)
 
       val uri = Uri.parse(

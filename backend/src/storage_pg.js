@@ -43,6 +43,14 @@ export async function getUserRecordPg(canvaUserId) {
         obtained_at: row.canva_obtained_at,
         scope: row.canva_scope,
       },
+      spotify: {
+        access_token: row.spotify_access_token,
+        refresh_token: row.spotify_refresh_token,
+        expires_in: row.spotify_expires_in,
+        token_type: row.spotify_token_type,
+        obtained_at: row.spotify_obtained_at,
+        scope: row.spotify_scope,
+      },
       habits: row.habits ?? [],
       packages: row.packages ?? [],
     };
@@ -60,12 +68,14 @@ export async function putUserRecordPg(canvaUserId, record) {
         canva_user_id, team_id, dv_token,
         is_guest, guest_expires_at,
         canva_access_token, canva_refresh_token, canva_expires_in, canva_token_type, canva_obtained_at, canva_scope,
+        spotify_access_token, spotify_refresh_token, spotify_expires_in, spotify_token_type, spotify_obtained_at, spotify_scope,
         habits, packages
       ) values (
         $1,$2,$3,
         $4,$5,
         $6,$7,$8,$9,$10,$11,
-        $12,$13
+        $12,$13,$14,$15,$16,$17,
+        $18,$19
       )
       on conflict (canva_user_id) do update set
         team_id = excluded.team_id,
@@ -78,6 +88,12 @@ export async function putUserRecordPg(canvaUserId, record) {
         canva_token_type = excluded.canva_token_type,
         canva_obtained_at = excluded.canva_obtained_at,
         canva_scope = excluded.canva_scope,
+        spotify_access_token = excluded.spotify_access_token,
+        spotify_refresh_token = excluded.spotify_refresh_token,
+        spotify_expires_in = excluded.spotify_expires_in,
+        spotify_token_type = excluded.spotify_token_type,
+        spotify_obtained_at = excluded.spotify_obtained_at,
+        spotify_scope = excluded.spotify_scope,
         habits = excluded.habits,
         packages = excluded.packages,
         updated_at = now()`,
@@ -93,6 +109,12 @@ export async function putUserRecordPg(canvaUserId, record) {
         record?.canva?.token_type ?? null,
         record?.canva?.obtained_at ?? null,
         record?.canva?.scope ?? null,
+        record?.spotify?.access_token ?? null,
+        record?.spotify?.refresh_token ?? null,
+        record?.spotify?.expires_in ?? null,
+        record?.spotify?.token_type ?? null,
+        record?.spotify?.obtained_at ?? null,
+        record?.spotify?.scope ?? null,
         JSON.stringify(record?.habits ?? []),
         JSON.stringify(record?.packages ?? []),
       ],
@@ -120,6 +142,14 @@ export async function findUserByDvTokenPg(dvToken) {
         token_type: row.canva_token_type,
         obtained_at: row.canva_obtained_at,
         scope: row.canva_scope,
+      },
+      spotify: {
+        access_token: row.spotify_access_token,
+        refresh_token: row.spotify_refresh_token,
+        expires_in: row.spotify_expires_in,
+        token_type: row.spotify_token_type,
+        obtained_at: row.spotify_obtained_at,
+        scope: row.spotify_scope,
       },
       habits: row.habits ?? [],
       packages: row.packages ?? [],

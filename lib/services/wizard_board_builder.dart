@@ -72,6 +72,7 @@ final class WizardBoardBuilderService {
   static WizardBoardBuildResult build({
     required String boardId,
     required CreateBoardWizardState state,
+    Map<String, String>? defaultImageUrlsByGoalId,
   }) {
     final core = CoreValues.byId(state.majorCoreValueId);
 
@@ -129,11 +130,15 @@ final class WizardBoardBuilderService {
       }
 
       final g = goals[i];
+      // Use default image URL if provided, otherwise use goal name as text content
+      final defaultImageUrl = defaultImageUrlsByGoalId?[g.id];
+      final hasImage = defaultImageUrl != null && defaultImageUrl.trim().isNotEmpty;
+      
       tiles.add(
         GridTileModel(
           id: 'tile_$i',
-          type: 'image',
-          content: null, // user will pick images later
+          type: hasImage ? 'image' : 'text',
+          content: hasImage ? defaultImageUrl : g.name, // image URL or goal name as text
           isPlaceholder: false,
           crossAxisCellCount: blueprint.crossAxisCount,
           mainAxisCellCount: blueprint.mainAxisCount,

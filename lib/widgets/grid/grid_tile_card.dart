@@ -114,7 +114,39 @@ class GridTileCard extends StatelessWidget {
           );
   }
 
+  Alignment _getTextAlignmentForTile(GridTileModel tile) {
+    int hash32(String s) {
+      int h = 0x811c9dc5;
+      for (int i = 0; i < s.length; i++) {
+        h ^= s.codeUnitAt(i);
+        h = (h * 0x01000193) & 0x7fffffff;
+      }
+      return h;
+    }
+    
+    final v = hash32('${tile.id}::alignment');
+    final alignments = [
+      Alignment.topLeft,
+      Alignment.topCenter,
+      Alignment.topRight,
+      Alignment.centerLeft,
+      Alignment.center,
+      Alignment.centerRight,
+      Alignment.bottomLeft,
+      Alignment.bottomCenter,
+      Alignment.bottomRight,
+    ];
+    return alignments[v % alignments.length];
+  }
+
+  TextAlign _getTextAlignFromAlignment(Alignment alignment) {
+    if (alignment.x < -0.3) return TextAlign.left;
+    if (alignment.x > 0.3) return TextAlign.right;
+    return TextAlign.center;
+  }
+
   Widget _textTile(BuildContext context, BorderRadius borderRadius) {
+    final textAlignment = _getTextAlignmentForTile(tile);
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
@@ -122,9 +154,10 @@ class GridTileCard extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(12),
       child: Align(
-        alignment: Alignment.topLeft,
+        alignment: textAlignment,
         child: Text(
           (tile.content ?? '').trim().isEmpty ? 'Tap to edit' : (tile.content ?? ''),
+          textAlign: _getTextAlignFromAlignment(textAlignment),
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),

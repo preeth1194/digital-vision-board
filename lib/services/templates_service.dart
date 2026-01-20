@@ -74,6 +74,21 @@ final class TemplatesService {
   static String absolutizeMaybe(String pathOrUrl) {
     final lower = pathOrUrl.toLowerCase();
     if (lower.startsWith('http://') || lower.startsWith('https://')) return pathOrUrl;
+    
+    // Check if this is a local file path (Android/iOS app data directories)
+    // Android: /data/user/0/... or /storage/emulated/0/...
+    // iOS: /var/mobile/... or similar
+    if (pathOrUrl.startsWith('/data/') || 
+        pathOrUrl.startsWith('/storage/') ||
+        pathOrUrl.startsWith('/var/') ||
+        pathOrUrl.startsWith('/private/') ||
+        pathOrUrl.contains('/com.example.digital_vision_board/') ||
+        pathOrUrl.contains('/vision_images/')) {
+      // This is a local file path, not a server path
+      return pathOrUrl;
+    }
+    
+    // Only convert to server URL if it starts with / and is not a local path
     if (pathOrUrl.startsWith('/')) return '${DvAuthService.backendBaseUrl()}$pathOrUrl';
     return pathOrUrl;
   }

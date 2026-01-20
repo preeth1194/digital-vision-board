@@ -15,6 +15,14 @@ import {
   refreshAccessToken,
 } from "./canva_connect.js";
 import {
+  spotifyAuthorizeUrl,
+  exchangeAuthorizationCode as exchangeSpotifyCode,
+  getPlaylists,
+  searchTracks,
+  getPlaylistTracks,
+  getValidAccessToken,
+} from "./spotify.js";
+import {
   deletePkceState,
   getOauthPollToken,
   getPkceState,
@@ -52,6 +60,13 @@ import {
 import { generateWizardRecommendationsBatchWithGemini, generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg, upsertStockCategoryImagePg } from "./stock_category_images_pg.js";
+import {
+  getAllAffirmationsPg,
+  getAffirmationsPg,
+  upsertAffirmationPg,
+  deleteAffirmationPg,
+  pinAffirmationPg,
+} from "./affirmations_pg.js";
 
 const app = express();
 
@@ -1007,6 +1022,187 @@ app.get("/auth/canva/callback", async (req, res) => {
   }
 });
 
+// ---- Spotify OAuth ----
+app.get("/auth/spotify/start", async (req, res) => {
+  try {
+    const state = randomId(16);
+    const codeVerifier = randomId(32);
+    const codeChallenge = sha256Base64Url(codeVerifier);
+
+    const returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
+    const origin = typeof req.query.origin === "string" ? req.query.origin : "";
+    const dvToken = typeof req.query.dvToken === "string" ? req.query.dvToken : null;
+
+    await putPkceState(state, { codeVerifier, createdAt: Date.now(), returnTo, origin, dvToken });
+    const url = spotifyAuthorizeUrl({ state, codeChallenge });
+    res.redirect(url);
+  } catch (e) {
+    res.status(500).send(String(e?.message ?? e));
+  }
+});
+
+app.get("/auth/spotify/callback", async (req, res) => {
+  try {
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    if (!code || !state) return res.status(400).send("Missing code/state");
+
+    const st = await getPkceState(state);
+    if (!st?.codeVerifier) return res.status(400).send("Invalid state");
+
+    const token = await exchangeSpotifyCode({ code, codeVerifier: st.codeVerifier });
+
+    // Get user from dvToken stored in PKCE state
+    const dvToken = st.dvToken || null;
+    let canvaUserId = null;
+    let existing = null;
+
+    if (dvToken) {
+      const user = await findUserByDvToken(dvToken);
+      if (user) {
+        canvaUserId = user.canvaUserId;
+        existing = user;
+      }
+    }
+
+    if (!canvaUserId) {
+      // Create a temporary user record for Spotify-only users
+      canvaUserId = `spotify_${randomId(16)}`;
+      existing = {};
+    }
+
+    const finalDvToken = existing?.dvToken ?? (dvToken ?? randomId(24));
+
+    await putUserRecord(canvaUserId, {
+      ...existing,
+      canvaUserId,
+      dvToken: finalDvToken,
+      spotify: {
+        access_token: token.access_token,
+        refresh_token: token.refresh_token ?? null,
+        expires_in: token.expires_in ?? null,
+        token_type: token.token_type ?? "Bearer",
+        obtained_at: Date.now(),
+        scope: token.scope ?? null,
+      },
+      habits: Array.isArray(existing?.habits) ? existing.habits : [],
+      packages: Array.isArray(existing?.packages) ? existing.packages : [],
+    });
+
+    await deletePkceState(state);
+
+    // If a returnTo is supplied, redirect there
+    if (st.returnTo && typeof st.returnTo === "string" && st.returnTo.trim() !== "") {
+      const url = new URL(st.returnTo);
+      url.searchParams.set("dvToken", finalDvToken);
+      url.searchParams.set("canvaUserId", canvaUserId);
+      return res.redirect(url.toString());
+    }
+
+    const targetOrigin = st.origin && st.origin !== "" ? st.origin : "*";
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
+<html>
+  <body>
+    <script>
+      (function () {
+        const payload = {
+          type: "dv_spotify_oauth_success",
+          dvToken: ${JSON.stringify(finalDvToken)},
+          canvaUserId: ${JSON.stringify(canvaUserId)}
+        };
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage(payload, ${JSON.stringify(targetOrigin)});
+          }
+        } catch (e) {}
+        window.close();
+        document.body.innerText = "Spotify connected. You can close this window.";
+      })();
+    </script>
+  </body>
+</html>`);
+  } catch (e) {
+    res.status(500).send(String(e?.message ?? e));
+  }
+});
+
+// ---- Spotify API (authenticated) ----
+app.get("/api/spotify/playlists", requireDvAuth(), async (req, res) => {
+  try {
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 50;
+    const offset = typeof req.query.offset === "string" ? Number(req.query.offset) : 0;
+
+    const userRecord = req.dvUser;
+    const playlists = await getPlaylists(userRecord, { limit, offset });
+
+    // Update user record if token was refreshed
+    if (userRecord.spotify) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, playlists });
+  } catch (e) {
+    if (e.message === "Spotify not connected") {
+      return res.status(401).json({ ok: false, error: "spotify_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "spotify_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/api/spotify/search", requireDvAuth(), async (req, res) => {
+  try {
+    const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 20;
+
+    if (!query) {
+      return res.status(400).json({ ok: false, error: "missing_query" });
+    }
+
+    const userRecord = req.dvUser;
+    const tracks = await searchTracks(userRecord, query, { limit });
+
+    // Update user record if token was refreshed
+    if (userRecord.spotify) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, tracks });
+  } catch (e) {
+    if (e.message === "Spotify not connected") {
+      return res.status(401).json({ ok: false, error: "spotify_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "spotify_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/api/spotify/playlist/:playlistId/tracks", requireDvAuth(), async (req, res) => {
+  try {
+    const playlistId = typeof req.params.playlistId === "string" ? req.params.playlistId.trim() : "";
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 100;
+    const offset = typeof req.query.offset === "string" ? Number(req.query.offset) : 0;
+
+    if (!playlistId) {
+      return res.status(400).json({ ok: false, error: "missing_playlistId" });
+    }
+
+    const userRecord = req.dvUser;
+    const tracks = await getPlaylistTracks(userRecord, playlistId, { limit, offset });
+
+    // Update user record if token was refreshed
+    if (userRecord.spotify) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, tracks });
+  } catch (e) {
+    if (e.message === "Spotify not connected") {
+      return res.status(401).json({ ok: false, error: "spotify_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "spotify_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
 // ---- Authenticated APIs (dvToken) ----
 app.get("/habits", requireDvAuth(), async (req, res) => {
   res.json({ habits: req.dvUser.habits ?? [] });
@@ -1677,6 +1873,100 @@ app.post("/sync/push", requireDvAuth(), async (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+// ---- Affirmations APIs ----
+app.get("/api/affirmations", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const category = typeof req.query.category === "string" ? req.query.category.trim() : null;
+    const affirmations = await getAffirmationsPg(req.dvUser.canvaUserId, category || null);
+    res.json({ ok: true, affirmations });
+  } catch (e) {
+    res.status(500).json({ error: "affirmations_fetch_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/api/affirmations", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const body = req.body ?? {};
+    const affirmation = {
+      id: typeof body.id === "string" ? body.id : null,
+      category: typeof body.category === "string" ? body.category.trim() || null : null,
+      text: typeof body.text === "string" ? body.text.trim() : "",
+      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
+      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
+    };
+    if (!affirmation.text) {
+      return res.status(400).json({ error: "text_required" });
+    }
+    const affirmationId = await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
+    res.json({ ok: true, id: affirmationId });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_create_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.put("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const body = req.body ?? {};
+    const affirmation = {
+      id: affirmationId,
+      category: typeof body.category === "string" ? body.category.trim() || null : null,
+      text: typeof body.text === "string" ? body.text.trim() : "",
+      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
+      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
+    };
+    if (!affirmation.text) {
+      return res.status(400).json({ error: "text_required" });
+    }
+    await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_update_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.delete("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const deleted = await deleteAffirmationPg(req.dvUser.canvaUserId, affirmationId);
+    if (!deleted) {
+      return res.status(404).json({ error: "affirmation_not_found" });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_delete_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.put("/api/affirmations/:id/pin", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const affirmationId = String(req.params.id ?? "").trim();
+    if (!affirmationId) {
+      return res.status(400).json({ error: "id_required" });
+    }
+    const body = req.body ?? {};
+    const isPinned = Boolean(body.is_pinned ?? body.isPinned ?? true);
+    const updated = await pinAffirmationPg(req.dvUser.canvaUserId, affirmationId, isPinned);
+    if (!updated) {
+      return res.status(404).json({ error: "affirmation_not_found" });
+    }
+    res.json({ ok: true, is_pinned: isPinned });
+  } catch (e) {
+    res.status(500).json({ error: "affirmation_pin_failed", message: String(e?.message ?? e) });
+  }
 });
 
 const port = Number(process.env.PORT ?? 8787);

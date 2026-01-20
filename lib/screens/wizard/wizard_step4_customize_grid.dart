@@ -6,10 +6,12 @@ import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
 import '../../models/grid_tile_model.dart';
 import '../../models/wizard/wizard_state.dart';
+import '../../models/wizard/wizard_goal.dart';
 import '../../services/wizard_board_builder.dart';
 import '../../services/category_images_service.dart';
 import '../../services/stock_images_service.dart';
-import '../../models/core_value.dart';
+import '../../services/image_service.dart';
+import '../../services/grid_tiles_storage_service.dart';
 import '../grid_editor.dart';
 
 class WizardStep4CustomizeGrid extends StatefulWidget {
@@ -63,7 +65,69 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
       final prefs = await SharedPreferences.getInstance();
       if ((_boardId ?? '').trim().isEmpty || (_boardTitle ?? '').trim().isEmpty) {
         final createdId = 'board_${DateTime.now().millisecondsSinceEpoch}';
-        final result = WizardBoardBuilderService.build(boardId: createdId, state: widget.state);
+        
+        // Fetch default images for goals before building the board
+        final defaultImageUrlsByGoalId = <String, String>{};
+        final coreValueId = widget.state.majorCoreValueId.trim();
+        final coreLabel = CoreValues.byId(coreValueId).label;
+        
+        // Group goals by category for efficient fetching
+        final goalsByCategory = <String, List<WizardGoalDraft>>{};
+        for (final goal in widget.state.goals) {
+          final cat = (goal.category ?? '').trim();
+          if (cat.isNotEmpty) {
+            goalsByCategory.putIfAbsent(cat, () => []).add(goal);
+          }
+        }
+        
+        // Fetch images for each category and download/persist them
+        for (final entry in goalsByCategory.entries) {
+          final category = entry.key;
+          final categoryGoals = entry.value;
+          
+          // Try CategoryImagesService first
+          List<String> urls = await CategoryImagesService.getCategoryImageUrls(
+            coreValueId: coreValueId,
+            category: category,
+            limit: categoryGoals.length,
+          );
+          
+          // Fallback to Pexels if category images aren't available
+          if (urls.isEmpty) {
+            final query = '$category $coreLabel minimal simple clean aesthetic';
+            urls = await StockImagesService.searchPexelsUrls(query: query, perPage: categoryGoals.length);
+          }
+          
+          // Download and persist images, then assign to goals
+          if (urls.isNotEmpty) {
+            for (int i = 0; i < categoryGoals.length; i++) {
+              final goal = categoryGoals[i];
+              final imageUrl = urls[i % urls.length];
+              
+              // Download and persist the image URL to local storage
+              final localPath = await ImageService.downloadResizeAndPersistJpegFromUrl(
+                context,
+                url: imageUrl,
+                maxSidePx: 2048,
+                jpegQuality: 92,
+              );
+              
+              // Use local path if download succeeded, otherwise fall back to URL
+              if (localPath != null && localPath.isNotEmpty) {
+                defaultImageUrlsByGoalId[goal.id] = localPath;
+              } else {
+                // Fallback to URL if download fails (e.g., on web)
+                defaultImageUrlsByGoalId[goal.id] = imageUrl;
+              }
+            }
+          }
+        }
+        
+        final result = WizardBoardBuilderService.build(
+          boardId: createdId,
+          state: widget.state,
+          defaultImageUrlsByGoalId: defaultImageUrlsByGoalId.isNotEmpty ? defaultImageUrlsByGoalId : null,
+        );
         await WizardBoardBuilderService.persist(result: result, prefs: prefs);
         final createdTitle = result.board.title;
         final createdTemplateId = result.board.templateId;
@@ -108,17 +172,38 @@ class _WizardStep4CustomizeGridState extends State<WizardStep4CustomizeGrid> {
 
             if (byCat.isNotEmpty) {
               final idxByCat = <String, int>{for (final k in byCat.keys) k: 0};
-              final updated = tiles.map((t) {
-                if (t.type != 'image') return t;
-                if ((t.content ?? '').trim().isNotEmpty) return t;
+              final updated = <GridTileModel>[];
+              
+              for (final t in tiles) {
+                if (t.type != 'image' || (t.content ?? '').trim().isNotEmpty) {
+                  updated.add(t);
+                  continue;
+                }
+                
                 final cat = (t.goal?.category ?? '').trim();
                 final list = byCat[cat];
-                if (list == null || list.isEmpty) return t;
+                if (list == null || list.isEmpty) {
+                  updated.add(t);
+                  continue;
+                }
+                
                 final i = idxByCat[cat] ?? 0;
                 final url = list[i % list.length];
                 idxByCat[cat] = i + 1;
-                return t.copyWith(content: url);
-              }).toList();
+                
+                // Download and persist the image URL to local storage
+                final localPath = await ImageService.downloadResizeAndPersistJpegFromUrl(
+                  context,
+                  url: url,
+                  maxSidePx: 2048,
+                  jpegQuality: 92,
+                );
+                
+                // Use local path if download succeeded, otherwise fall back to URL
+                final content = (localPath != null && localPath.isNotEmpty) ? localPath : url;
+                updated.add(t.copyWith(content: content));
+              }
+              
               await GridTilesStorageService.saveTiles(boardIdPrefill, updated, prefs: prefs);
             }
           }

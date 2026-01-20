@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../utils/app_typography.dart';
 
 import 'onboarding/onboarding_carousel_screen.dart';
 import 'admin/templates_admin_screen.dart';
 import '../services/dv_auth_service.dart';
 import '../services/app_settings_service.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import 'music_provider_settings_screen.dart';
 
 final class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -55,7 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            const Text('Gender', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Gender', style: AppTypography.heading3(context)),
             const SizedBox(height: 8),
             for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
               RadioListTile<String>(
@@ -94,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            const Text('Theme', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Theme', style: AppTypography.heading3(context)),
             const SizedBox(height: 8),
             for (final v in const [ThemeMode.system, ThemeMode.light, ThemeMode.dark])
               RadioListTile<ThemeMode>(
@@ -169,6 +171,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Add home-screen widget'),
             subtitle: const Text('See step-by-step instructions'),
             onTap: () => showHomeScreenWidgetInstructionsSheet(context),
+          ),
+          const Divider(height: 0),
+          ListTile(
+            leading: const Icon(Icons.music_note),
+            title: const Text('Music Provider Settings'),
+            subtitle: const Text('Configure Spotify or Apple Music for rhythmic timers'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MusicProviderSettingsScreen()),
+              );
+            },
           ),
           const Divider(height: 0),
         ],

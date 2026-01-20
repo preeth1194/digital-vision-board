@@ -306,26 +306,33 @@ class _TodosListScreenState extends State<TodosListScreen> {
               final hasHabit = (todo.habitId ?? '').trim().isNotEmpty;
 
               return ListTile(
-                title: Text(
-                  todo.text,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-                subtitle: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                title: Row(
                   children: [
-                    Text(goalLabel),
+                    Expanded(
+                      child: Text(
+                        todo.text,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
                     if (hasHabit)
-                      const Chip(
-                        avatar: Icon(Icons.check_circle_outline, size: 18),
-                        label: Text('Habit ✓'),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Tooltip(
+                          message: 'Habit',
+                          child: Icon(
+                            Icons.check_circle_outline,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                   ],
                 ),
+                subtitle: Text(goalLabel),
                 leading: Checkbox(
                   value: todo.isCompleted,
                   onChanged: (v) => _toggleTodo(component, meta, todo, v == true),

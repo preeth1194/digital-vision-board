@@ -335,7 +335,10 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                         const SizedBox(height: 6),
                         Text(
                           _fmtDateTime(e.createdAt),
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                         if (e.tags.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -421,7 +424,10 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                             _fmtDateTime(n.at),
                             if ((n.subtitle ?? '').trim().isNotEmpty) n.subtitle!,
                           ].join(' • '),
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -447,28 +453,6 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh',
-                        icon: const Icon(Icons.refresh),
-                        onPressed: () async {
-                          final prefs = _prefs ?? await SharedPreferences.getInstance();
-                          _prefs ??= prefs;
-                          await _reload(prefs: prefs);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
                 if (!_loading && showGoalLogs)
                   const TabBar(
                     tabs: [

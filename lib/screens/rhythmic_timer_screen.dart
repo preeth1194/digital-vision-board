@@ -1,0 +1,438 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/habit_item.dart';
+import '../services/habit_timer_state_service.dart';
+import '../services/logical_date_service.dart';
+import '../services/rhythmic_timer_service.dart';
+import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerState, RhythmicTimerStateService;
+
+class RhythmicTimerScreen extends StatefulWidget {
+  final HabitItem habit;
+  final Future<void> Function()? onMarkCompleted;
+
+  const RhythmicTimerScreen({
+    super.key,
+    required this.habit,
+    this.onMarkCompleted,
+  });
+
+  @override
+  State<RhythmicTimerScreen> createState() => _RhythmicTimerScreenState();
+}
+
+class _RhythmicTimerScreenState extends State<RhythmicTimerScreen> {
+  SharedPreferences? _prefs;
+  Timer? _tick;
+  RhythmicTimerService? _rhythmicTimer;
+  RhythmicTimerState? _songState;
+
+  // Time-based state
+  int _accMs = 0;
+  bool _running = false;
+  bool _completionTriggered = false;
+
+  int get _targetMs => HabitTimerStateService.targetMsForHabit(widget.habit);
+  bool get _isSongBased => widget.habit.timeBound?.isSongBased ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    _rhythmicTimer?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _prefs = p);
+
+    if (_isSongBased) {
+      _rhythmicTimer = RhythmicTimerService(
+        habitId: widget.habit.id,
+        habit: widget.habit,
+        prefs: p,
+        logicalDate: LogicalDateService.today(),
+        onHabitComplete: () async {
+          if (!_completionTriggered && widget.onMarkCompleted != null) {
+            _completionTriggered = true;
+            await widget.onMarkCompleted!();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All songs completed!')),
+              );
+            }
+          }
+        },
+      );
+      await _rhythmicTimer!.initialize();
+    }
+
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final p = _prefs;
+    if (p == null) return;
+    final today = LogicalDateService.today();
+
+    if (_isSongBased) {
+      final state = await _rhythmicTimer?.getCurrentState();
+      if (!mounted) return;
+      setState(() {
+        _songState = state;
+      });
+    } else {
+      final acc = await HabitTimerStateService.accumulatedMsNow(
+        prefs: p,
+        habitId: widget.habit.id,
+        logicalDate: today,
+      );
+      final running = await HabitTimerStateService.isRunning(
+        prefs: p,
+        habitId: widget.habit.id,
+        logicalDate: today,
+      );
+      final target = _targetMs;
+
+      // If we hit (or exceed) the target while running, automatically stop the timer.
+      if (running && target > 0 && acc >= target) {
+        await HabitTimerStateService.pause(
+          prefs: p,
+          habitId: widget.habit.id,
+          logicalDate: today,
+        );
+        final acc2 = await HabitTimerStateService.accumulatedMsNow(
+          prefs: p,
+          habitId: widget.habit.id,
+          logicalDate: today,
+        );
+        if (!mounted) return;
+        setState(() {
+          _accMs = acc2;
+          _running = false;
+        });
+        _updateTicker();
+
+        // Mark the habit as completed
+        if (!_completionTriggered) {
+          _completionTriggered = true;
+          final cb = widget.onMarkCompleted;
+          if (cb != null) {
+            try {
+              await cb();
+            } catch (_) {
+              // ignore
+            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Target reached — marked as completed.')),
+            );
+          }
+        }
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _accMs = acc;
+        _running = running;
+      });
+      _updateTicker();
+    }
+  }
+
+  void _updateTicker() {
+    if (!_running && !_isSongBased) {
+      _tick?.cancel();
+      _tick = null;
+      return;
+    }
+    _tick ??= Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  static String _fmt(int ms) {
+    final totalSeconds = (ms / 1000).floor();
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes >= 60) {
+      final h = minutes ~/ 60;
+      final m = minutes % 60;
+      return '${h}h ${m}m';
+    }
+    if (minutes > 0) return '${minutes}m ${seconds}s';
+    return '${seconds}s';
+  }
+
+  Future<void> _startPause() async {
+    final p = _prefs;
+    if (p == null) return;
+    final today = LogicalDateService.today();
+
+    if (_isSongBased) {
+      if (_running) {
+        await _rhythmicTimer?.pause();
+        setState(() {
+          _running = false;
+        });
+      } else {
+        try {
+          await _rhythmicTimer?.start();
+          setState(() {
+            _running = true;
+          });
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not start timer: ${e.toString()}')),
+            );
+          }
+        }
+      }
+    } else {
+      if (_running) {
+        await HabitTimerStateService.pause(
+          prefs: p,
+          habitId: widget.habit.id,
+          logicalDate: today,
+        );
+      } else {
+        await HabitTimerStateService.start(
+          prefs: p,
+          habitId: widget.habit.id,
+          logicalDate: today,
+        );
+      }
+    }
+    await _refresh();
+    if (!_isSongBased) {
+      setState(() {
+        _running = !_running;
+      });
+    }
+  }
+
+  Future<void> _reset() async {
+    final p = _prefs;
+    if (p == null) return;
+    final today = LogicalDateService.today();
+
+    if (_isSongBased) {
+      await RhythmicTimerStateService.resetForDay(
+        prefs: p,
+        habitId: widget.habit.id,
+        logicalDate: today,
+      );
+      await _rhythmicTimer?.initialize();
+    } else {
+      await HabitTimerStateService.resetForDay(
+        prefs: p,
+        habitId: widget.habit.id,
+        logicalDate: today,
+      );
+    }
+    await _refresh();
+  }
+
+  Future<void> _adjustMinutes(int deltaMinutes) async {
+    if (_isSongBased) return; // Not applicable for song mode
+
+    final p = _prefs;
+    if (p == null) return;
+    final today = LogicalDateService.today();
+    await HabitTimerStateService.adjustAccumulated(
+      prefs: p,
+      habitId: widget.habit.id,
+      logicalDate: today,
+      deltaMs: deltaMinutes * 60 * 1000,
+      resumeIfWasRunning: true,
+    );
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.habit.name),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.habit.timeBound?.enabled == true) ...[
+              Text(
+                _isSongBased ? 'Song-Based Timer' : 'Time-Based Timer',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isSongBased) ...[
+                      // Song-based UI
+                      if (_songState != null) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${_songState!.songsRemaining} / ${_songState!.totalSongs}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .displaySmall
+                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Songs Remaining',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_running)
+                              const Chip(
+                                label: Text('Running'),
+                              )
+                            else
+                              const Chip(
+                                label: Text('Paused'),
+                              ),
+                          ],
+                        ),
+                        if (_songState!.currentSongTitle != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Now Playing:',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _songState!.currentSongTitle!,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(
+                          value: _songState!.totalSongs > 0
+                              ? 1.0 - (_songState!.songsRemaining / _songState!.totalSongs)
+                              : 0.0,
+                        ),
+                      ],
+                    ] else ...[
+                      // Time-based UI
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _fmt(_accMs),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displaySmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          if (_running)
+                            const Chip(
+                              label: Text('Running'),
+                            )
+                          else
+                            const Chip(
+                              label: Text('Paused'),
+                            ),
+                        ],
+                      ),
+                      if (_targetMs > 0) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Target: ${_fmt(_targetMs)} • Remaining: ${_fmt((_targetMs - _accMs).clamp(0, _targetMs))}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(
+                          value: (_targetMs <= 0) ? null : (_accMs / _targetMs).clamp(0.0, 1.0),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _prefs == null ? null : _startPause,
+                            icon: Icon(_running ? Icons.pause : Icons.play_arrow),
+                            label: Text(_running ? 'Pause' : 'Start'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: _prefs == null ? null : _reset,
+                          icon: const Icon(Icons.restart_alt),
+                          label: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!_isSongBased) ...[
+              const SizedBox(height: 16),
+              const Text('Adjust time', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(
+                'Use this if you forgot to pause.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton(
+                    onPressed: _prefs == null ? null : () => _adjustMinutes(-5),
+                    child: const Text('-5m'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _prefs == null ? null : () => _adjustMinutes(-1),
+                    child: const Text('-1m'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _prefs == null ? null : () => _adjustMinutes(1),
+                    child: const Text('+1m'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _prefs == null ? null : () => _adjustMinutes(5),
+                    child: const Text('+5m'),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -12,7 +12,9 @@ class AddTileCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          border: Border.all(color: Colors.black12),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+          ),
         ),
         child: const Center(
           child: Column(

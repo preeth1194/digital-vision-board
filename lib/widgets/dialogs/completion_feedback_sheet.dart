@@ -26,7 +26,13 @@ Future<CompletionFeedbackResult?> showCompletionFeedbackSheet(
       initialNote: initialNote,
       primaryActionText: primaryActionText,
     ),
-  );
+  ).then((result) {
+    // Auto-save with rating 5 if dismissed without explicit save
+    if (result == null) {
+      return CompletionFeedbackResult(rating: 5, note: null);
+    }
+    return result;
+  });
 }
 
 class _CompletionFeedbackSheet extends StatefulWidget {
@@ -123,8 +129,6 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Skip')),
-              const SizedBox(width: 8),
               FilledButton(
                 onPressed: _submit,
                 child: Text(widget.primaryActionText),

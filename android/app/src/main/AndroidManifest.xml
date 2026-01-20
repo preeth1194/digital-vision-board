@@ -53,6 +53,32 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="dvb" android:host="widget" android:pathPrefix="/toggle" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="puzzle" />
+            </intent-filter>
+            <!-- Spotify OAuth callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
+        
+        <!-- Spotify Login Activity -->
+        <activity
+            android:name="com.spotify.sdk.android.auth.LoginActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="spotify-callback" />
+            </intent-filter>
         </activity>
 
         <receiver
@@ -64,6 +90,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/habit_progress_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".PuzzleAppWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/puzzle_widget_info" />
         </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

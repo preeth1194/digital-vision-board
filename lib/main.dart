@@ -11,6 +11,7 @@ import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
 import 'services/logical_date_service.dart';
 import 'services/habit_progress_widget_snapshot_service.dart';
+import 'services/puzzle_widget_snapshot_service.dart';
 import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/wizard_defaults_service.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
   await LogicalDateService.ensureInitialized(prefs: prefs);
   // Best-effort: keep home-screen widgets up-to-date (snapshot + deep-link toggles).
   unawaited(HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs));
+  unawaited(PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs));
   unawaited(WidgetDeepLinkService.start());
   HabitProgressWidgetActionQueueService.instance.start();
   // Firebase is optional at runtime until platform config files are added.
@@ -56,12 +58,36 @@ class DigitalVisionBoardApp extends StatelessWidget {
           localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
           supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.light,
+            ),
             useMaterial3: true,
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
           darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.dark,
+            ),
             useMaterial3: true,
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
           themeMode: mode,
           home: const VisionBoardHomeScreen(),

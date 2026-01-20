@@ -7,6 +7,7 @@ import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import '../services/habit_geofence_tracking_service.dart';
 import 'habit_timer_screen.dart';
+import 'rhythmic_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
@@ -58,6 +59,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
   static List<VisionComponent> _goalLikeComponents(List<VisionComponent> all) {
     return all.where((c) => c is ImageComponent || c is GoalOverlayComponent).toList();
+  }
+
+  /// Helper function to get the appropriate icon for a habit type
+  static Widget _getHabitTypeIcon(HabitItem habit) {
+    if (habit.timeBound?.isSongBased == true) {
+      return const Icon(Icons.music_note, size: 24);
+    }
+    if (habit.timeBound?.enabled == true) {
+      return const Icon(Icons.timer_outlined, size: 24);
+    }
+    if (habit.locationBound?.enabled == true) {
+      return const Icon(Icons.location_on_outlined, size: 24);
+    }
+    return const SizedBox.shrink(); // No icon for regular habits
   }
 
   Future<void> _addHabitFromGoalPicker() async {
@@ -282,7 +297,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
               TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  'Delete',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -339,14 +357,25 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.list_alt, size: 64, color: Colors.grey),
+            Icon(
+              Icons.list_alt,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No habits found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text('Add a habit to a goal to get started', style: TextStyle(color: Colors.grey)),
+            Text(
+              'Add a habit to a goal to get started',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _addHabitFromGoalPicker,
@@ -401,90 +430,165 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   final now = LogicalDateService.now();
                   final scheduledToday = habit.isScheduledOnDate(now);
                   final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
-                  return ListTile(
-                    leading: Checkbox(
-                      value: isCompleted,
-                      onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
-                    ),
-                    tileColor: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
-                    title: Text(
-                      habit.name,
-                      style: TextStyle(
-                        decoration: isCompleted ? TextDecoration.lineThrough : null,
-                        color: isCompleted ? Colors.grey : null,
-                      ),
-                    ),
-                    subtitle: Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (!scheduledToday)
-                          const Text('Not scheduled today', style: TextStyle(color: Colors.grey)),
-                        if (habit.currentStreak > 0) ...[
-                          const Icon(Icons.local_fire_department, size: 14, color: Colors.orange),
-                          Text(
-                            '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
+                  return Container(
+                    color: (habit.locationBound?.enabled == true)
+                        ? Theme.of(context).colorScheme.tertiaryContainer
+                        : null,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: isCompleted,
+                            onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
                           ),
-                        ] else
-                          const Text('No streak yet', style: TextStyle(color: Colors.grey)),
-                        if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
-                          Text('Due ${habit.deadline}', style: const TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
-                          IconButton(
-                            tooltip: 'Timer',
-                            icon: const Icon(Icons.timer_outlined),
-                            onPressed: () async {
-                              final latestComponent = _components
-                                  .where((c) => c.id == component.id)
-                                  .cast<VisionComponent?>()
-                                  .firstWhere((_) => true, orElse: () => null);
-                              final latestHabit = (latestComponent?.habits ?? const <HabitItem>[])
-                                  .where((h) => h.id == habit.id)
-                                  .cast<HabitItem?>()
-                                  .firstWhere((_) => true, orElse: () => null);
-
-                              await Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => HabitTimerScreen(
-                                    habit: latestHabit ?? habit,
-                                    onMarkCompleted: () async {
-                                      final cNow = _components
-                                          .where((c) => c.id == component.id)
-                                          .cast<VisionComponent?>()
-                                          .firstWhere((_) => true, orElse: () => null);
-                                      if (cNow == null) return;
-                                      final hNow = cNow.habits
-                                          .where((h) => h.id == habit.id)
-                                          .cast<HabitItem?>()
-                                          .firstWhere((_) => true, orElse: () => null);
-                                      if (hNow == null) return;
-                                      final now = LogicalDateService.now();
-                                      if (!hNow.isScheduledOnDate(now)) return;
-                                      if (hNow.isCompletedForCurrentPeriod(now)) return;
-                                      await _toggleHabit(cNow, hNow);
-                                    },
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  habit.name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                    color: isCompleted
+                                        ? Theme.of(context).colorScheme.surfaceVariant
+                                        : null,
                                   ),
                                 ),
-                              );
-                            },
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (!scheduledToday)
+                                      Text(
+                                        'Not scheduled today',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      ),
+                                    if (habit.currentStreak > 0) ...[
+                                      Icon(
+                                        Icons.local_fire_department,
+                                        size: 14,
+                                        color: Theme.of(context).colorScheme.tertiary,
+                                      ),
+                                      Text(
+                                        '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ] else
+                                      Text(
+                                        'No streak yet',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      ),
+                                    if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
+                                      Text(
+                                        'Due ${habit.deadline}',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        IconButton(
-                          tooltip: 'Edit habit',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _editHabit(component, habit),
-                        ),
-                        IconButton(
-                          tooltip: 'Delete habit',
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => _deleteHabit(component, habit),
-                        ),
-                      ],
+                          Expanded(
+                            flex: 1,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: _getHabitTypeIcon(habit),
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
+                                IconButton(
+                                  tooltip: 'Timer',
+                                  icon: const Icon(Icons.timer_outlined),
+                                  onPressed: () async {
+                                    final latestComponent = _components
+                                        .where((c) => c.id == component.id)
+                                        .cast<VisionComponent?>()
+                                        .firstWhere((_) => true, orElse: () => null);
+                                    final latestHabit = (latestComponent?.habits ?? const <HabitItem>[])
+                                        .where((h) => h.id == habit.id)
+                                        .cast<HabitItem?>()
+                                        .firstWhere((_) => true, orElse: () => null);
+                                    final habitToUse = latestHabit ?? habit;
+                                    final isSongBased = habitToUse.timeBound?.isSongBased ?? false;
+
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => isSongBased
+                                            ? RhythmicTimerScreen(
+                                                habit: habitToUse,
+                                                onMarkCompleted: () async {
+                                                  final cNow = _components
+                                                      .where((c) => c.id == component.id)
+                                                      .cast<VisionComponent?>()
+                                                      .firstWhere((_) => true, orElse: () => null);
+                                                  if (cNow == null) return;
+                                                  final hNow = cNow.habits
+                                                      .where((h) => h.id == habit.id)
+                                                      .cast<HabitItem?>()
+                                                      .firstWhere((_) => true, orElse: () => null);
+                                                  if (hNow == null) return;
+                                                  final now = LogicalDateService.now();
+                                                  if (!hNow.isScheduledOnDate(now)) return;
+                                                  if (hNow.isCompletedForCurrentPeriod(now)) return;
+                                                  await _toggleHabit(cNow, hNow);
+                                                },
+                                              )
+                                            : HabitTimerScreen(
+                                                habit: habitToUse,
+                                                onMarkCompleted: () async {
+                                                  final cNow = _components
+                                                      .where((c) => c.id == component.id)
+                                                      .cast<VisionComponent?>()
+                                                      .firstWhere((_) => true, orElse: () => null);
+                                                  if (cNow == null) return;
+                                                  final hNow = cNow.habits
+                                                      .where((h) => h.id == habit.id)
+                                                      .cast<HabitItem?>()
+                                                      .firstWhere((_) => true, orElse: () => null);
+                                                  if (hNow == null) return;
+                                                  final now = LogicalDateService.now();
+                                                  if (!hNow.isScheduledOnDate(now)) return;
+                                                  if (hNow.isCompletedForCurrentPeriod(now)) return;
+                                                  await _toggleHabit(cNow, hNow);
+                                                },
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              IconButton(
+                                tooltip: 'Edit habit',
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _editHabit(component, habit),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete habit',
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                onPressed: () => _deleteHabit(component, habit),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }),

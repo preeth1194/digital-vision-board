@@ -17,6 +17,13 @@ struct HabitProgressSnapshot: Codable {
     var id: String { "\(componentId):\(habitId)" }
   }
 
+  struct TimerState: Codable {
+    let habitId: String
+    let songsRemaining: Int?
+    let currentSongTitle: String?
+    let totalSongs: Int?
+  }
+
   let v: Int?
   let generatedAtMs: Int?
   let isoDate: String?
@@ -26,6 +33,7 @@ struct HabitProgressSnapshot: Codable {
   let pendingTotal: Int?
   let pending: [PendingItem]?
   let allDone: Bool?
+  let timerStates: [TimerState]?
 }
 
 struct HabitProgressProvider: TimelineProvider {
@@ -91,7 +99,8 @@ struct HabitProgressWidgetView: View {
           .font(.body)
       } else {
         ForEach(pending.prefix(3)) { it in
-          HabitRow(boardId: boardId, item: it)
+          let timerState = snap?.timerStates?.first(where: { $0.habitId == it.habitId })
+          HabitRow(boardId: boardId, item: it, timerState: timerState)
         }
       }
 
@@ -105,24 +114,36 @@ struct HabitProgressWidgetView: View {
 struct HabitRow: View {
   let boardId: String
   let item: HabitProgressSnapshot.PendingItem
+  let timerState: HabitProgressSnapshot.TimerState?
 
   var body: some View {
+    let displayText: String
+    if let timer = timerState, let remaining = timer.songsRemaining, let total = timer.totalSongs {
+      if let songTitle = timer.currentSongTitle, !songTitle.isEmpty {
+        displayText = "\(item.name) (\(remaining)/\(total)) - \(songTitle)"
+      } else {
+        displayText = "\(item.name) (\(remaining)/\(total) songs)"
+      }
+    } else {
+      displayText = item.name
+    }
+
     if #available(iOS 17.0, *) {
       Button(intent: ToggleHabitIntent(boardId: boardId, componentId: item.componentId, habitId: item.habitId)) {
-        Label(item.name, systemImage: "circle")
+        Label(displayText, systemImage: "circle")
           .labelStyle(.titleAndIcon)
           .font(.subheadline)
-          .lineLimit(1)
+          .lineLimit(2)
       }
       .buttonStyle(.plain)
     } else {
       // Fallback: opens the app to apply the toggle.
       let url = URL(string: "dvb://widget/toggle?boardId=\(boardId)&componentId=\(item.componentId)&habitId=\(item.habitId)&t=\(Int(Date().timeIntervalSince1970*1000))")!
       Link(destination: url) {
-        Label(item.name, systemImage: "circle")
+        Label(displayText, systemImage: "circle")
           .labelStyle(.titleAndIcon)
           .font(.subheadline)
-          .lineLimit(1)
+          .lineLimit(2)
       }
     }
   }

@@ -18,6 +18,7 @@ import '../services/templates_service.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
 import '../widgets/editor/add_name_dialog.dart';
+import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
@@ -401,7 +402,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: const Text('Remove'),
             ),
@@ -562,16 +565,23 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         .toSet()
         .toList();
 
-    final res = await showAddNameAndCategoryDialog(
+    final res = await showAddGoalDialog(
       context,
-      title: 'Goal name',
-      categoryHint: 'Category (optional)',
+      initialName: suggestedTitle,
       categorySuggestions: categorySuggestions,
+      showWhyImportant: true,
+      showDeadline: true,
     );
     if (!mounted) return;
     if (res == null || res.name.trim().isEmpty) return;
 
-    final meta = GoalMetadata(title: res.name.trim(), category: res.category);
+    final meta = GoalMetadata(
+      title: res.name.trim(),
+      category: res.category,
+      deadline: res.deadline,
+      // Note: whyImportant is not stored in GoalMetadata, but we collect it for consistency
+      // It could be stored in cbt.visualization if needed in the future
+    );
     await _setTile(index, _tileAt(index).copyWith(goal: meta));
   }
 
@@ -646,7 +656,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         decoration: BoxDecoration(
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -654,9 +666,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
-                color: Colors.black12,
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
                 alignment: Alignment.center,
-                child: const Icon(Icons.broken_image_outlined),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
       );
     } else if (tile.type == 'text') {
@@ -665,7 +680,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -675,17 +692,26 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           (tile.content ?? '').trim(),
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
-          style: tile.isPlaceholder ? _placeholderTextStyle(context, tile) : const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: tile.isPlaceholder 
+              ? _placeholderTextStyle(context, tile) 
+              : TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
         ),
       );
     } else {
       // Empty state
+      final colorScheme = Theme.of(context).colorScheme;
       base = Container(
         decoration: BoxDecoration(
-          color: Colors.black12.withOpacity(0.08),
+          color: colorScheme.outline.withOpacity(0.08),
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? colorScheme.primary 
+                : colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -693,10 +719,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.add, color: Colors.black54),
-            SizedBox(height: 6),
-            Text('Tap twice to add', style: TextStyle(color: Colors.black54)),
+          children: [
+            Icon(Icons.add, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 6),
+            Text(
+              'Tap twice to add',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
           ],
         ),
       );
@@ -714,14 +743,17 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.55),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.surface,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -852,13 +884,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           top: 8,
                                           right: 8,
                                           child: Material(
-                                            color: Colors.black.withOpacity(0.55),
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                             shape: const CircleBorder(),
                                             child: IconButton(
                                               visualDensity: VisualDensity.compact,
                                               iconSize: 18,
                                               tooltip: 'Delete',
-                                              color: Colors.white,
+                                              color: Theme.of(context).colorScheme.surface,
                                               onPressed: () => _deleteOrClearTile(i),
                                               icon: const Icon(Icons.delete_outline),
                                             ),
@@ -1065,7 +1097,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                         child: Text(
                           'Drag handles to resize • Long-press tile to move',
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                   ],

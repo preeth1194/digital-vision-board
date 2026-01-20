@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import 'vision_board_preview_card.dart';
+import 'puzzle_widget.dart';
 
 class DashboardTab extends StatelessWidget {
   final List<VisionBoardInfo> boards;
   final String? activeBoardId;
+  final SharedPreferences? prefs;
   final VoidCallback onCreateBoard;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
@@ -14,6 +18,7 @@ class DashboardTab extends StatelessWidget {
     super.key,
     required this.boards,
     required this.activeBoardId,
+    this.prefs,
     required this.onCreateBoard,
     required this.onOpenEditor,
     required this.onOpenViewer,
@@ -60,42 +65,23 @@ class DashboardTab extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: ListView.builder(
-              itemCount: boards.length,
-              itemBuilder: (context, i) {
-                final b = boards[i];
-                final isActive = b.id == activeBoardId;
-                final tileColor = Color(b.tileColorValue);
-                final iconColor =
-                    tileColor.computeLuminance() < 0.45 ? Colors.white : Colors.black87;
-                final iconData = boardIconFromCodePoint(b.iconCodePoint);
-
-                return Card(
-                  color: tileColor,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    title: Text(b.title),
-                    subtitle: isActive ? const Text('Selected') : null,
-                    leading: Icon(iconData, color: iconColor),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Edit',
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => onOpenEditor(b),
-                        ),
-                        IconButton(
-                          tooltip: 'Delete',
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => onDeleteBoard(b),
-                        ),
-                      ],
-                    ),
+            child: ListView(
+              children: [
+                PuzzleWidget(
+                  boards: boards,
+                  prefs: prefs,
+                ),
+                ...boards.map((b) {
+                  return VisionBoardPreviewCard(
+                    board: b,
+                    activeBoardId: activeBoardId,
+                    prefs: prefs,
                     onTap: () => onOpenViewer(b),
-                  ),
-                );
-              },
+                    onEdit: () => onOpenEditor(b),
+                    onDelete: () => onDeleteBoard(b),
+                  );
+                }),
+              ],
             ),
           ),
         ],

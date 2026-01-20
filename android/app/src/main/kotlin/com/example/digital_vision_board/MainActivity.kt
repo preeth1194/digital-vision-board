@@ -17,5 +17,8 @@ class MainActivity : FlutterActivity() {
           else -> result.notImplemented()
         }
       }
+    
+    // Register music provider handler (placeholder for Spotify/Apple Music integration)
+    MusicProviderHandler().setupMethodChannel(flutterEngine)
   }
 }

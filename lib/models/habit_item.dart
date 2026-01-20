@@ -6,12 +6,19 @@ final class HabitTimeBoundSpec {
   final int duration;
   /// 'minutes' | 'hours'
   final String unit;
+  /// Timer mode: 'time' for time-based, 'song' for song-based.
+  /// Defaults to 'time' for backward compatibility.
+  final String mode; // 'time' | 'song'
 
   const HabitTimeBoundSpec({
     required this.enabled,
     required this.duration,
     required this.unit,
+    this.mode = 'time',
   });
+
+  bool get isTimeBased => mode == 'time';
+  bool get isSongBased => mode == 'song';
 
   int get durationMinutes {
     final u = unit.trim().toLowerCase();
@@ -24,13 +31,29 @@ final class HabitTimeBoundSpec {
         'enabled': enabled,
         'duration': duration,
         'unit': unit,
+        'mode': mode,
       };
 
   factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
     final enabled = (json['enabled'] as bool?) ?? false;
     final duration = (json['duration'] as num?)?.toInt() ?? 0;
     final unit = (json['unit'] as String?) ?? 'minutes';
-    return HabitTimeBoundSpec(enabled: enabled, duration: duration, unit: unit);
+    final mode = (json['mode'] as String?) ?? 'time';
+    return HabitTimeBoundSpec(enabled: enabled, duration: duration, unit: unit, mode: mode);
+  }
+
+  HabitTimeBoundSpec copyWith({
+    bool? enabled,
+    int? duration,
+    String? unit,
+    String? mode,
+  }) {
+    return HabitTimeBoundSpec(
+      enabled: enabled ?? this.enabled,
+      duration: duration ?? this.duration,
+      unit: unit ?? this.unit,
+      mode: mode ?? this.mode,
+    );
   }
 }
 

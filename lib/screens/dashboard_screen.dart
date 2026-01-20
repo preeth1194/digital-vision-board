@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../utils/app_typography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/core_value.dart';
@@ -28,6 +29,10 @@ import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
 import 'journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import 'vision_board_home_screen.dart';
+import 'puzzle_game_screen.dart';
+import '../services/puzzle_service.dart';
+import 'widget_guide_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -214,6 +219,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return '$hh:${m.toString().padLeft(2, '0')} $ampm';
   }
 
+  Future<void> _openLandingScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()),
+    );
+    // Refresh data when returning from landing screen
+    await _refreshReminders();
+  }
+
   Future<void> _openRemindersSheet() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
@@ -242,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Text(
                     'Reminders',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: AppTypography.heading3(context),
                   ),
                 ),
                 Expanded(
@@ -302,9 +315,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Add home-screen widget?',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: AppTypography.heading3(context),
                 ),
                 const SizedBox(height: 8),
                 const Text('Get a quick view of today’s habits and mark them complete from your home screen.'),
@@ -348,6 +361,36 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   void _openSettings() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
+  Future<void> _openPuzzleGame() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    
+    final imagePath = await PuzzleService.getCurrentPuzzleImage(
+      boards: _boards,
+      prefs: prefs,
+    );
+
+    if (imagePath == null || imagePath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No puzzle images available. Add goal images to your vision boards.'),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PuzzleGameScreen(
+          imagePath: imagePath,
+          prefs: prefs,
+        ),
+      ),
+    );
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
@@ -446,7 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       title: 'Delete board?',
       message: 'Delete "${board.title}"? This cannot be undone.',
       confirmText: 'Delete',
-      confirmColor: Colors.red,
+      confirmColor: Theme.of(context).colorScheme.error,
     );
     if (!ok) return;
 
@@ -548,9 +591,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Digital Vision Board',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: AppTypography.heading3(context),
                   ),
                   const SizedBox(height: 8),
                   FutureBuilder<String?>(
@@ -558,7 +601,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     builder: (context, snap) {
                       final id = (snap.data ?? '').trim();
                       final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                      return Text(label, style: const TextStyle(color: Colors.black54));
+                      return Text(
+                        label,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      );
                     },
                   ),
                 ],
@@ -588,6 +634,24 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 _openSettings();
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.extension),
+              title: const Text('Puzzle Game'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _openPuzzleGame();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.widgets_outlined),
+              title: const Text('Widget Guide'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -599,6 +663,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'View goals',
+            icon: const Icon(Icons.flip_to_front),
+            onPressed: _openLandingScreen,
+          ),
           Builder(
             builder: (ctx) {
               final count = _reminderSummary?.todayPendingCount ?? 0;
@@ -618,12 +687,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         count > 99 ? '99+' : '$count',
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),

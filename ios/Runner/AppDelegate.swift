@@ -3,6 +3,7 @@ import UIKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
+import MediaPlayer
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -15,6 +16,11 @@ import WidgetKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+    
+    // Register music provider handler (placeholder for Spotify/Apple Music integration)
+    if let registrar = self.registrar(forPlugin: "MusicProviderHandler") {
+      MusicProviderHandler.register(with: registrar)
+    }
 
     if let controller = window?.rootViewController as? FlutterViewController {
       let channel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)

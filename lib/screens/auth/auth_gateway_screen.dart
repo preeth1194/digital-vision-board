@@ -105,7 +105,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           const SizedBox(height: 8),
           Text(
             'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.',
-            style: const TextStyle(color: Colors.black54),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
           if ((_error ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 12),

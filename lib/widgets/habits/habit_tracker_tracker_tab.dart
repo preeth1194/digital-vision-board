@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/habit_item.dart';
 import '../../screens/habit_timer_screen.dart';
+import '../../screens/rhythmic_timer_screen.dart';
 import '../../services/habit_timer_state_service.dart';
 import '../../services/logical_date_service.dart';
 
@@ -244,7 +245,10 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
           const Center(
             child: Padding(
               padding: EdgeInsets.all(32.0),
-              child: Text('No habits yet. Add one above!', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'No habits yet. Add one above!',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
             ),
           )
         else
@@ -277,7 +281,9 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
-              color: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
+              color: (habit.locationBound?.enabled == true)
+                  ? Theme.of(context).colorScheme.tertiaryContainer
+                  : null,
               child: ListTile(
                 leading: Checkbox(
                   value: isTodayCompleted,
@@ -294,16 +300,32 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (!scheduledToday)
-                          const Text('Not scheduled today', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            'Not scheduled today',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                         if (streak > 0) ...[
-                          const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                          Icon(
+                            Icons.local_fire_department,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
                           Text('$streak $unit${streak != 1 ? 's' : ''} streak'),
                         ] else
-                          const Text('No streak yet', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            'No streak yet',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                         if ((weeklyDays ?? '').trim().isNotEmpty)
-                          Text('Days $weeklyDays', style: const TextStyle(color: Colors.grey)),
+                          Text(
+                            'Days $weeklyDays',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                         if ((habit.deadline ?? '').trim().isNotEmpty)
-                          Text('Due ${habit.deadline}', style: const TextStyle(color: Colors.grey)),
+                          Text(
+                            'Due ${habit.deadline}',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                       ],
                     ),
                     if (isTimerHabit) ...[
@@ -361,22 +383,39 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                         tooltip: 'Timer',
                         icon: const Icon(Icons.timer_outlined),
                         onPressed: () async {
+                          final isSongBased = habit.timeBound?.isSongBased ?? false;
                           await Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => HabitTimerScreen(
-                                habit: habit,
-                                onMarkCompleted: () async {
-                                  final now = LogicalDateService.now();
-                                  final current = widget.habits
-                                      .where((h) => h.id == habit.id)
-                                      .cast<HabitItem?>()
-                                      .firstWhere((_) => true, orElse: () => null);
-                                  final h = current ?? habit;
-                                  if (!h.isScheduledOnDate(now)) return;
-                                  if (h.isCompletedForCurrentPeriod(now)) return;
-                                  widget.onToggleHabit(h);
-                                },
-                              ),
+                              builder: (_) => isSongBased
+                                  ? RhythmicTimerScreen(
+                                      habit: habit,
+                                      onMarkCompleted: () async {
+                                        final now = LogicalDateService.now();
+                                        final current = widget.habits
+                                            .where((h) => h.id == habit.id)
+                                            .cast<HabitItem?>()
+                                            .firstWhere((_) => true, orElse: () => null);
+                                        final h = current ?? habit;
+                                        if (!h.isScheduledOnDate(now)) return;
+                                        if (h.isCompletedForCurrentPeriod(now)) return;
+                                        // Toggle habit completion - this will trigger _maybeAskCompletionFeedback
+                                        widget.onToggleHabit(h);
+                                      },
+                                    )
+                                  : HabitTimerScreen(
+                                      habit: habit,
+                                      onMarkCompleted: () async {
+                                        final now = LogicalDateService.now();
+                                        final current = widget.habits
+                                            .where((h) => h.id == habit.id)
+                                            .cast<HabitItem?>()
+                                            .firstWhere((_) => true, orElse: () => null);
+                                        final h = current ?? habit;
+                                        if (!h.isScheduledOnDate(now)) return;
+                                        if (h.isCompletedForCurrentPeriod(now)) return;
+                                        widget.onToggleHabit(h);
+                                      },
+                                    ),
                             ),
                           );
                         },
@@ -387,7 +426,10 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                       onPressed: () => widget.onEditHabit(habit),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                       onPressed: () {
                         showDialog<void>(
                           context: context,
@@ -404,7 +446,10 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                                   Navigator.of(context).pop();
                                   widget.onDeleteHabit(habit);
                                 },
-                                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                child: Text(
+                                  'Delete',
+                                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                                ),
                               ),
                             ],
                           ),

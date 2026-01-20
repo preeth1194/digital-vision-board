@@ -56,12 +56,36 @@ class DigitalVisionBoardApp extends StatelessWidget {
           localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
           supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.light,
+            ),
             useMaterial3: true,
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
           darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.deepPurple,
+              brightness: Brightness.dark,
+            ),
             useMaterial3: true,
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
           themeMode: mode,
           home: const VisionBoardHomeScreen(),

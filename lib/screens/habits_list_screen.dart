@@ -282,7 +282,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
               TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  'Delete',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -339,14 +342,25 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.list_alt, size: 64, color: Colors.grey),
+            Icon(
+              Icons.list_alt,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No habits found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text('Add a habit to a goal to get started', style: TextStyle(color: Colors.grey)),
+            Text(
+              'Add a habit to a goal to get started',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _addHabitFromGoalPicker,
@@ -406,12 +420,16 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                       value: isCompleted,
                       onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
                     ),
-                    tileColor: (habit.locationBound?.enabled == true) ? Colors.green.shade200 : null,
+                    tileColor: (habit.locationBound?.enabled == true)
+                        ? Theme.of(context).colorScheme.tertiaryContainer
+                        : null,
                     title: Text(
                       habit.name,
                       style: TextStyle(
                         decoration: isCompleted ? TextDecoration.lineThrough : null,
-                        color: isCompleted ? Colors.grey : null,
+                        color: isCompleted
+                            ? Theme.of(context).colorScheme.surfaceVariant
+                            : null,
                       ),
                     ),
                     subtitle: Wrap(
@@ -420,16 +438,29 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (!scheduledToday)
-                          const Text('Not scheduled today', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            'Not scheduled today',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                         if (habit.currentStreak > 0) ...[
-                          const Icon(Icons.local_fire_department, size: 14, color: Colors.orange),
+                          Icon(
+                            Icons.local_fire_department,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
                           Text(
                             '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
                           ),
                         ] else
-                          const Text('No streak yet', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            'No streak yet',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                         if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
-                          Text('Due ${habit.deadline}', style: const TextStyle(color: Colors.grey)),
+                          Text(
+                            'Due ${habit.deadline}',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
                       ],
                     ),
                     trailing: Row(
@@ -481,7 +512,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                         ),
                         IconButton(
                           tooltip: 'Delete habit',
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                           onPressed: () => _deleteHabit(component, habit),
                         ),
                       ],

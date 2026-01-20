@@ -114,6 +114,7 @@ class DashboardBody extends StatelessWidget {
       0 => DashboardTab(
           boards: boards,
           activeBoardId: activeBoardId,
+          prefs: prefs,
           onCreateBoard: onCreateBoard,
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,

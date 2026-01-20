@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_typography.dart';
 
 import 'onboarding/onboarding_carousel_screen.dart';
 import 'admin/templates_admin_screen.dart';
@@ -55,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            const Text('Gender', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Gender', style: AppTypography.heading3(context)),
             const SizedBox(height: 8),
             for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
               RadioListTile<String>(
@@ -94,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            const Text('Theme', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Theme', style: AppTypography.heading3(context)),
             const SizedBox(height: 8),
             for (final v in const [ThemeMode.system, ThemeMode.light, ThemeMode.dark])
               RadioListTile<ThemeMode>(

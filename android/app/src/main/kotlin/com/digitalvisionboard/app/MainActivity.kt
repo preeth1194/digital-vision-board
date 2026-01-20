@@ -1,4 +1,4 @@
-package com.example.digital_vision_board
+package com.digitalvisionboard.app
 
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity

@@ -24,8 +24,29 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+// Remove old package directories to prevent duplicate class errors
+tasks.register("cleanOldPackage") {
+    doLast {
+        val oldExampleDir = file("src/main/kotlin/com/example")
+        val oldIntentDir = file("src/main/kotlin/com/intent")
+        if (oldExampleDir.exists()) {
+            logger.warn("Removing old package directory: ${oldExampleDir.absolutePath}")
+            oldExampleDir.deleteRecursively()
+        }
+        if (oldIntentDir.exists()) {
+            logger.warn("Removing old package directory: ${oldIntentDir.absolutePath}")
+            oldIntentDir.deleteRecursively()
+        }
+    }
+}
+
+// Ensure old package is removed before compilation
+tasks.named("preBuild").configure {
+    dependsOn("cleanOldPackage")
+}
+
 android {
-    namespace = "com.example.digital_vision_board"
+    namespace = "com.digitalvisionboard.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -40,8 +61,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.digital_vision_board"
+        // Application ID for Google Play - must be unique and not use com.example
+        applicationId = "com.digitalvisionboard.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -66,10 +87,16 @@ android {
                 keyAliasValue != null &&
                 keyPasswordValue != null
             ) {
-                storeFile = file(storeFilePath)
-                storePassword = storePasswordValue
-                keyAlias = keyAliasValue
-                keyPassword = keyPasswordValue
+                // Resolve keystore path relative to android directory
+                val keystoreFile = rootProject.file(storeFilePath)
+                if (keystoreFile.exists()) {
+                    storeFile = keystoreFile
+                    storePassword = storePasswordValue
+                    keyAlias = keyAliasValue
+                    keyPassword = keyPasswordValue
+                } else {
+                    logger.warn("Keystore file not found: ${keystoreFile.absolutePath}")
+                }
             }
         }
     }

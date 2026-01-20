@@ -1,4 +1,4 @@
-package com.example.digital_vision_board
+package com.digitalvisionboard.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -186,4 +186,3 @@ class HabitProgressAppWidget : AppWidgetProvider() {
     }
   }
 }
-

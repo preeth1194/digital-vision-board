@@ -1,4 +1,4 @@
-package com.example.digital_vision_board
+package com.digitalvisionboard.app
 
 import android.content.Context
 import android.content.pm.PackageManager

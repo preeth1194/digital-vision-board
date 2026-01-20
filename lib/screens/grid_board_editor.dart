@@ -1122,19 +1122,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
                                   final content = InkWell(
                                     onTap: (!_isEditing)
-                                        ? () async {
-                                            // View mode: open the goal viewer for this tile.
-                                            if (tile.type == 'empty') return;
-                                            await Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => GridGoalViewerScreen(
-                                                  boardId: widget.boardId,
-                                                  tileId: tile.id,
-                                                ),
-                                              ),
-                                            );
-                                            if (mounted) await _init();
-                                          }
+                                        ? null // Disabled: grid tiles should not open modal in viewer mode
                                         : (selectionLocked)
                                             ? null
                                             : () async {

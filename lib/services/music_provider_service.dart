@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/spotify_playlist.dart';
+import 'dv_auth_service.dart';
 
 /// Abstract interface for music providers (Spotify, Apple Music, or fallback).
 abstract class MusicProvider {
@@ -152,51 +155,120 @@ class SpotifyProvider implements MusicProvider {
   @override
   Future<List<SpotifyPlaylist>> getPlaylists({int limit = 50, int offset = 0}) async {
     try {
-      final result = await _methodChannel.invokeMethod<List<dynamic>>(
-        'getSpotifyPlaylists',
-        {'limit': limit, 'offset': offset},
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlists')
+          .replace(queryParameters: {
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      });
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $dvToken',
+          'accept': 'application/json',
+        },
       );
-      if (result == null) return [];
-      return result
+
+      if (response.statusCode == 401) {
+        throw Exception('Spotify not connected. Please connect Spotify in settings.');
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to load playlists: ${response.statusCode}');
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final playlists = json['playlists'] as List<dynamic>? ?? [];
+      return playlists
           .map((item) => SpotifyPlaylist.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList();
     } catch (e) {
-      // If not implemented, return empty list
-      return [];
+      rethrow;
     }
   }
 
   @override
   Future<List<SpotifyTrack>> searchTracks(String query, {int limit = 20}) async {
     try {
-      final result = await _methodChannel.invokeMethod<List<dynamic>>(
-        'searchSpotifyTracks',
-        {'query': query, 'limit': limit},
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/search')
+          .replace(queryParameters: {
+        'query': query,
+        'limit': limit.toString(),
+      });
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $dvToken',
+          'accept': 'application/json',
+        },
       );
-      if (result == null) return [];
-      return result
+
+      if (response.statusCode == 401) {
+        throw Exception('Spotify not connected. Please connect Spotify in settings.');
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Search failed: ${response.statusCode}');
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final tracks = json['tracks'] as List<dynamic>? ?? [];
+      return tracks
           .map((item) => SpotifyTrack.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList();
     } catch (e) {
-      // If not implemented, return empty list
-      return [];
+      rethrow;
     }
   }
 
   @override
   Future<List<SpotifyTrack>> getPlaylistTracks(String playlistId, {int limit = 100, int offset = 0}) async {
     try {
-      final result = await _methodChannel.invokeMethod<List<dynamic>>(
-        'getSpotifyPlaylistTracks',
-        {'playlistId': playlistId, 'limit': limit, 'offset': offset},
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlist/$playlistId/tracks')
+          .replace(queryParameters: {
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      });
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $dvToken',
+          'accept': 'application/json',
+        },
       );
-      if (result == null) return [];
-      return result
+
+      if (response.statusCode == 401) {
+        throw Exception('Spotify not connected. Please connect Spotify in settings.');
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Failed to load playlist tracks: ${response.statusCode}');
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final tracks = json['tracks'] as List<dynamic>? ?? [];
+      return tracks
           .map((item) => SpotifyTrack.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList();
     } catch (e) {
-      // If not implemented, return empty list
-      return [];
+      rethrow;
     }
   }
 

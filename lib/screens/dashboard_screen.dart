@@ -9,6 +9,7 @@ import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
+import '../widgets/dashboard/expandable_fab.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -832,6 +833,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ],
       ),
       body: body,
+      floatingActionButton: _tabIndex == 1
+          ? ExpandableFAB(
+              onCreateBoard: _createBoard,
+              onCreateRoutine: _createRoutine,
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
         onTap: (i) {

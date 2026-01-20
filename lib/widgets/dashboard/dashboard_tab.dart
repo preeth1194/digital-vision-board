@@ -7,6 +7,7 @@ import '../../utils/app_typography.dart';
 import 'vision_board_preview_card.dart';
 import 'routine_preview_card.dart';
 import 'puzzle_widget.dart';
+import 'section_carousel.dart';
 
 class DashboardTab extends StatelessWidget {
   final List<VisionBoardInfo> boards;
@@ -40,141 +41,116 @@ class DashboardTab extends StatelessWidget {
     required this.onDeleteRoutine,
   });
 
+  Widget _buildEmptyState(String title, String message, IconData icon) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Create buttons widget
-    Widget createButtonsGrid() {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: GridView.count(
-          crossAxisCount: 1,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          childAspectRatio: 3.5,
-          children: [
-            // Vision Board button
-            FilledButton.icon(
-              onPressed: onCreateBoard,
-              icon: const Icon(Icons.dashboard_outlined, size: 18),
-              label: const Text(
-                'Create Vision Board',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-            // Routine button
-            FilledButton.icon(
-              onPressed: onCreateRoutine,
-              icon: const Icon(Icons.list_alt, size: 18),
-              label: const Text(
-                'Create Routine',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                backgroundColor: colorScheme.secondary,
-                foregroundColor: colorScheme.onSecondary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-          ],
-        ),
+    // Build vision board cards
+    final visionBoardCards = boards.map((b) {
+      return VisionBoardPreviewCard(
+        board: b,
+        activeBoardId: activeBoardId,
+        prefs: prefs,
+        onTap: () => onOpenViewer(b),
+        onEdit: () => onOpenEditor(b),
+        onDelete: () => onDeleteBoard(b),
       );
-    }
+    }).toList();
 
-    if (boards.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.dashboard_outlined, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'Get started',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            createButtonsGrid(),
-          ],
-        ),
+    // Build routine cards
+    final routineCards = routines.map((r) {
+      return RoutinePreviewCard(
+        routine: r,
+        activeRoutineId: activeRoutineId,
+        prefs: prefs,
+        onTap: () => onOpenRoutine(r),
+        onEdit: () => onEditRoutine(r),
+        onDelete: () => onDeleteRoutine(r),
       );
-    }
+    }).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          createButtonsGrid(),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ListView(
-              children: [
-                // Vision Boards
-                if (boards.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Vision Boards',
-                      style: AppTypography.heading3(context),
-                    ),
-                  ),
-                  ...boards.map((b) {
-                    return VisionBoardPreviewCard(
-                      board: b,
-                      activeBoardId: activeBoardId,
-                      prefs: prefs,
-                      onTap: () => onOpenViewer(b),
-                      onEdit: () => onOpenEditor(b),
-                      onDelete: () => onDeleteBoard(b),
-                    );
-                  }),
-                  const SizedBox(height: 24),
-                ],
-                // Routines
-                if (routines.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Routines',
-                      style: AppTypography.heading3(context),
-                    ),
-                  ),
-                  ...routines.map((r) {
-                    return RoutinePreviewCard(
-                      routine: r,
-                      activeRoutineId: activeRoutineId,
-                      prefs: prefs,
-                      onTap: () => onOpenRoutine(r),
-                      onEdit: () => onEditRoutine(r),
-                      onDelete: () => onDeleteRoutine(r),
-                    );
-                  }),
-                  const SizedBox(height: 24),
-                ],
+          // Vision Boards Section
+          SectionCarousel(
+            title: 'Vision Boards',
+            items: visionBoardCards,
+            height: null, // Let cards determine height
+            emptyState: _buildEmptyState(
+              'No Vision Boards',
+              'Create your first vision board to get started',
+              Icons.dashboard_outlined,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Routines Section
+          SectionCarousel(
+            title: 'Routines',
+            items: routineCards,
+            height: null, // Let cards determine height
+            emptyState: _buildEmptyState(
+              'No Routines',
+              'Create your first routine to organize your daily tasks',
+              Icons.list_alt,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Puzzle Section (only show if there are vision boards)
+          if (boards.isNotEmpty) ...[
+            SectionCarousel(
+              title: 'Puzzle Challenge',
+              items: [
                 PuzzleWidget(
                   boards: boards,
                   prefs: prefs,
                 ),
               ],
+              height: null,
+              emptyState: _buildEmptyState(
+                'No Puzzle Available',
+                'Add goal images to your vision boards to unlock puzzle challenges',
+                Icons.extension,
+              ),
             ),
-          ),
+            const SizedBox(height: 24),
+          ],
         ],
       ),
     );

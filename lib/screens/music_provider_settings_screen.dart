@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import '../services/music_provider_service.dart';
+import '../services/dv_auth_service.dart';
 import '../utils/app_typography.dart';
 
 class MusicProviderSettingsScreen extends StatefulWidget {
@@ -56,49 +60,57 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
   Future<void> _authenticateSpotify() async {
     setState(() => _loading = true);
     try {
-      // With MediaSession/NowPlayingInfoCenter approach, no authentication needed
-      // Just verify Spotify is available
-      if (_spotifyAvailable) {
-        final success = await _spotifyProvider.authenticate();
-        if (success) {
-          setState(() {
-            _spotifyAuthenticated = true;
-            _selectedProvider = 'spotify';
-          });
-          await _savePreference('spotify');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Spotify is ready to use')),
-            );
-          }
-        } else {
-          // Still allow selection if Spotify app is installed
-          setState(() {
-            _spotifyAuthenticated = true; // Works via system APIs
-            _selectedProvider = 'spotify';
-          });
-          await _savePreference('spotify');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Spotify detected - ready to track songs')),
-            );
-          }
-        }
-      } else {
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Spotify app not installed. Please install Spotify from the app store.'),
+              content: Text('Please sign in first to connect Spotify'),
               backgroundColor: Colors.orange,
             ),
           );
         }
+        setState(() => _loading = false);
+        return;
       }
+
+      // Build OAuth URL with returnTo deep link
+      final returnTo = 'dvb://spotify-oauth';
+      final authUrl = Uri.parse('${DvAuthService.backendBaseUrl()}/auth/spotify/start')
+          .replace(queryParameters: {
+        'returnTo': returnTo,
+        'origin': 'dvb',
+        'dvToken': dvToken,
+      });
+
+      // Launch OAuth URL
+      final launched = await launchUrl(authUrl, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('Could not open Spotify OAuth URL');
+      }
+
+      // Show message that user should complete OAuth in browser
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complete Spotify connection in the browser, then return to the app'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+
+      // For now, mark as authenticated after a delay (in production, use deep link callback)
+      // The actual connection will be verified when trying to use Spotify features
+      setState(() {
+        _spotifyAuthenticated = true;
+        _selectedProvider = 'spotify';
+      });
+      await _savePreference('spotify');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error connecting Spotify: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

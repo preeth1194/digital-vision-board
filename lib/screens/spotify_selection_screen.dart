@@ -54,17 +54,6 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
   }
 
   Future<void> _loadPlaylists() async {
-    if (!await _spotifyProvider.isAvailable()) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Spotify is not available. Please install Spotify app.'),
-          ),
-        );
-      }
-      return;
-    }
-
     setState(() => _isLoadingPlaylists = true);
     try {
       final playlists = await _spotifyProvider.getPlaylists(limit: 50);
@@ -77,11 +66,21 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingPlaylists = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load playlists: ${e.toString()}'),
-          ),
-        );
+        final errorMsg = e.toString();
+        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load playlists: ${e.toString()}'),
+            ),
+          );
+        }
       }
     }
   }
@@ -107,11 +106,21 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isSearching = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Search failed: ${e.toString()}'),
-          ),
-        );
+        final errorMsg = e.toString();
+        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Search failed: ${e.toString()}'),
+            ),
+          );
+        }
       }
     }
   }
@@ -132,11 +141,21 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingTracks = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load playlist tracks: ${e.toString()}'),
-          ),
-        );
+        final errorMsg = e.toString();
+        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load playlist tracks: ${e.toString()}'),
+            ),
+          );
+        }
       }
     }
   }
@@ -312,7 +331,7 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Make sure Spotify is connected and you have playlists',
+              'Connect Spotify in Music Provider Settings to view your playlists',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

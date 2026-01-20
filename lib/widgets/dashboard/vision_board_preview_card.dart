@@ -192,7 +192,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
     // Use 3x3 grid for compact preview
     const crossAxisCount = 3;
     const spacing = 2.0;
-    const height = 200.0;
+    const height = 150.0; // Reduced from 200 to 150
 
     return SizedBox(
       height: height,
@@ -254,7 +254,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
     final provider = fileImageProviderFromPath(imagePath);
 
     return SizedBox(
-      height: 200,
+      height: 150, // Reduced from 200 to 150
       child: provider != null
           ? Image(
               image: provider,
@@ -283,12 +283,12 @@ class VisionBoardPreviewCard extends StatelessWidget {
         : Colors.black87;
 
     return Container(
-      height: 200,
+      height: 150, // Reduced from 200 to 150
       color: tileColor,
       child: Center(
         child: Icon(
           iconData,
-          size: 64,
+          size: 48, // Reduced from 64 to 48
           color: iconColor.withOpacity(0.6),
         ),
       ),
@@ -297,7 +297,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
 
   Widget _buildLoadingPlaceholder(BuildContext context, Color tileColor) {
     return Container(
-      height: 200,
+      height: 150, // Reduced from 200 to 150
       color: tileColor.withOpacity(0.3),
       child: Center(
         child: CircularProgressIndicator(

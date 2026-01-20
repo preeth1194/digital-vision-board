@@ -62,7 +62,7 @@ class RoutinePreviewCard extends StatelessWidget {
         children: [
           // Background with icon
           Container(
-            height: 200,
+            height: 150, // Reduced from 200 to 150
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -76,7 +76,7 @@ class RoutinePreviewCard extends StatelessWidget {
             child: Center(
               child: Icon(
                 icon,
-                size: 64,
+                size: 48, // Reduced from 64 to 48
                 color: tileColor.computeLuminance() < 0.45
                     ? Colors.white.withOpacity(0.3)
                     : Colors.black.withOpacity(0.2),

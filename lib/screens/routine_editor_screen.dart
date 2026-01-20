@@ -6,6 +6,7 @@ import '../models/routine_todo_item.dart';
 import '../services/routine_storage_service.dart';
 import '../services/icon_service.dart';
 import '../utils/app_typography.dart';
+import 'spotify_selection_screen.dart';
 
 class RoutineEditorScreen extends StatefulWidget {
   final Routine? routine; // null for new routine
@@ -29,6 +30,9 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
   int _tileColorValue = const Color(0xFFE0F2FE).value;
   String _timeMode = 'overall'; // 'overall' | 'per_todo'
   int? _overallDurationMinutes;
+  String? _overallPlaylistId;
+  String? _overallPlaylistName;
+  String? _overallTimerType; // 'regular' | 'rhythmic'
   List<RoutineTodoItem> _todos = [];
 
   @override
@@ -46,8 +50,12 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
       _tileColorValue = widget.routine!.tileColorValue;
       _timeMode = widget.routine!.timeMode;
       _overallDurationMinutes = widget.routine!.overallDurationMinutes;
+      _overallPlaylistId = widget.routine!.overallPlaylistId;
+      _overallTimerType = widget.routine!.overallTimerType ?? 'regular';
       _todos = List.from(widget.routine!.todos);
       _titleController.text = _title;
+    } else {
+      _overallTimerType = 'regular';
     }
     setState(() => _loading = false);
   }
@@ -101,6 +109,8 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
       todos: _todos,
       timeMode: _timeMode,
       overallDurationMinutes: _overallDurationMinutes,
+      overallPlaylistId: _overallPlaylistId,
+      overallTimerType: _overallTimerType,
     );
 
     final routines = await RoutineStorageService.loadRoutines(prefs: _prefs);
@@ -148,6 +158,7 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
           order: todo.order,
           durationMinutes: result['durationMinutes'] as int?,
           timerType: result['timerType'] as String?,
+          selectedTrackId: result['selectedTrackId'] as String?,
           reminderEnabled: result['reminderEnabled'] as bool,
           reminderMinutes: result['reminderMinutes'] as int?,
           timeOfDay: result['timeOfDay'] as String?,
@@ -276,6 +287,74 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              // Playlist selection
+              Text(
+                'Music & Timer',
+                style: AppTypography.heading3(context),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.music_note),
+                  title: Text(_overallPlaylistName ?? 'Select Playlist'),
+                  subtitle: Text(_overallPlaylistId != null ? 'Playlist selected' : 'Optional: Choose a playlist for your routine'),
+                  trailing: _overallPlaylistId != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _overallPlaylistId = null;
+                              _overallPlaylistName = null;
+                            });
+                          },
+                        )
+                      : const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                      MaterialPageRoute(
+                        builder: (_) => SpotifySelectionScreen(
+                          selectedPlaylistId: _overallPlaylistId,
+                          allowMultipleTracks: false,
+                        ),
+                      ),
+                    );
+                    if (result != null && result['playlistId'] != null) {
+                      setState(() {
+                        _overallPlaylistId = result['playlistId'] as String;
+                        _overallPlaylistName = result['playlistName'] as String?;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Timer type selector
+              Text(
+                'Timer Type',
+                style: AppTypography.body(context),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'regular',
+                    label: Text('Regular'),
+                    icon: Icon(Icons.timer_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'rhythmic',
+                    label: Text('Rhythmic'),
+                    icon: Icon(Icons.music_note),
+                  ),
+                ],
+                selected: {_overallTimerType ?? 'regular'},
+                onSelectionChanged: (Set<String> selection) {
+                  setState(() {
+                    _overallTimerType = selection.first;
+                  });
+                },
               ),
               const SizedBox(height: 24),
             ],
@@ -439,6 +518,8 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
   int _iconCodePoint = Icons.check_circle_outline.codePoint;
   int? _durationMinutes;
   String? _timerType; // 'rhythmic' | 'regular'
+  String? _selectedTrackId;
+  String? _selectedTrackName;
   bool _reminderEnabled = false;
   int? _reminderMinutes;
   String? _timeOfDay;
@@ -450,6 +531,7 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
     _iconCodePoint = widget.todo.iconCodePoint;
     _durationMinutes = widget.todo.durationMinutes;
     _timerType = widget.todo.timerType;
+    _selectedTrackId = widget.todo.selectedTrackId;
     _reminderEnabled = widget.todo.reminderEnabled;
     _reminderMinutes = widget.todo.reminderMinutes;
     _timeOfDay = widget.todo.timeOfDay;
@@ -525,6 +607,7 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
       'iconCodePoint': _iconCodePoint,
       'durationMinutes': _durationMinutes,
       'timerType': _timerType,
+      'selectedTrackId': _selectedTrackId,
       'reminderEnabled': _reminderEnabled,
       'reminderMinutes': _reminderMinutes,
       'timeOfDay': _timeOfDay,
@@ -574,6 +657,12 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
                   border: OutlineInputBorder(),
                   suffixText: 'minutes',
                 ),
+                onChanged: (value) {
+                  final duration = int.tryParse(value);
+                  setState(() {
+                    _durationMinutes = duration;
+                  });
+                },
               ),
               const SizedBox(height: 16),
 
@@ -600,6 +689,46 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
                   });
                 },
               ),
+              // Song selection (only if duration is set)
+              if (_durationMinutes != null && _durationMinutes! > 0) ...[
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.music_note),
+                    title: Text(_selectedTrackName ?? 'Select Song'),
+                    subtitle: Text(_selectedTrackId != null ? 'Song selected' : 'Optional: Choose a song for this todo'),
+                    trailing: _selectedTrackId != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _selectedTrackId = null;
+                                _selectedTrackName = null;
+                              });
+                            },
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                        MaterialPageRoute(
+                          builder: (_) => SpotifySelectionScreen(
+                            selectedTrackIds: _selectedTrackId != null ? [_selectedTrackId!] : null,
+                            allowMultipleTracks: false,
+                          ),
+                        ),
+                      );
+                      if (result != null && result['trackIds'] != null && (result['trackIds'] as List).isNotEmpty) {
+                        setState(() {
+                          _selectedTrackId = (result['trackIds'] as List).first as String;
+                          // Track name is not returned, so we'll show a generic message
+                          // The actual track info can be retrieved when needed
+                          _selectedTrackName = 'Selected song';
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
             ],
 

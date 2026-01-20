@@ -611,6 +611,247 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
                             ),
                           ],
                           const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Timebound habit (timer)'),
+                            subtitle: const Text('Track time spent today with pause/resume.'),
+                            value: _timeBoundEnabled,
+                            onChanged: (v) => setState(() => _timeBoundEnabled = v),
+                          ),
+                          if (_timeBoundEnabled) ...[
+                            const SizedBox(height: 8),
+                            TabBar(
+                              controller: _timerModeTabController,
+                              tabs: const [
+                                Tab(
+                                  text: 'Regular Timer',
+                                  icon: Icon(Icons.timer_outlined),
+                                ),
+                                Tab(
+                                  text: 'Select Song',
+                                  icon: Icon(Icons.music_note),
+                                ),
+                              ],
+                            ),
+                            SizedBox(
+                              height: 200,
+                              child: TabBarView(
+                                controller: _timerModeTabController,
+                                children: [
+                                  // Regular Timer Tab
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextField(
+                                                keyboardType: TextInputType.number,
+                                                decoration: const InputDecoration(
+                                                  labelText: 'Duration',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                controller: _timeBoundDurationC,
+                                                onChanged: (v) => setState(() =>
+                                                    _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            SizedBox(
+                                              width: 140,
+                                              child: DropdownButtonFormField<String>(
+                                                value: _timeBoundUnit,
+                                                items: const [
+                                                  DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
+                                                  DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                                                ],
+                                                onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
+                                                decoration: const InputDecoration(
+                                                  labelText: 'Unit',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Select Song Tab
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        TextField(
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Number of songs',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          controller: _timeBoundDurationC,
+                                          onChanged: (v) => setState(() =>
+                                              _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Music selection button
+                                        OutlinedButton.icon(
+                                          onPressed: () async {
+                                            final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                                              MaterialPageRoute(
+                                                builder: (context) => SpotifySelectionScreen(
+                                                  selectedPlaylistId: _selectedPlaylistId,
+                                                  selectedTrackIds: _selectedTrackIds,
+                                                  allowMultipleTracks: true,
+                                                ),
+                                              ),
+                                            );
+                                            if (result != null && mounted) {
+                                              setState(() {
+                                                _selectedPlaylistId = result['playlistId'] as String?;
+                                                _selectedPlaylistName = result['playlistName'] as String?;
+                                                _selectedTrackIds = List<String>.from(result['trackIds'] ?? []);
+                                                // If playlist selected, update duration to playlist track count if available
+                                                if (_selectedPlaylistId != null && _selectedTrackIds.isEmpty) {
+                                                  // Will be set when playlist tracks are loaded
+                                                } else if (_selectedTrackIds.isNotEmpty) {
+                                                  _timeBoundDuration = _selectedTrackIds.length;
+                                                  _timeBoundDurationC.text = _timeBoundDuration.toString();
+                                                }
+                                              });
+                                            }
+                                          },
+                                          icon: const Icon(Icons.music_note),
+                                          label: Text(
+                                            _selectedPlaylistId != null
+                                                ? _selectedPlaylistName ?? 'Playlist selected'
+                                                : _selectedTrackIds.isNotEmpty
+                                                    ? '${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'} selected'
+                                                    : 'Select playlist or songs',
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(double.infinity, 48),
+                                          ),
+                                        ),
+                                        if (_selectedPlaylistId != null || _selectedTrackIds.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            children: [
+                                              if (_selectedPlaylistId != null)
+                                                Chip(
+                                                  label: Text(_selectedPlaylistName ?? 'Playlist'),
+                                                  onDeleted: () {
+                                                    setState(() {
+                                                      _selectedPlaylistId = null;
+                                                      _selectedPlaylistName = null;
+                                                    });
+                                                  },
+                                                ),
+                                              if (_selectedTrackIds.isNotEmpty)
+                                                Chip(
+                                                  label: Text('${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'}'),
+                                                  onDeleted: () {
+                                                    setState(() {
+                                                      _selectedTrackIds = [];
+                                                    });
+                                                  },
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Song-based mode tracks progress by number of songs played. Select a playlist or specific songs, or leave empty to track any songs.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Location-based habit'),
+                            subtitle: const Text(
+                                'Start/pause tracking when you enter/exit a place, with optional dwell time.'),
+                            value: _locationBoundEnabled,
+                            onChanged: (v) => setState(() => _locationBoundEnabled = v),
+                          ),
+                          if (_locationBoundEnabled) ...[
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _useCurrentLocation,
+                              icon: const Icon(Icons.my_location),
+                              label: Text(
+                                (_locLat == null || _locLng == null)
+                                    ? 'Use current location'
+                                    : 'Location set (${_locLat!.toStringAsFixed(5)}, ${_locLng!.toStringAsFixed(5)})',
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Radius (meters)',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    controller: _locRadiusC,
+                                    onChanged: (v) => setState(
+                                        () => _locRadiusMeters = int.tryParse(v) ?? _locRadiusMeters),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 160,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _locTriggerMode,
+                                    items: const [
+                                      DropdownMenuItem(value: 'arrival', child: Text('Arrival')),
+                                      DropdownMenuItem(value: 'dwell', child: Text('Dwell')),
+                                      DropdownMenuItem(value: 'both', child: Text('Both')),
+                                    ],
+                                    onChanged: (v) => setState(() => _locTriggerMode = (v ?? 'arrival')),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Trigger',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_locTriggerMode == 'dwell' || _locTriggerMode == 'both') ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Dwell minutes',
+                                  border: OutlineInputBorder(),
+                                ),
+                                controller: _locDwellMinutesC,
+                                onChanged: (v) => setState(
+                                    () => _locDwellMinutes = int.tryParse(v) ?? _locDwellMinutes),
+                              ),
+                            ],
+                          ],
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
                           // Advanced options (collapsed by default for new habits).
                           ExpansionTile(
                             tilePadding: EdgeInsets.zero,
@@ -735,245 +976,6 @@ class _AddHabitDialogState extends State<_AddHabitDialog> with SingleTickerProvi
                                     });
                                   },
                                 ),
-                              ],
-                              const SizedBox(height: 12),
-                              const Divider(height: 1),
-                              const SizedBox(height: 12),
-                              SwitchListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('Timebound habit (timer)'),
-                                subtitle: const Text('Track time spent today with pause/resume.'),
-                                value: _timeBoundEnabled,
-                                onChanged: (v) => setState(() => _timeBoundEnabled = v),
-                              ),
-                              if (_timeBoundEnabled) ...[
-                                const SizedBox(height: 8),
-                                TabBar(
-                                  controller: _timerModeTabController,
-                                  tabs: const [
-                                    Tab(
-                                      text: 'Regular Timer',
-                                      icon: Icon(Icons.timer_outlined),
-                                    ),
-                                    Tab(
-                                      text: 'Select Song',
-                                      icon: Icon(Icons.music_note),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: 200,
-                                  child: TabBarView(
-                                    controller: _timerModeTabController,
-                                    children: [
-                                      // Regular Timer Tab
-                                      Padding(
-                                        padding: const EdgeInsets.all(16.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: TextField(
-                                                    keyboardType: TextInputType.number,
-                                                    decoration: const InputDecoration(
-                                                      labelText: 'Duration',
-                                                      border: OutlineInputBorder(),
-                                                    ),
-                                                    controller: _timeBoundDurationC,
-                                                    onChanged: (v) => setState(() =>
-                                                        _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                SizedBox(
-                                                  width: 140,
-                                                  child: DropdownButtonFormField<String>(
-                                                    value: _timeBoundUnit,
-                                                    items: const [
-                                                      DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
-                                                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
-                                                    ],
-                                                    onChanged: (v) => setState(() => _timeBoundUnit = (v ?? 'minutes')),
-                                                    decoration: const InputDecoration(
-                                                      labelText: 'Unit',
-                                                      border: OutlineInputBorder(),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // Select Song Tab
-                                      Padding(
-                                        padding: const EdgeInsets.all(16.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            TextField(
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(
-                                                labelText: 'Number of songs',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              controller: _timeBoundDurationC,
-                                              onChanged: (v) => setState(() =>
-                                                  _timeBoundDuration = int.tryParse(v) ?? _timeBoundDuration),
-                                            ),
-                                            const SizedBox(height: 16),
-                                            // Music selection button
-                                            OutlinedButton.icon(
-                                              onPressed: () async {
-                                                final result = await Navigator.of(context).push<Map<String, dynamic>>(
-                                                  MaterialPageRoute(
-                                                    builder: (context) => SpotifySelectionScreen(
-                                                      selectedPlaylistId: _selectedPlaylistId,
-                                                      selectedTrackIds: _selectedTrackIds,
-                                                      allowMultipleTracks: true,
-                                                    ),
-                                                  ),
-                                                );
-                                                if (result != null && mounted) {
-                                                  setState(() {
-                                                    _selectedPlaylistId = result['playlistId'] as String?;
-                                                    _selectedPlaylistName = result['playlistName'] as String?;
-                                                    _selectedTrackIds = List<String>.from(result['trackIds'] ?? []);
-                                                    // If playlist selected, update duration to playlist track count if available
-                                                    if (_selectedPlaylistId != null && _selectedTrackIds.isEmpty) {
-                                                      // Will be set when playlist tracks are loaded
-                                                    } else if (_selectedTrackIds.isNotEmpty) {
-                                                      _timeBoundDuration = _selectedTrackIds.length;
-                                                      _timeBoundDurationC.text = _timeBoundDuration.toString();
-                                                    }
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons.music_note),
-                                              label: Text(
-                                                _selectedPlaylistId != null
-                                                    ? _selectedPlaylistName ?? 'Playlist selected'
-                                                    : _selectedTrackIds.isNotEmpty
-                                                        ? '${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'} selected'
-                                                        : 'Select playlist or songs',
-                                              ),
-                                              style: OutlinedButton.styleFrom(
-                                                minimumSize: const Size(double.infinity, 48),
-                                              ),
-                                            ),
-                                            if (_selectedPlaylistId != null || _selectedTrackIds.isNotEmpty) ...[
-                                              const SizedBox(height: 8),
-                                              Wrap(
-                                                spacing: 8,
-                                                children: [
-                                                  if (_selectedPlaylistId != null)
-                                                    Chip(
-                                                      label: Text(_selectedPlaylistName ?? 'Playlist'),
-                                                      onDeleted: () {
-                                                        setState(() {
-                                                          _selectedPlaylistId = null;
-                                                          _selectedPlaylistName = null;
-                                                        });
-                                                      },
-                                                    ),
-                                                  if (_selectedTrackIds.isNotEmpty)
-                                                    Chip(
-                                                      label: Text('${_selectedTrackIds.length} song${_selectedTrackIds.length == 1 ? '' : 's'}'),
-                                                      onDeleted: () {
-                                                        setState(() {
-                                                          _selectedTrackIds = [];
-                                                        });
-                                                      },
-                                                    ),
-                                                ],
-                                              ),
-                                            ],
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              'Song-based mode tracks progress by number of songs played. Select a playlist or specific songs, or leave empty to track any songs.',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 12),
-                              const Divider(height: 1),
-                              const SizedBox(height: 12),
-                              SwitchListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('Location-based habit'),
-                                subtitle: const Text(
-                                    'Start/pause tracking when you enter/exit a place, with optional dwell time.'),
-                                value: _locationBoundEnabled,
-                                onChanged: (v) => setState(() => _locationBoundEnabled = v),
-                              ),
-                              if (_locationBoundEnabled) ...[
-                                const SizedBox(height: 8),
-                                OutlinedButton.icon(
-                                  onPressed: _useCurrentLocation,
-                                  icon: const Icon(Icons.my_location),
-                                  label: Text(
-                                    (_locLat == null || _locLng == null)
-                                        ? 'Use current location'
-                                        : 'Location set (${_locLat!.toStringAsFixed(5)}, ${_locLng!.toStringAsFixed(5)})',
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Radius (meters)',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        controller: _locRadiusC,
-                                        onChanged: (v) => setState(
-                                            () => _locRadiusMeters = int.tryParse(v) ?? _locRadiusMeters),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    SizedBox(
-                                      width: 160,
-                                      child: DropdownButtonFormField<String>(
-                                        value: _locTriggerMode,
-                                        items: const [
-                                          DropdownMenuItem(value: 'arrival', child: Text('Arrival')),
-                                          DropdownMenuItem(value: 'dwell', child: Text('Dwell')),
-                                          DropdownMenuItem(value: 'both', child: Text('Both')),
-                                        ],
-                                        onChanged: (v) => setState(() => _locTriggerMode = (v ?? 'arrival')),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Trigger',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (_locTriggerMode == 'dwell' || _locTriggerMode == 'both') ...[
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Dwell minutes',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    controller: _locDwellMinutesC,
-                                    onChanged: (v) => setState(
-                                        () => _locDwellMinutes = int.tryParse(v) ?? _locDwellMinutes),
-                                  ),
-                                ],
                               ],
                             ],
                           ),

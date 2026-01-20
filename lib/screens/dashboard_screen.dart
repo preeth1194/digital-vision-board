@@ -34,6 +34,10 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
+import '../models/routine.dart';
+import '../services/routine_storage_service.dart';
+import 'routine_editor_screen.dart';
+import 'routine_execution_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -52,6 +56,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
+  List<Routine> _routines = [];
+  String? _activeRoutineId;
 
   bool _loadingReminders = false;
   ReminderSummary? _reminderSummary;
@@ -114,6 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
     await LogicalDateService.ensureInitialized(prefs: _prefs);
     await _reload();
+    await _reloadRoutines();
     await SyncService.pruneLocalFeedback(prefs: _prefs);
     await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _refreshReminders();
@@ -189,6 +196,17 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       _boards = boards;
       _activeBoardId = activeId;
       _loading = false;
+    });
+  }
+
+  Future<void> _reloadRoutines() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final routines = await RoutineStorageService.loadRoutines(prefs: prefs);
+    final activeId = await RoutineStorageService.loadActiveRoutineId(prefs: prefs);
+    if (!mounted) return;
+    setState(() {
+      _routines = routines;
+      _activeRoutineId = activeId;
     });
   }
 
@@ -426,6 +444,82 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     setState(() => _activeBoardId = null);
   }
 
+  Future<void> _createRoutine() async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const RoutineEditorScreen()),
+    );
+    if (mounted && res == true) {
+      await _reloadRoutines();
+    }
+  }
+
+  Future<void> _openRoutine(Routine routine) async {
+    await RoutineStorageService.setActiveRoutineId(routine.id, prefs: _prefs);
+    if (!mounted) return;
+    setState(() => _activeRoutineId = routine.id);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoutineExecutionScreen(routine: routine),
+      ),
+    );
+    await RoutineStorageService.clearActiveRoutineId(prefs: _prefs);
+    if (!mounted) return;
+    setState(() => _activeRoutineId = null);
+    await _reloadRoutines();
+  }
+
+  Future<void> _editRoutine(Routine routine) async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RoutineEditorScreen(routine: routine),
+      ),
+    );
+    if (mounted && res == true) {
+      await _reloadRoutines();
+    }
+  }
+
+  Future<void> _deleteRoutine(Routine routine) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Delete routine?',
+      message: 'Delete "${routine.title}"? This cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: Theme.of(context).colorScheme.error,
+    );
+    if (!ok) return;
+
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      await RoutineStorageService.deleteRoutineData(routine.id, prefs: prefs);
+
+      final next = _routines.where((r) => r.id != routine.id).toList();
+      await RoutineStorageService.saveRoutines(next, prefs: prefs);
+      if (_activeRoutineId == routine.id) {
+        await RoutineStorageService.clearActiveRoutineId(prefs: prefs);
+      }
+      if (!mounted) return;
+      setState(() {
+        _routines = next;
+        if (_activeRoutineId == routine.id) _activeRoutineId = null;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted "${routine.title}"')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting routine: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _createBoard() async {
     final boardsBefore = _boards.length;
     final layoutType = await showTemplatePickerSheet(context);
@@ -603,12 +697,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       tabIndex: _tabIndex,
       boards: _boards,
       activeBoardId: _activeBoardId,
+      routines: _routines,
+      activeRoutineId: _activeRoutineId,
       prefs: _prefs,
       boardDataVersion: _boardDataVersion,
       onCreateBoard: _createBoard,
+      onCreateRoutine: _createRoutine,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
+      onOpenRoutine: _openRoutine,
+      onEditRoutine: _editRoutine,
+      onDeleteRoutine: _deleteRoutine,
     );
 
     return Scaffold(

@@ -98,4 +98,74 @@ final class MicroHabitStorageService {
       // Ignore errors
     }
   }
+
+  /// Check if a micro habit is completed for a specific habit/goal combination.
+  /// Uses a composite key: date + componentId + habitId + microhabitText
+  static Future<bool> isMicroHabitCompletedForHabit(
+    String isoDate,
+    String componentId,
+    String habitId,
+    String microhabitText, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final completionKey = '${_key}_per_habit_completions_v1';
+    final raw = p.getString(completionKey);
+    if (raw == null || raw.isEmpty) return false;
+    try {
+      final set = Set<String>.from(jsonDecode(raw) as List);
+      final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+      return set.contains(key);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mark a micro habit as completed for a specific habit/goal combination.
+  static Future<void> markMicroHabitCompletedForHabit(
+    String isoDate,
+    String componentId,
+    String habitId,
+    String microhabitText, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final completionKey = '${_key}_per_habit_completions_v1';
+    final raw = p.getString(completionKey);
+    Set<String> set;
+    if (raw == null || raw.isEmpty) {
+      set = {};
+    } else {
+      try {
+        set = Set<String>.from(jsonDecode(raw) as List);
+      } catch (_) {
+        set = {};
+      }
+    }
+    final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+    set.add(key);
+    await p.setString(completionKey, jsonEncode(set.toList()));
+  }
+
+  /// Unmark a micro habit as completed for a specific habit/goal combination.
+  static Future<void> unmarkMicroHabitCompletedForHabit(
+    String isoDate,
+    String componentId,
+    String habitId,
+    String microhabitText, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final completionKey = '${_key}_per_habit_completions_v1';
+    final raw = p.getString(completionKey);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final set = Set<String>.from(jsonDecode(raw) as List);
+      final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+      set.remove(key);
+      await p.setString(completionKey, jsonEncode(set.toList()));
+    } catch (_) {
+      // Ignore errors
+    }
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import '../../models/routine.dart';
 import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
@@ -19,25 +20,37 @@ class DashboardBody extends StatelessWidget {
   final int tabIndex;
   final List<VisionBoardInfo> boards;
   final String? activeBoardId;
+  final List<Routine> routines;
+  final String? activeRoutineId;
   final SharedPreferences? prefs;
   final ValueNotifier<int> boardDataVersion;
 
   final VoidCallback onCreateBoard;
+  final VoidCallback onCreateRoutine;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
+  final ValueChanged<Routine> onOpenRoutine;
+  final ValueChanged<Routine> onEditRoutine;
+  final ValueChanged<Routine> onDeleteRoutine;
 
   const DashboardBody({
     super.key,
     required this.tabIndex,
     required this.boards,
     required this.activeBoardId,
+    required this.routines,
+    required this.activeRoutineId,
     required this.prefs,
     required this.boardDataVersion,
     required this.onCreateBoard,
+    required this.onCreateRoutine,
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
+    required this.onOpenRoutine,
+    required this.onEditRoutine,
+    required this.onDeleteRoutine,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -114,11 +127,17 @@ class DashboardBody extends StatelessWidget {
       1 => DashboardTab(
           boards: boards,
           activeBoardId: activeBoardId,
+          routines: routines,
+          activeRoutineId: activeRoutineId,
           prefs: prefs,
           onCreateBoard: onCreateBoard,
+          onCreateRoutine: onCreateRoutine,
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
+          onOpenRoutine: onOpenRoutine,
+          onEditRoutine: onEditRoutine,
+          onDeleteRoutine: onDeleteRoutine,
         ),
       2 => const JournalNotesScreen(embedded: true),
       3 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(

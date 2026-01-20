@@ -436,6 +436,18 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
   String? _selectedMicroHabit;
   bool _microHabitCompleted = false;
   int _overallStreak = 0;
+  // Cache for microhabit completion states: key = '${componentId}_${habitId}_${microhabitText}'
+  Map<String, bool> _microhabitCompletions = {};
+  
+  /// Helper to get goal from a component
+  GoalMetadata? _getGoalFromComponent(VisionComponent component) {
+    if (component is ImageComponent) {
+      return component.goal;
+    } else if (component is GoalOverlayComponent) {
+      return component.goal;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -448,7 +460,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     super.didUpdateWidget(oldWidget);
     // Reload when components change (e.g., after habit toggle)
     if (oldWidget.components != widget.components) {
-      _updateStreak();
+      _load();
     }
   }
 
@@ -467,11 +479,34 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     // Load overall streak
     final streakData = await OverallStreakStorageService.loadStreak(prefs: prefs);
     
+    // Load all microhabit completions for today
+    final completions = <String, bool>{};
+    for (final c in widget.components) {
+      final goal = _getGoalFromComponent(c);
+      final microhabit = goal?.actionPlan?.microHabit?.trim();
+      if (microhabit != null && microhabit.isNotEmpty) {
+        for (final h in c.habits) {
+          if (h.isScheduledOnDate(now)) {
+            final key = '${c.id}_${h.id}_$microhabit';
+            final isCompleted = await MicroHabitStorageService.isMicroHabitCompletedForHabit(
+              todayIso,
+              c.id,
+              h.id,
+              microhabit,
+              prefs: prefs,
+            );
+            completions[key] = isCompleted;
+          }
+        }
+      }
+    }
+    
     if (!mounted) return;
     setState(() {
       _selectedMicroHabit = selected;
       _microHabitCompleted = completed;
       _overallStreak = streakData.count;
+      _microhabitCompletions = completions;
     });
     
     // Update streak based on current completions
@@ -496,7 +531,33 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
       if (hasCompletion) break;
     }
     
-    // Check micro habit
+    // Check micro habits (per-habit completions)
+    if (!hasCompletion) {
+      for (final c in widget.components) {
+        final goal = _getGoalFromComponent(c);
+        final microhabit = goal?.actionPlan?.microHabit?.trim();
+        if (microhabit != null && microhabit.isNotEmpty) {
+          for (final h in c.habits) {
+            if (h.isScheduledOnDate(now)) {
+              final isCompleted = await MicroHabitStorageService.isMicroHabitCompletedForHabit(
+                todayIso,
+                c.id,
+                h.id,
+                microhabit,
+                prefs: _prefs,
+              );
+              if (isCompleted) {
+                hasCompletion = true;
+                break;
+              }
+            }
+          }
+          if (hasCompletion) break;
+        }
+      }
+    }
+    
+    // Check legacy micro habit (for backward compatibility)
     if (!hasCompletion && _microHabitCompleted) {
       hasCompletion = true;
     }
@@ -622,6 +683,44 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     await _updateStreak();
   }
 
+  Future<void> _toggleMicroHabitCompletionForHabit(
+    String componentId,
+    String habitId,
+    String microhabitText,
+  ) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final now = LogicalDateService.now();
+    final todayIso = LogicalDateService.toIsoDate(now);
+    
+    final key = '${componentId}_${habitId}_$microhabitText';
+    final isCompleted = _microhabitCompletions[key] ?? false;
+    
+    if (isCompleted) {
+      await MicroHabitStorageService.unmarkMicroHabitCompletedForHabit(
+        todayIso,
+        componentId,
+        habitId,
+        microhabitText,
+        prefs: prefs,
+      );
+    } else {
+      await MicroHabitStorageService.markMicroHabitCompletedForHabit(
+        todayIso,
+        componentId,
+        habitId,
+        microhabitText,
+        prefs: prefs,
+      );
+    }
+    
+    if (!mounted) return;
+    setState(() {
+      _microhabitCompletions[key] = !isCompleted;
+    });
+    
+    await _updateStreak();
+  }
+
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
@@ -631,12 +730,29 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final now = LogicalDateService.now();
     final todayIso = _toIsoDate(now);
 
-    final items = <({String componentId, HabitItem habit})>[];
-    final pendingItems = <({String componentId, HabitItem habit})>[];
+    // Build items with microhabit information
+    final items = <({
+      String componentId,
+      HabitItem habit,
+      String? microhabitText,
+    })>[];
+    final pendingItems = <({
+      String componentId,
+      HabitItem habit,
+      String? microhabitText,
+    })>[];
+    
     for (final c in widget.components) {
+      final goal = _getGoalFromComponent(c);
+      final microhabit = goal?.actionPlan?.microHabit?.trim();
+      
       for (final h in c.habits) {
         if (!h.isScheduledOnDate(now)) continue;
-        final it = (componentId: c.id, habit: h);
+        final it = (
+          componentId: c.id,
+          habit: h,
+          microhabitText: (microhabit != null && microhabit.isNotEmpty) ? microhabit : null,
+        );
         items.add(it);
         if (!h.isCompletedForCurrentPeriod(now)) {
           pendingItems.add(it);
@@ -685,7 +801,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
-            Text(todayIso, style: const TextStyle(color: Colors.black54)),
+            Text(todayIso, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(width: 12),
             // Overall streak indicator
             Container(
@@ -722,19 +838,37 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
           ],
         ),
         const SizedBox(height: 12),
-        // Habits list
+        // Habits and Microhabits in 2-column layout
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                Text(
-                  'Habits',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'Habit',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'Micro Habit',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 const Divider(height: 1),
@@ -742,117 +876,161 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                 Column(
                   children: [
                     for (final it in items) ...[
-                      Container(
-                        height: 56,
-                        color: (it.habit.locationBound?.enabled == true)
-                            ? Theme.of(context).colorScheme.tertiaryContainer
-                            : null,
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              value: it.habit.isCompletedForCurrentPeriod(now),
-                              onChanged: (_) async {
-                                await widget.onToggleHabit(it.componentId, it.habit);
-                                await _updateStreak();
-                              },
-                            ),
-                            Expanded(
-                              child: Text(
-                                it.habit.name,
-                                style: const TextStyle(fontWeight: FontWeight.w700),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (it.habit.timeBound?.enabled == true || it.habit.locationBound?.enabled == true)
-                              IconButton(
-                                tooltip: 'Timer',
-                                icon: const Icon(Icons.timer_outlined),
-                                onPressed: () async {
-                                  final isSongBased = it.habit.timeBound?.isSongBased ?? false;
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => isSongBased
-                                          ? RhythmicTimerScreen(
-                                              habit: it.habit,
-                                              onMarkCompleted: () async {
-                                                await widget.onToggleHabit(it.componentId, it.habit);
-                                                await _updateStreak();
-                                              },
-                                            )
-                                          : HabitTimerScreen(
-                                              habit: it.habit,
-                                              onMarkCompleted: () async {
-                                                await widget.onToggleHabit(it.componentId, it.habit);
-                                                await _updateStreak();
+                      Builder(
+                        builder: (context) {
+                          final hasTimer = it.habit.timeBound?.enabled == true;
+                          final hasLocation = it.habit.locationBound?.enabled == true;
+                          final hasMicrohabit = it.microhabitText != null && it.microhabitText!.isNotEmpty;
+                          final microhabitKey = hasMicrohabit
+                              ? '${it.componentId}_${it.habit.id}_${it.microhabitText}'
+                              : null;
+                          final microhabitCompleted = microhabitKey != null
+                              ? (_microhabitCompletions[microhabitKey] ?? false)
+                              : false;
+                          
+                          return Container(
+                                height: 56,
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: hasLocation
+                                      ? Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.2)
+                                      : null,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Left Column: Habit
+                                    Expanded(
+                                      flex: 1,
+                                      child: Row(
+                                        children: [
+                                          Checkbox(
+                                            value: it.habit.isCompletedForCurrentPeriod(now),
+                                            onChanged: (_) async {
+                                              await widget.onToggleHabit(it.componentId, it.habit);
+                                              await _updateStreak();
+                                            },
+                                          ),
+                                          Expanded(
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    it.habit.name,
+                                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 2,
+                                                  ),
+                                                ),
+                                                if (hasTimer) ...[
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.timer_outlined,
+                                                    size: 18,
+                                                    color: Theme.of(context).colorScheme.primary,
+                                                  ),
+                                                ],
+                                                if (hasLocation) ...[
+                                                  const SizedBox(width: 6),
+                                                  Icon(
+                                                    Icons.location_on_outlined,
+                                                    size: 18,
+                                                    color: Theme.of(context).colorScheme.tertiary,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          if (hasTimer || hasLocation)
+                                            IconButton(
+                                              tooltip: hasTimer ? 'Open timer' : 'Location-based',
+                                              icon: Icon(hasTimer ? Icons.timer_outlined : Icons.location_on_outlined),
+                                              onPressed: () async {
+                                                if (hasTimer) {
+                                                  final isSongBased = it.habit.timeBound?.isSongBased ?? false;
+                                                  await Navigator.of(context).push(
+                                                    MaterialPageRoute<void>(
+                                                      builder: (_) => isSongBased
+                                                          ? RhythmicTimerScreen(
+                                                              habit: it.habit,
+                                                              onMarkCompleted: () async {
+                                                                await widget.onToggleHabit(it.componentId, it.habit);
+                                                                await _updateStreak();
+                                                              },
+                                                            )
+                                                          : HabitTimerScreen(
+                                                              habit: it.habit,
+                                                              onMarkCompleted: () async {
+                                                                await widget.onToggleHabit(it.componentId, it.habit);
+                                                                await _updateStreak();
+                                                              },
+                                                            ),
+                                                    ),
+                                                  );
+                                                  await _updateStreak();
+                                                }
                                               },
                                             ),
+                                        ],
+                                      ),
                                     ),
-                                  );
-                                  await _updateStreak();
-                                },
-                              ),
-                          ],
-                        ),
+                                    // Vertical Divider
+                                    Container(
+                                      width: 1,
+                                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                    ),
+                                    // Right Column: Microhabit
+                                    Expanded(
+                                      flex: 1,
+                                      child: hasMicrohabit
+                                          ? Row(
+                                              children: [
+                                                Checkbox(
+                                                  value: microhabitCompleted,
+                                                  onChanged: (_) async {
+                                                    await _toggleMicroHabitCompletionForHabit(
+                                                      it.componentId,
+                                                      it.habit.id,
+                                                      it.microhabitText!,
+                                                    );
+                                                  },
+                                                ),
+                                                Expanded(
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                    child: Text(
+                                                      it.microhabitText!,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.w500,
+                                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                      maxLines: 2,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                '—',
+                                                style: TextStyle(
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+                                                ),
+                                              ),
+                                            ), // Blank indicator if no microhabit
+                                    ),
+                                  ],
+                                ),
+                          );
+                        },
                       ),
                       const Divider(height: 1),
                     ],
                   ],
                 ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Micro habit section
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Micro habit',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Divider(height: 1),
-                const SizedBox(height: 6),
-                if (_selectedMicroHabit == null)
-                  SizedBox(
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: _selectMicroHabit,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Select micro habit'),
-                    ),
-                  )
-                else
-                  Container(
-                    height: 56,
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _microHabitCompleted,
-                          onChanged: (_) => _toggleMicroHabitCompletion(),
-                        ),
-                        Expanded(
-                          child: Text(
-                            _selectedMicroHabit!,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Change micro habit',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: _selectMicroHabit,
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),

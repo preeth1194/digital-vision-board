@@ -493,18 +493,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
     if (!ok) return;
 
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    await BoardsStorageService.deleteBoardData(board.id, prefs: prefs);
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      await BoardsStorageService.deleteBoardData(board.id, prefs: prefs);
 
-    final next = _boards.where((b) => b.id != board.id).toList();
-    await _saveBoards(next);
-    if (_activeBoardId == board.id) await BoardsStorageService.clearActiveBoardId(prefs: prefs);
-    if (!mounted) return;
-    setState(() {
-      _boards = next;
-      if (_activeBoardId == board.id) _activeBoardId = null;
-    });
-    await _refreshReminders();
+      final next = _boards.where((b) => b.id != board.id).toList();
+      await _saveBoards(next);
+      if (_activeBoardId == board.id) await BoardsStorageService.clearActiveBoardId(prefs: prefs);
+      if (!mounted) return;
+      setState(() {
+        _boards = next;
+        if (_activeBoardId == board.id) _activeBoardId = null;
+      });
+      await _refreshReminders();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted "${board.title}"')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting board: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Future<void> _openBoard(VisionBoardInfo board, {required bool startInEditMode}) async {

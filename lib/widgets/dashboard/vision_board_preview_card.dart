@@ -67,7 +67,17 @@ class VisionBoardPreviewCard extends StatelessWidget {
               },
             ),
           ),
-          // Board name overlay at bottom
+          // Tap area - positioned first so buttons can be on top
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                child: Container(),
+              ),
+            ),
+          ),
+          // Board name overlay at bottom - on top of tap area
           Positioned(
             left: 0,
             right: 0,
@@ -114,7 +124,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Action buttons
+                  // Action buttons - on top of everything, fully interactive
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -139,16 +149,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ),
-          // Tap area
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                child: Container(),
               ),
             ),
           ),

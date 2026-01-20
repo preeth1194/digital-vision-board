@@ -1,5 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
 Last updated: 2026-01-17
+Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -76,6 +77,9 @@ For tracking UI, `GridGoalViewerScreen` converts a tile into an `ImageComponent`
 - Tracks completion dates / streaks
 - Supports weekly schedule gating (`isScheduledOnDate`)
 - Stores per-day completion feedback (see below)
+- Optional `timeBound: HabitTimeBoundSpec` for timer-based habits
+  - Supports two modes: `'time'` (time-based) or `'song'` (song-based)
+  - For song-based mode, `duration` represents target number of songs
 
 ### TaskItem + ChecklistItem
 `lib/models/task_item.dart`
@@ -141,7 +145,54 @@ Selection behavior:
 
 ---
 
-## 7) Completion semantics + feedback prompts (unified behavior)
+## 7) Rhythmic Timer (Time-Based and Song-Based Modes)
+
+The app supports two timer modes for habits:
+
+### Time-Based Mode
+- Traditional timer that tracks accumulated time
+- Uses `HabitTimerStateService` for state persistence
+- UI: `lib/screens/habit_timer_screen.dart` (existing)
+- When target time is reached, automatically marks habit as complete
+
+### Song-Based Mode
+- Tracks songs played via music providers (Spotify/Apple Music) or fallback audio player
+- Uses `RhythmicTimerService` and `RhythmicTimerStateService` for state management
+- Key files:
+  - `lib/services/rhythmic_timer_service.dart` - Main service managing timer modes
+  - `lib/services/rhythmic_timer_state_service.dart` - State persistence (songsRemaining, currentSongTitle)
+  - `lib/services/music_provider_service.dart` - Abstract interface for music providers
+  - `lib/models/rhythmic_timer_config.dart` - Configuration model
+  - `lib/screens/rhythmic_timer_screen.dart` - UI screen supporting both modes
+  - `lib/widgets/rhythmic_timer_widget.dart` - Compact widget for embedding
+
+### Music Provider Integration
+- **Spotify**: `SpotifyProvider` (placeholder - requires SDK setup)
+- **Apple Music**: `AppleMusicProvider` (placeholder - requires SDK setup)
+- **Fallback**: `FallbackAudioProvider` using `audioplayers` package with local assets
+- Fallback audio assets: `assets/audio/focus_1.mp3`, `focus_2.mp3`, etc.
+
+### Song-Based Timer Flow
+1. User starts timer with song-based habit
+2. Service initializes music provider (checks for linked Spotify/Apple Music, falls back to local audio)
+3. Listens for track changes via provider SDK or audio player completion events
+4. On each track change, decrements `songsRemaining` and updates `currentSongTitle`
+5. When `songsRemaining == 0`, triggers `onHabitComplete()` callback
+6. Callback marks habit as complete and navigates to Mood Rating screen (CompletionFeedbackSheet)
+
+### Widget Integration
+- Android widget (`HabitProgressAppWidget.kt`): Displays song title and count in RemoteViews
+- iOS widget (`HabitProgressWidget.swift`): Displays song title and count in WidgetKit view
+- Snapshot service includes timer state: `lib/services/habit_progress_widget_snapshot_service.dart`
+
+### Native Platform Code
+- Android: `lib/android/app/src/main/kotlin/com/example/digital_vision_board/MusicProviderHandler.kt`
+- iOS: `lib/ios/Runner/MusicProviderHandler.swift`
+- Method channel: `dvb/music_provider` (ready for full SDK integration)
+
+---
+
+## 8) Completion semantics + feedback prompts (unified behavior)
 
 ### Habit completion
 - Weekly scheduled habits can only be toggled on scheduled dates.
@@ -169,12 +220,16 @@ Where completion+feedback is implemented (must stay consistent):
 
 ---
 
-## 8) Add flows (goal picker + creation dialogs)
+## 9) Add flows (goal picker + creation dialogs)
 
 Goal picker (select goal to attach habit/task to):
 - `lib/widgets/dialogs/goal_picker_sheet.dart`
 
 Add/edit dialogs (shared, reused across screens):
+- **Goals**: `lib/widgets/dialogs/add_goal_dialog.dart` - Unified dialog for adding/editing goals
+  - Used in grid editor for consistent goal creation UI
+  - Supports name, category, why important, and deadline fields
+  - Provides consistent styling and theme-aware colors
 - Habits: `lib/widgets/dialogs/add_habit_dialog.dart`
   - Compact layout is bounded below the status bar (prevents dialog covering notification bar).
 - Tasks (full dialog with optional CBT fields): `lib/widgets/dialogs/add_task_dialog.dart`
@@ -190,7 +245,40 @@ Global aggregation screens:
 
 ---
 
-## 9) Viewer-specific behaviors and UX constraints
+## 9.5) Wizard flow (create board with recommended goals)
+
+The wizard helps users create boards with recommended goals:
+- Entry: `lib/screens/wizard/create_board_wizard_screen.dart`
+- Steps:
+  1. Board setup: `lib/screens/wizard/wizard_step1_board_setup.dart`
+  2. Goals for core values: `lib/screens/wizard/wizard_step_goals_for_core_value.dart`
+  3. Grid preview: `lib/screens/wizard/wizard_step3_generate_grid_preview.dart`
+  4. Customize grid: `lib/screens/wizard/wizard_step4_customize_grid.dart`
+
+### Recommended Goals with Default Images
+- When users add recommended goals in step 2, they can select from AI-generated recommendations via `WizardRecommendationsService`
+- In step 4 (`wizard_step4_customize_grid.dart`), before building the board:
+  - Default images are automatically fetched for all goals
+  - Images are fetched by category using `CategoryImagesService.getCategoryImageUrls()` (preferred)
+  - Falls back to `StockImagesService.searchPexelsUrls()` if category images aren't available
+  - Images are assigned to goals and passed to `WizardBoardBuilderService.build()` via `defaultImageUrlsByGoalId` parameter
+- `WizardBoardBuilderService` (`lib/services/wizard_board_builder.dart`):
+  - Accepts optional `defaultImageUrlsByGoalId: Map<String, String>?` parameter
+  - When creating grid tiles for goals, uses the provided default image URL if available
+  - Default images are stored as URLs (not downloaded/persisted initially) for fast board creation
+- Grid editor (`lib/screens/grid_board_editor.dart`):
+  - Displays default images (URLs) using `NetworkImage` via `fileImageProviderFromPath()`
+  - Users can still search Pexels to replace default images (see section D below)
+  - Existing prefill logic (lines 125-159 in `wizard_step4_customize_grid.dart`) remains as a fallback for any tiles that still don't have images
+
+### Image Services
+- `CategoryImagesService` (`lib/services/category_images_service.dart`): Fetches curated images by core value + category from backend
+- `StockImagesService` (`lib/services/stock_images_service.dart`): Searches Pexels API for images
+- Both return image URLs that can be displayed directly or downloaded/persisted later
+
+---
+
+## 10) Viewer-specific behaviors and UX constraints
 
 ### PhysicalBoardViewerScreen
 - Tapping an overlay opens `HabitTrackerSheet` as a bottom sheet.
@@ -227,6 +315,10 @@ Keep shared dialogs/services single-defined. Some files previously contained dup
 - Main dashboard: `lib/screens/dashboard_screen.dart`
 - Tracker: `lib/widgets/habit_tracker_sheet.dart`
 - Completion/feedback: `lib/services/completion_mutations.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Rhythmic Timer: `lib/services/rhythmic_timer_service.dart`, `lib/screens/rhythmic_timer_screen.dart`
+- Wizard (create board with recommended goals): `lib/screens/wizard/create_board_wizard_screen.dart`, `lib/services/wizard_board_builder.dart`
+- Image services: `lib/services/category_images_service.dart`, `lib/services/stock_images_service.dart`
+- Puzzle Game: `lib/services/puzzle_service.dart`, `lib/screens/puzzle_game_screen.dart`, `lib/widgets/dashboard/puzzle_widget.dart`
 - “All boards” tabs: `lib/widgets/dashboard/*`
 - Physical board viewer/editor: `lib/screens/physical_board_*`
 - Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
@@ -234,7 +326,121 @@ Keep shared dialogs/services single-defined. Some files previously contained dup
 
 ---
 
-## 12) User journeys (end-to-end flows with code entry points)
+## 13) Dashboard Visualization
+
+The dashboard tab displays vision boards as visual preview cards instead of simple list items.
+
+### VisionBoardPreviewCard
+- **File**: `lib/widgets/dashboard/vision_board_preview_card.dart`
+- Displays a minified preview of each vision board with:
+  - **Grid boards**: Shows up to 9 image tiles in a compact 3x3 grid layout
+  - **Other board types**: Shows first available image component, or placeholder with board icon/color
+  - Reduced opacity (0.65) for the preview content
+  - Board name overlay at bottom with gradient background for readability
+  - Edit and delete action buttons in the overlay
+  - Active board indicator (highlighted border)
+
+### Preview Rendering
+- Uses `FutureBuilder` to asynchronously load board data:
+  - Grid boards: `GridTilesStorageService.loadTiles()` to get tiles
+  - Other boards: `VisionBoardComponentsStorageService.loadComponents()` to get first image component
+- Images are rendered using `fileImageProviderFromPath()` (handles both URLs and local paths)
+- Uses `StaggeredGrid.count` with `crossAxisCount: 3` for compact grid display
+- Empty tiles show subtle placeholder icons
+- Loading state shows circular progress indicator
+
+### Dashboard Tab
+- **File**: `lib/widgets/dashboard/dashboard_tab.dart`
+- Uses `VisionBoardPreviewCard` in `ListView.builder` instead of `Card` + `ListTile`
+- Maintains all existing callbacks (`onOpenEditor`, `onOpenViewer`, `onDeleteBoard`)
+- Preserves empty state handling and "New" button
+- Includes `PuzzleWidget` at the top of the list for puzzle game access
+
+---
+
+## 15) Puzzle Widget and Game Feature
+
+The app includes a puzzle game feature that turns goal images into interactive 4x4 puzzles (16 pieces).
+
+### Puzzle Service
+- **File**: `lib/services/puzzle_service.dart`
+- Manages puzzle state and image selection
+- Handles automatic 4-hour rotation of puzzle images
+- Provides methods to:
+  - Get current puzzle image (auto-rotates if 4 hours have passed)
+  - Get all available goal images from all boards
+  - Manually set puzzle image
+  - Get time until next automatic rotation
+- Storage: Uses SharedPreferences to persist current image path and last rotation timestamp
+
+### Puzzle Widget
+- **File**: `lib/widgets/dashboard/puzzle_widget.dart`
+- Displays on dashboard tab as a card widget
+- Shows shuffled 4x4 puzzle preview (16 pieces in shuffled state)
+- Features:
+  - Settings button to manually select puzzle image
+  - Tappable to navigate to full puzzle game screen
+  - Handles loading and error states
+  - Shows "No images available" message when appropriate
+
+### Puzzle Game Screen
+- **File**: `lib/screens/puzzle_game_screen.dart`
+- Full-screen puzzle solving interface
+- Features:
+  - Drag-and-drop puzzle pieces (Flutter's `Draggable` and `DragTarget`)
+  - 4x4 grid layout (16 pieces)
+  - Completion detection with celebration dialog showing solve time
+  - Reference image toggle (show/hide original image as overlay)
+  - Shuffle button to reshuffle pieces
+  - Image selection button to change puzzle image
+  - Visual feedback for correct piece placement (highlighted borders)
+
+### Puzzle Image Splitter
+- **File**: `lib/utils/puzzle_image_splitter.dart`
+- Utility to split images into puzzle pieces
+- Uses `image` package (`package:image/image.dart`) for image manipulation
+- Supports both local file paths and network URLs
+- Splits image into 4x4 grid (16 equal pieces)
+- Provides shuffle functionality for piece indices
+
+### Puzzle Image Selector
+- **File**: `lib/widgets/dialogs/puzzle_image_selector_sheet.dart`
+- Bottom sheet dialog for manually selecting puzzle image
+- Shows all available goal images from all boards in a grid
+- Displays current puzzle image with checkmark indicator
+- Images are loaded from:
+  - Grid boards: `GridTilesStorageService` (image tiles)
+  - Other boards: `VisionBoardComponentsStorageService` (ImageComponent instances)
+
+### Integration Points
+- **Dashboard Tab**: `lib/widgets/dashboard/dashboard_tab.dart`
+  - `PuzzleWidget` is displayed at the top of the board list
+- **Dashboard Drawer**: `lib/screens/dashboard_screen.dart`
+  - "Puzzle Game" menu item added to drawer (after Settings)
+  - Opens puzzle game with current puzzle image
+  - Shows snackbar if no images are available
+
+### Data Flow
+1. Puzzle widget loads current image from `PuzzleService`
+2. Service checks if 4 hours have passed since last rotation
+3. If yes, automatically selects random image from available goal images
+4. Image is split into 16 pieces using `PuzzleImageSplitter`
+5. Pieces are shuffled and displayed in widget
+6. Tapping widget navigates to `PuzzleGameScreen`
+7. User can drag and drop pieces to solve puzzle
+8. Completion is detected when all pieces are in correct positions
+
+### Key Implementation Details
+- Puzzle pieces are stored as `Uint8List` (PNG-encoded image bytes)
+- Uses Flutter's built-in drag-and-drop APIs (`Draggable`, `DragTarget`)
+- Puzzle state (piece positions) is managed in widget state
+- Completion detection checks if `piecePositions[i] == i` for all pieces
+- Timer tracks solve time from puzzle start to completion
+- Images are loaded using `fileImageProviderFromPath()` utility (handles URLs and local paths)
+
+---
+
+## 14) User journeys (end-to-end flows with code entry points)
 
 These are the most common “click paths” and what files implement them.
 
@@ -261,9 +467,34 @@ These are the most common “click paths” and what files implement them.
 
 ### D) Grid board: open a tile-goal and track
 - Grid editor: `lib/screens/grid_board_editor.dart`
+  - Supports adding images via: local picker, Pexels search (`showPexelsSearchSheet`), or text
+  - Images can be URLs (from default images or Pexels) or local file paths (after download/persist)
+  - `fileImageProviderFromPath()` handles both URLs (returns `NetworkImage`) and local paths (returns `FileImage`)
 - Tile-goal viewer: `lib/screens/grid_goal_viewer_screen.dart`
   - Converts `GridTileModel` → `ImageComponent` for `HabitTrackerSheet`
   - Persists updates back into the tile via `GridTilesStorageService`
+
+### I) Wizard: create board with recommended goals
+- Start: `lib/screens/wizard/create_board_wizard_screen.dart`
+- Step 2: Add goals (`wizard_step_goals_for_core_value.dart`)
+  - Users can add recommended goals from `WizardRecommendationsService`
+  - Recommended goals come with pre-filled habits and metadata
+- Step 4: Customize grid (`wizard_step4_customize_grid.dart`)
+  - Fetches default images for all goals before building the board
+  - Opens grid editor with default images already populated
+  - Users can replace default images via Pexels search in the grid editor
+
+### J) Puzzle Game: solve puzzles from goal images
+- Dashboard widget: `lib/widgets/dashboard/puzzle_widget.dart` (shows shuffled puzzle preview)
+- Game screen: `lib/screens/puzzle_game_screen.dart` (full puzzle solving interface)
+- Service: `lib/services/puzzle_service.dart` (manages image selection and 4-hour rotation)
+- Image splitter: `lib/utils/puzzle_image_splitter.dart` (splits images into 4x4 pieces)
+- Access points:
+  - Dashboard tab: Tap puzzle widget to open game
+  - Drawer menu: "Puzzle Game" menu item
+- Image selection: `lib/widgets/dialogs/puzzle_image_selector_sheet.dart` (manual image picker)
+- Puzzle automatically rotates to new random image every 4 hours
+- Users can manually select which goal image to use for puzzle
 
 ### E) Add a habit/task from global lists (single-board)
 - All habits: `lib/screens/habits_list_screen.dart`
@@ -288,9 +519,58 @@ These are the most common “click paths” and what files implement them.
   - `lib/widgets/dashboard/all_boards_tasks_tab.dart`
   - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
 
+### H) Rhythmic Timer: song-based habit completion
+- Timer screen: `lib/screens/rhythmic_timer_screen.dart` (supports both time and song modes)
+- Service: `lib/services/rhythmic_timer_service.dart`
+- When songsRemaining reaches 0, triggers habit completion → mood rating screen
+- Integrated in: `lib/widgets/habits/habit_tracker_tracker_tab.dart` (timer button opens appropriate screen)
+
 ---
 
-## 13) Glossary (UI term → code type)
+## 16) Typography and Theme System
+
+### Typography System
+The app uses a standardized typography system defined in `lib/utils/app_typography.dart`:
+- `AppTypography.heading1(context)` - 24sp, bold - Main screen titles
+- `AppTypography.heading2(context)` - 20sp, semi-bold - Section titles
+- `AppTypography.heading3(context)` - 18sp, semi-bold - Subsection titles and card titles
+- `AppTypography.body(context)` - 16sp, regular - Main content text
+- `AppTypography.bodySmall(context)` - 14sp, regular - Secondary content
+- `AppTypography.caption(context)` - 12sp, regular - Captions, hints, metadata
+- `AppTypography.button(context)` - 16sp, medium - Button text
+- `AppTypography.secondary(context)` - 14sp, regular - Less prominent text (uses onSurfaceVariant)
+- `AppTypography.error(context)` - 14sp, regular - Error text (uses error color)
+
+All typography styles use theme-aware colors that adapt to light/dark mode.
+
+### Theme Colors Guidelines
+The app uses Material 3 theming with proper light/dark mode support:
+- **Never use hardcoded colors** like `Colors.black54`, `Colors.grey`, `Colors.white`, etc.
+- **Always use theme colors** from `Theme.of(context).colorScheme`:
+  - `colorScheme.onSurface` - Primary text color
+  - `colorScheme.onSurfaceVariant` - Secondary text color (replaces `Colors.grey`, `Colors.black54`)
+  - `colorScheme.outline.withOpacity(0.12)` - Borders and dividers (replaces `Colors.black12`)
+  - `colorScheme.error` - Error states (replaces `Colors.red`)
+  - `colorScheme.primary` - Primary actions and highlights
+  - `colorScheme.surface` - Background surfaces
+  - `colorScheme.tertiary` / `colorScheme.tertiaryContainer` - Accent colors (replaces `Colors.orange`, `Colors.green.shade200`)
+
+### Text Alignment
+- Use consistent text alignment across screens
+- Dialog titles and content should be left-aligned by default
+- Center alignment should be used sparingly (e.g., empty states, centered buttons)
+- Form fields should be left-aligned with proper labels
+
+### Theme Configuration
+Theme is configured in `lib/main.dart` with:
+- Light theme: `ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light)`
+- Dark theme: `ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark)`
+- Text theme with standardized font sizes and weights
+- Material 3 enabled for modern UI components
+
+---
+
+## 17) Glossary (UI term → code type)
 
 - Board:
   - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `BoardsStorageService`

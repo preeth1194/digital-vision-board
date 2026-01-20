@@ -69,6 +69,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Manifest placeholders for OAuth redirects (used by plugins like google_sign_in)
+        manifestPlaceholders["redirectHostName"] = "localhost"
+        manifestPlaceholders["redirectSchemeName"] = "com.example.digital_vision_board"
     }
 
     signingConfigs {
@@ -118,4 +122,9 @@ flutter {
 dependencies {
     // Required by flutter_local_notifications (and other plugins) for Java 8+ library APIs on Android.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // Spotify Android SDK
+    implementation("com.spotify.android:auth:2.0.2")
+    // Note: Spotify Android SDK requires additional setup
+    // See: https://developer.spotify.com/documentation/android/quick-start/
 }

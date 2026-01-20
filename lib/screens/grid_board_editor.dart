@@ -18,6 +18,7 @@ import '../services/templates_service.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
 import '../widgets/editor/add_name_dialog.dart';
+import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
@@ -86,10 +87,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
     final loaded = await GridTilesStorageService.loadTiles(widget.boardId, prefs: _prefs);
     final hydrated = _ensureTemplateTiles(loaded);
-    await GridTilesStorageService.saveTiles(widget.boardId, hydrated, prefs: _prefs);
+    // Ensure tiles are sorted by index for consistent ordering and sizing
+    final sorted = GridTilesStorageService.sortTiles(hydrated);
+    await GridTilesStorageService.saveTiles(widget.boardId, sorted, prefs: _prefs);
     if (!mounted) return;
     setState(() {
-      _tiles = hydrated;
+      _tiles = sorted;
       _loading = false;
     });
   }
@@ -125,6 +128,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     );
   }
 
+  Alignment _getTextAlignmentForTile(GridTileModel tile) {
+    final v = _hash32('${tile.id}::alignment');
+    final alignments = [
+      Alignment.topLeft,
+      Alignment.topCenter,
+      Alignment.topRight,
+      Alignment.centerLeft,
+      Alignment.center,
+      Alignment.centerRight,
+      Alignment.bottomLeft,
+      Alignment.bottomCenter,
+      Alignment.bottomRight,
+    ];
+    return alignments[v % alignments.length];
+  }
+
+  TextAlign _getTextAlignFromAlignment(Alignment alignment) {
+    if (alignment.x < -0.3) return TextAlign.left;
+    if (alignment.x > 0.3) return TextAlign.right;
+    return TextAlign.center;
+  }
+
   Future<void> _shuffleGrid() async {
     if (!_isEditing) return;
     if (_tiles.isEmpty) return;
@@ -136,6 +161,20 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     final nextSeed = DateTime.now().millisecondsSinceEpoch;
     await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), nextSeed);
     _styleSeed = nextSeed;
+
+    // Calculate screen dimensions to ensure grid fills the screen
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final screenWidth = mediaQuery.size.width;
+    final appBarHeight = AppBar().preferredSize.height;
+    final bottomBarHeight = _isEditing ? 56.0 : 0.0; // BottomAppBar height when editing
+    final padding = 32.0; // Top and bottom padding (16px each)
+    final availableHeight = screenHeight - appBarHeight - bottomBarHeight - padding - mediaQuery.padding.top - mediaQuery.padding.bottom;
+    
+    // Calculate cell extent (same as in build method)
+    const spacing = 10.0;
+    final gridMaxWidth = (screenWidth - 32).clamp(0.0, double.infinity);
+    final cellExtent = (gridMaxWidth - (spacing * (_crossAxisCount - 1))) / _crossAxisCount;
 
     // Apply new tile sizes; keep goal/user content in place.
     final nextTiles = <GridTileModel>[];
@@ -149,6 +188,69 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           mainAxisCellCount: bp.mainAxisCount,
         ),
       );
+    }
+
+    // Ensure we have enough tiles to fill the screen
+    // For staggered grids, estimate minimum tiles needed based on average tile height
+    final avgMainAxisCells = nextTiles.isNotEmpty
+        ? (nextTiles.map((t) => t.mainAxisCellCount).reduce((a, b) => a + b) / nextTiles.length).ceil()
+        : 2;
+    final estimatedCellsPerRow = (_crossAxisCount * avgMainAxisCells);
+    final estimatedRowsNeeded = (availableHeight / (cellExtent + spacing)).ceil();
+    final minTilesNeeded = (estimatedRowsNeeded * _crossAxisCount / avgMainAxisCells).ceil();
+    
+    // Add more tiles if needed to fill screen
+    int templateIndex = nextTiles.length;
+    while (nextTiles.length < minTilesNeeded && templateIndex < nextTpl.tiles.length * 2) {
+      final bpIndex = templateIndex % nextTpl.tiles.length;
+      final bp = nextTpl.tiles[bpIndex];
+      
+      // Check if we have an existing tile at this index
+      if (templateIndex < _tiles.length) {
+        final existingTile = _tiles[templateIndex];
+        nextTiles.add(existingTile.copyWith(
+          crossAxisCellCount: bp.crossAxisCount,
+          mainAxisCellCount: bp.mainAxisCount,
+          index: templateIndex,
+        ));
+      } else {
+        // Create placeholder tile with text content
+        final seedGoal = _tiles.isNotEmpty ? _tiles.first : null;
+        final cat = (seedGoal?.goal?.category ?? '').trim();
+        // Use simple placeholder phrases
+        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+        final phrase = phrases[templateIndex % phrases.length];
+        nextTiles.add(
+          GridTileModel(
+            id: 'tile_$templateIndex',
+            type: 'text',
+            content: phrase,
+            isPlaceholder: true,
+            crossAxisCellCount: bp.crossAxisCount,
+            mainAxisCellCount: bp.mainAxisCount,
+            index: templateIndex,
+          ),
+        );
+      }
+      templateIndex++;
+    }
+    
+    // If still not enough, add more placeholder tiles with reasonable sizes
+    while (nextTiles.length < minTilesNeeded) {
+      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+      final phrase = phrases[templateIndex % phrases.length];
+      nextTiles.add(
+        GridTileModel(
+          id: 'tile_$templateIndex',
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
+          crossAxisCellCount: 1,
+          mainAxisCellCount: 2,
+          index: templateIndex,
+        ),
+      );
+      templateIndex++;
     }
 
     // Optional: refresh placeholder images from Pexels using a best-effort query.
@@ -213,11 +315,15 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     final minCount = widget.template.tiles.length;
     for (int i = next.length; i < minCount; i++) {
       final blueprint = widget.template.tiles[i];
+      // Create placeholder text tile instead of empty
+      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+      final phrase = phrases[i % phrases.length];
       next.add(
         GridTileModel(
           id: 'tile_$i',
-          type: 'empty',
-          content: null,
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
           crossAxisCellCount: blueprint.crossAxisCount,
           mainAxisCellCount: blueprint.mainAxisCount,
           index: i,
@@ -225,7 +331,21 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       );
     }
 
-    return GridTilesStorageService.sortTiles(next);
+    // Convert any remaining empty tiles to placeholder text tiles
+    final finalTiles = next.map((tile) {
+      if (tile.type == 'empty') {
+        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+        final phrase = phrases[tile.index % phrases.length];
+        return tile.copyWith(
+          type: 'text',
+          content: phrase,
+          isPlaceholder: true,
+        );
+      }
+      return tile;
+    }).toList();
+
+    return GridTilesStorageService.sortTiles(finalTiles);
   }
 
   Future<void> _saveTiles(List<GridTileModel> tiles) async {
@@ -256,12 +376,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (!_isEditing) return;
     final id = 'tile_${DateTime.now().millisecondsSinceEpoch}';
     final index = _tiles.length;
+    // Create placeholder text tile instead of empty
+    final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+    final phrase = phrases[index % phrases.length];
     final next = [
       ..._tiles,
       GridTileModel(
         id: id,
-        type: 'empty',
-        content: null,
+        type: 'text',
+        content: phrase,
+        isPlaceholder: true,
         crossAxisCellCount: 1,
         mainAxisCellCount: 1,
         index: index,
@@ -401,7 +525,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: const Text('Remove'),
             ),
@@ -461,6 +587,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   Future<void> _showAddContentSheet(int index) async {
     if (!_isEditing) return;
+    final tile = _tileAt(index);
+    final hasImage = tile.type == 'image';
+    final hasText = tile.type == 'text';
+    
     final choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -469,7 +599,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.image_outlined),
-              title: const Text('Add Image'),
+              title: Text(hasImage ? 'Change Image' : 'Add Image'),
               onTap: () => Navigator.of(context).pop('image'),
             ),
             ListTile(
@@ -479,7 +609,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.text_fields),
-              title: const Text('Add Text'),
+              title: Text(hasText ? 'Edit Text' : 'Add Text'),
               onTap: () => Navigator.of(context).pop('text'),
             ),
           ],
@@ -493,7 +623,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       return;
     }
     if (choice == 'pexels') {
-      final tile = _tileAt(index);
       final cat = (tile.goal?.category ?? '').trim();
       final cv = (tile.goal?.cbt?.coreValue ?? '').trim();
       final q = [cat, cv, 'minimal', 'simple', 'clean', 'aesthetic'].where((s) => s.trim().isNotEmpty).join(' ');
@@ -562,16 +691,23 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         .toSet()
         .toList();
 
-    final res = await showAddNameAndCategoryDialog(
+    final res = await showAddGoalDialog(
       context,
-      title: 'Goal name',
-      categoryHint: 'Category (optional)',
+      initialName: suggestedTitle,
       categorySuggestions: categorySuggestions,
+      showWhyImportant: true,
+      showDeadline: true,
     );
     if (!mounted) return;
     if (res == null || res.name.trim().isEmpty) return;
 
-    final meta = GoalMetadata(title: res.name.trim(), category: res.category);
+    final meta = GoalMetadata(
+      title: res.name.trim(),
+      category: res.category,
+      deadline: res.deadline,
+      // Note: whyImportant is not stored in GoalMetadata, but we collect it for consistency
+      // It could be stored in cbt.visualization if needed in the future
+    );
     await _setTile(index, _tileAt(index).copyWith(goal: meta));
   }
 
@@ -640,13 +776,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     Widget base;
     if (tile.type == 'image') {
       final raw = (tile.content ?? '').trim();
-      final src = raw.isEmpty ? '' : TemplatesService.absolutizeMaybe(raw);
-      final provider = fileImageProviderFromPath(src);
+      // Use raw path directly - fileImageProviderFromPath handles both URLs and local paths correctly
+      // No need to use absolutizeMaybe here as it can incorrectly convert local paths to server URLs
+      final provider = fileImageProviderFromPath(raw);
       base = Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -654,38 +793,54 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
-                color: Colors.black12,
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
                 alignment: Alignment.center,
-                child: const Icon(Icons.broken_image_outlined),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
       );
     } else if (tile.type == 'text') {
+      final textAlignment = _getTextAlignmentForTile(tile);
       base = Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? Theme.of(context).colorScheme.primary 
+                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
         padding: const EdgeInsets.all(8),
-        alignment: Alignment.topLeft,
+        alignment: textAlignment,
         child: Text(
           (tile.content ?? '').trim(),
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
-          style: tile.isPlaceholder ? _placeholderTextStyle(context, tile) : const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          textAlign: _getTextAlignFromAlignment(textAlignment),
+          style: tile.isPlaceholder 
+              ? _placeholderTextStyle(context, tile) 
+              : TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
         ),
       );
     } else {
       // Empty state
+      final colorScheme = Theme.of(context).colorScheme;
       base = Container(
         decoration: BoxDecoration(
-          color: Colors.black12.withOpacity(0.08),
+          color: colorScheme.outline.withOpacity(0.08),
           borderRadius: borderRadius,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black12,
+            color: isSelected 
+                ? colorScheme.primary 
+                : colorScheme.outline.withOpacity(0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -693,10 +848,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.add, color: Colors.black54),
-            SizedBox(height: 6),
-            Text('Tap twice to add', style: TextStyle(color: Colors.black54)),
+          children: [
+            Icon(Icons.add, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 6),
+            Text(
+              'Tap twice to add',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
           ],
         ),
       );
@@ -714,14 +872,17 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.55),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.surface,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -812,20 +973,24 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                           mainAxisSpacing: spacing,
                           crossAxisSpacing: spacing,
                           children: [
-                          for (int i = 0; i < _tiles.length; i++)
-                            StaggeredGridTile.count(
-                              crossAxisCellCount: _tileAt(i).crossAxisCellCount,
-                              mainAxisCellCount: _tileAt(i).mainAxisCellCount,
-                              child: DragTarget<int>(
-                                onWillAcceptWithDetails: (details) =>
-                                    _isEditing &&
-                                    details.data != i &&
-                                    (_selectedIndex == null || _draggingIndex != null),
-                                onAcceptWithDetails: (details) =>
-                                    _swapTileSlots(details.data, i),
-                                builder: (context, candidateData, rejectedData) {
-                                  final tile = _tileAt(i);
-                                  final isSelected = _isEditing && _selectedIndex == i;
+                          // Use sorted tiles directly to ensure consistent order and sizing
+                          for (int idx = 0; idx < _tiles.length; idx++)
+                            Builder(
+                              builder: (context) {
+                                final tile = _tiles[idx];
+                                final i = tile.index;
+                                return StaggeredGridTile.count(
+                                  crossAxisCellCount: tile.crossAxisCellCount,
+                                  mainAxisCellCount: tile.mainAxisCellCount,
+                                  child: DragTarget<int>(
+                                    onWillAcceptWithDetails: (details) =>
+                                        _isEditing &&
+                                        details.data != i &&
+                                        (_selectedIndex == null || _draggingIndex != null),
+                                    onAcceptWithDetails: (details) =>
+                                        _swapTileSlots(details.data, i),
+                                    builder: (context, candidateData, rejectedData) {
+                                      final isSelected = _isEditing && _selectedIndex == i;
                                   final selectionLocked =
                                       _isEditing && _selectedIndex != null && !isSelected;
                                   final isDropTarget = candidateData.isNotEmpty;
@@ -852,15 +1017,20 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           top: 8,
                                           right: 8,
                                           child: Material(
-                                            color: Colors.black.withOpacity(0.55),
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                             shape: const CircleBorder(),
-                                            child: IconButton(
-                                              visualDensity: VisualDensity.compact,
-                                              iconSize: 18,
-                                              tooltip: 'Delete',
-                                              color: Colors.white,
-                                              onPressed: () => _deleteOrClearTile(i),
-                                              icon: const Icon(Icons.delete_outline),
+                                            elevation: 4,
+                                            child: InkWell(
+                                              customBorder: const CircleBorder(),
+                                              onTap: () => _deleteOrClearTile(i),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(8.0),
+                                                child: Icon(
+                                                  Icons.delete_outline,
+                                                  size: 18,
+                                                  color: Theme.of(context).colorScheme.surface,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -952,20 +1122,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
                                   final content = InkWell(
                                     onTap: (!_isEditing)
-                                        ? () async {
-                                            // View mode: open the goal viewer for this tile.
-                                            final current = _tileAt(i);
-                                            if (current.type == 'empty') return;
-                                            await Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => GridGoalViewerScreen(
-                                                  boardId: widget.boardId,
-                                                  tileId: current.id,
-                                                ),
-                                              ),
-                                            );
-                                            if (mounted) await _init();
-                                          }
+                                        ? null // Disabled: grid tiles should not open modal in viewer mode
                                         : (selectionLocked)
                                             ? null
                                             : () async {
@@ -975,19 +1132,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                               if (!wasSelected) _selectedResizeHandle = null;
                                             });
 
-                                            // Second tap on a selected tile edits/adds content.
+                                            // Always show edit options when tapping a selected tile in edit mode
                                             if (!wasSelected) return;
-                                            if (tile.type == 'empty') {
-                                              await _showAddContentSheet(i);
-                                              return;
-                                            }
-                                            if (tile.type == 'text') {
-                                              await _editText(i);
-                                              return;
-                                            }
-                                            if (tile.type == 'image') {
-                                              await _pickAndSetImage(i);
-                                            }
+                                            await _showAddContentSheet(i);
                                           },
                                     child: tileStack,
                                   );
@@ -1036,8 +1183,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                     childWhenDragging: Opacity(opacity: 0.25, child: content),
                                     child: content,
                                   );
-                                },
-                              ),
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -1065,7 +1214,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                         child: Text(
                           'Drag handles to resize • Long-press tile to move',
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                   ],

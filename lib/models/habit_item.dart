@@ -6,12 +6,25 @@ final class HabitTimeBoundSpec {
   final int duration;
   /// 'minutes' | 'hours'
   final String unit;
+  /// Timer mode: 'time' for time-based, 'song' for song-based.
+  /// Defaults to 'time' for backward compatibility.
+  final String mode; // 'time' | 'song'
+  /// Spotify playlist ID (optional, for song-based mode)
+  final String? spotifyPlaylistId;
+  /// Selected Spotify track IDs (optional, for song-based mode)
+  final List<String>? spotifyTrackIds;
 
   const HabitTimeBoundSpec({
     required this.enabled,
     required this.duration,
     required this.unit,
+    this.mode = 'time',
+    this.spotifyPlaylistId,
+    this.spotifyTrackIds,
   });
+
+  bool get isTimeBased => mode == 'time';
+  bool get isSongBased => mode == 'song';
 
   int get durationMinutes {
     final u = unit.trim().toLowerCase();
@@ -24,13 +37,46 @@ final class HabitTimeBoundSpec {
         'enabled': enabled,
         'duration': duration,
         'unit': unit,
+        'mode': mode,
+        'spotifyPlaylistId': spotifyPlaylistId,
+        'spotifyTrackIds': spotifyTrackIds,
       };
 
   factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
     final enabled = (json['enabled'] as bool?) ?? false;
     final duration = (json['duration'] as num?)?.toInt() ?? 0;
     final unit = (json['unit'] as String?) ?? 'minutes';
-    return HabitTimeBoundSpec(enabled: enabled, duration: duration, unit: unit);
+    final mode = (json['mode'] as String?) ?? 'time';
+    final spotifyPlaylistId = json['spotifyPlaylistId'] as String?;
+    final spotifyTrackIds = (json['spotifyTrackIds'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList();
+    return HabitTimeBoundSpec(
+      enabled: enabled,
+      duration: duration,
+      unit: unit,
+      mode: mode,
+      spotifyPlaylistId: spotifyPlaylistId,
+      spotifyTrackIds: spotifyTrackIds,
+    );
+  }
+
+  HabitTimeBoundSpec copyWith({
+    bool? enabled,
+    int? duration,
+    String? unit,
+    String? mode,
+    String? spotifyPlaylistId,
+    List<String>? spotifyTrackIds,
+  }) {
+    return HabitTimeBoundSpec(
+      enabled: enabled ?? this.enabled,
+      duration: duration ?? this.duration,
+      unit: unit ?? this.unit,
+      mode: mode ?? this.mode,
+      spotifyPlaylistId: spotifyPlaylistId ?? this.spotifyPlaylistId,
+      spotifyTrackIds: spotifyTrackIds ?? this.spotifyTrackIds,
+    );
   }
 }
 

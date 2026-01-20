@@ -8,6 +8,7 @@ import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_progress_widget_native_bridge.dart';
 import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerStateService;
 import '../services/vision_board_components_storage_service.dart';
 
 /// Builds and stores a compact JSON snapshot for the native home-screen widgets.
@@ -107,6 +108,31 @@ final class HabitProgressWidgetSnapshotService {
     final top3 = pending.take(3).toList();
     final allDone = eligibleTotal > 0 && pending.isEmpty;
 
+    // Include rhythmic timer state for song-based habits
+    final timerStates = <Map<String, dynamic>>[];
+    for (final item in top3) {
+      final habitId = item['habitId'] as String?;
+      if (habitId != null) {
+        try {
+          final timerState = await RhythmicTimerStateService.getState(
+            prefs: prefs,
+            habitId: habitId,
+            logicalDate: now,
+          );
+          if (timerState.totalSongs > 0) {
+            timerStates.add({
+              'habitId': habitId,
+              'songsRemaining': timerState.songsRemaining,
+              'currentSongTitle': timerState.currentSongTitle,
+              'totalSongs': timerState.totalSongs,
+            });
+          }
+        } catch (_) {
+          // ignore errors
+        }
+      }
+    }
+
     final snap = <String, dynamic>{
       'v': 1,
       'generatedAtMs': DateTime.now().millisecondsSinceEpoch,
@@ -117,6 +143,7 @@ final class HabitProgressWidgetSnapshotService {
       'pendingTotal': pending.length,
       'pending': top3,
       'allDone': allDone,
+      'timerStates': timerStates,
     };
 
     return jsonEncode(snap);

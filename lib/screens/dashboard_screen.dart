@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../utils/app_typography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/core_value.dart';
@@ -8,6 +9,7 @@ import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
+import '../widgets/dashboard/expandable_fab.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -28,6 +30,15 @@ import 'vision_board_editor_screen.dart';
 import '../models/goal_overlay_component.dart';
 import 'journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import 'vision_board_home_screen.dart';
+import 'puzzle_game_screen.dart';
+import '../services/puzzle_service.dart';
+import '../services/widget_deeplink_service.dart';
+import 'widget_guide_screen.dart';
+import '../models/routine.dart';
+import '../services/routine_storage_service.dart';
+import 'routine_editor_screen.dart';
+import 'routine_execution_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,7 +49,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
-  int _tabIndex = 0;
+  int _tabIndex = 1;
   bool _loading = true;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
@@ -46,6 +57,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
+  List<Routine> _routines = [];
+  String? _activeRoutineId;
 
   bool _loadingReminders = false;
   ReminderSummary? _reminderSummary;
@@ -59,6 +72,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _init();
     _startAutoRefreshReminders();
+    _checkPuzzleDeepLink();
+  }
+
+  Future<void> _checkPuzzleDeepLink() async {
+    // Check if puzzle should be opened from widget deep link
+    final shouldOpen = await WidgetDeepLinkService.shouldOpenPuzzle(prefs: _prefs);
+    if (shouldOpen && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _openPuzzleGame();
+        }
+      });
+    }
   }
 
   @override
@@ -95,6 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
     await LogicalDateService.ensureInitialized(prefs: _prefs);
     await _reload();
+    await _reloadRoutines();
     await SyncService.pruneLocalFeedback(prefs: _prefs);
     await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _refreshReminders();
@@ -173,6 +200,17 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     });
   }
 
+  Future<void> _reloadRoutines() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final routines = await RoutineStorageService.loadRoutines(prefs: prefs);
+    final activeId = await RoutineStorageService.loadActiveRoutineId(prefs: prefs);
+    if (!mounted) return;
+    setState(() {
+      _routines = routines;
+      _activeRoutineId = activeId;
+    });
+  }
+
   Future<void> _refreshReminders() async {
     if (_loadingReminders) return;
     final prefs = _prefs ?? await SharedPreferences.getInstance();
@@ -214,6 +252,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return '$hh:${m.toString().padLeft(2, '0')} $ampm';
   }
 
+  Future<void> _openLandingScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()),
+    );
+    // Refresh data when returning from landing screen
+    await _refreshReminders();
+  }
+
   Future<void> _openRemindersSheet() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
@@ -238,11 +284,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Text(
                     'Reminders',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: AppTypography.heading3(context),
                   ),
                 ),
                 Expanded(
@@ -302,9 +348,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Add home-screen widget?',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: AppTypography.heading3(context),
                 ),
                 const SizedBox(height: 8),
                 const Text('Get a quick view of today’s habits and mark them complete from your home screen.'),
@@ -350,6 +396,36 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
+  Future<void> _openPuzzleGame() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    
+    final imagePath = await PuzzleService.getCurrentPuzzleImage(
+      boards: _boards,
+      prefs: prefs,
+    );
+
+    if (imagePath == null || imagePath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No puzzle images available. Add goal images to your vision boards.'),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PuzzleGameScreen(
+          imagePath: imagePath,
+          prefs: prefs,
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     await BoardsStorageService.saveBoards(boards, prefs: prefs);
@@ -367,6 +443,82 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await BoardsStorageService.clearActiveBoardId(prefs: prefs);
     if (!mounted) return;
     setState(() => _activeBoardId = null);
+  }
+
+  Future<void> _createRoutine() async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const RoutineEditorScreen()),
+    );
+    if (mounted && res == true) {
+      await _reloadRoutines();
+    }
+  }
+
+  Future<void> _openRoutine(Routine routine) async {
+    await RoutineStorageService.setActiveRoutineId(routine.id, prefs: _prefs);
+    if (!mounted) return;
+    setState(() => _activeRoutineId = routine.id);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoutineExecutionScreen(routine: routine),
+      ),
+    );
+    await RoutineStorageService.clearActiveRoutineId(prefs: _prefs);
+    if (!mounted) return;
+    setState(() => _activeRoutineId = null);
+    await _reloadRoutines();
+  }
+
+  Future<void> _editRoutine(Routine routine) async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RoutineEditorScreen(routine: routine),
+      ),
+    );
+    if (mounted && res == true) {
+      await _reloadRoutines();
+    }
+  }
+
+  Future<void> _deleteRoutine(Routine routine) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Delete routine?',
+      message: 'Delete "${routine.title}"? This cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: Theme.of(context).colorScheme.error,
+    );
+    if (!ok) return;
+
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      await RoutineStorageService.deleteRoutineData(routine.id, prefs: prefs);
+
+      final next = _routines.where((r) => r.id != routine.id).toList();
+      await RoutineStorageService.saveRoutines(next, prefs: prefs);
+      if (_activeRoutineId == routine.id) {
+        await RoutineStorageService.clearActiveRoutineId(prefs: prefs);
+      }
+      if (!mounted) return;
+      setState(() {
+        _routines = next;
+        if (_activeRoutineId == routine.id) _activeRoutineId = null;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted "${routine.title}"')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting routine: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Future<void> _createBoard() async {
@@ -446,22 +598,38 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       title: 'Delete board?',
       message: 'Delete "${board.title}"? This cannot be undone.',
       confirmText: 'Delete',
-      confirmColor: Colors.red,
+      confirmColor: Theme.of(context).colorScheme.error,
     );
     if (!ok) return;
 
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    await BoardsStorageService.deleteBoardData(board.id, prefs: prefs);
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      await BoardsStorageService.deleteBoardData(board.id, prefs: prefs);
 
-    final next = _boards.where((b) => b.id != board.id).toList();
-    await _saveBoards(next);
-    if (_activeBoardId == board.id) await BoardsStorageService.clearActiveBoardId(prefs: prefs);
-    if (!mounted) return;
-    setState(() {
-      _boards = next;
-      if (_activeBoardId == board.id) _activeBoardId = null;
-    });
-    await _refreshReminders();
+      final next = _boards.where((b) => b.id != board.id).toList();
+      await _saveBoards(next);
+      if (_activeBoardId == board.id) await BoardsStorageService.clearActiveBoardId(prefs: prefs);
+      if (!mounted) return;
+      setState(() {
+        _boards = next;
+        if (_activeBoardId == board.id) _activeBoardId = null;
+      });
+      await _refreshReminders();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted "${board.title}"')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting board: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Future<void> _openBoard(VisionBoardInfo board, {required bool startInEditMode}) async {
@@ -513,15 +681,15 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[0, 1, 2, 4]; // Dashboard, Daily, Journal, Insights
+    const visibleTabIndices = <int>[1, 2, 3, 4]; // Dashboard, Journal, Affirmations, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final appBarTitle = _tabIndex == 1
-        ? 'Daily'
+        ? 'Dashboard'
         : _tabIndex == 2
             ? 'Journal'
             : _tabIndex == 3
-                ? 'Todo'
+                ? 'Affirmations'
                 : _tabIndex == 4
                     ? 'Insights'
                     : 'Digital Vision Board';
@@ -530,12 +698,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       tabIndex: _tabIndex,
       boards: _boards,
       activeBoardId: _activeBoardId,
+      routines: _routines,
+      activeRoutineId: _activeRoutineId,
       prefs: _prefs,
       boardDataVersion: _boardDataVersion,
       onCreateBoard: _createBoard,
+      onCreateRoutine: _createRoutine,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
+      onOpenRoutine: _openRoutine,
+      onEditRoutine: _editRoutine,
+      onDeleteRoutine: _deleteRoutine,
     );
 
     return Scaffold(
@@ -548,9 +722,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Digital Vision Board',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: AppTypography.heading3(context),
                   ),
                   const SizedBox(height: 8),
                   FutureBuilder<String?>(
@@ -558,7 +732,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     builder: (context, snap) {
                       final id = (snap.data ?? '').trim();
                       final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                      return Text(label, style: const TextStyle(color: Colors.black54));
+                      return Text(
+                        label,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      );
                     },
                   ),
                 ],
@@ -586,6 +763,24 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               onTap: () {
                 Navigator.of(context).pop();
                 _openSettings();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.extension),
+              title: const Text('Puzzle Game'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _openPuzzleGame();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.widgets_outlined),
+              title: const Text('Widget Guide'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
+                );
               },
             ),
           ],
@@ -618,12 +813,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         count > 99 ? '99+' : '$count',
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
@@ -634,6 +833,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ],
       ),
       body: body,
+      floatingActionButton: _tabIndex == 1
+          ? ExpandableFAB(
+              onCreateBoard: _createBoard,
+              onCreateRoutine: _createRoutine,
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
         onTap: (i) {
@@ -644,9 +849,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.today_outlined), label: 'Daily'),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
+          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Affirmations'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
         ],
       ),

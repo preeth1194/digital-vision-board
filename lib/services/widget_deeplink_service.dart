@@ -12,11 +12,13 @@ import 'logical_date_service.dart';
 ///
 /// Supported:
 /// - `dvb://widget/toggle?boardId=...&componentId=...&habitId=...`
+/// - `dvb://puzzle` - Opens puzzle game screen
 final class WidgetDeepLinkService {
   WidgetDeepLinkService._();
 
   static StreamSubscription<Uri>? _sub;
   static bool _started = false;
+  static const String _puzzleOpenFlagKey = 'widget_deeplink_open_puzzle';
 
   static Future<void> start() async {
     if (_started) return;
@@ -28,6 +30,15 @@ final class WidgetDeepLinkService {
     Future<void> handle(Uri? uri) async {
       if (uri == null) return;
       if (uri.scheme != 'dvb') return;
+
+      // Handle puzzle deep link
+      if (uri.host == 'puzzle') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_puzzleOpenFlagKey, true);
+        return;
+      }
+
+      // Handle widget deep links
       if (uri.host != 'widget') return;
       final path = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
       if (path != 'toggle') return;
@@ -63,6 +74,16 @@ final class WidgetDeepLinkService {
     _sub = appLinks.uriLinkStream.listen((uri) async {
       await handle(uri);
     });
+  }
+
+  /// Check if puzzle should be opened (from deep link) and clear the flag.
+  static Future<bool> shouldOpenPuzzle({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final shouldOpen = p.getBool(_puzzleOpenFlagKey) ?? false;
+    if (shouldOpen) {
+      await p.remove(_puzzleOpenFlagKey);
+    }
+    return shouldOpen;
   }
 
   static Future<void> stop() async {

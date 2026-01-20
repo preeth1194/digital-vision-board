@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.os.Build
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
 
@@ -124,20 +126,19 @@ class MusicProviderHandler(private val context: Context) {
         
         try {
             // Try to get active sessions (may require notification listener permission on some devices)
-            val activeSessions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val activeControllers: List<MediaController> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 // On Android M+, we need notification listener permission for getActiveSessions
                 // Fall back to checking if we have an active controller
                 if (activeMediaController != null) {
-                    listOf(activeMediaController!!.sessionToken)
+                    listOf(activeMediaController!!)
                 } else {
-                    emptyList()
+                    emptyList<MediaController>()
                 }
             } else {
                 sessionManager.getActiveSessions(null)
             }
 
-            for (token in activeSessions) {
-                val controller = MediaController(context, token)
+            for (controller in activeControllers) {
                 val metadata = controller.metadata
                 if (metadata != null) {
                     val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
@@ -182,17 +183,16 @@ class MusicProviderHandler(private val context: Context) {
 
                 // Try to get active sessions
                 try {
-                    val activeSessions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val activeControllers: List<MediaController> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         // On Android M+, getActiveSessions requires notification listener permission
                         // We'll use polling instead
-                        emptyList()
+                        emptyList<MediaController>()
                     } else {
                         sessionManager.getActiveSessions(null)
                     }
 
-                    if (activeSessions.isNotEmpty()) {
-                        val token = activeSessions[0]
-                        activeMediaController = MediaController(context, token)
+                    if (activeControllers.isNotEmpty()) {
+                        activeMediaController = activeControllers[0]
                         activeMediaController?.registerCallback(mediaControllerCallback)
                     }
                 } catch (e: SecurityException) {

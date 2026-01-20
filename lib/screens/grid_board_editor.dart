@@ -191,7 +191,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     // Ensure we have enough tiles to fill the screen
     // For staggered grids, estimate minimum tiles needed based on average tile height
     final avgMainAxisCells = nextTiles.isNotEmpty
-        ? (nextTiles.map((t) => t.mainAxisCount).reduce((a, b) => a + b) / nextTiles.length).ceil()
+        ? (nextTiles.map((t) => t.mainAxisCellCount).reduce((a, b) => a + b) / nextTiles.length).ceil()
         : 2;
     final estimatedCellsPerRow = (_crossAxisCount * avgMainAxisCells);
     final estimatedRowsNeeded = (availableHeight / (cellExtent + spacing)).ceil();

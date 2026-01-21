@@ -15,7 +15,7 @@ Future<String?> _getLinkedProvider() async {
     final prefs = await SharedPreferences.getInstance();
     final provider = prefs.getString('music_provider_preference');
     // Only return if it's a valid provider (not 'fallback')
-    if (provider == 'spotify' || provider == 'apple_music') {
+    if (provider == 'spotify' || provider == 'apple_music' || provider == 'youtube_music' || provider == 'local_files') {
       return provider;
     }
     return null;
@@ -131,6 +131,24 @@ final class RhythmicTimerService {
       final spotify = SpotifyProvider();
       if (await spotify.isAvailable()) {
         _musicProvider = spotify;
+        return;
+      }
+    }
+
+    // Try YouTube Music if linked
+    if (config.linkedProvider == 'youtube_music') {
+      final youtubeMusic = YouTubeMusicProvider();
+      if (await youtubeMusic.isAvailable()) {
+        _musicProvider = youtubeMusic;
+        return;
+      }
+    }
+
+    // Try Local Files if linked
+    if (config.linkedProvider == 'local_files') {
+      final localFiles = LocalFileProvider();
+      if (await localFiles.isAvailable()) {
+        _musicProvider = localFiles;
         return;
       }
     }

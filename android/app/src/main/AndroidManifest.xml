@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- Optional: keep CPU awake while tracking -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Storage permissions for local file access -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <application
         android:label="digital_vision_board"
         android:name="${applicationName}"
@@ -65,6 +68,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="dvb" android:host="spotify-callback" />
+            </intent-filter>
+            <!-- YouTube Music OAuth callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dvb" android:host="youtube-music-oauth" />
             </intent-filter>
         </activity>
         

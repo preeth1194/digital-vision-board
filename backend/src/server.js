@@ -23,6 +23,14 @@ import {
   getValidAccessToken,
 } from "./spotify.js";
 import {
+  youtubeMusicAuthorizeUrl,
+  exchangeAuthorizationCode as exchangeYouTubeMusicCode,
+  getPlaylists as getYouTubeMusicPlaylists,
+  searchTracks as searchYouTubeMusicTracks,
+  getPlaylistTracks as getYouTubeMusicPlaylistTracks,
+  getValidAccessToken as getYouTubeMusicValidAccessToken,
+} from "./youtube-music.js";
+import {
   deletePkceState,
   getOauthPollToken,
   getPkceState,
@@ -1200,6 +1208,187 @@ app.get("/api/spotify/playlist/:playlistId/tracks", requireDvAuth(), async (req,
       return res.status(401).json({ ok: false, error: "spotify_not_connected" });
     }
     res.status(500).json({ ok: false, error: "spotify_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
+// ---- YouTube Music OAuth ----
+app.get("/auth/youtube-music/start", async (req, res) => {
+  try {
+    const state = randomId(16);
+    const codeVerifier = randomId(32);
+    const codeChallenge = sha256Base64Url(codeVerifier);
+
+    const returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
+    const origin = typeof req.query.origin === "string" ? req.query.origin : "";
+    const dvToken = typeof req.query.dvToken === "string" ? req.query.dvToken : null;
+
+    await putPkceState(state, { codeVerifier, createdAt: Date.now(), returnTo, origin, dvToken });
+    const url = youtubeMusicAuthorizeUrl({ state, codeChallenge });
+    res.redirect(url);
+  } catch (e) {
+    res.status(500).send(String(e?.message ?? e));
+  }
+});
+
+app.get("/auth/youtube-music/callback", async (req, res) => {
+  try {
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    if (!code || !state) return res.status(400).send("Missing code/state");
+
+    const st = await getPkceState(state);
+    if (!st?.codeVerifier) return res.status(400).send("Invalid state");
+
+    const token = await exchangeYouTubeMusicCode({ code, codeVerifier: st.codeVerifier });
+
+    // Get user from dvToken stored in PKCE state
+    const dvToken = st.dvToken || null;
+    let canvaUserId = null;
+    let existing = null;
+
+    if (dvToken) {
+      const user = await findUserByDvToken(dvToken);
+      if (user) {
+        canvaUserId = user.canvaUserId;
+        existing = user;
+      }
+    }
+
+    if (!canvaUserId) {
+      // Create a temporary user record for YouTube Music-only users
+      canvaUserId = `youtube_music_${randomId(16)}`;
+      existing = {};
+    }
+
+    const finalDvToken = existing?.dvToken ?? (dvToken ?? randomId(24));
+
+    await putUserRecord(canvaUserId, {
+      ...existing,
+      canvaUserId,
+      dvToken: finalDvToken,
+      youtubeMusic: {
+        access_token: token.access_token,
+        refresh_token: token.refresh_token ?? null,
+        expires_in: token.expires_in ?? null,
+        token_type: token.token_type ?? "Bearer",
+        obtained_at: Date.now(),
+        scope: token.scope ?? null,
+      },
+      habits: Array.isArray(existing?.habits) ? existing.habits : [],
+      packages: Array.isArray(existing?.packages) ? existing.packages : [],
+    });
+
+    await deletePkceState(state);
+
+    // If a returnTo is supplied, redirect there
+    if (st.returnTo && typeof st.returnTo === "string" && st.returnTo.trim() !== "") {
+      const url = new URL(st.returnTo);
+      url.searchParams.set("dvToken", finalDvToken);
+      url.searchParams.set("canvaUserId", canvaUserId);
+      return res.redirect(url.toString());
+    }
+
+    const targetOrigin = st.origin && st.origin !== "" ? st.origin : "*";
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
+<html>
+  <body>
+    <script>
+      (function () {
+        const payload = {
+          type: "dv_youtube_music_oauth_success",
+          dvToken: ${JSON.stringify(finalDvToken)},
+          canvaUserId: ${JSON.stringify(canvaUserId)}
+        };
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage(payload, ${JSON.stringify(targetOrigin)});
+          }
+        } catch (e) {}
+        window.close();
+        document.body.innerText = "YouTube Music connected. You can close this window.";
+      })();
+    </script>
+  </body>
+</html>`);
+  } catch (e) {
+    res.status(500).send(String(e?.message ?? e));
+  }
+});
+
+// ---- YouTube Music API (authenticated) ----
+app.get("/api/youtube-music/playlists", requireDvAuth(), async (req, res) => {
+  try {
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 50;
+    const offset = typeof req.query.offset === "string" ? Number(req.query.offset) : 0;
+
+    const userRecord = req.dvUser;
+    const playlists = await getYouTubeMusicPlaylists(userRecord, { limit, offset });
+
+    // Update user record if token was refreshed
+    if (userRecord.youtubeMusic) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, playlists });
+  } catch (e) {
+    if (e.message === "YouTube Music not connected") {
+      return res.status(401).json({ ok: false, error: "youtube_music_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "youtube_music_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/api/youtube-music/search", requireDvAuth(), async (req, res) => {
+  try {
+    const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 20;
+
+    if (!query) {
+      return res.status(400).json({ ok: false, error: "missing_query" });
+    }
+
+    const userRecord = req.dvUser;
+    const tracks = await searchYouTubeMusicTracks(userRecord, query, { limit });
+
+    // Update user record if token was refreshed
+    if (userRecord.youtubeMusic) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, tracks });
+  } catch (e) {
+    if (e.message === "YouTube Music not connected") {
+      return res.status(401).json({ ok: false, error: "youtube_music_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "youtube_music_api_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/api/youtube-music/playlist/:playlistId/tracks", requireDvAuth(), async (req, res) => {
+  try {
+    const playlistId = typeof req.params.playlistId === "string" ? req.params.playlistId.trim() : "";
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 100;
+    const offset = typeof req.query.offset === "string" ? Number(req.query.offset) : 0;
+
+    if (!playlistId) {
+      return res.status(400).json({ ok: false, error: "missing_playlistId" });
+    }
+
+    const userRecord = req.dvUser;
+    const tracks = await getYouTubeMusicPlaylistTracks(userRecord, playlistId, { limit, offset });
+
+    // Update user record if token was refreshed
+    if (userRecord.youtubeMusic) {
+      await putUserRecord(userRecord.canvaUserId, userRecord);
+    }
+
+    res.json({ ok: true, tracks });
+  } catch (e) {
+    if (e.message === "YouTube Music not connected") {
+      return res.status(401).json({ ok: false, error: "youtube_music_not_connected" });
+    }
+    res.status(500).json({ ok: false, error: "youtube_music_api_failed", message: String(e?.message ?? e) });
   }
 });
 

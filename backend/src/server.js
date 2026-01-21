@@ -164,6 +164,7 @@ app.get("/", (req, res) => {
         "",
         "Useful endpoints:",
         "- GET /health",
+        "- GET /privacy-policy",
         "- GET /auth/canva/start_poll",
         "- GET /auth/canva/poll?pollToken=...",
         "- GET /auth/canva/start",
@@ -174,6 +175,270 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+// ---- Privacy Policy ----
+app.get("/privacy-policy", (req, res) => {
+  res.setHeader("content-type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Digital Vision Board</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #6366f1; margin-top: 0; }
+    h2 { color: #4f46e5; margin-top: 2rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+    h3 { color: #6366f1; margin-top: 1.5rem; }
+    h4 { color: #6b7280; margin-top: 1rem; }
+    ul { padding-left: 1.5rem; }
+    li { margin: 0.5rem 0; }
+    .last-updated { color: #6b7280; font-size: 0.9rem; margin-top: 2rem; }
+    a { color: #6366f1; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <p><strong>Last Updated:</strong> January 2025</p>
+
+    <h2>Your Privacy Matters</h2>
+    <p>
+      Digital Vision Board is committed to protecting your privacy. This policy
+      explains how we collect, use, and safeguard your personal information.
+    </p>
+
+    <h2>Data Collection</h2>
+    <p>
+      Digital Vision Board is a local-first application. Most of your data is
+      stored directly on your device:
+    </p>
+    <ul>
+      <li>
+        <strong>Goals, Habits, and Tasks:</strong> All goal definitions, habit
+        tracking data, task checklists, and completion feedback are stored
+        locally on your device.
+      </li>
+      <li>
+        <strong>Vision Board Content:</strong> Images, board layouts, and
+        customizations are stored on your device. Images may be downloaded
+        from external sources (like Pexels) but are cached locally.
+      </li>
+      <li>
+        <strong>Progress Data:</strong> Completion dates, streaks, activity
+        summaries, and insights are calculated and stored locally.
+      </li>
+    </ul>
+
+    <h2>Optional Data Collection</h2>
+    <p>
+      Some features require additional permissions and data collection:
+    </p>
+    <ul>
+      <li>
+        <strong>Location Data:</strong> If you enable location-based habit
+        tracking (geofencing), the app will access your device location to
+        trigger habits when you enter specified areas. Location data is used
+        only for geofencing and is not stored permanently.
+      </li>
+      <li>
+        <strong>Music Provider Integration:</strong> If you connect Spotify,
+        YouTube Music, or Apple Music for rhythmic timer features, OAuth tokens
+        are stored to enable song tracking. We do not collect your listening
+        history or playlist data beyond what's necessary for song detection.
+      </li>
+      <li>
+        <strong>Camera and Storage:</strong> To scan physical boards or import
+        images, the app requests camera and storage permissions. Images are
+        stored locally on your device. Camera access is only used when you
+        explicitly choose to take a photo.
+      </li>
+    </ul>
+
+    <h2>Authentication</h2>
+    <p>
+      Digital Vision Board supports multiple authentication methods:
+    </p>
+    <ul>
+      <li>
+        <strong>Google Sign-In:</strong> If you choose to sign in with Google,
+        your Google account information is used for authentication only. We
+        do not access your Google account data beyond authentication.
+      </li>
+      <li>
+        <strong>Phone Authentication:</strong> Phone number authentication
+        is handled securely through Firebase Authentication.
+      </li>
+      <li>
+        <strong>Guest Mode:</strong> You can use the app without creating an
+        account. All data remains local to your device.
+      </li>
+    </ul>
+
+    <h2>Local-First Storage</h2>
+    <p>
+      By default, all your data is stored locally on your device using
+      platform-specific storage (SharedPreferences on Android/iOS). This means:
+    </p>
+    <ul>
+      <li>Your data is private to your device</li>
+      <li>No data is sent to external servers unless you explicitly enable cloud sync</li>
+      <li>You have full control over your data</li>
+    </ul>
+
+    <h2>Optional Cloud Sync</h2>
+    <p>
+      If you choose to enable Firebase Cloud Sync (optional feature):
+    </p>
+    <ul>
+      <li>Your data will be synchronized to Firebase servers</li>
+      <li>Data is encrypted in transit and at rest</li>
+      <li>You can disable cloud sync at any time</li>
+      <li>Cloud sync requires Firebase configuration files</li>
+    </ul>
+
+    <h2>Third-Party Services</h2>
+    <p>
+      Digital Vision Board may integrate with the following third-party services:
+    </p>
+    <ul>
+      <li>
+        <strong>Spotify:</strong> OAuth integration for music provider features.
+        Spotify's privacy policy applies to data collected through their service.
+      </li>
+      <li>
+        <strong>YouTube Music:</strong> OAuth integration for music provider features.
+        Google's privacy policy applies to data collected through their service.
+      </li>
+      <li>
+        <strong>Apple Music:</strong> Uses system APIs (iOS only) for track
+        detection. No data is shared with Apple beyond standard API usage.
+      </li>
+      <li>
+        <strong>Pexels:</strong> Image search functionality may query Pexels
+        API for stock images. Search terms are sent to Pexels; no user data
+        is shared.
+      </li>
+      <li>
+        <strong>Firebase:</strong> Optional cloud storage and authentication.
+        Firebase's privacy policy applies when cloud sync is enabled.
+      </li>
+    </ul>
+
+    <h2>Permissions</h2>
+    <p>
+      Digital Vision Board requests the following permissions:
+    </p>
+    <ul>
+      <li>
+        <strong>Location:</strong> For geofencing-based habit tracking
+        (ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION)
+      </li>
+      <li>
+        <strong>Storage/Media:</strong> For importing images, scanning boards,
+        and accessing media files (READ_EXTERNAL_STORAGE, READ_MEDIA_AUDIO)
+      </li>
+      <li>
+        <strong>Notifications:</strong> For habit reminders and progress updates
+        (POST_NOTIFICATIONS)
+      </li>
+      <li>
+        <strong>Camera:</strong> For scanning physical boards and taking photos.
+        Camera access is only requested when you choose to take a photo, not
+        automatically. Photos are stored locally on your device and are not
+        shared with third parties.
+      </li>
+    </ul>
+    <p>
+      All permissions are optional and only requested when relevant features
+      are used. You can deny any permission and still use core app features.
+    </p>
+
+    <h2>Data Security</h2>
+    <p>
+      We take data security seriously:
+    </p>
+    <ul>
+      <li>Local data is stored using platform-secured storage mechanisms</li>
+      <li>Cloud data (if enabled) is encrypted in transit using TLS and at rest using Firebase encryption</li>
+      <li>OAuth tokens are stored securely using platform keychains</li>
+      <li>No data is shared with third parties except as described in this policy</li>
+    </ul>
+
+    <h2>Your Rights</h2>
+    <p>
+      You have the right to:
+    </p>
+    <ul>
+      <li>
+        <strong>Access Your Data:</strong> All data is stored locally and
+        accessible through the app. If cloud sync is enabled, you can access
+        data through Firebase.
+      </li>
+      <li>
+        <strong>Delete Your Data:</strong> You can delete individual goals,
+        habits, tasks, or entire boards at any time through the app interface.
+      </li>
+      <li>
+        <strong>Export Your Data:</strong> Data is stored in JSON format and
+        can be accessed through device file managers (advanced users).
+      </li>
+      <li>
+        <strong>Disable Permissions:</strong> You can revoke any permission
+        through your device settings. Some features may be limited if permissions
+        are disabled.
+      </li>
+      <li>
+        <strong>Delete Your Account:</strong> If you created an account, you
+        can delete it through the app settings or by contacting support.
+      </li>
+    </ul>
+
+    <h2>Children's Privacy</h2>
+    <p>
+      Digital Vision Board is not intended for children under 13 years of age.
+      We do not knowingly collect personal information from children under 13.
+      If you are a parent or guardian and believe your child has provided us
+      with personal information, please contact us to have that information
+      removed.
+    </p>
+
+    <h2>Changes to This Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time. We will notify you
+      of any changes by posting the new Privacy Policy on this page and updating
+      the "Last updated" date. You are advised to review this Privacy Policy
+      periodically for any changes.
+    </p>
+
+    <h2>Contact Us</h2>
+    <p>
+      If you have any questions about this Privacy Policy or our data practices,
+      please contact us through the app settings or visit our support page.
+    </p>
+
+    <p class="last-updated">
+      <strong>Last Updated:</strong> January 2025
+    </p>
+  </div>
+</body>
+</html>`);
+});
 
 // ---- Stock images (Pexels proxy; key stays on backend) ----
 app.get("/stock/pexels/search", async (req, res) => {

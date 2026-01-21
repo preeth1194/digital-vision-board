@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
 Last updated: 2026-01-17
-Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation; Fixed IconData tree-shaking issues; Improved Spotify OAuth integration with connection verification; Fixed puzzle game opacity animation bug; Updated environment variable documentation
+Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation; Fixed IconData tree-shaking issues; Improved Spotify OAuth integration with connection verification; Fixed puzzle game opacity animation bug; Updated environment variable documentation; Added YouTube Music and Local Files support for music providers; Added privacy policy route at `/privacy-policy`
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -169,6 +169,8 @@ The app supports two timer modes for habits:
 ### Music Provider Integration
 - **Spotify**: `SpotifyProvider` in `lib/services/music_provider_service.dart`
   - OAuth integration via backend API (`/api/spotify/*` endpoints)
+- **YouTube Music**: `YouTubeMusicProvider` (similar to Spotify, uses backend API `/api/youtube-music/*` endpoints)
+- **Local Files**: `LocalFileProvider` (allows users to select audio files from device storage)
   - Requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` environment variables
   - Connection verification: `_checkSpotifyConnection()` in `music_provider_settings_screen.dart`
   - Settings screen: `lib/screens/music_provider_settings_screen.dart` with pull-to-refresh
@@ -615,6 +617,13 @@ Backend requires these environment variables (see `ENV_SETUP.md` for full list):
 - **Authentication errors**: Clear messages prompting user to log in or connect Spotify
 - **Connection errors**: Settings screen shows connection status and "Connect" button when needed
 - **API errors**: Proper error messages distinguish between "not logged in" vs "Spotify not connected"
+
+### Privacy Policy
+- **Backend route**: `GET /privacy-policy` - Serves a standalone HTML privacy policy page
+- **Purpose**: Required by Google Play Console for apps using sensitive permissions (CAMERA, LOCATION, etc.)
+- **Content**: Explains data collection, storage, permissions, and user rights
+- **Canva App Panel**: Links to `/privacy-policy` route instead of anchor link for separate URL
+- **Location**: `backend/src/server.js` - Privacy policy route serves HTML with styling
 
 ---
 

@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
 Last updated: 2026-01-17
-Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation
+Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation; Fixed IconData tree-shaking issues; Improved Spotify OAuth integration with connection verification; Fixed puzzle game opacity animation bug; Updated environment variable documentation
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -167,10 +167,15 @@ The app supports two timer modes for habits:
   - `lib/widgets/rhythmic_timer_widget.dart` - Compact widget for embedding
 
 ### Music Provider Integration
-- **Spotify**: `SpotifyProvider` (placeholder - requires SDK setup)
-- **Apple Music**: `AppleMusicProvider` (placeholder - requires SDK setup)
+- **Spotify**: `SpotifyProvider` in `lib/services/music_provider_service.dart`
+  - OAuth integration via backend API (`/api/spotify/*` endpoints)
+  - Requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` environment variables
+  - Connection verification: `_checkSpotifyConnection()` in `music_provider_settings_screen.dart`
+  - Settings screen: `lib/screens/music_provider_settings_screen.dart` with pull-to-refresh
+  - Error handling: Improved messages for authentication and connection issues
+- **Apple Music**: `AppleMusicProvider` (iOS only, uses system APIs)
 - **Fallback**: `FallbackAudioProvider` using `audioplayers` package with local assets
-- Fallback audio assets: `assets/audio/focus_1.mp3`, `focus_2.mp3`, etc.
+- Fallback audio assets: `assets/audio/` directory (created with `.gitkeep`)
 
 ### Song-Based Timer Flow
 1. User starts timer with song-based habit
@@ -186,9 +191,14 @@ The app supports two timer modes for habits:
 - Snapshot service includes timer state: `lib/services/habit_progress_widget_snapshot_service.dart`
 
 ### Native Platform Code
-- Android: `lib/android/app/src/main/kotlin/com/example/digital_vision_board/MusicProviderHandler.kt`
-- iOS: `lib/ios/Runner/MusicProviderHandler.swift`
-- Method channel: `dvb/music_provider` (ready for full SDK integration)
+- Android: `android/app/src/main/kotlin/com/digitalvisionboard/app/MusicProviderHandler.kt`
+  - **Package name**: Migrated from `com.example.digital_vision_board` to `com.digitalvisionboard.app`
+  - Uses MediaSession API to detect currently playing tracks
+  - Supports polling fallback for devices without notification listener permission
+  - MainActivity: `android/app/src/main/kotlin/com/digitalvisionboard/app/MainActivity.kt`
+- iOS: `ios/Runner/MusicProviderHandler.swift`
+- Method channel: `dvb/music_provider` for track detection
+- Spotify OAuth: Handled via backend API, not native SDK
 
 ---
 
@@ -394,6 +404,7 @@ The app includes a puzzle game feature that turns goal images into interactive 4
   - Shuffle button to reshuffle pieces
   - Image selection button to change puzzle image
   - Visual feedback for correct piece placement (highlighted borders)
+  - **Animation fix**: Completion tile animation uses clamped opacity values (0.0-1.0) to prevent assertion errors with `Curves.easeOutBack` overshoot
 
 ### Puzzle Image Splitter
 - **File**: `lib/utils/puzzle_image_splitter.dart`
@@ -524,6 +535,8 @@ These are the most common “click paths” and what files implement them.
 - Service: `lib/services/rhythmic_timer_service.dart`
 - When songsRemaining reaches 0, triggers habit completion → mood rating screen
 - Integrated in: `lib/widgets/habits/habit_tracker_tracker_tab.dart` (timer button opens appropriate screen)
+- Spotify selection: `lib/screens/spotify_selection_screen.dart` for choosing playlists/tracks
+- Music provider settings: `lib/screens/music_provider_settings_screen.dart` for OAuth connection
 
 ---
 
@@ -567,6 +580,42 @@ Theme is configured in `lib/main.dart` with:
 - Dark theme: `ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark)`
 - Text theme with standardized font sizes and weights
 - Material 3 enabled for modern UI components
+
+---
+
+## 18) Build Configuration and Environment Variables
+
+### Build Configuration
+- **Icon Tree-Shaking**: Build uses `--no-tree-shake-icons` flag to support dynamic IconData instances
+  - Helper function: `IconService.iconFromCodePoint()` in `lib/services/icon_service.dart`
+  - Used in: `routine_editor_screen.dart`, `routine_execution_screen.dart`, `routine_preview_card.dart`
+  - Reason: Routines/todos store icon code points dynamically, so Flutter can't tree-shake at compile time
+
+### Environment Variables
+Backend requires these environment variables (see `ENV_SETUP.md` for full list):
+- **Core**: `PORT`, `BASE_URL`
+- **Canva OAuth**: `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `CANVA_REDIRECT_URI`, `CANVA_SCOPES`
+- **Spotify OAuth** (required for Spotify integration):
+  - `SPOTIFY_CLIENT_ID` - Spotify app client ID from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+  - `SPOTIFY_CLIENT_SECRET` - Spotify app client secret
+  - `SPOTIFY_REDIRECT_URI` - OAuth callback URL (defaults to `${BASE_URL}/auth/spotify/callback`)
+  - `SPOTIFY_SCOPES` - OAuth scopes (default: `user-read-private user-read-email playlist-read-private playlist-read-collaborative user-library-read`)
+- **Database**: `DATABASE_URL` (optional, uses JSON file storage if not set)
+- **Other**: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` (all optional)
+
+### Spotify Integration Flow
+1. User navigates to Settings → Music Provider Settings
+2. Taps "Connect" button for Spotify
+3. Backend generates OAuth URL with PKCE challenge
+4. User completes OAuth in browser
+5. Backend stores tokens in database (`dv_users.spotify_*` columns)
+6. Settings screen verifies connection via test API call
+7. User can now access playlists and search tracks
+
+### Error Handling
+- **Authentication errors**: Clear messages prompting user to log in or connect Spotify
+- **Connection errors**: Settings screen shows connection status and "Connect" button when needed
+- **API errors**: Proper error messages distinguish between "not logged in" vs "Spotify not connected"
 
 ---
 

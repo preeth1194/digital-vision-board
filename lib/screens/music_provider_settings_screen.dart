@@ -46,15 +46,44 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
     _selectedProvider = prefs.getString('music_provider_preference');
 
     // Check authentication status
-    // With system API approach, Spotify is "authenticated" if app is installed
+    // For Spotify: Check if OAuth tokens are stored (needed for playlists/search)
+    // System APIs can detect playing songs without OAuth, but playlists require OAuth
     if (_spotifyAvailable) {
-      _spotifyAuthenticated = true; // Works via system APIs
+      _spotifyAuthenticated = await _checkSpotifyConnection();
     }
     if (_appleMusicAvailable) {
       _appleMusicHasPermission = _appleMusicProvider.hasPermission;
     }
 
     setState(() => _loading = false);
+  }
+
+  /// Check if Spotify is actually connected via OAuth by making a test API call
+  Future<bool> _checkSpotifyConnection() async {
+    try {
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) return false;
+
+      // Try to fetch playlists with limit=1 to test connection
+      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlists')
+          .replace(queryParameters: {
+        'limit': '1',
+        'offset': '0',
+      });
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $dvToken',
+          'accept': 'application/json',
+        },
+      );
+
+      // 200-299 means connected, 401 means not connected
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _authenticateSpotify() async {
@@ -93,19 +122,45 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Complete Spotify connection in the browser, then return to the app'),
-            duration: Duration(seconds: 5),
+            content: Text('Complete Spotify connection in the browser, then return to the app. Pull down to refresh connection status.'),
+            duration: Duration(seconds: 6),
           ),
         );
       }
 
-      // For now, mark as authenticated after a delay (in production, use deep link callback)
-      // The actual connection will be verified when trying to use Spotify features
+      // Wait a moment for OAuth to complete, then check connection status
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Verify the connection was successful
+      final isConnected = await _checkSpotifyConnection();
       setState(() {
-        _spotifyAuthenticated = true;
-        _selectedProvider = 'spotify';
+        _spotifyAuthenticated = isConnected;
+        if (isConnected) {
+          _selectedProvider = 'spotify';
+        }
       });
-      await _savePreference('spotify');
+      
+      if (isConnected) {
+        await _savePreference('spotify');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Spotify connected successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Spotify connection not detected. Please complete the OAuth flow in the browser and try again.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -201,7 +256,9 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
       appBar: AppBar(
         title: const Text('Music Provider Settings'),
       ),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: _loadSettings,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -248,9 +305,16 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
                                   color: colorScheme.onSurfaceVariant,
                                 ),
                               )
+                            else if (!_spotifyAuthenticated)
+                              Text(
+                                'Tap to connect Spotify account',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.primary,
+                                ),
+                              )
                             else
                               Text(
-                                'Ready - tracks songs automatically',
+                                'Connected - can access playlists',
                                 style: AppTypography.caption(context).copyWith(
                                   color: Colors.green,
                                 ),
@@ -262,9 +326,12 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
                 ),
                   secondary: !_spotifyAvailable
                       ? null
-                      : _spotifyAvailable
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : null,
+                      : !_spotifyAuthenticated
+                          ? TextButton(
+                              onPressed: _authenticateSpotify,
+                              child: const Text('Connect'),
+                            )
+                          : const Icon(Icons.check_circle, color: Colors.green),
               ),
             ),
 
@@ -398,7 +465,7 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
                         style: AppTypography.bodySmall(context),
                       ),
                     Text(
-                      'Spotify works automatically when the Spotify app is installed. The app detects currently playing songs from Spotify using system APIs. No authentication required.',
+                      'Spotify: The app can detect currently playing songs automatically when the Spotify app is installed. However, to access your playlists and search for songs, you need to connect your Spotify account via OAuth.',
                       style: AppTypography.bodySmall(context),
                     ),
                   ],
@@ -406,6 +473,7 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
               ),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -157,7 +157,7 @@ class SpotifyProvider implements MusicProvider {
     try {
       final dvToken = await DvAuthService.getDvToken();
       if (dvToken == null) {
-        throw Exception('Not authenticated');
+        throw Exception('Please log in to access Spotify playlists. You can continue as guest or create an account.');
       }
 
       final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlists')
@@ -197,7 +197,7 @@ class SpotifyProvider implements MusicProvider {
     try {
       final dvToken = await DvAuthService.getDvToken();
       if (dvToken == null) {
-        throw Exception('Not authenticated');
+        throw Exception('Please log in to search Spotify tracks. You can continue as guest or create an account.');
       }
 
       final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/search')
@@ -237,7 +237,7 @@ class SpotifyProvider implements MusicProvider {
     try {
       final dvToken = await DvAuthService.getDvToken();
       if (dvToken == null) {
-        throw Exception('Not authenticated');
+        throw Exception('Please log in to access Spotify playlist tracks. You can continue as guest or create an account.');
       }
 
       final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlist/$playlistId/tracks')

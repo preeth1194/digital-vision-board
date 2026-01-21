@@ -74,6 +74,15 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
               duration: Duration(seconds: 5),
             ),
           );
+        } else if (errorMsg.contains('Please log in')) {
+          // Extract the helpful message from the exception
+          final message = errorMsg.replaceAll('Exception: ', '').replaceAll('Exception(', '').replaceAll(')', '');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 5),
+            ),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -114,6 +123,15 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
               duration: Duration(seconds: 5),
             ),
           );
+        } else if (errorMsg.contains('Please log in')) {
+          // Extract the helpful message from the exception
+          final message = errorMsg.replaceAll('Exception: ', '').replaceAll('Exception(', '').replaceAll(')', '');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 5),
+            ),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -147,6 +165,15 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
             const SnackBar(
               content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
               duration: Duration(seconds: 5),
+            ),
+          );
+        } else if (errorMsg.contains('Please log in')) {
+          // Extract the helpful message from the exception
+          final message = errorMsg.replaceAll('Exception: ', '').replaceAll('Exception(', '').replaceAll(')', '');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 5),
             ),
           );
         } else {

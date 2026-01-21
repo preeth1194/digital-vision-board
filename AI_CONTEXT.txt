@@ -594,7 +594,6 @@ Theme is configured in `lib/main.dart` with:
 ### Environment Variables
 Backend requires these environment variables (see `ENV_SETUP.md` for full list):
 - **Core**: `PORT`, `BASE_URL`
-- **Canva OAuth**: `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `CANVA_REDIRECT_URI`, `CANVA_SCOPES`
 - **Spotify OAuth** (required for Spotify integration):
   - `SPOTIFY_CLIENT_ID` - Spotify app client ID from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
   - `SPOTIFY_CLIENT_SECRET` - Spotify app client secret

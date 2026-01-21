@@ -2423,9 +2423,15 @@ app.put("/api/affirmations/:id/pin", requireDvAuth(), async (req, res) => {
   }
 });
 
-const port = Number(process.env.PORT ?? 8787);
-app.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Backend listening on http://localhost:${port}`);
-});
+// Export app for Vercel serverless functions
+export default app;
+
+// Only start listening if not in Vercel environment
+if (process.env.VERCEL !== "1") {
+  const port = Number(process.env.PORT ?? 8787);
+  app.listen(port, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Backend listening on http://localhost:${port}`);
+  });
+}
 

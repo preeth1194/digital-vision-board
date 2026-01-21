@@ -157,4 +157,11 @@ class IconService {
   static int getIconCodePointForTitle(String title) {
     return getIconForTitle(title).codePoint;
   }
+
+  /// Create IconData from a code point.
+  /// This helper function is used to create IconData instances from stored code points.
+  /// Note: Flutter's tree-shaker may not be able to optimize these icons since the code point is dynamic.
+  static IconData iconFromCodePoint(int codePoint) {
+    return IconData(codePoint, fontFamily: 'MaterialIcons');
+  }
 }

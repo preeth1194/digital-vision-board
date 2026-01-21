@@ -28,7 +28,7 @@ function App() {
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
             <li><a href="#board-types">Board Types</a></li>
-            <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+            <li><a href="#privacy">Privacy Policy</a></li>
           </ul>
         </div>
       </nav>
@@ -436,7 +436,7 @@ function App() {
           <ul className="footer-links">
             <li><a href="#features">Features</a></li>
             <li><a href="#board-types">Board Types</a></li>
-            <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+            <li><a href="#privacy">Privacy Policy</a></li>
           </ul>
           <p style={{ marginTop: "2rem", fontSize: "0.85rem", opacity: 0.7 }}>
             © 2025 Digital Vision Board. All rights reserved.

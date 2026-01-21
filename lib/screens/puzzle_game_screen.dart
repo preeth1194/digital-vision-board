@@ -518,14 +518,17 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           children: [
             // Animated completion tile
             TweenAnimationBuilder<double>(
+              key: const ValueKey('completion_tile_animation'),
               duration: const Duration(milliseconds: 800),
               tween: Tween(begin: 0.0, end: 1.0),
               curve: Curves.easeOutBack,
               builder: (context, value, child) {
+                // Clamp values to valid range since easeOutBack can overshoot
+                final clampedValue = value.clamp(0.0, 1.0);
                 return Transform.scale(
-                  scale: value,
+                  scale: clampedValue,
                   child: Opacity(
-                    opacity: value,
+                    opacity: clampedValue,
                     child: Container(
                       width: 300,
                       height: 300,

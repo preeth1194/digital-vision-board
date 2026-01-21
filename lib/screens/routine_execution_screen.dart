@@ -7,6 +7,7 @@ import '../models/routine.dart';
 import '../models/routine_todo_item.dart';
 import '../services/routine_storage_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/icon_service.dart';
 import '../utils/app_typography.dart';
 
 class RoutineExecutionScreen extends StatefulWidget {
@@ -155,7 +156,7 @@ class _RoutineExecutionScreenState extends State<RoutineExecutionScreen> {
       );
     }
 
-    final icon = IconData(currentTodo.iconCodePoint, fontFamily: 'MaterialIcons');
+    final icon = IconService.iconFromCodePoint(currentTodo.iconCodePoint);
     final isCompleted = currentTodo.isCompletedOnDate(
       LogicalDateService.today(),
     );

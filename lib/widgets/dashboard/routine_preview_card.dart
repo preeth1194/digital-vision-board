@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/routine.dart';
 import '../../services/logical_date_service.dart';
+import '../../services/icon_service.dart';
 import '../../utils/app_typography.dart';
 
 /// Widget that displays a preview card for a routine.
@@ -38,7 +39,7 @@ class RoutinePreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = routine.id == activeRoutineId;
     final tileColor = Color(routine.tileColorValue);
-    final icon = IconData(routine.iconCodePoint, fontFamily: 'MaterialIcons');
+    final icon = IconService.iconFromCodePoint(routine.iconCodePoint);
     final progress = _getCompletionPercentage();
     final logicalDate = LogicalDateService.today();
     final completedCount = routine.todos

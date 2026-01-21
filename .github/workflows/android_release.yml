@@ -92,10 +92,10 @@ jobs:
           fi
 
       - name: Build AAB (release)
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --no-tree-shake-icons
 
       - name: Build APK (release)
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4

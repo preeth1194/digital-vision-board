@@ -449,7 +449,7 @@ class _TodoItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final icon = IconData(todo.iconCodePoint, fontFamily: 'MaterialIcons');
+    final icon = IconService.iconFromCodePoint(todo.iconCodePoint);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -618,7 +618,7 @@ class _TodoEditDialogState extends State<_TodoEditDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final icon = IconData(_iconCodePoint, fontFamily: 'MaterialIcons');
+    final icon = IconService.iconFromCodePoint(_iconCodePoint);
 
     return AlertDialog(
       title: const Text('Edit Todo'),

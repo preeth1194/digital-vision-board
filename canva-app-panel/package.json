@@ -1,5 +1,5 @@
 {
-  "name": "digital-vision-board-canva-app-panel",
+  "name": "digital-vision-board-marketing-site",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,9 +12,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@canva/app-ui-kit": "^5.5.0",
-    "@canva/design": "^2.7.0",
-    "@canva/platform": "^2.2.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },

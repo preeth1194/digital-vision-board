@@ -744,14 +744,21 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     
     for (final c in widget.components) {
       final goal = _getGoalFromComponent(c);
-      final microhabit = goal?.actionPlan?.microHabit?.trim();
+      final goalMicrohabit = goal?.actionPlan?.microHabit?.trim();
       
       for (final h in c.habits) {
         if (!h.isScheduledOnDate(now)) continue;
+        
+        // Check habit's microVersion first (from CBT enhancements), then fall back to goal's microHabit
+        final habitMicroVersion = h.cbtEnhancements?.microVersion?.trim();
+        final microhabitText = (habitMicroVersion != null && habitMicroVersion.isNotEmpty)
+            ? habitMicroVersion
+            : ((goalMicrohabit != null && goalMicrohabit.isNotEmpty) ? goalMicrohabit : null);
+        
         final it = (
           componentId: c.id,
           habit: h,
-          microhabitText: (microhabit != null && microhabit.isNotEmpty) ? microhabit : null,
+          microhabitText: microhabitText,
         );
         items.add(it);
         if (!h.isCompletedForCurrentPeriod(now)) {

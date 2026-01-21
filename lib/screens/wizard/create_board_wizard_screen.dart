@@ -106,15 +106,47 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
     _showCongratsSnack(message: 'Great progress!');
   }
 
+  void _handleBackNavigation() {
+    if (_stepIndex == 0) {
+      // Allow normal pop on first step (exit wizard)
+      Navigator.of(context).pop();
+      return;
+    }
+    
+    // Handle back navigation between steps
+    setState(() {
+      if (_stepIndex == 1) {
+        // Go back from goals step to step 1 (board setup)
+        _stepIndex = 0;
+        _coreValueGoalsIndex = 0;
+      } else if (_stepIndex == 2) {
+        // Go back from editor step to goals step
+        // Reset to last core value goals index
+        _stepIndex = 1;
+        _coreValueGoalsIndex = (_state.coreValues.length - 1).clamp(0, 999);
+      } else if (_stepIndex == 3) {
+        // Go back from done step - this shouldn't happen normally, but handle it
+        _stepIndex = 2;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final progress = ((_stepIndex + 1) / _totalSteps).clamp(0.0, 1.0);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create your vision board'),
-      ),
-      body: Column(
+    return PopScope(
+      canPop: _stepIndex == 0,
+      onPopInvoked: (didPop) {
+        if (!didPop && _stepIndex > 0) {
+          _handleBackNavigation();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Create your vision board'),
+        ),
+        body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -184,6 +216,7 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
             },
           ),
         ],
+      ),
       ),
     );
   }

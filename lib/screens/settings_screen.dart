@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
-import '../utils/app_typography.dart';
+import 'dart:io';
 
-import 'onboarding/onboarding_carousel_screen.dart';
-import 'admin/templates_admin_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
+
+import '../utils/app_typography.dart';
 import '../services/dv_auth_service.dart';
 import '../services/app_settings_service.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
@@ -18,20 +20,39 @@ final class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String _gender = 'prefer_not_to_say';
   ThemeMode _themeMode = ThemeMode.system;
+  String? _customAlarmSoundPath;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Listen to custom alarm sound path changes
+    AppSettingsService.customAlarmSoundPath.addListener(_onCustomSoundChanged);
+  }
+
+  @override
+  void dispose() {
+    AppSettingsService.customAlarmSoundPath.removeListener(_onCustomSoundChanged);
+    super.dispose();
+  }
+
+  void _onCustomSoundChanged() {
+    if (mounted) {
+      setState(() {
+        _customAlarmSoundPath = AppSettingsService.customAlarmSoundPath.value;
+      });
+    }
   }
 
   Future<void> _load() async {
     final g = await DvAuthService.getGender();
     final mode = AppSettingsService.themeMode.value;
+    final soundPath = AppSettingsService.customAlarmSoundPath.value;
     if (!mounted) return;
     setState(() {
       _gender = g;
       _themeMode = mode;
+      _customAlarmSoundPath = soundPath;
     });
   }
 
@@ -114,6 +135,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await AppSettingsService.setThemeMode(selected);
   }
 
+  Future<void> _pickAlarmSound() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['mp3', 'm4a', 'wav', 'aac', 'flac', 'ogg'],
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final filePath = result.files.single.path!;
+      if (File(filePath).existsSync()) {
+        await AppSettingsService.setCustomAlarmSound(filePath);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Alarm sound set: ${path.basename(filePath)}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _clearAlarmSound() async {
+    await AppSettingsService.setCustomAlarmSound(null);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alarm sound reset to default'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  String _getAlarmSoundDisplayName() {
+    if (_customAlarmSoundPath == null) {
+      return 'Default';
+    }
+    return path.basename(_customAlarmSoundPath!);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -141,29 +204,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 0),
           ListTile(
-            leading: const Icon(Icons.admin_panel_settings_outlined),
-            title: const Text('Admin: Templates'),
-            subtitle: const Text('Publish vision board templates for users'),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TemplatesAdminScreen()),
-              );
-            },
-          ),
-          const Divider(height: 0),
-          ListTile(
-            leading: const Icon(Icons.slideshow_outlined),
-            title: const Text('View onboarding'),
-            subtitle: const Text('Replay the intro carousel anytime'),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => OnboardingCarouselScreen(
-                    onFinished: (ctx) => Navigator.of(ctx).pop(),
-                  ),
-                ),
-              );
-            },
+            leading: const Icon(Icons.alarm),
+            title: const Text('Reminder Sound'),
+            subtitle: Text(_getAlarmSoundDisplayName()),
+            trailing: _customAlarmSoundPath != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: _clearAlarmSound,
+                    tooltip: 'Clear custom sound',
+                  )
+                : null,
+            onTap: _pickAlarmSound,
           ),
           const Divider(height: 0),
           ListTile(

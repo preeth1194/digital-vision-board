@@ -104,18 +104,38 @@ class MusicProviderHandler(private val context: Context) {
 
     private fun isSpotifyInstalled(): Boolean {
         return try {
-            context.packageManager.getPackageInfo("com.spotify.music", 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ (API 33+)
+                context.packageManager.getPackageInfo("com.spotify.music", PackageManager.PackageInfoFlags.of(0))
+            } else {
+                // Android 12 and below
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo("com.spotify.music", 0)
+            }
             true
         } catch (e: PackageManager.NameNotFoundException) {
+            false
+        } catch (e: Exception) {
+            // Handle any other exceptions
             false
         }
     }
 
     private fun isYouTubeMusicInstalled(): Boolean {
         return try {
-            context.packageManager.getPackageInfo("com.google.android.apps.youtube.music", 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ (API 33+)
+                context.packageManager.getPackageInfo("com.google.android.apps.youtube.music", PackageManager.PackageInfoFlags.of(0))
+            } else {
+                // Android 12 and below
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo("com.google.android.apps.youtube.music", 0)
+            }
             true
         } catch (e: PackageManager.NameNotFoundException) {
+            false
+        } catch (e: Exception) {
+            // Handle any other exceptions
             false
         }
     }

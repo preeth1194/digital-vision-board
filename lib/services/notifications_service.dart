@@ -79,8 +79,8 @@ class NotificationsService {
       enableVibration: true,
       playSound: true,
       sound: customSoundPath != null
-          ? UriAndroidNotificationSound(Uri.file(customSoundPath))
-          : const DefaultAndroidNotificationSound(),
+          ? UriAndroidNotificationSound('file://$customSoundPath')
+          : null, // null means use default system sound
     );
   }
 

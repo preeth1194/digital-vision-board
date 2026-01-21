@@ -75,6 +75,12 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
       if (pressed == true) {
         setState(() => _stepIndex = 3);
         _showCongratsSnack(message: 'Boom — your vision board is ready!');
+      } else {
+        // User pressed back in editor, go back to goals step
+        setState(() {
+          _stepIndex = 1;
+          _coreValueGoalsIndex = (_state.coreValues.length - 1).clamp(0, 999);
+        });
       }
     } catch (e) {
       if (!mounted) return;

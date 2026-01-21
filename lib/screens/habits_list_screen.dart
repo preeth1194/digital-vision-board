@@ -516,39 +516,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                     ),
                   ),
                 ),
-                // Add column headers for Habit and Micro Habit (only if there are habits)
-                if (component.habits.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Habit',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Micro Habit',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                ],
                 ...component.habits.map((habit) {
                   final now = LogicalDateService.now();
                   final scheduledToday = habit.isScheduledOnDate(now);
@@ -571,9 +538,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
-                          // Left Column: Habit
+                          // Habit Column
                           Expanded(
-                            flex: 1,
                             child: Row(
                               children: [
                                 Checkbox(
@@ -728,54 +694,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                 ),
                               ],
                             ),
-                          ),
-                          // Vertical Divider
-                          Container(
-                            width: 1,
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                          ),
-                          // Right Column: Microhabit
-                          Expanded(
-                            flex: 1,
-                            child: hasMicrohabit
-                                ? Row(
-                                    children: [
-                                      Checkbox(
-                                        value: microhabitCompleted,
-                                        onChanged: (_) async {
-                                          await _toggleMicroHabitCompletionForHabit(
-                                            component.id,
-                                            habit.id,
-                                            microhabit!,
-                                          );
-                                        },
-                                      ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                                          child: Text(
-                                            microhabit!,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text(
-                                      '—',
-                                      style: TextStyle(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
-                                      ),
-                                    ),
-                                  ), // Blank indicator if no microhabit
                           ),
                         ],
                       ),

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../services/music_provider_service.dart';
 import '../services/dv_auth_service.dart';
 import '../utils/app_typography.dart';
+import 'local_file_selection_screen.dart';
 
 class MusicProviderSettingsScreen extends StatefulWidget {
   const MusicProviderSettingsScreen({super.key});
@@ -19,14 +20,19 @@ class MusicProviderSettingsScreen extends StatefulWidget {
 class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScreen> {
   final SpotifyProvider _spotifyProvider = SpotifyProvider();
   final AppleMusicProvider _appleMusicProvider = AppleMusicProvider();
+  final YouTubeMusicProvider _youtubeMusicProvider = YouTubeMusicProvider();
+  final LocalFileProvider _localFileProvider = LocalFileProvider();
 
   bool _spotifyAvailable = false;
   bool _spotifyAuthenticated = false;
   bool _appleMusicAvailable = false;
   bool _appleMusicHasPermission = false;
+  bool _youtubeMusicAvailable = false;
+  bool _youtubeMusicAuthenticated = false;
+  bool _localFilesAvailable = false;
   bool _loading = true;
 
-  String? _selectedProvider; // 'spotify' | 'apple_music' | 'fallback'
+  String? _selectedProvider; // 'spotify' | 'apple_music' | 'youtube_music' | 'local_files' | 'fallback'
 
   @override
   void initState() {
@@ -40,6 +46,8 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
     // Check availability
     _spotifyAvailable = await _spotifyProvider.isAvailable();
     _appleMusicAvailable = await _appleMusicProvider.isAvailable();
+    _youtubeMusicAvailable = await _youtubeMusicProvider.isAvailable();
+    _localFilesAvailable = await _localFileProvider.isAvailable();
 
     // Load saved preference
     final prefs = await SharedPreferences.getInstance();
@@ -54,6 +62,9 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
     if (_appleMusicAvailable) {
       _appleMusicHasPermission = _appleMusicProvider.hasPermission;
     }
+    if (_youtubeMusicAvailable) {
+      _youtubeMusicAuthenticated = await _checkYouTubeMusicConnection();
+    }
 
     setState(() => _loading = false);
   }
@@ -66,6 +77,34 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
 
       // Try to fetch playlists with limit=1 to test connection
       final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlists')
+          .replace(queryParameters: {
+        'limit': '1',
+        'offset': '0',
+      });
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $dvToken',
+          'accept': 'application/json',
+        },
+      );
+
+      // 200-299 means connected, 401 means not connected
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check if YouTube Music is actually connected via OAuth by making a test API call
+  Future<bool> _checkYouTubeMusicConnection() async {
+    try {
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) return false;
+
+      // Try to fetch playlists with limit=1 to test connection
+      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/youtube-music/playlists')
           .replace(queryParameters: {
         'limit': '1',
         'offset': '0',
@@ -175,6 +214,121 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
     }
   }
 
+  Future<void> _authenticateYouTubeMusic() async {
+    setState(() => _loading = true);
+    try {
+      final dvToken = await DvAuthService.getDvToken();
+      if (dvToken == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in first to connect YouTube Music'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        setState(() => _loading = false);
+        return;
+      }
+
+      // Build OAuth URL with returnTo deep link
+      final returnTo = 'dvb://youtube-music-oauth';
+      final authUrl = Uri.parse('${DvAuthService.backendBaseUrl()}/auth/youtube-music/start')
+          .replace(queryParameters: {
+        'returnTo': returnTo,
+        'origin': 'dvb',
+        'dvToken': dvToken,
+      });
+
+      // Launch OAuth URL
+      final launched = await launchUrl(authUrl, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('Could not open YouTube Music OAuth URL');
+      }
+
+      // Show message that user should complete OAuth in browser
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complete YouTube Music connection in the browser, then return to the app. Pull down to refresh connection status.'),
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
+
+      // Wait a moment for OAuth to complete, then check connection status
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Verify the connection was successful
+      final isConnected = await _checkYouTubeMusicConnection();
+      setState(() {
+        _youtubeMusicAuthenticated = isConnected;
+        if (isConnected) {
+          _selectedProvider = 'youtube_music';
+        }
+      });
+      
+      if (isConnected) {
+        await _savePreference('youtube_music');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('YouTube Music connected successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('YouTube Music connection not detected. Please complete the OAuth flow in the browser and try again.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error connecting YouTube Music: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _selectLocalFiles() async {
+    // Navigate to local file selection screen
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => const LocalFileSelectionScreen(),
+      ),
+    );
+
+    if (result != null && result['selected'] == true) {
+      setState(() {
+        _selectedProvider = 'local_files';
+        _localFilesAvailable = true;
+      });
+      await _savePreference('local_files');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Local files selected'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      await _loadSettings();
+    }
+  }
+
   Future<void> _requestAppleMusicPermission() async {
     setState(() => _loading = true);
     try {
@@ -219,6 +373,16 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
 
     if (provider == 'spotify' && !_spotifyAuthenticated) {
       await _authenticateSpotify();
+      return;
+    }
+
+    if (provider == 'youtube_music' && !_youtubeMusicAuthenticated) {
+      await _authenticateYouTubeMusic();
+      return;
+    }
+
+    if (provider == 'local_files') {
+      await _selectLocalFiles();
       return;
     }
 
@@ -332,6 +496,114 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
                               child: const Text('Connect'),
                             )
                           : const Icon(Icons.check_circle, color: Colors.green),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // YouTube Music Option
+            Card(
+              child: RadioListTile<String>(
+                value: 'youtube_music',
+                groupValue: _selectedProvider,
+                onChanged: _youtubeMusicAvailable
+                    ? (value) => _selectProvider(value)
+                    : null,
+                title: Row(
+                  children: [
+                    Icon(Icons.music_video, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'YouTube Music',
+                            style: AppTypography.body(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                            if (!_youtubeMusicAvailable)
+                              Text(
+                                'YouTube Music app not installed',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            else if (!_youtubeMusicAuthenticated)
+                              Text(
+                                'Tap to connect YouTube Music account',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.primary,
+                                ),
+                              )
+                            else
+                              Text(
+                                'Connected - can access playlists',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: Colors.green,
+                                ),
+                              ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                  secondary: !_youtubeMusicAvailable
+                      ? null
+                      : !_youtubeMusicAuthenticated
+                          ? TextButton(
+                              onPressed: _authenticateYouTubeMusic,
+                              child: const Text('Connect'),
+                            )
+                          : const Icon(Icons.check_circle, color: Colors.green),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Local Files Option
+            Card(
+              child: RadioListTile<String>(
+                value: 'local_files',
+                groupValue: _selectedProvider,
+                onChanged: (value) => _selectProvider(value),
+                title: Row(
+                  children: [
+                    Icon(Icons.folder, color: colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Local Files',
+                            style: AppTypography.body(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          FutureBuilder<int>(
+                            future: _localFileProvider.getSelectedFiles().then((files) => files.length),
+                            builder: (context, snapshot) {
+                              final fileCount = snapshot.data ?? 0;
+                              return Text(
+                                fileCount > 0
+                                    ? '$fileCount file(s) selected'
+                                    : 'Tap to select audio files from device',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                secondary: _localFilesAvailable
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
               ),
             ),
 
@@ -466,6 +738,16 @@ class _MusicProviderSettingsScreenState extends State<MusicProviderSettingsScree
                       ),
                     Text(
                       'Spotify: The app can detect currently playing songs automatically when the Spotify app is installed. However, to access your playlists and search for songs, you need to connect your Spotify account via OAuth.',
+                      style: AppTypography.bodySmall(context),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'YouTube Music: The app can detect currently playing songs automatically when the YouTube Music app is installed. However, to access your playlists and search for songs, you need to connect your YouTube Music account via OAuth.',
+                      style: AppTypography.bodySmall(context),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Local Files: Select audio files from your device storage. These files will be used for song-based timers.',
                       style: AppTypography.bodySmall(context),
                     ),
                   ],

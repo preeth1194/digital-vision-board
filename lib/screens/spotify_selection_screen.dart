@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/spotify_playlist.dart';
 import '../services/music_provider_service.dart';
 
-/// Screen for selecting Spotify playlists or songs for rhythmic timers
+/// Screen for selecting music playlists or songs for rhythmic timers
+/// Supports Spotify, YouTube Music, and Local Files
 class SpotifySelectionScreen extends StatefulWidget {
   final String? selectedPlaylistId;
   final List<String>? selectedTrackIds;
   final bool allowMultipleTracks;
+  final String? providerOverride; // Optional: override provider detection
 
   const SpotifySelectionScreen({
     super.key,
     this.selectedPlaylistId,
     this.selectedTrackIds,
     this.allowMultipleTracks = true,
+    this.providerOverride,
   });
 
   @override
@@ -24,7 +28,13 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  final SpotifyProvider _spotifyProvider = SpotifyProvider();
+  
+  MusicProvider? _musicProvider;
+  String? _currentProvider; // 'spotify' | 'youtube_music' | 'local_files'
+  
+  SpotifyProvider? _spotifyProvider;
+  YouTubeMusicProvider? _youtubeMusicProvider;
+  LocalFileProvider? _localFileProvider;
 
   List<SpotifyPlaylist> _playlists = [];
   List<SpotifyTrack> _searchResults = [];
@@ -43,7 +53,40 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
     _tabController = TabController(length: 2, vsync: this);
     _selectedPlaylistId = widget.selectedPlaylistId;
     _selectedTrackIds = Set.from(widget.selectedTrackIds ?? []);
-    _loadPlaylists();
+    _initializeProvider();
+  }
+
+  Future<void> _initializeProvider() async {
+    // Determine which provider to use
+    String? provider = widget.providerOverride;
+    if (provider == null) {
+      final prefs = await SharedPreferences.getInstance();
+      provider = prefs.getString('music_provider_preference');
+    }
+
+    setState(() {
+      _currentProvider = provider;
+      
+      if (provider == 'spotify') {
+        _spotifyProvider = SpotifyProvider();
+        _musicProvider = _spotifyProvider;
+      } else if (provider == 'youtube_music') {
+        _youtubeMusicProvider = YouTubeMusicProvider();
+        _musicProvider = _youtubeMusicProvider;
+      } else if (provider == 'local_files') {
+        _localFileProvider = LocalFileProvider();
+        _musicProvider = _localFileProvider;
+      } else {
+        // Default to Spotify
+        _spotifyProvider = SpotifyProvider();
+        _musicProvider = _spotifyProvider;
+        _currentProvider = 'spotify';
+      }
+    });
+
+    if (_musicProvider != null) {
+      _loadPlaylists();
+    }
   }
 
   @override
@@ -54,9 +97,11 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
   }
 
   Future<void> _loadPlaylists() async {
+    if (_musicProvider == null) return;
+    
     setState(() => _isLoadingPlaylists = true);
     try {
-      final playlists = await _spotifyProvider.getPlaylists(limit: 50);
+      final playlists = await _musicProvider!.getPlaylists(limit: 50);
       if (mounted) {
         setState(() {
           _playlists = playlists;
@@ -67,11 +112,17 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
       if (mounted) {
         setState(() => _isLoadingPlaylists = false);
         final errorMsg = e.toString();
-        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+        final providerName = _currentProvider == 'youtube_music' 
+            ? 'YouTube Music' 
+            : _currentProvider == 'local_files'
+                ? 'Local Files'
+                : 'Spotify';
+        
+        if (errorMsg.contains('not connected') || errorMsg.contains('401')) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text('$providerName is not connected. Please connect $providerName in Music Provider Settings.'),
+              duration: const Duration(seconds: 5),
             ),
           );
         } else if (errorMsg.contains('Please log in')) {
@@ -95,6 +146,8 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
   }
 
   Future<void> _searchTracks(String query) async {
+    if (_musicProvider == null) return;
+    
     if (query.trim().isEmpty) {
       setState(() {
         _searchResults = [];
@@ -105,7 +158,7 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
 
     setState(() => _isSearching = true);
     try {
-      final results = await _spotifyProvider.searchTracks(query, limit: 30);
+      final results = await _musicProvider!.searchTracks(query, limit: 30);
       if (mounted) {
         setState(() {
           _searchResults = results;
@@ -116,11 +169,17 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
       if (mounted) {
         setState(() => _isSearching = false);
         final errorMsg = e.toString();
-        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+        final providerName = _currentProvider == 'youtube_music' 
+            ? 'YouTube Music' 
+            : _currentProvider == 'local_files'
+                ? 'Local Files'
+                : 'Spotify';
+        
+        if (errorMsg.contains('not connected') || errorMsg.contains('401')) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text('$providerName is not connected. Please connect $providerName in Music Provider Settings.'),
+              duration: const Duration(seconds: 5),
             ),
           );
         } else if (errorMsg.contains('Please log in')) {
@@ -144,12 +203,14 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
   }
 
   Future<void> _loadPlaylistTracks(String playlistId) async {
+    if (_musicProvider == null) return;
+    
     setState(() {
       _isLoadingTracks = true;
       _viewingPlaylistId = playlistId;
     });
     try {
-      final tracks = await _spotifyProvider.getPlaylistTracks(playlistId, limit: 100);
+      final tracks = await _musicProvider!.getPlaylistTracks(playlistId, limit: 100);
       if (mounted) {
         setState(() {
           _playlistTracks = tracks;
@@ -160,11 +221,17 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
       if (mounted) {
         setState(() => _isLoadingTracks = false);
         final errorMsg = e.toString();
-        if (errorMsg.contains('Spotify not connected') || errorMsg.contains('401')) {
+        final providerName = _currentProvider == 'youtube_music' 
+            ? 'YouTube Music' 
+            : _currentProvider == 'local_files'
+                ? 'Local Files'
+                : 'Spotify';
+        
+        if (errorMsg.contains('not connected') || errorMsg.contains('401')) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Spotify is not connected. Please connect Spotify in Music Provider Settings.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text('$providerName is not connected. Please connect $providerName in Music Provider Settings.'),
+              duration: const Duration(seconds: 5),
             ),
           );
         } else if (errorMsg.contains('Please log in')) {
@@ -358,7 +425,11 @@ class _SpotifySelectionScreenState extends State<SpotifySelectionScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Connect Spotify in Music Provider Settings to view your playlists',
+              _currentProvider == 'youtube_music'
+                  ? 'Connect YouTube Music in Music Provider Settings to view your playlists'
+                  : _currentProvider == 'local_files'
+                      ? 'Select audio files in Music Provider Settings'
+                      : 'Connect Spotify in Music Provider Settings to view your playlists',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

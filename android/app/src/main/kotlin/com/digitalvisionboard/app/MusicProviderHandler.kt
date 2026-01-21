@@ -51,6 +51,10 @@ class MusicProviderHandler(private val context: Context) {
                     // Apple Music is iOS-only, return false on Android
                     result.success(false)
                 }
+                "isYouTubeMusicAvailable" -> {
+                    val isInstalled = isYouTubeMusicInstalled()
+                    result.success(isInstalled)
+                }
                 "requestAppleMusicPermission" -> {
                     // Apple Music is iOS-only
                     result.success(false)
@@ -58,6 +62,11 @@ class MusicProviderHandler(private val context: Context) {
                 "authenticateSpotify" -> {
                     // For MediaSession approach, no authentication needed
                     // If using Spotify SDK, implement OAuth here
+                    result.success(true)
+                }
+                "authenticateYouTubeMusic" -> {
+                    // For MediaSession approach, no authentication needed
+                    // OAuth is handled via backend API
                     result.success(true)
                 }
                 "getCurrentTrack" -> {
@@ -96,6 +105,15 @@ class MusicProviderHandler(private val context: Context) {
     private fun isSpotifyInstalled(): Boolean {
         return try {
             context.packageManager.getPackageInfo("com.spotify.music", 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    private fun isYouTubeMusicInstalled(): Boolean {
+        return try {
+            context.packageManager.getPackageInfo("com.google.android.apps.youtube.music", 0)
             true
         } catch (e: PackageManager.NameNotFoundException) {
             false

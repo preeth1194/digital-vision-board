@@ -123,12 +123,30 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
     final p = _prefs;
     if (p == null) return;
     final today = LogicalDateService.today();
-    if (_running) {
-      await HabitTimerStateService.pause(prefs: p, habitId: widget.habit.id, logicalDate: today);
-    } else {
-      await HabitTimerStateService.start(prefs: p, habitId: widget.habit.id, logicalDate: today);
+    
+    // Optimistically update local state before async operations
+    final wasRunning = _running;
+    setState(() {
+      _running = !_running;
+    });
+    
+    try {
+      if (wasRunning) {
+        await HabitTimerStateService.pause(prefs: p, habitId: widget.habit.id, logicalDate: today);
+      } else {
+        await HabitTimerStateService.start(prefs: p, habitId: widget.habit.id, logicalDate: today);
+      }
+      // Refresh to sync with actual state
+      await _refresh();
+    } catch (e) {
+      // Revert optimistic update on error
+      if (!mounted) return;
+      setState(() {
+        _running = wasRunning;
+      });
+      // Still refresh to get actual state
+      await _refresh();
     }
-    await _refresh();
   }
 
   Future<void> _reset() async {

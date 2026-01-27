@@ -176,46 +176,49 @@ class _RhythmicTimerScreenState extends State<RhythmicTimerScreen> {
     if (p == null) return;
     final today = LogicalDateService.today();
 
-    if (_isSongBased) {
-      if (_running) {
-        await _rhythmicTimer?.pause();
-        setState(() {
-          _running = false;
-        });
-      } else {
-        try {
+    // Optimistically update local state before async operations
+    final wasRunning = _running;
+    setState(() {
+      _running = !_running;
+    });
+
+    try {
+      if (_isSongBased) {
+        if (wasRunning) {
+          await _rhythmicTimer?.pause();
+        } else {
           await _rhythmicTimer?.start();
-          setState(() {
-            _running = true;
-          });
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Could not start timer: ${e.toString()}')),
-            );
-          }
+        }
+      } else {
+        if (wasRunning) {
+          await HabitTimerStateService.pause(
+            prefs: p,
+            habitId: widget.habit.id,
+            logicalDate: today,
+          );
+        } else {
+          await HabitTimerStateService.start(
+            prefs: p,
+            habitId: widget.habit.id,
+            logicalDate: today,
+          );
         }
       }
-    } else {
-      if (_running) {
-        await HabitTimerStateService.pause(
-          prefs: p,
-          habitId: widget.habit.id,
-          logicalDate: today,
-        );
-      } else {
-        await HabitTimerStateService.start(
-          prefs: p,
-          habitId: widget.habit.id,
-          logicalDate: today,
+      // Refresh to sync with actual state
+      await _refresh();
+    } catch (e) {
+      // Revert optimistic update on error
+      if (!mounted) return;
+      setState(() {
+        _running = wasRunning;
+      });
+      if (mounted && _isSongBased) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not ${wasRunning ? 'pause' : 'start'} timer: ${e.toString()}')),
         );
       }
-    }
-    await _refresh();
-    if (!_isSongBased) {
-      setState(() {
-        _running = !_running;
-      });
+      // Still refresh to get actual state
+      await _refresh();
     }
   }
 

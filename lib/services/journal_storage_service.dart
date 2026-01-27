@@ -56,6 +56,7 @@ final class JournalStorageService {
     List<dynamic>? delta,
     List<String>? tags,
     String? goalTitle, // legacy; kept for backwards compatibility
+    List<String>? imagePaths,
     SharedPreferences? prefs,
   }) async {
     final t = text.trim();
@@ -79,6 +80,7 @@ final class JournalStorageService {
       delta: d.isEmpty ? null : d,
       goalTitle: legacyGoal,
       tags: tagsNorm,
+      imagePaths: imagePaths ?? const [],
     );
     await saveEntries([entry, ...existing], prefs: p);
     return entry;

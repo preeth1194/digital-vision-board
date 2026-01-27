@@ -310,25 +310,29 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
     final next = List<GridTileModel>.from(normalized);
 
-    // Always ensure at least the template's tile count so the grid fills the screen.
-    // (Wizard-generated boards may start with fewer tiles than the chosen template.)
-    final minCount = widget.template.tiles.length;
-    for (int i = next.length; i < minCount; i++) {
-      final blueprint = widget.template.tiles[i];
-      // Create placeholder text tile instead of empty
-      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
-      final phrase = phrases[i % phrases.length];
-      next.add(
-        GridTileModel(
-          id: 'tile_$i',
-          type: 'text',
-          content: phrase,
-          isPlaceholder: true,
-          crossAxisCellCount: blueprint.crossAxisCount,
-          mainAxisCellCount: blueprint.mainAxisCount,
-          index: i,
-        ),
-      );
+    // Only enforce template minimum on initial board creation (when no tiles exist).
+    // Once tiles exist, respect user deletions - don't add tiles back if they were deleted.
+    if (existing.length == 0) {
+      // Fresh board: ensure at least the template's tile count so the grid fills the screen.
+      // (Wizard-generated boards may start with fewer tiles than the chosen template.)
+      final minCount = widget.template.tiles.length;
+      for (int i = next.length; i < minCount; i++) {
+        final blueprint = widget.template.tiles[i];
+        // Create placeholder text tile instead of empty
+        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
+        final phrase = phrases[i % phrases.length];
+        next.add(
+          GridTileModel(
+            id: 'tile_$i',
+            type: 'text',
+            content: phrase,
+            isPlaceholder: true,
+            crossAxisCellCount: blueprint.crossAxisCount,
+            mainAxisCellCount: blueprint.mainAxisCount,
+            index: i,
+          ),
+        );
+      }
     }
 
     // Convert any remaining empty tiles to placeholder text tiles

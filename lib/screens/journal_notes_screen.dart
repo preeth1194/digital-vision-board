@@ -858,11 +858,18 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> wi
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // Save immediately when app goes to background
+    // Handle all lifecycle states that indicate app is closing or going to background
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      // Save immediately when app goes to background or is closing
       if (_hasUnsavedChanges) {
         _autoSaveTimer?.cancel();
-        _autoSave();
+        // Use _saveSync for lifecycle events - no UI updates needed
+        _saveSync().catchError((_) {
+          // Silent failure - acceptable for lifecycle saves
+        });
       }
     }
   }
@@ -871,6 +878,15 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> wi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _autoSaveTimer?.cancel();
+    
+    // Save unsaved changes before disposing (fire and forget)
+    // This ensures data is saved even if widget is disposed unexpectedly
+    if (_hasUnsavedChanges && mounted) {
+      _saveSync().catchError((_) {
+        // Silent failure - acceptable in dispose
+      });
+    }
+    
     _contentChangesSubscription?.cancel();
     _titleChangesSubscription?.cancel();
     _controller.dispose();
@@ -1003,6 +1019,103 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> wi
           setState(() => _saveStatus = SaveStatus.idle);
         }
       });
+    }
+  }
+
+  /// Synchronous save method without UI updates (for dispose and lifecycle handlers)
+  Future<void> _saveSync() async {
+    if (!_hasUnsavedChanges) return;
+
+    final deltaJson = _controller.document.toDelta().toJson();
+    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty && _imagePaths.isEmpty) {
+      return; // Don't save empty entries
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    String? legacyGoal;
+    for (final t in tagsNorm) {
+      if (widget.goalTitles.contains(t)) {
+        legacyGoal = t;
+        break;
+      }
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
+
+      // Update image paths with actual entry ID if needed
+      if (entry != null && _imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < _imagePaths.length; i++) {
+          final oldPath = _imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
+          }
+        }
+
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          // Don't update state in sync save - widget may be disposed
+        }
+      }
+
+      // Mark as saved without UI updates
+      _hasUnsavedChanges = false;
+    } catch (e) {
+      // Silent failure - acceptable for sync saves in dispose/lifecycle
+      // The user won't see feedback anyway
     }
   }
   
@@ -1393,8 +1506,15 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> wi
       onPopInvoked: (didPop) async {
         if (didPop) return;
         if (_hasUnsavedChanges) {
+          // Cancel any pending auto-save and save immediately
+          _autoSaveTimer?.cancel();
           final saved = await save();
           if (saved && mounted) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          // No unsaved changes, allow navigation
+          if (mounted) {
             Navigator.of(context).pop();
           }
         }

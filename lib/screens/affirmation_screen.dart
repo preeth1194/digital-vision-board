@@ -150,168 +150,217 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
     return _affirmations[nextIndex];
   }
 
+  void _showFilterMenu() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Filter by Category',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final isSelected = _selectedCategory == category;
+                  
+                  return ListTile(
+                    leading: Icon(
+                      isSelected ? Icons.check_circle : Icons.circle_outlined,
+                      color: isSelected ? colorScheme.primary : null,
+                    ),
+                    title: Text(category),
+                    selected: isSelected,
+                    onTap: () async {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedCategory = category;
+                        _currentIndex = 0;
+                      });
+                      await _reload();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => const AffirmationManagementScreen(),
+      ),
+    );
+    await _reload();
+  }
+
+  Future<void> _openManagement() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => const AffirmationManagementScreen(),
+      ),
+    );
+    await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Affirmations'),
-        actions: [
-          // Category filter dropdown
-          if (_categories.isNotEmpty)
-            PopupMenuButton<String>(
-              tooltip: 'Filter by category',
-              onSelected: (category) async {
-                setState(() {
-                  _selectedCategory = category;
-                  _currentIndex = 0;
-                });
-                await _reload();
-              },
-              itemBuilder: (context) => [
-                for (final cat in _categories)
-                  PopupMenuItem(
-                    value: cat,
-                    child: Row(
-                      children: [
-                        if (_selectedCategory == cat)
-                          Icon(
-                            Icons.check,
-                            size: 20,
-                            color: colorScheme.primary,
-                          )
-                        else
-                          const SizedBox(width: 20),
-                        const SizedBox(width: 8),
-                        Text(cat),
-                      ],
-                    ),
-                  ),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.filter_list),
-                    if (_selectedCategory != null && _selectedCategory != 'All') ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        _selectedCategory!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.primary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Manage affirmations',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (ctx) => const AffirmationManagementScreen(),
-                ),
-              );
-              await _reload();
-            },
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Expanded(
-                  child: _affirmations.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_outlined,
-                                size: 64,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No affirmations yet',
-                                style: theme.textTheme.titleMedium?.copyWith(
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: _affirmations.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_outlined,
+                                  size: 64,
                                   color: colorScheme.onSurfaceVariant,
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 32),
-                                child: Text(
-                                  'Add your first affirmation to get started. Affirmations are organized by categories from your vision boards.',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No affirmations yet',
+                                  style: theme.textTheme.titleMedium?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(height: 24),
-                              FilledButton.icon(
-                                onPressed: () async {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (ctx) => const AffirmationManagementScreen(),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                                  child: Text(
+                                    'Add your first affirmation to get started. Affirmations are organized by categories from your vision boards.',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
-                                  );
-                                  await _reload();
-                                },
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add Affirmation'),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                FilledButton.icon(
+                                  onPressed: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (ctx) => const AffirmationManagementScreen(),
+                                      ),
+                                    );
+                                    await _reload();
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Affirmation'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: AffirmationCard(
+                                frontAffirmation: _currentAffirmation,
+                                backAffirmation: _nextAffirmation,
+                                onFlip: _onFlip,
+                                showPinIndicator: true,
                               ),
-                            ],
+                            ),
                           ),
-                        )
-                      : Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: AffirmationCard(
-                              frontAffirmation: _currentAffirmation,
-                              backAffirmation: _nextAffirmation,
-                              onFlip: _onFlip,
-                              showPinIndicator: true,
+                  ),
+                  if (_affirmations.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      '${_currentIndex + 1} of ${_affirmations.length}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ],
+              ),
+      ),
+      floatingActionButton: _affirmations.isNotEmpty
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Filter FAB (smaller)
+                FloatingActionButton.small(
+                  heroTag: 'filter',
+                  onPressed: _showFilterMenu,
+                  backgroundColor: _selectedCategory != null && _selectedCategory != 'All'
+                      ? colorScheme.primaryContainer
+                      : null,
+                  foregroundColor: _selectedCategory != null && _selectedCategory != 'All'
+                      ? colorScheme.onPrimaryContainer
+                      : null,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.filter_list),
+                      if (_selectedCategory != null && _selectedCategory != 'All')
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
                             ),
                           ),
                         ),
+                    ],
+                  ),
                 ),
-                if (_affirmations.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    '${_currentIndex + 1} of ${_affirmations.length}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                const SizedBox(height: 12),
+                // Settings FAB (smaller)
+                FloatingActionButton.small(
+                  heroTag: 'settings',
+                  onPressed: _openSettings,
+                  child: const Icon(Icons.settings),
+                ),
+                const SizedBox(height: 12),
+                // Add FAB (main, larger)
+                FloatingActionButton(
+                  heroTag: 'add',
+                  onPressed: _openManagement,
+                  child: const Icon(Icons.add),
+                ),
               ],
-            ),
-      floatingActionButton: _affirmations.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (ctx) => const AffirmationManagementScreen(),
-                  ),
-                );
-                await _reload();
-              },
-              child: const Icon(Icons.add),
             )
           : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

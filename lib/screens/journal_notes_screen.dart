@@ -771,6 +771,13 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   }
 }
 
+enum SaveStatus {
+  idle,
+  saving,
+  saved,
+  error,
+}
+
 final class _JournalEditorResult {
   final List<dynamic> deltaJson;
   final String plainText;
@@ -802,7 +809,7 @@ final class _JournalEntryEditorScreen extends StatefulWidget {
   State<_JournalEntryEditorScreen> createState() => _JournalEntryEditorScreenState();
 }
 
-class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
+class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> with WidgetsBindingObserver {
   late final quill.QuillController _controller;
   late final FocusNode _focusNode;
   final TextEditingController _titleController = TextEditingController();
@@ -811,27 +818,34 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   final List<String> _imagePaths = <String>[];
   final ImagePicker _imagePicker = ImagePicker();
   bool _hasUnsavedChanges = false;
-  
+  String? _entryId; // Track entry ID for auto-save updates
+  Timer? _autoSaveTimer;
+  StreamSubscription? _contentChangesSubscription;
+  StreamSubscription? _titleChangesSubscription;
+  SaveStatus _saveStatus = SaveStatus.idle;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = quill.QuillController.basic();
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       if (!mounted) return;
       setState(() => _focused = _focusNode.hasFocus);
     });
-    // Track content changes
-    _controller.document.changes.listen((event) {
+    // Track content changes for auto-save
+    _contentChangesSubscription = _controller.document.changes.listen((event) {
       if (mounted) {
         setState(() => _hasUnsavedChanges = true);
+        _scheduleAutoSave();
       }
     });
-    // Track title changes
+    // Track title changes for auto-save
     _titleController.addListener(() {
       if (mounted) {
         setState(() => _hasUnsavedChanges = true);
+        _scheduleAutoSave();
       }
     });
     // Auto-focus for distraction-free writing.
@@ -842,15 +856,161 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Save immediately when app goes to background
+      if (_hasUnsavedChanges) {
+        _autoSaveTimer?.cancel();
+        _autoSave();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autoSaveTimer?.cancel();
+    _contentChangesSubscription?.cancel();
+    _titleChangesSubscription?.cancel();
     _controller.dispose();
     _focusNode.dispose();
     _titleController.dispose();
     super.dispose();
   }
+
+  void _scheduleAutoSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _hasUnsavedChanges) {
+        _autoSave();
+      }
+    });
+  }
+
+  Future<void> _autoSave() async {
+    if (!_hasUnsavedChanges) return;
+
+    final deltaJson = _controller.document.toDelta().toJson();
+    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty && _imagePaths.isEmpty) {
+      return; // Don't save empty entries automatically
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    String? legacyGoal;
+    for (final t in tagsNorm) {
+      if (widget.goalTitles.contains(t)) {
+        legacyGoal = t;
+        break;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _saveStatus = SaveStatus.saving);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
+
+      // Update image paths with actual entry ID if needed
+      if (entry != null && _imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < _imagePaths.length; i++) {
+          final oldPath = _imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
+          }
+        }
+
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          setState(() {
+            _imagePaths.clear();
+            _imagePaths.addAll(updatedImagePaths);
+          });
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _hasUnsavedChanges = false;
+        _saveStatus = SaveStatus.saved;
+      });
+
+      // Reset status to idle after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && _saveStatus == SaveStatus.saved) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saveStatus = SaveStatus.error);
+      // Reset error status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && _saveStatus == SaveStatus.error) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    }
+  }
   
   /// Public method to save editor content (called from back button handler)
   Future<bool> save() async {
+    // Cancel any pending auto-save
+    _autoSaveTimer?.cancel();
+    
     if (!_hasUnsavedChanges) return true;
     
     final deltaJson = _controller.document.toDelta().toJson();
@@ -877,15 +1037,35 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      final entry = await JournalStorageService.addEntry(
-        title: title,
-        text: plain,
-        delta: deltaJson,
-        tags: tagsNorm,
-        goalTitle: legacyGoal,
-        imagePaths: _imagePaths,
-        prefs: prefs,
-      );
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
       
       // Update image paths with actual entry ID
       if (entry != null && _imagePaths.isNotEmpty) {
@@ -894,34 +1074,31 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
           final oldPath = _imagePaths[i];
           final oldFile = File(oldPath);
           if (await oldFile.exists()) {
-            final newPath = await JournalImageStorageService.saveImage(
-              oldFile,
-              entry.id,
-              i,
-            );
-            updatedImagePaths.add(newPath);
-            await JournalImageStorageService.deleteImage(oldPath);
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
           }
         }
         
-        if (updatedImagePaths.isNotEmpty) {
-          final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
-          final updatedEntries = allEntries.map((e) {
-            if (e.id == entry.id) {
-              return JournalEntry(
-                id: e.id,
-                createdAtMs: e.createdAtMs,
-                title: e.title,
-                text: e.text,
-                delta: e.delta,
-                goalTitle: e.goalTitle,
-                tags: e.tags,
-                imagePaths: updatedImagePaths,
-              );
-            }
-            return e;
-          }).toList();
-          await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          setState(() {
+            _imagePaths.clear();
+            _imagePaths.addAll(updatedImagePaths);
+          });
         }
       }
       
@@ -1002,7 +1179,11 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
                               leading: const Icon(Icons.add),
                               title: Text('Add “$candidate”'),
                               onTap: () {
-                                setState(() => _tags.add(candidate));
+                                setState(() {
+                                  _tags.add(candidate);
+                                  _hasUnsavedChanges = true;
+                                  _scheduleAutoSave();
+                                });
                                 setLocal(() {
                                   q.clear();
                                   filtered = List.of(all);
@@ -1023,6 +1204,8 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
                                 } else {
                                   _tags.add(g);
                                 }
+                                _hasUnsavedChanges = true;
+                                _scheduleAutoSave();
                               });
                               setLocal(() {});
                             },
@@ -1094,6 +1277,8 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
 
       setState(() {
         _imagePaths.add(savedPath);
+        _hasUnsavedChanges = true;
+        _scheduleAutoSave();
       });
     } catch (e) {
       if (!mounted) return;
@@ -1108,7 +1293,96 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
     await JournalImageStorageService.deleteImage(path);
     setState(() {
       _imagePaths.removeAt(index);
+      _hasUnsavedChanges = true;
+      _scheduleAutoSave();
     });
+  }
+
+  Widget _buildSaveStatusIcon() {
+    switch (_saveStatus) {
+      case SaveStatus.saving:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case SaveStatus.saved:
+        return Icon(
+          Icons.check_circle,
+          color: Theme.of(context).colorScheme.primary,
+          size: 20,
+        );
+      case SaveStatus.error:
+        return Icon(
+          Icons.error_outline,
+          color: Theme.of(context).colorScheme.error,
+          size: 20,
+        );
+      case SaveStatus.idle:
+        return const SizedBox.shrink();
+    }
+  }
+
+  void _showFormattingMenu() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Text Formatting',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              quill.QuillSimpleToolbar(
+                controller: _controller,
+                config: quill.QuillSimpleToolbarConfig(
+                  toolbarSize: 24,
+                  multiRowsDisplay: false,
+                  showDividers: false,
+                  toolbarSectionSpacing: 8,
+                  toolbarRunSpacing: 4,
+                  buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                    base: quill.QuillToolbarBaseButtonOptions(
+                      iconSize: 20,
+                      iconButtonFactor: 1.2,
+                    ),
+                  ),
+                  showFontFamily: false,
+                  showFontSize: false,
+                  showStrikeThrough: false,
+                  showInlineCode: false,
+                  showColorButton: false,
+                  showBackgroundColorButton: false,
+                  showClearFormat: false,
+                  showAlignmentButtons: false,
+                  showHeaderStyle: false,
+                  showIndent: false,
+                  showLink: false,
+                  showSearchButton: false,
+                  showSubscript: false,
+                  showSuperscript: false,
+                  showUndo: true,
+                  showRedo: true,
+                  showBoldButton: true,
+                  showItalicButton: true,
+                  showUnderLineButton: true,
+                  showListBullets: true,
+                  showListNumbers: true,
+                  showListCheck: true,
+                  showQuote: true,
+                  showCodeBlock: false,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1129,6 +1403,15 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
         appBar: AppBar(
           title: const Text('Write'),
           actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(child: _buildSaveStatusIcon()),
+            ),
+            IconButton(
+              tooltip: 'Formatting',
+              icon: const Icon(Icons.format_bold),
+              onPressed: _showFormattingMenu,
+            ),
             IconButton(
               tooltip: 'Add Image',
               icon: const Icon(Icons.image_outlined),
@@ -1145,151 +1428,113 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
             ),
           ],
         ),
-      body: Column(
-        children: [
-          // Title field
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                hintText: 'Entry title (optional)',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              ),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+        body: Column(
+          children: [
+            // Title field
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  hintText: 'Entry title (optional)',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                ),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          const Divider(height: 1),
-          if (_focused)
-            quill.QuillSimpleToolbar(
-              controller: _controller,
-              config: quill.QuillSimpleToolbarConfig(
-                // Make icons compact so the toolbar fits on screen.
-                toolbarSize: 24,
-                multiRowsDisplay: false,
-                showDividers: false,
-                toolbarSectionSpacing: 0,
-                toolbarRunSpacing: 2,
-                buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
-                  base: quill.QuillToolbarBaseButtonOptions(
-                    iconSize: 13,
-                    iconButtonFactor: 1.35,
+            const Divider(height: 1),
+            if (tagsSorted.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final t in tagsSorted)
+                        Chip(
+                          label: Text(t),
+                          onDeleted: () => setState(() {
+                            _tags.remove(t);
+                            _hasUnsavedChanges = true;
+                            _scheduleAutoSave();
+                          }),
+                        ),
+                    ],
                   ),
                 ),
-                showFontFamily: false,
-                showFontSize: false,
-                showStrikeThrough: false,
-                showInlineCode: false,
-                showColorButton: false,
-                showBackgroundColorButton: false,
-                showClearFormat: false,
-                showAlignmentButtons: false,
-                showHeaderStyle: false,
-                showIndent: false,
-                showLink: false,
-                showSearchButton: false,
-                showSubscript: false,
-                showSuperscript: false,
-                showUndo: true,
-                showRedo: true,
-                showBoldButton: true,
-                showItalicButton: true,
-                showUnderLineButton: true,
-                showListBullets: true,
-                showListNumbers: true,
-                showListCheck: true,
-                showQuote: true,
-                showCodeBlock: false,
               ),
-            ),
-          if (tagsSorted.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in tagsSorted)
-                      Chip(
-                        label: Text(t),
-                        onDeleted: () => setState(() => _tags.remove(t)),
-                      ),
-                  ],
+            Expanded(
+              child: quill.QuillEditor.basic(
+                controller: _controller,
+                focusNode: _focusNode,
+                config: const quill.QuillEditorConfig(
+                  placeholder: 'Write your journal entry…',
+                  padding: EdgeInsets.all(16),
                 ),
               ),
             ),
-          Expanded(
-            child: quill.QuillEditor.basic(
-              controller: _controller,
-              focusNode: _focusNode,
-              config: const quill.QuillEditorConfig(
-                placeholder: 'Write your journal entry…',
-                padding: EdgeInsets.all(16),
-              ),
-            ),
-          ),
-          if (_imagePaths.isNotEmpty)
-            Container(
-              height: 120,
-              padding: const EdgeInsets.all(12),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _imagePaths.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: 100,
-                    margin: const EdgeInsets.only(right: 8),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(_imagePaths[index]),
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 100,
-                                height: 100,
-                                color: Theme.of(context).colorScheme.surfaceVariant,
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            color: Colors.white,
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.black54,
-                              padding: const EdgeInsets.all(4),
-                              minimumSize: const Size(24, 24),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            if (_imagePaths.isNotEmpty)
+              Container(
+                height: 120,
+                padding: const EdgeInsets.all(12),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _imagePaths.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 100,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(_imagePaths[index]),
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              },
                             ),
-                            onPressed: () => _deleteImage(index),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              color: Colors.white,
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.black54,
+                                padding: const EdgeInsets.all(4),
+                                minimumSize: const Size(24, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => _deleteImage(index),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

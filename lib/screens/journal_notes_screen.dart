@@ -1668,39 +1668,76 @@ final class _JournalEntryViewerScreen extends StatefulWidget {
   State<_JournalEntryViewerScreen> createState() => _JournalEntryViewerScreenState();
 }
 
-class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
+class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> with WidgetsBindingObserver {
   bool _isEditMode = false;
   quill.QuillController? _controller;
-  late final JournalEntry _originalEntry;
+  JournalEntry _originalEntry;
   final TextEditingController _titleController = TextEditingController();
   bool _hasUnsavedChanges = false;
+  Timer? _autoSaveTimer;
+  SaveStatus _saveStatus = SaveStatus.idle;
+  StreamSubscription? _contentChangesSubscription;
+  StreamSubscription? _titleChangesSubscription;
+
+  _JournalEntryViewerScreenState() : _originalEntry = widget.entry;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _originalEntry = widget.entry;
     _titleController.text = widget.entry.title ?? '';
-    // Track title changes
+    // Track title changes for auto-save
     _titleController.addListener(() {
       if (mounted && _isEditMode) {
         setState(() => _hasUnsavedChanges = true);
+        _scheduleAutoSave();
       }
     });
     _loadController();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Handle all lifecycle states that indicate app is closing or going to background
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      // Save immediately when app goes to background or is closing
+      if (_hasUnsavedChanges && _isEditMode) {
+        _autoSaveTimer?.cancel();
+        // Use _saveSync for lifecycle events - no UI updates needed
+        _saveSync().catchError((_) {
+          // Silent failure - acceptable for lifecycle saves
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autoSaveTimer?.cancel();
+    
+    // Save unsaved changes before disposing (fire and forget)
+    if (_hasUnsavedChanges && _isEditMode && mounted) {
+      _saveSync().catchError((_) {
+        // Silent failure - acceptable in dispose
+      });
+    }
+    
     _contentChangesSubscription?.cancel();
+    _titleChangesSubscription?.cancel();
     _controller?.dispose();
     _titleController.dispose();
     super.dispose();
   }
 
-  StreamSubscription? _contentChangesSubscription;
-
   void _loadController() {
-    final delta = widget.entry.delta;
+    // Use _originalEntry instead of widget.entry to get latest data
+    final delta = _originalEntry.delta;
     // Cancel previous subscription if exists
     _contentChangesSubscription?.cancel();
     
@@ -1713,21 +1750,156 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
           selection: const TextSelection.collapsed(offset: 0),
           readOnly: !_isEditMode,
         );
-        // Track content changes when in edit mode
+        // Track content changes when in edit mode for auto-save
         if (_isEditMode && _controller != null) {
           _contentChangesSubscription = _controller!.document.changes.listen((event) {
             if (mounted) {
               setState(() => _hasUnsavedChanges = true);
+              _scheduleAutoSave();
             }
           });
         }
       } catch (_) {
         _controller = null;
       }
+    } else {
+      // Create empty controller if no delta
+      _controller?.dispose();
+      _controller = quill.QuillController.basic();
+      _controller?.readOnly = !_isEditMode;
+      if (_isEditMode && _controller != null) {
+        _contentChangesSubscription = _controller!.document.changes.listen((event) {
+          if (mounted) {
+            setState(() => _hasUnsavedChanges = true);
+            _scheduleAutoSave();
+          }
+        });
+      }
+    }
+  }
+
+  void _scheduleAutoSave() {
+    if (!_isEditMode) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _hasUnsavedChanges && _isEditMode) {
+        _autoSave();
+      }
+    });
+  }
+
+  Future<void> _autoSave() async {
+    if (!_hasUnsavedChanges || !_isEditMode) return;
+    if (_controller == null) return;
+
+    final deltaJson = _controller!.document.toDelta().toJson();
+    final plain = _controller!.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty) {
+      return; // Don't save empty entries automatically
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _JournalEntryEditorScreenState._deriveTitleFromDeltaOrPlain(
+            deltaJson: deltaJson,
+            plainText: plain,
+          );
+
+    if (!mounted) return;
+    setState(() => _saveStatus = SaveStatus.saving);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await JournalStorageService.updateEntry(
+        id: widget.entry.id,
+        title: title.isEmpty ? null : title,
+        text: plain,
+        delta: deltaJson,
+        prefs: prefs,
+      );
+
+      // Reload entry from storage to get latest data
+      final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+      final updatedEntry = allEntries.firstWhere(
+        (e) => e.id == widget.entry.id,
+        orElse: () => _originalEntry,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _hasUnsavedChanges = false;
+        _saveStatus = SaveStatus.saved;
+        _originalEntry = updatedEntry;
+        // Update title controller if it changed
+        if (updatedEntry.title != _titleController.text) {
+          _titleController.text = updatedEntry.title ?? '';
+        }
+      });
+
+      // Reload controller with updated data
+      _loadController();
+
+      // Reset status to idle after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && _saveStatus == SaveStatus.saved) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saveStatus = SaveStatus.error);
+      // Reset error status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && _saveStatus == SaveStatus.error) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    }
+  }
+
+  /// Synchronous save method without UI updates (for dispose and lifecycle handlers)
+  Future<void> _saveSync() async {
+    if (!_hasUnsavedChanges || !_isEditMode) return;
+    if (_controller == null) return;
+
+    final deltaJson = _controller!.document.toDelta().toJson();
+    final plain = _controller!.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty) {
+      return; // Don't save empty entries
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _JournalEntryEditorScreenState._deriveTitleFromDeltaOrPlain(
+            deltaJson: deltaJson,
+            plainText: plain,
+          );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await JournalStorageService.updateEntry(
+        id: widget.entry.id,
+        title: title.isEmpty ? null : title,
+        text: plain,
+        delta: deltaJson,
+        prefs: prefs,
+      );
+
+      // Mark as saved without UI updates
+      _hasUnsavedChanges = false;
+    } catch (e) {
+      // Silent failure - acceptable for sync saves in dispose/lifecycle
     }
   }
 
   Future<bool> _save() async {
+    // Cancel any pending auto-save
+    _autoSaveTimer?.cancel();
+    
     if (_controller == null) return false;
     
     final deltaJson = _controller!.document.toDelta().toJson();
@@ -1749,74 +1921,193 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
             plainText: plain,
           );
 
-    final prefs = await SharedPreferences.getInstance();
-    final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
-    final updatedEntries = allEntries.map((e) {
-      if (e.id == widget.entry.id) {
-        return JournalEntry(
-          id: e.id,
-          createdAtMs: e.createdAtMs,
-          title: title.isEmpty ? null : title,
-          text: plain,
-          delta: deltaJson,
-          goalTitle: e.goalTitle,
-          tags: e.tags,
-          imagePaths: e.imagePaths,
-        );
-      }
-      return e;
-    }).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await JournalStorageService.updateEntry(
+        id: widget.entry.id,
+        title: title.isEmpty ? null : title,
+        text: plain,
+        delta: deltaJson,
+        prefs: prefs,
+      );
 
-    await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
-    
-    if (!mounted) return true;
-    setState(() {
-      _isEditMode = false;
-      _hasUnsavedChanges = false;
-      _controller?.readOnly = true;
-    });
-    
-    return true;
+      // Reload entry from storage to get latest data
+      final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+      final updatedEntry = allEntries.firstWhere(
+        (e) => e.id == widget.entry.id,
+        orElse: () => _originalEntry,
+      );
+
+      if (!mounted) return true;
+      setState(() {
+        _isEditMode = false;
+        _hasUnsavedChanges = false;
+        _saveStatus = SaveStatus.idle;
+        _originalEntry = updatedEntry;
+        // Update title controller with saved title
+        _titleController.text = updatedEntry.title ?? '';
+        _controller?.readOnly = true;
+      });
+
+      // Reload controller with updated data to show latest content
+      _loadController();
+      
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: ${e.toString()}')),
+      );
+      return false;
+    }
   }
 
   void _enterEditMode() {
     setState(() {
       _isEditMode = true;
       _hasUnsavedChanges = false;
+      _saveStatus = SaveStatus.idle;
       _loadController();
       _controller?.readOnly = false;
-      // Track content changes when in edit mode
+      // Track content changes when in edit mode for auto-save
       if (_controller != null) {
         _contentChangesSubscription?.cancel();
         _contentChangesSubscription = _controller!.document.changes.listen((event) {
           if (mounted) {
             setState(() => _hasUnsavedChanges = true);
+            _scheduleAutoSave();
           }
         });
       }
     });
   }
 
+  Widget _buildSaveStatusIcon() {
+    switch (_saveStatus) {
+      case SaveStatus.saving:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case SaveStatus.saved:
+        return Icon(
+          Icons.check_circle,
+          color: Theme.of(context).colorScheme.primary,
+          size: 20,
+        );
+      case SaveStatus.error:
+        return Icon(
+          Icons.error_outline,
+          color: Theme.of(context).colorScheme.error,
+          size: 20,
+        );
+      case SaveStatus.idle:
+        return const SizedBox.shrink();
+    }
+  }
+
+  void _showFormattingMenu() {
+    if (_controller == null) return;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Text Formatting',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              quill.QuillSimpleToolbar(
+                controller: _controller!,
+                config: quill.QuillSimpleToolbarConfig(
+                  toolbarSize: 24,
+                  multiRowsDisplay: false,
+                  showDividers: false,
+                  toolbarSectionSpacing: 8,
+                  toolbarRunSpacing: 4,
+                  buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                    base: quill.QuillToolbarBaseButtonOptions(
+                      iconSize: 20,
+                      iconButtonFactor: 1.2,
+                    ),
+                  ),
+                  showFontFamily: false,
+                  showFontSize: false,
+                  showStrikeThrough: false,
+                  showInlineCode: false,
+                  showColorButton: false,
+                  showBackgroundColorButton: false,
+                  showClearFormat: false,
+                  showAlignmentButtons: false,
+                  showHeaderStyle: false,
+                  showIndent: false,
+                  showLink: false,
+                  showSearchButton: false,
+                  showSubscript: false,
+                  showSuperscript: false,
+                  showUndo: true,
+                  showRedo: true,
+                  showBoldButton: true,
+                  showItalicButton: true,
+                  showUnderLineButton: true,
+                  showListBullets: true,
+                  showListNumbers: true,
+                  showListCheck: true,
+                  showQuote: true,
+                  showCodeBlock: false,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final plain = _JournalNotesScreenState._entryPlainText(widget.entry);
+    // Use _originalEntry to show latest saved data
+    final plain = _JournalNotesScreenState._entryPlainText(_originalEntry);
     
     return PopScope(
       canPop: !_hasUnsavedChanges,
       onPopInvoked: (didPop) async {
         if (didPop) return;
         if (_hasUnsavedChanges && _isEditMode) {
+          // Cancel any pending auto-save and save immediately
+          _autoSaveTimer?.cancel();
           final saved = await _save();
           if (saved && mounted) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          // No unsaved changes, allow navigation
+          if (mounted) {
             Navigator.of(context).pop();
           }
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_JournalNotesScreenState._fmtDateTime(widget.entry.createdAt)),
+          title: Text(_JournalNotesScreenState._fmtDateTime(_originalEntry.createdAt)),
           actions: _isEditMode
-              ? []
+              ? [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Center(child: _buildSaveStatusIcon()),
+                  ),
+                  IconButton(
+                    tooltip: 'Formatting',
+                    icon: const Icon(Icons.format_bold),
+                    onPressed: _showFormattingMenu,
+                  ),
+                ]
               : [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
@@ -1847,46 +2138,7 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                       ),
                     ),
                     const Divider(height: 1),
-                    quill.QuillSimpleToolbar(
-                      controller: _controller!,
-                      config: quill.QuillSimpleToolbarConfig(
-                        toolbarSize: 24,
-                        multiRowsDisplay: false,
-                        showDividers: false,
-                        toolbarSectionSpacing: 0,
-                        toolbarRunSpacing: 2,
-                        buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
-                          base: quill.QuillToolbarBaseButtonOptions(
-                            iconSize: 13,
-                            iconButtonFactor: 1.35,
-                          ),
-                        ),
-                        showFontFamily: false,
-                        showFontSize: false,
-                        showStrikeThrough: false,
-                        showInlineCode: false,
-                        showColorButton: false,
-                        showBackgroundColorButton: false,
-                        showClearFormat: false,
-                        showAlignmentButtons: false,
-                        showHeaderStyle: false,
-                        showIndent: false,
-                        showLink: false,
-                        showSearchButton: false,
-                        showSubscript: false,
-                        showSuperscript: false,
-                        showUndo: true,
-                        showRedo: true,
-                        showBoldButton: true,
-                        showItalicButton: true,
-                        showUnderLineButton: true,
-                        showListBullets: true,
-                        showListNumbers: true,
-                        showListCheck: true,
-                        showQuote: true,
-                        showCodeBlock: false,
-                      ),
-                    ),
+                  ],
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
@@ -1899,16 +2151,16 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                       ),
                     ),
                   ),
-                  if (widget.entry.imagePaths.isNotEmpty)
+                  if (_originalEntry.imagePaths.isNotEmpty)
                     Container(
                       height: 120,
                       padding: const EdgeInsets.all(12),
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: widget.entry.imagePaths.length,
+                        itemCount: _originalEntry.imagePaths.length,
                         itemBuilder: (context, index) {
                           return FutureBuilder<File?>(
-                            future: JournalImageStorageService.loadImage(widget.entry.imagePaths[index]),
+                            future: JournalImageStorageService.loadImage(_originalEntry.imagePaths[index]),
                             builder: (context, snapshot) {
                               if (snapshot.hasData && snapshot.data != null) {
                                 return Container(
@@ -1951,9 +2203,9 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (widget.entry.title != null && widget.entry.title!.isNotEmpty) ...[
+                    if (_originalEntry.title != null && _originalEntry.title!.isNotEmpty) ...[
                       Text(
-                        widget.entry.title!,
+                        _originalEntry.title!,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -1962,16 +2214,16 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                       const SizedBox(height: 8),
                     ],
                     SelectableText(plain),
-                    if (widget.entry.imagePaths.isNotEmpty) ...[
+                    if (_originalEntry.imagePaths.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 200,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: widget.entry.imagePaths.length,
+                          itemCount: _originalEntry.imagePaths.length,
                           itemBuilder: (context, index) {
                             return FutureBuilder<File?>(
-                              future: JournalImageStorageService.loadImage(widget.entry.imagePaths[index]),
+                              future: JournalImageStorageService.loadImage(_originalEntry.imagePaths[index]),
                               builder: (context, snapshot) {
                                 if (snapshot.hasData && snapshot.data != null) {
                                   return Container(

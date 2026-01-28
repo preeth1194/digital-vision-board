@@ -1,6 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:image_picker/image_picker.dart';
+
+import '../services/journal_image_storage_service.dart';
 
 import '../models/grid_tile_model.dart';
 import '../models/journal_entry.dart';
@@ -57,6 +63,8 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   List<String> _pinnedJournalIds = const [];
   static const String _pinsKey = 'dv_journal_pins_v1';
   bool _hasGoalLogs = false;
+  bool _selectionMode = false;
+  final Set<String> _selectedEntryIds = <String>{};
   static String _entryTitle(JournalEntry e) {
     final t = (e.title ?? '').trim();
     if (t.isNotEmpty) return t;
@@ -201,17 +209,60 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
         ),
       ),
     );
-    if (res == null) return;
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
-    await JournalStorageService.addEntry(
-      title: res.title,
-      text: res.plainText,
-      delta: res.deltaJson,
-      tags: res.tags,
-      goalTitle: res.legacyGoalTitle,
-      prefs: prefs,
-    );
+    if (res != null) {
+      // Editor returned result (legacy path; normally auto-save on back is used)
+      final entry = await JournalStorageService.addEntry(
+        title: res.title,
+        text: res.plainText,
+        delta: res.deltaJson,
+        tags: res.tags,
+        goalTitle: res.legacyGoalTitle,
+        imagePaths: res.imagePaths,
+        prefs: prefs,
+      );
+
+      // If entry was created and we have images, update image filenames with actual entry ID
+      if (entry != null && res.imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < res.imagePaths.length; i++) {
+          final oldPath = res.imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            final newPath = await JournalImageStorageService.saveImage(
+              oldFile,
+              entry.id,
+              i,
+            );
+            updatedImagePaths.add(newPath);
+            // Delete old temp file
+            await JournalImageStorageService.deleteImage(oldPath);
+          }
+        }
+
+        // Update entry with correct image paths
+        if (updatedImagePaths.isNotEmpty) {
+          final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+          final updatedEntries = allEntries.map((e) {
+            if (e.id == entry.id) {
+              return JournalEntry(
+                id: e.id,
+                createdAtMs: e.createdAtMs,
+                title: e.title,
+                text: e.text,
+                delta: e.delta,
+                goalTitle: e.goalTitle,
+                tags: e.tags,
+                imagePaths: updatedImagePaths,
+              );
+            }
+            return e;
+          }).toList();
+          await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
+        }
+      }
+    }
     await _reload(prefs: prefs);
   }
 
@@ -223,8 +274,151 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       await prefs.setStringList(_pinsKey, nextPins);
       _pinnedJournalIds = nextPins;
     }
+    // Delete associated images
+    await JournalImageStorageService.deleteImagesForEntry(e.id);
     await JournalStorageService.deleteEntry(e.id, prefs: prefs);
     await _reload(prefs: prefs);
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _selectionMode = !_selectionMode;
+      if (!_selectionMode) {
+        _selectedEntryIds.clear();
+      }
+    });
+  }
+
+  void _toggleEntrySelection(String entryId) {
+    setState(() {
+      if (_selectedEntryIds.contains(entryId)) {
+        _selectedEntryIds.remove(entryId);
+      } else {
+        _selectedEntryIds.add(entryId);
+      }
+      if (_selectedEntryIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  Future<void> _mergeSelectedEntries() async {
+    if (_selectedEntryIds.length < 2) return;
+
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    
+    final entriesToMerge = _journalEntries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .toList();
+    
+    if (entriesToMerge.length < 2) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Merge Entries'),
+        content: Text('Merge ${entriesToMerge.length} entries into one?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Merge'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Sort by creation date (earliest first)
+    entriesToMerge.sort((a, b) => a.createdAtMs.compareTo(b.createdAtMs));
+    
+    // Merge content
+    final firstEntry = entriesToMerge.first;
+    final mergedDelta = <dynamic>[];
+    final mergedTags = <String>{};
+    final mergedImagePaths = <String>[];
+    
+    // Start with first entry's delta
+    if (firstEntry.delta is List) {
+      mergedDelta.addAll(firstEntry.delta as List);
+    }
+    
+    // Add separator
+    mergedDelta.add({
+      'insert': '\n---\n',
+      'attributes': {'header': 2}
+    });
+    
+    // Merge remaining entries
+    for (int i = 1; i < entriesToMerge.length; i++) {
+      final entry = entriesToMerge[i];
+      if (entry.delta is List) {
+        mergedDelta.addAll(entry.delta as List);
+      }
+      mergedTags.addAll(entry.tags);
+      mergedImagePaths.addAll(entry.imagePaths);
+    }
+    
+    // Combine tags
+    mergedTags.addAll(firstEntry.tags);
+    final mergedTagsList = mergedTags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    
+    // Combine images
+    mergedImagePaths.addAll(firstEntry.imagePaths);
+    
+    // Get plain text
+    String mergedPlainText = '';
+    try {
+      if (mergedDelta.isNotEmpty) {
+        final doc = quill.Document.fromJson(mergedDelta);
+        mergedPlainText = doc.toPlainText().replaceAll('\r', '').trim();
+      }
+    } catch (_) {
+      // Fallback: combine plain text
+      mergedPlainText = entriesToMerge.map((e) => _entryPlainText(e)).join('\n---\n');
+    }
+    
+    // Create merged entry
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final mergedEntry = JournalEntry(
+      id: 'jrnl_$now',
+      createdAtMs: firstEntry.createdAtMs, // Use earliest date
+      title: firstEntry.title,
+      text: mergedPlainText,
+      delta: mergedDelta.isEmpty ? null : mergedDelta,
+      goalTitle: firstEntry.goalTitle,
+      tags: mergedTagsList,
+      imagePaths: mergedImagePaths,
+    );
+    
+    // Delete source entries and their images
+    for (final entry in entriesToMerge) {
+      await JournalImageStorageService.deleteImagesForEntry(entry.id);
+      await JournalStorageService.deleteEntry(entry.id, prefs: prefs);
+    }
+    
+    // Save merged entry
+    final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+    await JournalStorageService.saveEntries([mergedEntry, ...allEntries], prefs: prefs);
+    
+    // Clear selection
+    setState(() {
+      _selectedEntryIds.clear();
+      _selectionMode = false;
+    });
+    
+    await _reload(prefs: prefs);
+    
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Merged ${entriesToMerge.length} entries.')),
+    );
   }
 
   Widget _journalTab() {
@@ -262,7 +456,30 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text('Your entries', style: TextStyle(fontWeight: FontWeight.w800)),
+        Row(
+          children: [
+            Expanded(
+              child: const Text('Your entries', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+            if (_selectionMode) ...[
+              if (_selectedEntryIds.length >= 2)
+                TextButton.icon(
+                  icon: const Icon(Icons.merge),
+                  label: Text('Merge (${_selectedEntryIds.length})'),
+                  onPressed: _mergeSelectedEntries,
+                ),
+              TextButton(
+                onPressed: _toggleSelectionMode,
+                child: const Text('Cancel'),
+              ),
+            ] else
+              IconButton(
+                icon: const Icon(Icons.checklist),
+                tooltip: 'Select entries',
+                onPressed: _toggleSelectionMode,
+              ),
+          ],
+        ),
         const SizedBox(height: 10),
         if (tags.isNotEmpty)
           SingleChildScrollView(
@@ -306,9 +523,24 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
             itemBuilder: (ctx, idx) {
               final e = filteredEntries[idx];
               final isPinned = pinnedSet.contains(e.id);
+              final isSelected = _selectedEntryIds.contains(e.id);
               return Card(
+                elevation: isSelected ? 4 : 1,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                    : null,
                 child: InkWell(
-                  onTap: () => _openJournalEntryViewer(e),
+                  onTap: _selectionMode
+                      ? () => _toggleEntrySelection(e.id)
+                      : () => _openJournalEntryViewer(e),
+                  onLongPress: () {
+                    if (!_selectionMode) {
+                      setState(() {
+                        _selectionMode = true;
+                        _selectedEntryIds.add(e.id);
+                      });
+                    }
+                  },
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -317,6 +549,16 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (_selectionMode)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Icon(
+                                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             Expanded(
                               child: Text(
                                 _entryTitle(e),
@@ -325,11 +567,12 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                                 style: const TextStyle(fontWeight: FontWeight.w800),
                               ),
                             ),
-                            IconButton(
-                              tooltip: isPinned ? 'Unpin' : 'Pin',
-                              icon: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined),
-                              onPressed: () => _togglePin(e),
-                            ),
+                            if (!_selectionMode)
+                              IconButton(
+                                tooltip: isPinned ? 'Unpin' : 'Pin',
+                                icon: Icon(isPinned ? Icons.push_pin : Icons.push_pin_outlined),
+                                onPressed: () => _togglePin(e),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -362,14 +605,15 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _deleteJournalEntry(e),
+                        if (!_selectionMode)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Delete',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => _deleteJournalEntry(e),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -489,6 +733,17 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                           )
                         : null,
                 actions: [
+                  if (_selectionMode && _selectedEntryIds.length >= 2)
+                    TextButton.icon(
+                      icon: const Icon(Icons.merge),
+                      label: Text('Merge (${_selectedEntryIds.length})'),
+                      onPressed: _mergeSelectedEntries,
+                    ),
+                  if (_selectionMode)
+                    TextButton(
+                      onPressed: _toggleSelectionMode,
+                      child: const Text('Cancel'),
+                    ),
                   IconButton(
                     tooltip: 'Refresh',
                     icon: const Icon(Icons.refresh),
@@ -516,6 +771,13 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   }
 }
 
+enum SaveStatus {
+  idle,
+  saving,
+  saved,
+  error,
+}
+
 final class _JournalEditorResult {
   final List<dynamic> deltaJson;
   final String plainText;
@@ -523,6 +785,7 @@ final class _JournalEditorResult {
   final List<String> tags;
   /// Legacy goal title (optional). If set, this entry is considered goal-tagged.
   final String? legacyGoalTitle;
+  final List<String> imagePaths;
 
   const _JournalEditorResult({
     required this.deltaJson,
@@ -530,6 +793,7 @@ final class _JournalEditorResult {
     required this.title,
     required this.tags,
     required this.legacyGoalTitle,
+    this.imagePaths = const [],
   });
 }
 
@@ -545,20 +809,44 @@ final class _JournalEntryEditorScreen extends StatefulWidget {
   State<_JournalEntryEditorScreen> createState() => _JournalEntryEditorScreenState();
 }
 
-class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
+class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> with WidgetsBindingObserver {
   late final quill.QuillController _controller;
   late final FocusNode _focusNode;
+  final TextEditingController _titleController = TextEditingController();
   bool _focused = false;
   final Set<String> _tags = <String>{};
+  final List<String> _imagePaths = <String>[];
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _hasUnsavedChanges = false;
+  String? _entryId; // Track entry ID for auto-save updates
+  Timer? _autoSaveTimer;
+  StreamSubscription? _contentChangesSubscription;
+  StreamSubscription? _titleChangesSubscription;
+  SaveStatus _saveStatus = SaveStatus.idle;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = quill.QuillController.basic();
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       if (!mounted) return;
       setState(() => _focused = _focusNode.hasFocus);
+    });
+    // Track content changes for auto-save
+    _contentChangesSubscription = _controller.document.changes.listen((event) {
+      if (mounted) {
+        setState(() => _hasUnsavedChanges = true);
+        _scheduleAutoSave();
+      }
+    });
+    // Track title changes for auto-save
+    _titleController.addListener(() {
+      if (mounted) {
+        setState(() => _hasUnsavedChanges = true);
+        _scheduleAutoSave();
+      }
     });
     // Auto-focus for distraction-free writing.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -568,10 +856,370 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Handle all lifecycle states that indicate app is closing or going to background
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      // Save immediately when app goes to background or is closing
+      if (_hasUnsavedChanges) {
+        _autoSaveTimer?.cancel();
+        // Use _saveSync for lifecycle events - no UI updates needed
+        _saveSync().catchError((_) {
+          // Silent failure - acceptable for lifecycle saves
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autoSaveTimer?.cancel();
+    
+    // Save unsaved changes before disposing (fire and forget)
+    // This ensures data is saved even if widget is disposed unexpectedly
+    if (_hasUnsavedChanges && mounted) {
+      _saveSync().catchError((_) {
+        // Silent failure - acceptable in dispose
+      });
+    }
+    
+    _contentChangesSubscription?.cancel();
+    _titleChangesSubscription?.cancel();
     _controller.dispose();
     _focusNode.dispose();
+    _titleController.dispose();
     super.dispose();
+  }
+
+  void _scheduleAutoSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _hasUnsavedChanges) {
+        _autoSave();
+      }
+    });
+  }
+
+  Future<void> _autoSave() async {
+    if (!_hasUnsavedChanges) return;
+
+    final deltaJson = _controller.document.toDelta().toJson();
+    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty && _imagePaths.isEmpty) {
+      return; // Don't save empty entries automatically
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    String? legacyGoal;
+    for (final t in tagsNorm) {
+      if (widget.goalTitles.contains(t)) {
+        legacyGoal = t;
+        break;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _saveStatus = SaveStatus.saving);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
+
+      // Update image paths with actual entry ID if needed
+      if (entry != null && _imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < _imagePaths.length; i++) {
+          final oldPath = _imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
+          }
+        }
+
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          setState(() {
+            _imagePaths.clear();
+            _imagePaths.addAll(updatedImagePaths);
+          });
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _hasUnsavedChanges = false;
+        _saveStatus = SaveStatus.saved;
+      });
+
+      // Reset status to idle after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && _saveStatus == SaveStatus.saved) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saveStatus = SaveStatus.error);
+      // Reset error status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && _saveStatus == SaveStatus.error) {
+          setState(() => _saveStatus = SaveStatus.idle);
+        }
+      });
+    }
+  }
+
+  /// Synchronous save method without UI updates (for dispose and lifecycle handlers)
+  Future<void> _saveSync() async {
+    if (!_hasUnsavedChanges) return;
+
+    final deltaJson = _controller.document.toDelta().toJson();
+    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
+
+    if (plain.isEmpty && _imagePaths.isEmpty) {
+      return; // Don't save empty entries
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    String? legacyGoal;
+    for (final t in tagsNorm) {
+      if (widget.goalTitles.contains(t)) {
+        legacyGoal = t;
+        break;
+      }
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
+
+      // Update image paths with actual entry ID if needed
+      if (entry != null && _imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < _imagePaths.length; i++) {
+          final oldPath = _imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
+          }
+        }
+
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          // Don't update state in sync save - widget may be disposed
+        }
+      }
+
+      // Mark as saved without UI updates
+      _hasUnsavedChanges = false;
+    } catch (e) {
+      // Silent failure - acceptable for sync saves in dispose/lifecycle
+      // The user won't see feedback anyway
+    }
+  }
+  
+  /// Public method to save editor content (called from back button handler)
+  Future<bool> save() async {
+    // Cancel any pending auto-save
+    _autoSaveTimer?.cancel();
+    
+    if (!_hasUnsavedChanges) return true;
+    
+    final deltaJson = _controller.document.toDelta().toJson();
+    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
+    
+    if (plain.isEmpty && _imagePaths.isEmpty) {
+      // Allow saving empty if user explicitly wants to
+      return true;
+    }
+    
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty 
+        ? userTitle 
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    String? legacyGoal;
+    for (final t in tagsNorm) {
+      if (widget.goalTitles.contains(t)) {
+        legacyGoal = t;
+        break;
+      }
+    }
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      JournalEntry? entry;
+
+      if (_entryId != null) {
+        // Update existing entry
+        entry = await JournalStorageService.updateEntry(
+          id: _entryId!,
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+      } else {
+        // Create new entry
+        entry = await JournalStorageService.addEntry(
+          title: title,
+          text: plain,
+          delta: deltaJson,
+          tags: tagsNorm,
+          goalTitle: legacyGoal,
+          imagePaths: _imagePaths,
+          prefs: prefs,
+        );
+        if (entry != null) {
+          _entryId = entry.id;
+        }
+      }
+      
+      // Update image paths with actual entry ID
+      if (entry != null && _imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < _imagePaths.length; i++) {
+          final oldPath = _imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            // Check if path already has the correct entry ID
+            if (!oldPath.contains(entry.id)) {
+              final newPath = await JournalImageStorageService.saveImage(
+                oldFile,
+                entry.id,
+                i,
+              );
+              updatedImagePaths.add(newPath);
+              await JournalImageStorageService.deleteImage(oldPath);
+            } else {
+              updatedImagePaths.add(oldPath);
+            }
+          }
+        }
+        
+        if (updatedImagePaths.isNotEmpty && updatedImagePaths != _imagePaths) {
+          await JournalStorageService.updateEntry(
+            id: entry.id,
+            imagePaths: updatedImagePaths,
+            prefs: prefs,
+          );
+          setState(() {
+            _imagePaths.clear();
+            _imagePaths.addAll(updatedImagePaths);
+          });
+        }
+      }
+      
+      _hasUnsavedChanges = false;
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> _pickTags() async {
@@ -644,7 +1292,11 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
                               leading: const Icon(Icons.add),
                               title: Text('Add “$candidate”'),
                               onTap: () {
-                                setState(() => _tags.add(candidate));
+                                setState(() {
+                                  _tags.add(candidate);
+                                  _hasUnsavedChanges = true;
+                                  _scheduleAutoSave();
+                                });
                                 setLocal(() {
                                   q.clear();
                                   filtered = List.of(all);
@@ -665,6 +1317,8 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
                                 } else {
                                   _tags.add(g);
                                 }
+                                _hasUnsavedChanges = true;
+                                _scheduleAutoSave();
                               });
                               setLocal(() {});
                             },
@@ -718,32 +1372,128 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
     return fallback;
   }
 
-  void _save() {
-    final deltaJson = _controller.document.toDelta().toJson();
-    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
-    if (plain.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Write something before saving.')),
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return;
+
+      final file = File(pickedFile.path);
+      if (!await file.exists()) return;
+
+      // Generate a temporary entry ID for saving (will be replaced when entry is actually saved)
+      final tempEntryId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final savedPath = await JournalImageStorageService.saveImage(
+        file,
+        tempEntryId,
+        _imagePaths.length,
       );
-      return;
+
+      setState(() {
+        _imagePaths.add(savedPath);
+        _hasUnsavedChanges = true;
+        _scheduleAutoSave();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image: ${e.toString()}')),
+      );
     }
-    final title = _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
-    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    String? legacyGoal;
-    for (final t in tagsNorm) {
-      if (widget.goalTitles.contains(t)) {
-        legacyGoal = t;
-        break;
-      }
+  }
+
+  Future<void> _deleteImage(int index) async {
+    final path = _imagePaths[index];
+    await JournalImageStorageService.deleteImage(path);
+    setState(() {
+      _imagePaths.removeAt(index);
+      _hasUnsavedChanges = true;
+      _scheduleAutoSave();
+    });
+  }
+
+  Widget _buildSaveStatusIcon() {
+    switch (_saveStatus) {
+      case SaveStatus.saving:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case SaveStatus.saved:
+        return Icon(
+          Icons.check_circle,
+          color: Theme.of(context).colorScheme.primary,
+          size: 20,
+        );
+      case SaveStatus.error:
+        return Icon(
+          Icons.error_outline,
+          color: Theme.of(context).colorScheme.error,
+          size: 20,
+        );
+      case SaveStatus.idle:
+        return const SizedBox.shrink();
     }
-    Navigator.of(context).pop(
-      _JournalEditorResult(
-        deltaJson: deltaJson,
-        plainText: plain,
-        title: title,
-        tags: tagsNorm,
-        legacyGoalTitle: legacyGoal,
+  }
+
+  void _showFormattingMenu() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Text Formatting',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              quill.QuillSimpleToolbar(
+                controller: _controller,
+                config: quill.QuillSimpleToolbarConfig(
+                  toolbarSize: 24,
+                  multiRowsDisplay: false,
+                  showDividers: false,
+                  toolbarSectionSpacing: 8,
+                  toolbarRunSpacing: 4,
+                  buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                    base: quill.QuillToolbarBaseButtonOptions(
+                      iconSize: 20,
+                      iconButtonFactor: 1.2,
+                    ),
+                  ),
+                  showFontFamily: false,
+                  showFontSize: false,
+                  showStrikeThrough: false,
+                  showInlineCode: false,
+                  showColorButton: false,
+                  showBackgroundColorButton: false,
+                  showClearFormat: false,
+                  showAlignmentButtons: false,
+                  showHeaderStyle: false,
+                  showIndent: false,
+                  showLink: false,
+                  showSearchButton: false,
+                  showSubscript: false,
+                  showSuperscript: false,
+                  showUndo: true,
+                  showRedo: true,
+                  showBoldButton: true,
+                  showItalicButton: true,
+                  showUnderLineButton: true,
+                  showListBullets: true,
+                  showListNumbers: true,
+                  showListCheck: true,
+                  showQuote: true,
+                  showCodeBlock: false,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -751,144 +1501,516 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final tagsSorted = _tags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Write'),
-        actions: [
-          IconButton(
-            tooltip: 'Tag',
-            icon: const Icon(Icons.flag_outlined),
-            onPressed: () async {
-              await _pickTags();
-              if (!mounted) return;
-              setState(() {});
-            },
-          ),
-          TextButton(
-            onPressed: _save,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_focused)
-            quill.QuillSimpleToolbar(
-              controller: _controller,
-              config: quill.QuillSimpleToolbarConfig(
-                // Make icons compact so the toolbar fits on screen.
-                toolbarSize: 24,
-                multiRowsDisplay: false,
-                showDividers: false,
-                toolbarSectionSpacing: 0,
-                toolbarRunSpacing: 2,
-                buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
-                  base: quill.QuillToolbarBaseButtonOptions(
-                    iconSize: 13,
-                    iconButtonFactor: 1.35,
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if (_hasUnsavedChanges) {
+          // Cancel any pending auto-save and save immediately
+          _autoSaveTimer?.cancel();
+          final saved = await save();
+          if (saved && mounted) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          // No unsaved changes, allow navigation
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Write'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(child: _buildSaveStatusIcon()),
+            ),
+            IconButton(
+              tooltip: 'Formatting',
+              icon: const Icon(Icons.format_bold),
+              onPressed: _showFormattingMenu,
+            ),
+            IconButton(
+              tooltip: 'Add Image',
+              icon: const Icon(Icons.image_outlined),
+              onPressed: _pickImage,
+            ),
+            IconButton(
+              tooltip: 'Tag',
+              icon: const Icon(Icons.flag_outlined),
+              onPressed: () async {
+                await _pickTags();
+                if (!mounted) return;
+                setState(() {});
+              },
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Title field
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  hintText: 'Entry title (optional)',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                ),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            if (tagsSorted.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final t in tagsSorted)
+                        Chip(
+                          label: Text(t),
+                          onDeleted: () => setState(() {
+                            _tags.remove(t);
+                            _hasUnsavedChanges = true;
+                            _scheduleAutoSave();
+                          }),
+                        ),
+                    ],
                   ),
                 ),
-                showFontFamily: false,
-                showFontSize: false,
-                showStrikeThrough: false,
-                showInlineCode: false,
-                showColorButton: false,
-                showBackgroundColorButton: false,
-                showClearFormat: false,
-                showAlignmentButtons: false,
-                showHeaderStyle: false,
-                showIndent: false,
-                showLink: false,
-                showSearchButton: false,
-                showSubscript: false,
-                showSuperscript: false,
-                showUndo: true,
-                showRedo: true,
-                showBoldButton: true,
-                showItalicButton: true,
-                showUnderLineButton: true,
-                showListBullets: true,
-                showListNumbers: true,
-                showListCheck: true,
-                showQuote: true,
-                showCodeBlock: false,
               ),
-            ),
-          if (tagsSorted.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in tagsSorted)
-                      Chip(
-                        label: Text(t),
-                        onDeleted: () => setState(() => _tags.remove(t)),
-                      ),
-                  ],
+            Expanded(
+              child: quill.QuillEditor.basic(
+                controller: _controller,
+                focusNode: _focusNode,
+                config: const quill.QuillEditorConfig(
+                  placeholder: 'Write your journal entry…',
+                  padding: EdgeInsets.all(16),
                 ),
               ),
             ),
-          Expanded(
-            child: quill.QuillEditor.basic(
-              controller: _controller,
-              focusNode: _focusNode,
-              config: const quill.QuillEditorConfig(
-                placeholder: 'Write your journal entry…',
-                padding: EdgeInsets.all(16),
+            if (_imagePaths.isNotEmpty)
+              Container(
+                height: 120,
+                padding: const EdgeInsets.all(12),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _imagePaths.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 100,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(_imagePaths[index]),
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              color: Colors.white,
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.black54,
+                                padding: const EdgeInsets.all(4),
+                                minimumSize: const Size(24, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => _deleteImage(index),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-final class _JournalEntryViewerScreen extends StatelessWidget {
+final class _JournalEntryViewerScreen extends StatefulWidget {
   final JournalEntry entry;
   const _JournalEntryViewerScreen({required this.entry});
 
   @override
-  Widget build(BuildContext context) {
-    final delta = entry.delta;
-    quill.QuillController? controller;
+  State<_JournalEntryViewerScreen> createState() => _JournalEntryViewerScreenState();
+}
+
+class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
+  bool _isEditMode = false;
+  quill.QuillController? _controller;
+  late final JournalEntry _originalEntry;
+  final TextEditingController _titleController = TextEditingController();
+  bool _hasUnsavedChanges = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _originalEntry = widget.entry;
+    _titleController.text = widget.entry.title ?? '';
+    // Track title changes
+    _titleController.addListener(() {
+      if (mounted && _isEditMode) {
+        setState(() => _hasUnsavedChanges = true);
+      }
+    });
+    _loadController();
+  }
+
+  @override
+  void dispose() {
+    _contentChangesSubscription?.cancel();
+    _controller?.dispose();
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  StreamSubscription? _contentChangesSubscription;
+
+  void _loadController() {
+    final delta = widget.entry.delta;
+    // Cancel previous subscription if exists
+    _contentChangesSubscription?.cancel();
+    
     if (delta is List && delta.isNotEmpty) {
       try {
         final doc = quill.Document.fromJson(delta);
-        controller = quill.QuillController(
+        _controller?.dispose();
+        _controller = quill.QuillController(
           document: doc,
           selection: const TextSelection.collapsed(offset: 0),
-          readOnly: true,
+          readOnly: !_isEditMode,
         );
+        // Track content changes when in edit mode
+        if (_isEditMode && _controller != null) {
+          _contentChangesSubscription = _controller!.document.changes.listen((event) {
+            if (mounted) {
+              setState(() => _hasUnsavedChanges = true);
+            }
+          });
+        }
       } catch (_) {
-        controller = null;
+        _controller = null;
       }
     }
-    final plain = _JournalNotesScreenState._entryPlainText(entry);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_JournalNotesScreenState._fmtDateTime(entry.createdAt)),
-      ),
-      body: SafeArea(
-        child: controller != null
-            ? Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
-                child: quill.QuillEditor.basic(
-                  controller: controller,
-                  config: const quill.QuillEditorConfig(
-                    checkBoxReadOnly: true,
-                    padding: EdgeInsets.zero,
+  }
+
+  Future<bool> _save() async {
+    if (_controller == null) return false;
+    
+    final deltaJson = _controller!.document.toDelta().toJson();
+    final plain = _controller!.document.toPlainText().replaceAll('\r', '').trim();
+    
+    if (plain.isEmpty) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot save empty entry.')),
+      );
+      return false;
+    }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _JournalEntryEditorScreenState._deriveTitleFromDeltaOrPlain(
+            deltaJson: deltaJson,
+            plainText: plain,
+          );
+
+    final prefs = await SharedPreferences.getInstance();
+    final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+    final updatedEntries = allEntries.map((e) {
+      if (e.id == widget.entry.id) {
+        return JournalEntry(
+          id: e.id,
+          createdAtMs: e.createdAtMs,
+          title: title.isEmpty ? null : title,
+          text: plain,
+          delta: deltaJson,
+          goalTitle: e.goalTitle,
+          tags: e.tags,
+          imagePaths: e.imagePaths,
+        );
+      }
+      return e;
+    }).toList();
+
+    await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
+    
+    if (!mounted) return true;
+    setState(() {
+      _isEditMode = false;
+      _hasUnsavedChanges = false;
+      _controller?.readOnly = true;
+    });
+    
+    return true;
+  }
+
+  void _enterEditMode() {
+    setState(() {
+      _isEditMode = true;
+      _hasUnsavedChanges = false;
+      _loadController();
+      _controller?.readOnly = false;
+      // Track content changes when in edit mode
+      if (_controller != null) {
+        _contentChangesSubscription?.cancel();
+        _contentChangesSubscription = _controller!.document.changes.listen((event) {
+          if (mounted) {
+            setState(() => _hasUnsavedChanges = true);
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plain = _JournalNotesScreenState._entryPlainText(widget.entry);
+    
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if (_hasUnsavedChanges && _isEditMode) {
+          final saved = await _save();
+          if (saved && mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_JournalNotesScreenState._fmtDateTime(widget.entry.createdAt)),
+          actions: _isEditMode
+              ? []
+              : [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Edit',
+                    onPressed: _enterEditMode,
                   ),
-                ),
+                ],
+        ),
+        body: SafeArea(
+          child: _controller != null
+              ? Column(
+                children: [
+                  if (_isEditMode) ...[
+                    // Title field in edit mode
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          hintText: 'Entry title (optional)',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    quill.QuillSimpleToolbar(
+                      controller: _controller!,
+                      config: quill.QuillSimpleToolbarConfig(
+                        toolbarSize: 24,
+                        multiRowsDisplay: false,
+                        showDividers: false,
+                        toolbarSectionSpacing: 0,
+                        toolbarRunSpacing: 2,
+                        buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                          base: quill.QuillToolbarBaseButtonOptions(
+                            iconSize: 13,
+                            iconButtonFactor: 1.35,
+                          ),
+                        ),
+                        showFontFamily: false,
+                        showFontSize: false,
+                        showStrikeThrough: false,
+                        showInlineCode: false,
+                        showColorButton: false,
+                        showBackgroundColorButton: false,
+                        showClearFormat: false,
+                        showAlignmentButtons: false,
+                        showHeaderStyle: false,
+                        showIndent: false,
+                        showLink: false,
+                        showSearchButton: false,
+                        showSubscript: false,
+                        showSuperscript: false,
+                        showUndo: true,
+                        showRedo: true,
+                        showBoldButton: true,
+                        showItalicButton: true,
+                        showUnderLineButton: true,
+                        showListBullets: true,
+                        showListNumbers: true,
+                        showListCheck: true,
+                        showQuote: true,
+                        showCodeBlock: false,
+                      ),
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+                      child: quill.QuillEditor.basic(
+                        controller: _controller!,
+                        config: quill.QuillEditorConfig(
+                          checkBoxReadOnly: !_isEditMode,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (widget.entry.imagePaths.isNotEmpty)
+                    Container(
+                      height: 120,
+                      padding: const EdgeInsets.all(12),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.entry.imagePaths.length,
+                        itemBuilder: (context, index) {
+                          return FutureBuilder<File?>(
+                            future: JournalImageStorageService.loadImage(widget.entry.imagePaths[index]),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData && snapshot.data != null) {
+                                return Container(
+                                  width: 100,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      snapshot.data!,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return Container(
+                                width: 100,
+                                height: 100,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+                ],
               )
             : SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
-                child: SelectableText(plain),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.entry.title != null && widget.entry.title!.isNotEmpty) ...[
+                      Text(
+                        widget.entry.title!,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    SelectableText(plain),
+                    if (widget.entry.imagePaths.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: widget.entry.imagePaths.length,
+                          itemBuilder: (context, index) {
+                            return FutureBuilder<File?>(
+                              future: JournalImageStorageService.loadImage(widget.entry.imagePaths[index]),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData && snapshot.data != null) {
+                                  return Container(
+                                    width: 200,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        snapshot.data!,
+                                        width: 200,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return Container(
+                                  width: 200,
+                                  height: 200,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceVariant,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+        ),
       ),
     );
   }

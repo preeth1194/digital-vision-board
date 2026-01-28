@@ -16,6 +16,10 @@ final class JournalEntry {
   ///
   /// Stored as a list of strings; normalized to trimmed, non-empty, unique values.
   final List<String> tags;
+  /// Local file paths to images associated with this entry.
+  ///
+  /// Images are stored in the app's documents directory and persist even if deleted from gallery.
+  final List<String> imagePaths;
 
   const JournalEntry({
     required this.id,
@@ -25,6 +29,7 @@ final class JournalEntry {
     required this.delta,
     required this.goalTitle,
     required this.tags,
+    this.imagePaths = const [],
   });
 
   DateTime get createdAt => DateTime.fromMillisecondsSinceEpoch(createdAtMs);
@@ -37,6 +42,7 @@ final class JournalEntry {
         'delta': delta,
         'goalTitle': goalTitle,
         'tags': tags,
+        'imagePaths': imagePaths,
       };
 
   static List<String> _normalizeTags(Iterable<dynamic> raw) {
@@ -58,6 +64,9 @@ final class JournalEntry {
         : (legacyGoalNorm == null ? const <String>[] : <String>[legacyGoalNorm]);
     final rawTitle = (json['title'] as String?)?.trim();
     final title = (rawTitle == null || rawTitle.isEmpty) ? null : rawTitle;
+    final imagePaths = (json['imagePaths'] is List)
+        ? (json['imagePaths'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
+        : const <String>[];
 
     return JournalEntry(
       id: (json['id'] as String?) ?? '',
@@ -67,6 +76,7 @@ final class JournalEntry {
       delta: (json['delta'] is List) ? (json['delta'] as List).toList() : null,
       goalTitle: legacyGoalNorm,
       tags: tags,
+      imagePaths: imagePaths,
     );
   }
 }

@@ -70,6 +70,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   SharedPreferences? _prefs;
   List<GridTileModel> _tiles = [];
   int _styleSeed = 0;
+  bool _viewportSizingApplied = false;
 
   @override
   void initState() {
@@ -162,21 +163,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), nextSeed);
     _styleSeed = nextSeed;
 
-    // Calculate screen dimensions to ensure grid fills the screen
-    final mediaQuery = MediaQuery.of(context);
-    final screenHeight = mediaQuery.size.height;
-    final screenWidth = mediaQuery.size.width;
-    final appBarHeight = AppBar().preferredSize.height;
-    final bottomBarHeight = _isEditing ? 56.0 : 0.0; // BottomAppBar height when editing
-    final padding = 32.0; // Top and bottom padding (16px each)
-    final availableHeight = screenHeight - appBarHeight - bottomBarHeight - padding - mediaQuery.padding.top - mediaQuery.padding.bottom;
-    
-    // Calculate cell extent (same as in build method)
-    const spacing = 10.0;
-    final gridMaxWidth = (screenWidth - 32).clamp(0.0, double.infinity);
-    final cellExtent = (gridMaxWidth - (spacing * (_crossAxisCount - 1))) / _crossAxisCount;
-
-    // Apply new tile sizes; keep goal/user content in place.
+    // Apply new tile sizes from template; keep goal/user content and tile count.
     final nextTiles = <GridTileModel>[];
     for (int i = 0; i < _tiles.length; i++) {
       final bp = (i < nextTpl.tiles.length)
@@ -188,102 +175,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           mainAxisCellCount: bp.mainAxisCount,
         ),
       );
-    }
-
-    // Ensure we have enough tiles to fill the screen
-    // For staggered grids, estimate minimum tiles needed based on average tile height
-    final avgMainAxisCells = nextTiles.isNotEmpty
-        ? (nextTiles.map((t) => t.mainAxisCellCount).reduce((a, b) => a + b) / nextTiles.length).ceil()
-        : 2;
-    final estimatedCellsPerRow = (_crossAxisCount * avgMainAxisCells);
-    final estimatedRowsNeeded = (availableHeight / (cellExtent + spacing)).ceil();
-    final minTilesNeeded = (estimatedRowsNeeded * _crossAxisCount / avgMainAxisCells).ceil();
-    
-    // Add more tiles if needed to fill screen
-    int templateIndex = nextTiles.length;
-    while (nextTiles.length < minTilesNeeded && templateIndex < nextTpl.tiles.length * 2) {
-      final bpIndex = templateIndex % nextTpl.tiles.length;
-      final bp = nextTpl.tiles[bpIndex];
-      
-      // Check if we have an existing tile at this index
-      if (templateIndex < _tiles.length) {
-        final existingTile = _tiles[templateIndex];
-        nextTiles.add(existingTile.copyWith(
-          crossAxisCellCount: bp.crossAxisCount,
-          mainAxisCellCount: bp.mainAxisCount,
-          index: templateIndex,
-        ));
-      } else {
-        // Create placeholder tile with text content
-        final seedGoal = _tiles.isNotEmpty ? _tiles.first : null;
-        final cat = (seedGoal?.goal?.category ?? '').trim();
-        // Use simple placeholder phrases
-        final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
-        final phrase = phrases[templateIndex % phrases.length];
-        nextTiles.add(
-          GridTileModel(
-            id: 'tile_$templateIndex',
-            type: 'text',
-            content: phrase,
-            isPlaceholder: true,
-            crossAxisCellCount: bp.crossAxisCount,
-            mainAxisCellCount: bp.mainAxisCount,
-            index: templateIndex,
-          ),
-        );
-      }
-      templateIndex++;
-    }
-    
-    // If still not enough, add more placeholder tiles with reasonable sizes
-    while (nextTiles.length < minTilesNeeded) {
-      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
-      final phrase = phrases[templateIndex % phrases.length];
-      nextTiles.add(
-        GridTileModel(
-          id: 'tile_$templateIndex',
-          type: 'text',
-          content: phrase,
-          isPlaceholder: true,
-          crossAxisCellCount: 1,
-          mainAxisCellCount: 2,
-          index: templateIndex,
-        ),
-      );
-      templateIndex++;
-    }
-
-    // Optional: refresh placeholder images from Pexels using a best-effort query.
-    final placeholders = nextTiles.where((t) => t.isPlaceholder).toList();
-    if (placeholders.isNotEmpty) {
-      final counts = <String, int>{};
-      for (final t in nextTiles) {
-        final cat = (t.goal?.category ?? '').trim();
-        if (cat.isEmpty) continue;
-        counts[cat] = (counts[cat] ?? 0) + 1;
-      }
-      String query = widget.title.trim();
-      if (counts.isNotEmpty) {
-        final entries = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-        query = entries.first.key;
-      }
-
-      final urls = await StockImagesService.searchPexelsUrls(
-        query: query,
-        perPage: min(12, placeholders.length),
-      );
-      if (urls.isNotEmpty) {
-        int u = 0;
-        final updated = nextTiles.map((t) {
-          if (!t.isPlaceholder) return t;
-          if (u >= urls.length) return t;
-          final url = urls[u++];
-          return t.copyWith(type: 'image', content: url);
-        }).toList();
-        nextTiles
-          ..clear()
-          ..addAll(updated);
-      }
     }
 
     await BoardsStorageService.updateBoardTemplateId(widget.boardId, nextTpl.id, prefs: _prefs);
@@ -310,26 +201,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
     final next = List<GridTileModel>.from(normalized);
 
-    // Always ensure at least the template's tile count so the grid fills the screen.
-    // (Wizard-generated boards may start with fewer tiles than the chosen template.)
-    final minCount = widget.template.tiles.length;
-    for (int i = next.length; i < minCount; i++) {
-      final blueprint = widget.template.tiles[i];
-      // Create placeholder text tile instead of empty
-      final phrases = ['Dream', 'Focus', 'Progress', 'Today', 'You got this', 'Grow', 'Achieve', 'Believe'];
-      final phrase = phrases[i % phrases.length];
-      next.add(
-        GridTileModel(
-          id: 'tile_$i',
-          type: 'text',
-          content: phrase,
-          isPlaceholder: true,
-          crossAxisCellCount: blueprint.crossAxisCount,
-          mainAxisCellCount: blueprint.mainAxisCount,
-          index: i,
-        ),
-      );
-    }
+    // Do not add extra tiles beyond existing (e.g. one per goal from wizard).
 
     // Convert any remaining empty tiles to placeholder text tiles
     final finalTiles = next.map((tile) {
@@ -582,70 +454,29 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     if (croppedPath == null || croppedPath.isEmpty) return;
 
     await _setTile(index, _tileAt(index).copyWith(type: 'image', content: croppedPath));
-    await _ensureGoalTitle(index, suggestedTitle: 'Goal');
   }
 
-  Future<void> _showAddContentSheet(int index) async {
+  /// Opens Pexels search for the tile and sets the chosen image. No goal-title dialog.
+  Future<void> _openPexelsForTile(int index) async {
     if (!_isEditing) return;
     final tile = _tileAt(index);
-    final hasImage = tile.type == 'image';
-    final hasText = tile.type == 'text';
-    
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.image_outlined),
-              title: Text(hasImage ? 'Change Image' : 'Add Image'),
-              onTap: () => Navigator.of(context).pop('image'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.public_outlined),
-              title: const Text('Search from web (Pexels)'),
-              onTap: () => Navigator.of(context).pop('pexels'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.text_fields),
-              title: Text(hasText ? 'Edit Text' : 'Add Text'),
-              onTap: () => Navigator.of(context).pop('text'),
-            ),
-          ],
-        ),
-      ),
+    final cat = (tile.goal?.category ?? '').trim();
+    final cv = (tile.goal?.cbt?.coreValue ?? '').trim();
+    final q = [cat, cv, 'minimal', 'simple', 'clean', 'aesthetic'].where((s) => s.trim().isNotEmpty).join(' ');
+    final selectedUrl = await showPexelsSearchSheet(context, initialQuery: q.isEmpty ? null : q);
+    if (!mounted) return;
+    final u = (selectedUrl ?? '').trim();
+    if (u.isEmpty) return;
+    final saved = await ImageService.downloadResizeAndPersistJpegFromUrl(
+      context,
+      url: u,
+      maxSidePx: _pickedImageMaxSide.toInt(),
+      jpegQuality: _pickedImageQuality,
     );
     if (!mounted) return;
-    if (choice == null) return;
-    if (choice == 'image') {
-      await _pickAndSetImage(index);
-      return;
-    }
-    if (choice == 'pexels') {
-      final cat = (tile.goal?.category ?? '').trim();
-      final cv = (tile.goal?.cbt?.coreValue ?? '').trim();
-      final q = [cat, cv, 'minimal', 'simple', 'clean', 'aesthetic'].where((s) => s.trim().isNotEmpty).join(' ');
-      final selectedUrl = await showPexelsSearchSheet(context, initialQuery: q.isEmpty ? null : q);
-      if (!mounted) return;
-      final u = (selectedUrl ?? '').trim();
-      if (u.isEmpty) return;
-      final saved = await ImageService.downloadResizeAndPersistJpegFromUrl(
-        context,
-        url: u,
-        maxSidePx: _pickedImageMaxSide.toInt(),
-        jpegQuality: _pickedImageQuality,
-      );
-      if (!mounted) return;
-      final content = (saved ?? '').trim();
-      if (content.isEmpty) return;
-      await _setTile(index, _tileAt(index).copyWith(type: 'image', content: content));
-      await _ensureGoalTitle(index, suggestedTitle: cat.isNotEmpty ? cat : 'Goal');
-      return;
-    }
-    if (choice == 'text') {
-      await _editText(index);
-    }
+    final content = (saved ?? '').trim();
+    if (content.isEmpty) return;
+    await _setTile(index, _tileAt(index).copyWith(type: 'image', content: content));
   }
 
   Future<void> _editText(int index) async {
@@ -660,9 +491,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
     final nextText = text.trim();
     await _setTile(index, existing.copyWith(type: nextText.isEmpty ? 'empty' : 'text', content: nextText.isEmpty ? null : nextText));
-    if (nextText.isNotEmpty) {
-      await _ensureGoalTitle(index, suggestedTitle: nextText.length > 24 ? nextText.substring(0, 24) : nextText);
-    }
   }
 
   Future<void> _clearTile(int index) async {
@@ -890,8 +718,37 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     );
   }
 
+  void _applyViewportSizing(BuildContext context) {
+    if (_tiles.isEmpty || !mounted) return;
+    final size = MediaQuery.of(context).size;
+    final blueprints = GridTemplates.optimalSizesForTileCount(
+      _tiles.length,
+      viewportWidth: size.width,
+      viewportHeight: size.height,
+    );
+    var changed = false;
+    final next = <GridTileModel>[];
+    for (var i = 0; i < _tiles.length; i++) {
+      final t = _tiles[i];
+      final bp = i < blueprints.length ? blueprints[i] : const GridTileBlueprint(crossAxisCount: 1, mainAxisCount: 1);
+      if (t.crossAxisCellCount != bp.crossAxisCount || t.mainAxisCellCount != bp.mainAxisCount) {
+        changed = true;
+        next.add(t.copyWith(crossAxisCellCount: bp.crossAxisCount, mainAxisCellCount: bp.mainAxisCount));
+      } else {
+        next.add(t);
+      }
+    }
+    if (changed) _saveTiles(next);
+    _viewportSizingApplied = true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_loading && _tiles.isNotEmpty && !_viewportSizingApplied) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_viewportSizingApplied) _applyViewportSizing(context);
+      });
+    }
     // Slight spacing improves readability and makes the grid feel intentional.
     const spacing = 10.0;
     final selected = _selectedTile();
@@ -1132,9 +989,9 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                               if (!wasSelected) _selectedResizeHandle = null;
                                             });
 
-                                            // Always show edit options when tapping a selected tile in edit mode
+                                            // On second tap, open Pexels search directly for this tile.
                                             if (!wasSelected) return;
-                                            await _showAddContentSheet(i);
+                                            await _openPexelsForTile(i);
                                           },
                                     child: tileStack,
                                   );

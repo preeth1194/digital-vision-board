@@ -7,6 +7,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/habit_item.dart';
+import 'app_settings_service.dart';
 
 class NotificationsService {
   NotificationsService._();
@@ -68,18 +69,37 @@ class NotificationsService {
     return _stableId('habit:${habit.id}:snooze:$isoDate');
   }
 
-  static const _channel = AndroidNotificationDetails(
-    'habit_reminders',
-    'Habit reminders',
-    channelDescription: 'Reminders for scheduled habits',
-    importance: Importance.high,
-    priority: Priority.high,
-  );
+  static AndroidNotificationDetails _getAndroidChannel({String? customSoundPath}) {
+    return AndroidNotificationDetails(
+      'habit_reminders',
+      'Habit reminders',
+      channelDescription: 'Reminders for scheduled habits',
+      importance: Importance.max,
+      priority: Priority.max,
+      enableVibration: true,
+      playSound: true,
+      sound: customSoundPath != null
+          ? UriAndroidNotificationSound('file://$customSoundPath')
+          : null, // null means use default system sound
+    );
+  }
 
-  static const _platformDetails = NotificationDetails(
-    android: _channel,
-    iOS: DarwinNotificationDetails(),
-  );
+  static NotificationDetails _getPlatformDetails({String? customSoundPath}) {
+    return NotificationDetails(
+      android: _getAndroidChannel(customSoundPath: customSoundPath),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        sound: customSoundPath,
+        // Note: InterruptionLevel.critical requires a Critical Alerts entitlement from Apple.
+        // This entitlement must be requested from Apple and requires justification.
+        // Users must grant permission in iOS Settings > Notifications > [App Name] > Critical Alerts.
+        // Without the entitlement, this will fall back to a lower interruption level.
+        interruptionLevel: InterruptionLevel.critical,
+      ),
+    );
+  }
 
   static tz.TZDateTime _nextInstanceForTimeTodayOrTomorrow(TimeOfDay time) {
     final now = tz.TZDateTime.now(tz.local);
@@ -139,6 +159,9 @@ class NotificationsService {
     // Clear any older schedules first
     await cancelHabitReminders(habit);
 
+    final customSoundPath = AppSettingsService.customAlarmSoundPath.value;
+    final platformDetails = _getPlatformDetails(customSoundPath: customSoundPath);
+
     final freq = (habit.frequency ?? '').trim().toLowerCase();
     if (freq == 'weekly' && habit.weeklyDays.isNotEmpty) {
       for (final wd in habit.weeklyDays.toSet()) {
@@ -148,7 +171,7 @@ class NotificationsService {
           'Habit reminder',
           habit.name,
           when,
-          _platformDetails,
+          platformDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
@@ -163,7 +186,7 @@ class NotificationsService {
       'Habit reminder',
       habit.name,
       when,
-      _platformDetails,
+      platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -183,12 +206,14 @@ class NotificationsService {
       time.minute,
     );
     if (when.isBefore(now)) return;
+    final customSoundPath = AppSettingsService.customAlarmSoundPath.value;
+    final platformDetails = _getPlatformDetails(customSoundPath: customSoundPath);
     await _plugin.zonedSchedule(
       _habitSnoozeId(habit, iso),
       'Habit reminder',
       habit.name,
       when,
-      _platformDetails,
+      platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }

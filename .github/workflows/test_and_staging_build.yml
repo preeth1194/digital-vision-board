@@ -1,0 +1,212 @@
+name: Test and Staging Build
+
+on:
+  pull_request:
+    branches: ["master", "main", "dev"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+
+      - name: Generate coverage report
+        run: |
+          # Install lcov if not available
+          if ! command -v lcov &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y lcov
+          fi
+          
+          # Generate HTML coverage report
+          if [ -f coverage/lcov.info ]; then
+            genhtml coverage/lcov.info -o coverage/html || echo "genhtml not available, skipping HTML report"
+          fi
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: |
+            coverage/lcov.info
+            coverage/html/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Check coverage threshold
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            # Extract coverage percentage (basic check)
+            COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 | grep -oP 'lines\.*:\s*\K[\d.]+' | head -1 || echo "0")
+            echo "Current test coverage: ${COVERAGE}%"
+            # Set minimum threshold (adjust as needed)
+            THRESHOLD=0
+            # Use awk for comparison (more portable than bc)
+            COVERAGE_INT=$(echo "$COVERAGE" | awk '{printf "%.0f", $1}')
+            THRESHOLD_INT=$(echo "$THRESHOLD" | awk '{printf "%.0f", $1}')
+            if [ "$COVERAGE_INT" -lt "$THRESHOLD_INT" ]; then
+              echo "⚠️ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+              # Don't fail for now, just warn
+            else
+              echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+            fi
+          else
+            echo "⚠️ Coverage file not found"
+          fi
+
+  build-android-staging:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android APK (debug/staging)
+        run: flutter build apk --debug --no-tree-shake-icons
+
+      - name: Upload Android staging APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-staging-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      # Optional: Deploy to Firebase App Distribution (staging)
+      - name: Firebase App Distribution (staging) (optional)
+        env:
+          FIREBASE_APP: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_TOK: ${{ secrets.FIREBASE_TOKEN }}
+        if: env.FIREBASE_APP != '' && env.FIREBASE_TOK != ''
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          file: build/app/outputs/flutter-apk/app-debug.apk
+          testers: ${{ secrets.FIREBASE_TESTERS }}
+          groups: ${{ secrets.FIREBASE_STAGING_GROUPS || 'staging' }}
+
+  build-ios-staging:
+    needs: test
+    runs-on: macos-latest
+    # Note: iOS builds require macOS runners and proper code signing setup
+    # This job may fail if code signing is not configured
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS (staging)
+        run: flutter build ios --debug --no-codesign --no-tree-shake-icons
+        continue-on-error: true
+
+      - name: Upload iOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-staging-build
+          path: |
+            build/ios/iphoneos/Runner.app
+            build/ios/Debug-iphoneos/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Note about iOS builds
+        if: failure()
+        run: |
+          echo "⚠️ iOS builds require proper code signing setup."
+          echo "For production iOS builds, use Xcode or TestFlight."
+          echo "This staging build is unsigned and for testing purposes only."
+
+  build-web-staging:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Web
+        run: flutter build web --release --no-tree-shake-icons
+
+      - name: Upload Web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-staging-build
+          path: build/web/
+          if-no-files-found: error
+          retention-days: 7
+
+      # Optional: Deploy to Firebase Hosting (staging)
+      - name: Deploy to Firebase Hosting (staging) (optional)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        if: env.FIREBASE_TOKEN != ''
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: staging
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          target: ${{ secrets.FIREBASE_HOSTING_TARGET || 'default' }}

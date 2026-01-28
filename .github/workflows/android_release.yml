@@ -37,10 +37,42 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # --- DISABLED TESTS TO ALLOW BUILD TO PROCEED ---
-      # - name: Run tests
-      #   run: flutter test
-      # ------------------------------------------------
+      - name: Run tests
+        run: flutter test
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+        continue-on-error: true
+
+      - name: Check test coverage
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            # Install lcov if not available
+            if ! command -v lcov &> /dev/null; then
+              sudo apt-get update && sudo apt-get install -y lcov
+            fi
+            # Extract and display coverage
+            COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 | grep -oP 'lines\.*:\s*\K[\d.]+' | head -1 || echo "0")
+            if [ -n "$COVERAGE" ] && [ "$COVERAGE" != "0" ]; then
+              echo "Test coverage: ${COVERAGE}%"
+            else
+              echo "⚠️ Could not extract coverage percentage"
+              # Still show summary
+              lcov --summary coverage/lcov.info 2>&1 || true
+            fi
+            echo "Coverage report generated at coverage/lcov.info"
+          else
+            echo "⚠️ Coverage file not generated"
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Configure Android signing (optional)
         # Using env variables fixes the "Unrecognized named-value" error

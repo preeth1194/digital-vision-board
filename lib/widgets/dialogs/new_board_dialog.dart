@@ -34,18 +34,8 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
           children: [
             const ListTile(
               title: Text('Choose a template', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Two quick ways to start'),
+              subtitle: Text('Create your vision board'),
             ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.auto_awesome_outlined),
-                title: const Text('Browse templates'),
-                subtitle: const Text('Pick a pre-filled board'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).pop('browse_templates'),
-              ),
-            ),
-            const SizedBox(height: 10),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.dashboard_customize_outlined),

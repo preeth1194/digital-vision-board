@@ -56,6 +56,7 @@ final class JournalStorageService {
     List<dynamic>? delta,
     List<String>? tags,
     String? goalTitle, // legacy; kept for backwards compatibility
+    List<String>? imagePaths,
     SharedPreferences? prefs,
   }) async {
     final t = text.trim();
@@ -79,6 +80,7 @@ final class JournalStorageService {
       delta: d.isEmpty ? null : d,
       goalTitle: legacyGoal,
       tags: tagsNorm,
+      imagePaths: imagePaths ?? const [],
     );
     await saveEntries([entry, ...existing], prefs: p);
     return entry;
@@ -92,6 +94,52 @@ final class JournalStorageService {
     final existing = await loadEntries(prefs: p);
     final next = existing.where((e) => e.id != id).toList();
     await saveEntries(next, prefs: p);
+  }
+
+  static Future<JournalEntry?> updateEntry({
+    required String id,
+    String? title,
+    String? text,
+    List<dynamic>? delta,
+    List<String>? tags,
+    String? goalTitle,
+    List<String>? imagePaths,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final existing = await loadEntries(prefs: p);
+    final entryIndex = existing.indexWhere((e) => e.id == id);
+    if (entryIndex == -1) return null;
+
+    final oldEntry = existing[entryIndex];
+    final tagsNorm = tags != null
+        ? _normalizeTags([
+            ...tags,
+            if ((goalTitle ?? '').trim().isNotEmpty) goalTitle!.trim(),
+          ])
+        : oldEntry.tags;
+    final legacyGoal = (goalTitle ?? '').trim().isEmpty ? null : goalTitle!.trim();
+    final rawTitle = (title ?? '').trim();
+    final titleNorm = rawTitle.isEmpty ? null : rawTitle;
+    final textNorm = text?.trim() ?? oldEntry.text;
+    final deltaNorm = delta ?? oldEntry.delta;
+    final imagePathsNorm = imagePaths ?? oldEntry.imagePaths;
+
+    final updatedEntry = JournalEntry(
+      id: oldEntry.id,
+      createdAtMs: oldEntry.createdAtMs,
+      title: titleNorm,
+      text: textNorm,
+      delta: deltaNorm,
+      goalTitle: legacyGoal ?? oldEntry.goalTitle,
+      tags: tagsNorm,
+      imagePaths: imagePathsNorm,
+    );
+
+    final updatedEntries = List<JournalEntry>.from(existing);
+    updatedEntries[entryIndex] = updatedEntry;
+    await saveEntries(updatedEntries, prefs: p);
+    return updatedEntry;
   }
 }
 

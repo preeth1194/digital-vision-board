@@ -148,5 +148,36 @@ class GridTemplates {
     }
     return hero;
   }
+
+  /// Returns tile blueprints that fill the viewport for [tileCount] tiles.
+  /// Uses 4 columns; [viewportWidth] and [viewportHeight] drive cell extent and row count.
+  static List<GridTileBlueprint> optimalSizesForTileCount(
+    int tileCount, {
+    double viewportWidth = 400,
+    double viewportHeight = 700,
+  }) {
+    if (tileCount <= 0) return [];
+    const crossAxisCount = 4;
+    const spacing = 10.0;
+    const horizontalPadding = 32.0;
+    const appBarHeight = 56.0;
+    const bottomBarHeight = 56.0;
+    const verticalPadding = 32.0;
+    const safePadding = 48.0;
+
+    final gridWidth = (viewportWidth - horizontalPadding).clamp(1.0, double.infinity);
+    final cellExtent = (gridWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+    final availableHeight = viewportHeight - appBarHeight - bottomBarHeight - verticalPadding - safePadding;
+    final rowCount = (availableHeight / (cellExtent + spacing)).floor().clamp(1, 20);
+    // Each tile spans 2 columns; main axis = rows distributed over N tiles.
+    final mainPerTile = ((rowCount * 2) / tileCount).ceil().clamp(1, 8);
+    final c = 2;
+    final m = mainPerTile;
+
+    return List.generate(
+      tileCount,
+      (_) => GridTileBlueprint(crossAxisCount: c, mainAxisCount: m),
+    );
+  }
 }
 

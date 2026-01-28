@@ -117,28 +117,28 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
     if (board == null) return const DashboardScreen();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(board.title),
-        actions: [
-          if (_boards.length > 1)
+        appBar: AppBar(
+          title: Text(board.title),
+          actions: [
+            if (_boards.length > 1)
+              IconButton(
+                tooltip: 'Change default board',
+                icon: const Icon(Icons.swap_horiz),
+                onPressed: _pickDefaultBoard,
+              ),
             IconButton(
-              tooltip: 'Change default board',
-              icon: const Icon(Icons.swap_horiz),
-              onPressed: _pickDefaultBoard,
+              tooltip: 'Dashboard',
+              icon: const Icon(Icons.dashboard_outlined),
+              onPressed: _openDashboard,
             ),
-          IconButton(
-            tooltip: 'Dashboard',
-            icon: const Icon(Icons.dashboard_outlined),
-            onPressed: _openDashboard,
-          ),
-        ],
-      ),
-      body: FlipCard(
-        key: ValueKey('flip-${board.id}-$_refreshNonce'),
-        front: VisionBoardHomeFront(key: ValueKey('front-${board.id}-$_refreshNonce'), board: board),
-        back: VisionBoardHomeBack(key: ValueKey('back-${board.id}-$_refreshNonce'), board: board),
-      ),
-    );
+          ],
+        ),
+        body: FlipCard(
+          key: ValueKey('flip-${board.id}-$_refreshNonce'),
+          front: VisionBoardHomeFront(key: ValueKey('front-${board.id}-$_refreshNonce'), board: board),
+          back: VisionBoardHomeBack(key: ValueKey('back-${board.id}-$_refreshNonce'), board: board),
+        ),
+      );
   }
 }
 

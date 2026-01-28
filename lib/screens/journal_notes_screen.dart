@@ -549,7 +549,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                 child: InkWell(
                   onTap: _selectionMode
                       ? () => _toggleEntrySelection(e.id)
-                      : () => _openJournalEntryViewer(e),
+                      : () => _openJournalEditorForEdit(e),
                   onLongPress: () {
                     if (!_selectionMode) {
                       setState(() {

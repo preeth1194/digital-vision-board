@@ -590,7 +590,7 @@ Theme is configured in `lib/main.dart` with:
 ### Build Configuration
 - **Icon Tree-Shaking**: Build uses `--no-tree-shake-icons` flag to support dynamic IconData instances
   - Helper function: `IconService.iconFromCodePoint()` in `lib/services/icon_service.dart`
-  - Used in: `routine_editor_screen.dart`, `routine_execution_screen.dart`, `routine_preview_card.dart`
+  - Used in: `routine_editor_screen.dart`, `routine_timer_screen.dart`, `routine_preview_card.dart`
   - Reason: Routines/todos store icon code points dynamically, so Flutter can't tree-shake at compile time
 
 ### Environment Variables

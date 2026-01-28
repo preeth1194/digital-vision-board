@@ -38,7 +38,7 @@ import 'widget_guide_screen.dart';
 import '../models/routine.dart';
 import '../services/routine_storage_service.dart';
 import 'routine_editor_screen.dart';
-import 'routine_execution_screen.dart';
+import 'routine_timer_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -458,9 +458,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await RoutineStorageService.setActiveRoutineId(routine.id, prefs: _prefs);
     if (!mounted) return;
     setState(() => _activeRoutineId = routine.id);
+
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RoutineExecutionScreen(routine: routine),
+        builder: (_) => RoutineTimerScreen(routine: routine),
       ),
     );
     await RoutineStorageService.clearActiveRoutineId(prefs: _prefs);

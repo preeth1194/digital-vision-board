@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -208,57 +209,58 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
         ),
       ),
     );
-    if (res == null) return;
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
-    // Update image paths with actual entry ID after creation
-    final entry = await JournalStorageService.addEntry(
-      title: res.title,
-      text: res.plainText,
-      delta: res.deltaJson,
-      tags: res.tags,
-      goalTitle: res.legacyGoalTitle,
-      imagePaths: res.imagePaths,
-      prefs: prefs,
-    );
-    
-    // If entry was created and we have images, update image filenames with actual entry ID
-    if (entry != null && res.imagePaths.isNotEmpty) {
-      final updatedImagePaths = <String>[];
-      for (int i = 0; i < res.imagePaths.length; i++) {
-        final oldPath = res.imagePaths[i];
-        final oldFile = File(oldPath);
-        if (await oldFile.exists()) {
-          final newPath = await JournalImageStorageService.saveImage(
-            oldFile,
-            entry.id,
-            i,
-          );
-          updatedImagePaths.add(newPath);
-          // Delete old temp file
-          await JournalImageStorageService.deleteImage(oldPath);
-        }
-      }
-      
-      // Update entry with correct image paths
-      if (updatedImagePaths.isNotEmpty) {
-        final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
-        final updatedEntries = allEntries.map((e) {
-          if (e.id == entry.id) {
-            return JournalEntry(
-              id: e.id,
-              createdAtMs: e.createdAtMs,
-              title: e.title,
-              text: e.text,
-              delta: e.delta,
-              goalTitle: e.goalTitle,
-              tags: e.tags,
-              imagePaths: updatedImagePaths,
+    if (res != null) {
+      // Editor returned result (legacy path; normally auto-save on back is used)
+      final entry = await JournalStorageService.addEntry(
+        title: res.title,
+        text: res.plainText,
+        delta: res.deltaJson,
+        tags: res.tags,
+        goalTitle: res.legacyGoalTitle,
+        imagePaths: res.imagePaths,
+        prefs: prefs,
+      );
+
+      // If entry was created and we have images, update image filenames with actual entry ID
+      if (entry != null && res.imagePaths.isNotEmpty) {
+        final updatedImagePaths = <String>[];
+        for (int i = 0; i < res.imagePaths.length; i++) {
+          final oldPath = res.imagePaths[i];
+          final oldFile = File(oldPath);
+          if (await oldFile.exists()) {
+            final newPath = await JournalImageStorageService.saveImage(
+              oldFile,
+              entry.id,
+              i,
             );
+            updatedImagePaths.add(newPath);
+            // Delete old temp file
+            await JournalImageStorageService.deleteImage(oldPath);
           }
-          return e;
-        }).toList();
-        await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
+        }
+
+        // Update entry with correct image paths
+        if (updatedImagePaths.isNotEmpty) {
+          final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
+          final updatedEntries = allEntries.map((e) {
+            if (e.id == entry.id) {
+              return JournalEntry(
+                id: e.id,
+                createdAtMs: e.createdAtMs,
+                title: e.title,
+                text: e.text,
+                delta: e.delta,
+                goalTitle: e.goalTitle,
+                tags: e.tags,
+                imagePaths: updatedImagePaths,
+              );
+            }
+            return e;
+          }).toList();
+          await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
+        }
       }
     }
     await _reload(prefs: prefs);
@@ -803,6 +805,7 @@ final class _JournalEntryEditorScreen extends StatefulWidget {
 class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   late final quill.QuillController _controller;
   late final FocusNode _focusNode;
+  final TextEditingController _titleController = TextEditingController();
   bool _focused = false;
   final Set<String> _tags = <String>{};
   final List<String> _imagePaths = <String>[];
@@ -825,6 +828,12 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
         setState(() => _hasUnsavedChanges = true);
       }
     });
+    // Track title changes
+    _titleController.addListener(() {
+      if (mounted) {
+        setState(() => _hasUnsavedChanges = true);
+      }
+    });
     // Auto-focus for distraction-free writing.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -836,6 +845,7 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
+    _titleController.dispose();
     super.dispose();
   }
   
@@ -851,7 +861,10 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
       return true;
     }
     
-    final title = _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty 
+        ? userTitle 
+        : _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
     final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     String? legacyGoal;
@@ -1098,38 +1111,6 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
     });
   }
 
-  void _save() async {
-    final deltaJson = _controller.document.toDelta().toJson();
-    final plain = _controller.document.toPlainText().replaceAll('\r', '').trim();
-    if (plain.isEmpty && _imagePaths.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Write something or add an image before saving.')),
-      );
-      return;
-    }
-    final title = _deriveTitleFromDeltaOrPlain(deltaJson: deltaJson, plainText: plain);
-    final tagsNorm = _tags.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    String? legacyGoal;
-    for (final t in tagsNorm) {
-      if (widget.goalTitles.contains(t)) {
-        legacyGoal = t;
-        break;
-      }
-    }
-    _hasUnsavedChanges = false;
-    Navigator.of(context).pop(
-      _JournalEditorResult(
-        deltaJson: deltaJson,
-        plainText: plain,
-        title: title,
-        tags: tagsNorm,
-        legacyGoalTitle: legacyGoal,
-        imagePaths: _imagePaths,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tagsSorted = _tags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
@@ -1162,14 +1143,27 @@ class _JournalEntryEditorScreenState extends State<_JournalEntryEditorScreen> {
                 setState(() {});
               },
             ),
-            TextButton(
-              onPressed: _save,
-              child: const Text('Save'),
-            ),
           ],
         ),
       body: Column(
         children: [
+          // Title field
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                hintText: 'Entry title (optional)',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              ),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
           if (_focused)
             quill.QuillSimpleToolbar(
               controller: _controller,
@@ -1313,49 +1307,82 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
   bool _isEditMode = false;
   quill.QuillController? _controller;
   late final JournalEntry _originalEntry;
+  final TextEditingController _titleController = TextEditingController();
+  bool _hasUnsavedChanges = false;
 
   @override
   void initState() {
     super.initState();
     _originalEntry = widget.entry;
+    _titleController.text = widget.entry.title ?? '';
+    // Track title changes
+    _titleController.addListener(() {
+      if (mounted && _isEditMode) {
+        setState(() => _hasUnsavedChanges = true);
+      }
+    });
     _loadController();
   }
 
   @override
   void dispose() {
+    _contentChangesSubscription?.cancel();
     _controller?.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
+  StreamSubscription? _contentChangesSubscription;
+
   void _loadController() {
     final delta = widget.entry.delta;
+    // Cancel previous subscription if exists
+    _contentChangesSubscription?.cancel();
+    
     if (delta is List && delta.isNotEmpty) {
       try {
         final doc = quill.Document.fromJson(delta);
+        _controller?.dispose();
         _controller = quill.QuillController(
           document: doc,
           selection: const TextSelection.collapsed(offset: 0),
           readOnly: !_isEditMode,
         );
+        // Track content changes when in edit mode
+        if (_isEditMode && _controller != null) {
+          _contentChangesSubscription = _controller!.document.changes.listen((event) {
+            if (mounted) {
+              setState(() => _hasUnsavedChanges = true);
+            }
+          });
+        }
       } catch (_) {
         _controller = null;
       }
     }
   }
 
-  Future<void> _save() async {
-    if (_controller == null) return;
+  Future<bool> _save() async {
+    if (_controller == null) return false;
     
     final deltaJson = _controller!.document.toDelta().toJson();
     final plain = _controller!.document.toPlainText().replaceAll('\r', '').trim();
     
     if (plain.isEmpty) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot save empty entry.')),
       );
-      return;
+      return false;
     }
+
+    final userTitle = _titleController.text.trim();
+    final title = userTitle.isNotEmpty
+        ? userTitle
+        : _JournalEntryEditorScreenState._deriveTitleFromDeltaOrPlain(
+            deltaJson: deltaJson,
+            plainText: plain,
+          );
 
     final prefs = await SharedPreferences.getInstance();
     final allEntries = await JournalStorageService.loadEntries(prefs: prefs);
@@ -1364,7 +1391,7 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
         return JournalEntry(
           id: e.id,
           createdAtMs: e.createdAtMs,
-          title: e.title,
+          title: title.isEmpty ? null : title,
           text: plain,
           delta: deltaJson,
           goalTitle: e.goalTitle,
@@ -1377,30 +1404,31 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
 
     await JournalStorageService.saveEntries(updatedEntries, prefs: prefs);
     
-    if (!mounted) return;
+    if (!mounted) return true;
     setState(() {
       _isEditMode = false;
+      _hasUnsavedChanges = false;
       _controller?.readOnly = true;
     });
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Entry saved.')),
-    );
-  }
-
-  void _cancel() {
-    setState(() {
-      _isEditMode = false;
-      _loadController();
-      _controller?.readOnly = true;
-    });
+    return true;
   }
 
   void _enterEditMode() {
     setState(() {
       _isEditMode = true;
+      _hasUnsavedChanges = false;
       _loadController();
       _controller?.readOnly = false;
+      // Track content changes when in edit mode
+      if (_controller != null) {
+        _contentChangesSubscription?.cancel();
+        _contentChangesSubscription = _controller!.document.changes.listen((event) {
+          if (mounted) {
+            setState(() => _hasUnsavedChanges = true);
+          }
+        });
+      }
     });
   }
 
@@ -1408,33 +1436,52 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
   Widget build(BuildContext context) {
     final plain = _JournalNotesScreenState._entryPlainText(widget.entry);
     
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_JournalNotesScreenState._fmtDateTime(widget.entry.createdAt)),
-        actions: _isEditMode
-            ? [
-                TextButton(
-                  onPressed: _cancel,
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: _save,
-                  child: const Text('Save'),
-                ),
-              ]
-            : [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit',
-                  onPressed: _enterEditMode,
-                ),
-              ],
-      ),
-      body: SafeArea(
-        child: _controller != null
-            ? Column(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if (_hasUnsavedChanges && _isEditMode) {
+          final saved = await _save();
+          if (saved && mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_JournalNotesScreenState._fmtDateTime(widget.entry.createdAt)),
+          actions: _isEditMode
+              ? []
+              : [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Edit',
+                    onPressed: _enterEditMode,
+                  ),
+                ],
+        ),
+        body: SafeArea(
+          child: _controller != null
+              ? Column(
                 children: [
-                  if (_isEditMode)
+                  if (_isEditMode) ...[
+                    // Title field in edit mode
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          hintText: 'Entry title (optional)',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
                     quill.QuillSimpleToolbar(
                       controller: _controller!,
                       config: quill.QuillSimpleToolbarConfig(
@@ -1532,12 +1579,23 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                       ),
                     ),
                 ],
+                ],
               )
             : SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.entry.title != null && widget.entry.title!.isNotEmpty) ...[
+                      Text(
+                        widget.entry.title!,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     SelectableText(plain),
                     if (widget.entry.imagePaths.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -1587,6 +1645,7 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> {
                   ],
                 ),
               ),
+        ),
       ),
     );
   }

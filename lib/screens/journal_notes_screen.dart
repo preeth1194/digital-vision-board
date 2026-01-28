@@ -1671,15 +1671,13 @@ final class _JournalEntryViewerScreen extends StatefulWidget {
 class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> with WidgetsBindingObserver {
   bool _isEditMode = false;
   quill.QuillController? _controller;
-  JournalEntry _originalEntry;
+  late JournalEntry _originalEntry;
   final TextEditingController _titleController = TextEditingController();
   bool _hasUnsavedChanges = false;
   Timer? _autoSaveTimer;
   SaveStatus _saveStatus = SaveStatus.idle;
   StreamSubscription? _contentChangesSubscription;
   StreamSubscription? _titleChangesSubscription;
-
-  _JournalEntryViewerScreenState() : _originalEntry = widget.entry;
 
   @override
   void initState() {
@@ -2195,7 +2193,6 @@ class _JournalEntryViewerScreenState extends State<_JournalEntryViewerScreen> wi
                         },
                       ),
                     ),
-                ],
                 ],
               )
             : SingleChildScrollView(

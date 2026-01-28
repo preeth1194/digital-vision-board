@@ -8,6 +8,7 @@ import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/rhythmic_timer_service.dart';
 import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerState, RhythmicTimerStateService;
+import '../widgets/circular_countdown_timer.dart';
 
 class RhythmicTimerScreen extends StatefulWidget {
   final HabitItem habit;
@@ -262,178 +263,257 @@ class _RhythmicTimerScreenState extends State<RhythmicTimerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    
+    // Calculate circle size based on screen width
+    final screenWidth = MediaQuery.of(context).size.width;
+    final circleSize = (screenWidth * 0.8).clamp(250.0, 400.0);
+    
+    // Prepare data for circular timer based on mode
+    double remainingProgress;
+    String remainingText;
+    String? elapsedText;
+    String? targetText;
+    
+    if (_isSongBased) {
+      // Song-based mode
+      if (_songState != null) {
+        final totalSongs = _songState!.totalSongs;
+        final songsRemaining = _songState!.songsRemaining;
+        remainingProgress = totalSongs > 0 ? (songsRemaining / totalSongs).clamp(0.0, 1.0) : 1.0;
+        remainingText = '$songsRemaining';
+        elapsedText = 'of $totalSongs songs';
+        targetText = _songState!.currentSongTitle != null ? _songState!.currentSongTitle : null;
+      } else {
+        remainingProgress = 1.0;
+        remainingText = '0';
+        elapsedText = 'songs';
+        targetText = null;
+      }
+    } else {
+      // Time-based mode
+      final target = _targetMs;
+      final acc = _accMs;
+      final remaining = (target <= 0) ? 0 : (target - acc).clamp(0, target);
+      remainingProgress = target > 0 ? (1.0 - (acc / target).clamp(0.0, 1.0)) : 1.0;
+      remainingText = _fmt(remaining);
+      elapsedText = target > 0 ? 'Elapsed: ${_fmt(acc)}' : _fmt(acc);
+      targetText = target > 0 ? 'Target: ${_fmt(target)}' : null;
+    }
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.habit.name),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          widget.habit.name,
+          style: TextStyle(
+            color: scheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.habit.timeBound?.enabled == true) ...[
-              Text(
-                _isSongBased ? 'Song-Based Timer' : 'Time-Based Timer',
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              scheme.surface,
+              scheme.surfaceContainerHighest,
             ],
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_isSongBased) ...[
-                      // Song-based UI
-                      if (_songState != null) ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${_songState!.songsRemaining} / ${_songState!.totalSongs}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .displaySmall
-                                        ?.copyWith(fontWeight: FontWeight.w800),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Songs Remaining',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_running)
-                              const Chip(
-                                label: Text('Running'),
-                              )
-                            else
-                              const Chip(
-                                label: Text('Paused'),
-                              ),
-                          ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Spacer to push content to center
+              const Spacer(flex: 2),
+              
+              // Circular countdown timer
+              CircularCountdownTimer(
+                progress: remainingProgress,
+                remainingText: remainingText,
+                elapsedText: elapsedText,
+                targetText: targetText,
+                size: circleSize,
+                strokeWidth: 20,
+                backgroundColor: scheme.surfaceContainerHighest,
+                progressColor: _running ? scheme.primary : scheme.primaryContainer,
+                textColor: scheme.onSurface,
+              ),
+              
+              // Status chip
+              const SizedBox(height: 24),
+              Chip(
+                avatar: Icon(
+                  _running ? Icons.play_circle_filled : Icons.pause_circle_filled,
+                  size: 20,
+                  color: _running ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                label: Text(
+                  _running ? 'Running' : 'Paused',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: _running ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+                backgroundColor: _running 
+                    ? scheme.primaryContainer 
+                    : scheme.surfaceContainerHighest,
+              ),
+              
+              // Song-based: Show current song title if available
+              if (_isSongBased && _songState?.currentSongTitle != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Now Playing',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
-                        if (_songState!.currentSongTitle != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            'Now Playing:',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _songState!.currentSongTitle!,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(
-                          value: _songState!.totalSongs > 0
-                              ? 1.0 - (_songState!.songsRemaining / _songState!.totalSongs)
-                              : 0.0,
-                        ),
-                      ],
-                    ] else ...[
-                      // Time-based UI
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _fmt(_accMs),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .displaySmall
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                          if (_running)
-                            const Chip(
-                              label: Text('Running'),
-                            )
-                          else
-                            const Chip(
-                              label: Text('Paused'),
-                            ),
-                        ],
                       ),
-                      if (_targetMs > 0) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Target: ${_fmt(_targetMs)} • Remaining: ${_fmt((_targetMs - _accMs).clamp(0, _targetMs))}',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _songState!.currentSongTitle!,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(
-                          value: (_targetMs <= 0) ? null : (_accMs / _targetMs).clamp(0.0, 1.0),
-                        ),
-                      ],
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
-                    const SizedBox(height: 14),
+                  ),
+                ),
+              ],
+              
+              // Spacer to push controls to bottom
+              const Spacer(flex: 3),
+              
+              // Controls at bottom
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Start/Pause and Reset buttons
                     Row(
                       children: [
                         Expanded(
+                          flex: 2,
                           child: FilledButton.icon(
                             onPressed: _prefs == null ? null : _startPause,
-                            icon: Icon(_running ? Icons.pause : Icons.play_arrow),
-                            label: Text(_running ? 'Pause' : 'Start'),
+                            icon: Icon(_running ? Icons.pause : Icons.play_arrow, size: 28),
+                            label: Text(
+                              _running ? 'Pause' : 'Start',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          onPressed: _prefs == null ? null : _reset,
-                          icon: const Icon(Icons.restart_alt),
-                          label: const Text('Reset'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _prefs == null ? null : _reset,
+                            icon: const Icon(Icons.restart_alt),
+                            label: const Text('Reset'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
+                    
+                    // Adjust time buttons (only for time-based mode)
+                    if (!_isSongBased && _targetMs > 0) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Adjust time',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _prefs == null ? null : () => _adjustMinutes(-5),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('-5m'),
+                          ),
+                          OutlinedButton(
+                            onPressed: _prefs == null ? null : () => _adjustMinutes(-1),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('-1m'),
+                          ),
+                          OutlinedButton(
+                            onPressed: _prefs == null ? null : () => _adjustMinutes(1),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('+1m'),
+                          ),
+                          OutlinedButton(
+                            onPressed: _prefs == null ? null : () => _adjustMinutes(5),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('+5m'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
-            ),
-            if (!_isSongBased) ...[
-              const SizedBox(height: 16),
-              const Text('Adjust time', style: TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Text(
-                'Use this if you forgot to pause.',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  OutlinedButton(
-                    onPressed: _prefs == null ? null : () => _adjustMinutes(-5),
-                    child: const Text('-5m'),
-                  ),
-                  OutlinedButton(
-                    onPressed: _prefs == null ? null : () => _adjustMinutes(-1),
-                    child: const Text('-1m'),
-                  ),
-                  OutlinedButton(
-                    onPressed: _prefs == null ? null : () => _adjustMinutes(1),
-                    child: const Text('+1m'),
-                  ),
-                  OutlinedButton(
-                    onPressed: _prefs == null ? null : () => _adjustMinutes(5),
-                    child: const Text('+5m'),
-                  ),
-                ],
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );

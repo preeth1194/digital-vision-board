@@ -159,6 +159,59 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
       appBar: AppBar(
         title: const Text('Affirmations'),
         actions: [
+          // Category filter dropdown
+          if (_categories.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: 'Filter by category',
+              onSelected: (category) async {
+                setState(() {
+                  _selectedCategory = category;
+                  _currentIndex = 0;
+                });
+                await _reload();
+              },
+              itemBuilder: (context) => [
+                for (final cat in _categories)
+                  PopupMenuItem(
+                    value: cat,
+                    child: Row(
+                      children: [
+                        if (_selectedCategory == cat)
+                          Icon(
+                            Icons.check,
+                            size: 20,
+                            color: colorScheme.primary,
+                          )
+                        else
+                          const SizedBox(width: 20),
+                        const SizedBox(width: 8),
+                        Text(cat),
+                      ],
+                    ),
+                  ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.filter_list),
+                    if (_selectedCategory != null && _selectedCategory != 'All') ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        _selectedCategory!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Manage affirmations',
@@ -177,32 +230,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                if (_categories.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final cat in _categories)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(cat),
-                                selected: _selectedCategory == cat,
-                                onSelected: (selected) async {
-                                  setState(() {
-                                    _selectedCategory = cat;
-                                    _currentIndex = 0;
-                                  });
-                                  await _reload();
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
                 Expanded(
                   child: _affirmations.isEmpty
                       ? Center(

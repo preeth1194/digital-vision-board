@@ -855,33 +855,6 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                // Check if any items have micro habits to conditionally show header
-                Builder(
-                  builder: (context) {
-                    final hasAnyMicrohabit = items.any((it) => 
-                      it.microhabitText != null && it.microhabitText!.isNotEmpty
-                    );
-                    
-                    if (hasAnyMicrohabit) {
-                      // Single column header when micro habits exist
-                      return Text(
-                        'Habits',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      );
-                    } else {
-                      // No header needed when no micro habits
-                      return const SizedBox.shrink();
-                    }
-                  },
-                ),
-                if (items.any((it) => it.microhabitText != null && it.microhabitText!.isNotEmpty)) ...[
-                  const SizedBox(height: 8),
-                  const Divider(height: 1),
-                  const SizedBox(height: 6),
-                ],
                 Column(
                   children: [
                     for (final it in items) ...[
@@ -971,14 +944,6 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                             maxLines: 2,
                                           ),
                                         ),
-                                        if (hasTimer) ...[
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            Icons.timer_outlined,
-                                            size: 18,
-                                            color: Theme.of(context).colorScheme.primary,
-                                          ),
-                                        ],
                                         if (hasLocation) ...[
                                           const SizedBox(width: 6),
                                           Icon(

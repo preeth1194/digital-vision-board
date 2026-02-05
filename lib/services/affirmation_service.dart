@@ -253,10 +253,8 @@ final class AffirmationService {
       }
       
       for (final component in components) {
-        if (component is ImageComponent || component is GoalOverlayComponent) {
-          final goal = component is ImageComponent
-              ? component.goal
-              : (component is GoalOverlayComponent ? component.goal : null);
+        if (component is ImageComponent) {
+          final goal = component.goal;
           final category = goal?.category;
           if (category != null && category.trim().isNotEmpty) {
             categories.add(category.trim());

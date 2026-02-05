@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
-Last updated: 2026-01-17
-Updated: Added default images for recommended goals in wizard; Added Rhythmic Timer feature (Time-Based and Song-Based modes); Fixed theme colors and typography consistency; Unified add goal dialog; Added minified vision board grid preview in dashboard; Added Puzzle Widget and Game feature with 4-hour automatic image rotation; Fixed IconData tree-shaking issues; Improved Spotify OAuth integration with connection verification; Fixed puzzle game opacity animation bug; Updated environment variable documentation; Added YouTube Music and Local Files support for music providers; Added privacy policy route at `/privacy-policy`
+Last updated: 2026-02-01
+Updated: Added section 19 (Backend API and app integration)—current endpoints, auth, and Flutter service mapping; Restructured by feature visibility; Vision board editor web-safe file access; Corrected completion feedback and add-task/todo flows; Fixed duplicate section numbering.
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -20,29 +20,71 @@ Daily loop:
 
 ---
 
+## 1.5) Feature visibility and entry points (what the user sees → code)
+
+### App entry and home
+- **Entry**: `lib/main.dart` → `VisionBoardHomeScreen` (`lib/screens/vision_board_home_screen.dart`)
+- **Home**: If no boards → navigate to Dashboard. If boards exist → flip-card view of active board; tap "All boards" → Dashboard.
+
+### Dashboard screen (main hub)
+- **Screen**: `lib/screens/dashboard_screen.dart`
+- **Body**: `lib/widgets/dashboard/dashboard_body.dart` switches by tab index.
+
+**Bottom navigation (4 tabs):**
+| Tab        | Label       | Content |
+|-----------|-------------|---------|
+| tabIndex 1 | Dashboard  | `DashboardTab`: board list (VisionBoardPreviewCard), routines, PuzzleWidget, FAB (create board / create routine) |
+| tabIndex 2 | Journal    | `JournalNotesScreen` (embedded) |
+| tabIndex 3 | Affirmations | `AffirmationScreen` |
+| tabIndex 4 | Insights   | `GlobalInsightsScreen` (per-board or all boards) |
+
+**Drawer (hamburger):**
+- User profile → `AuthGatewayScreen`
+- Notifications → Reminders sheet (from `ReminderSummaryService`)
+- Settings → `SettingsScreen`
+- Puzzle Game → `PuzzleGameScreen`
+- Widget Guide → `WidgetGuideScreen`
+
+**Create board flow:** FAB or "New" → template picker sheet → either:
+- Browse templates → `TemplateGalleryScreen`
+- Create with wizard → `CreateBoardWizardScreen`
+- Or direct → `showNewBoardDialog` then `GoalCanvasEditorScreen` / `GridEditorScreen` (by layout type)
+
+**Open board:** Tap board card → `_openBoard()`: routes by layout and components to Grid editor or Goal canvas viewer/editor.
+
+**Routines:** Shown on Dashboard tab; create → `RoutineEditorScreen`; open → `RoutineTimerScreen`.
+
+### Other visible screens (from drawer or navigation)
+- Auth: `AuthGatewayScreen`, `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`
+- Settings: `SettingsScreen`; Music provider → `MusicProviderSettingsScreen`; Spotify selection → `SpotifySelectionScreen`
+- Templates: `TemplateGalleryScreen`
+- Wizard: `CreateBoardWizardScreen` + step screens in `lib/screens/wizard/`
+- Puzzle: `PuzzleGameScreen` (also deep link from home)
+- Widget guide: `WidgetGuideScreen`
+- Journal: `JournalNotesScreen`; Affirmations: `AffirmationScreen`; Insights: `GlobalInsightsScreen`
+- Per-board habits/todos lists: `HabitsListScreen`, `TodosListScreen` (opened from dashboard when a board is selected; tab 5 in body is used for todos/insights with board context)
+- Daily overview: `DailyOverviewScreen` (if used elsewhere)
+- Admin: `templates_admin_screen.dart` (admin only)
+
+### Platform / web-safe file access
+- **File paths and images (web + mobile):** Use `lib/utils/file_image_provider.dart`:
+  - `fileExists(String path)` — platform-safe; on web returns false.
+  - `fileImageProviderFromPath(String path)` — returns `FileImage` on io, `NetworkImage` for URLs, null for file paths on web.
+- Vision board editor and grid flows use these so the same code compiles on web and mobile without `dart:io`/`dart:html` File conflicts.
+
+---
+
 ## 2) Board types (UIs) and how they map to storage
 
 There are multiple board “canvas” experiences. They differ in how goals are represented and how they are stored.
 
-### A) Freeform “Vision Board” (Canva-like editor)
-- Editor: `lib/screens/vision_board_editor_screen.dart`
-- Model storage: `VisionBoardComponentsStorageService` (components keyed by boardId)
-
-### B) Goal Canvas (freeform layers over optional background)
+### A) Goal Canvas (freeform layers over optional background)
 - Viewer: `lib/screens/goal_canvas_viewer_screen.dart`
 - Editor: `lib/screens/goal_canvas_editor_screen.dart`
 - Storage: `lib/services/vision_board_components_storage_service.dart`
 - Supports “Layers” UI via `showLayersSheet` (see section 6)
 
-### C) Physical Board (photo background + goal overlays)
-- Viewer: `lib/screens/physical_board_viewer_screen.dart`
-- Editor: `lib/screens/physical_board_editor_screen.dart`
-- Storage:
-  - Components: `lib/services/vision_board_components_storage_service.dart`
-  - Background image path: `BoardsStorageService.boardImagePathKey(boardId)`
-- Goals are `GoalOverlayComponent` anchored in image pixel space (`lib/models/goal_overlay_component.dart`).
-
-### D) Grid Board (structured tile layout)
+### B) Grid Board (structured tile layout)
 - Editor: `lib/screens/grid_board_editor.dart`
 - Storage: `lib/services/grid_tiles_storage_service.dart` (tiles keyed by boardId)
 - Single “goal” viewer: `lib/screens/grid_goal_viewer_screen.dart`
@@ -63,7 +105,6 @@ Key files:
 - `lib/models/vision_component_factory.dart` (JSON deserialization)
 - `lib/models/vision_components.dart` (exports concrete components)
 - `lib/models/image_component.dart` (image goal layer; often has `goal` metadata)
-- `lib/models/goal_overlay_component.dart` (physical board goal overlay)
 
 ### GridTileModel
 Grid boards don’t store `VisionComponent`s directly. They store tiles:
@@ -100,7 +141,7 @@ Important bug fix: `ChecklistItem.copyWith` uses a sentinel so callers can expli
 ### Boards list + board metadata
 - `lib/services/boards_storage_service.dart`
 
-### Components (freeform boards: vision board / goal canvas / physical board)
+### Components (goal canvas boards)
 - `lib/services/vision_board_components_storage_service.dart`
 - Components are JSON encoded and stored keyed by `boardId`.
 
@@ -116,7 +157,7 @@ Main tracker UI:
 - `lib/widgets/habit_tracker_sheet.dart`
 
 Usage patterns:
-- Shown as a bottom sheet from viewers (Goal canvas / Physical board viewers).
+- Shown as a bottom sheet from viewers (Goal canvas viewer).
 - Embedded full-screen in `GridGoalViewerScreen` as the whole page body.
 
 Tabs:
@@ -135,8 +176,6 @@ Shared “Layers” bottom sheet:
 
 Where it’s used:
 - Goal canvas viewer: `GoalCanvasViewerScreen._showLayers` (AppBar button on Canvas tab)
-- Physical board viewer: `PhysicalBoardViewerScreen._showLayers` (AppBar button on Photo tab)
-  - also supports toggling `isDisabled` (mark completed)
 - Grid goal viewer: `GridGoalViewerScreen._showLayers` (top-right overlay button)
   - used to jump between tile-goals without backing out
 
@@ -204,7 +243,7 @@ The app supports two timer modes for habits:
 
 ---
 
-## 8) Completion semantics + feedback prompts (unified behavior)
+## 8) Completion semantics and feedback prompts (unified behavior)
 
 ### Habit completion
 - Weekly scheduled habits can only be toggled on scheduled dates.
@@ -219,7 +258,7 @@ The app supports two timer modes for habits:
   - In that case, skip item-level feedback and only ask the task-level “Task completed” feedback.
 
 Shared helpers:
-- Mutation / state derivation: `lib/services/completion_mutations.dart`
+- Completion application: `lib/services/habit_completion_applier.dart`
 - Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
 
 Where completion+feedback is implemented (must stay consistent):
@@ -242,10 +281,9 @@ Add/edit dialogs (shared, reused across screens):
   - Used in grid editor for consistent goal creation UI
   - Supports name, category, why important, and deadline fields
   - Provides consistent styling and theme-aware colors
-- Habits: `lib/widgets/dialogs/add_habit_dialog.dart`
+- **Habits**: `lib/widgets/dialogs/add_habit_dialog.dart`
   - Compact layout is bounded below the status bar (prevents dialog covering notification bar).
-- Tasks (full dialog with optional CBT fields): `lib/widgets/dialogs/add_task_dialog.dart`
-- Checklist items (due date + optional CBT): `lib/widgets/dialogs/add_checklist_item_dialog.dart`
+- **Tasks / todos**: In-sheet add via `lib/widgets/todos/goal_todo_tab.dart` (inline text field + dialogs); full-screen lists use `lib/widgets/dialogs/text_input_dialog.dart` for simple title prompt (`showTextInputDialog`). Task/checklist structure is managed in `TaskItem`/`ChecklistItem`; add-habit flow uses `add_habit_dialog.dart`.
 
 Global aggregation screens:
 - Per-board lists:
@@ -292,17 +330,13 @@ The wizard helps users create boards with recommended goals:
 
 ## 10) Viewer-specific behaviors and UX constraints
 
-### PhysicalBoardViewerScreen
-- Tapping an overlay opens `HabitTrackerSheet` as a bottom sheet.
-- The bottom sheet is constrained so it does not cover the AppBar (max height excludes status+toolbar).
-
 ### GridGoalViewerScreen
 - The entire screen is a `HabitTrackerSheet` bound to a single `GridTileModel`.
 - Uses a `ValueKey(tile.id)` when switching tiles so the sheet remounts cleanly.
 
 ---
 
-## 10) Stability / “gotchas” (important for AI edits)
+## 12) Stability / “gotchas” (important for AI edits)
 
 ### A) TextEditingController + dialogs
 Avoid creating a controller outside a dialog and disposing it immediately after `await showDialog(...)`.
@@ -319,22 +353,27 @@ If you see “can’t uncheck checklist items”, check `ChecklistItem.copyWith`
 ### C) Avoid duplicate symbol definitions
 Keep shared dialogs/services single-defined. Some files previously contained duplicated class definitions; those were deduped.
 
+### D) Web vs. file system (File type)
+Code that runs on both web and mobile must not use `dart:io` File directly when compiled for web (web uses `dart:html`, and `File`/`exists()`/`FileImage` differ). Use `lib/utils/file_image_provider.dart`: `fileExists(path)` and `fileImageProviderFromPath(path)` so the same screen compiles on all platforms.
+
 ---
 
 ## 11) Quick entry points (if you’re new)
 
 - App entry: `lib/main.dart`
-- Main dashboard: `lib/screens/dashboard_screen.dart`
+- Home: `lib/screens/vision_board_home_screen.dart`
+- Main dashboard: `lib/screens/dashboard_screen.dart`; body: `lib/widgets/dashboard/dashboard_body.dart`
 - Tracker: `lib/widgets/habit_tracker_sheet.dart`
-- Completion/feedback: `lib/services/completion_mutations.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Completion/feedback: `lib/services/habit_completion_applier.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- File/image (web-safe): `lib/utils/file_image_provider.dart` (`fileExists`, `fileImageProviderFromPath`)
 - Rhythmic Timer: `lib/services/rhythmic_timer_service.dart`, `lib/screens/rhythmic_timer_screen.dart`
 - Wizard (create board with recommended goals): `lib/screens/wizard/create_board_wizard_screen.dart`, `lib/services/wizard_board_builder.dart`
 - Image services: `lib/services/category_images_service.dart`, `lib/services/stock_images_service.dart`
 - Puzzle Game: `lib/services/puzzle_service.dart`, `lib/screens/puzzle_game_screen.dart`, `lib/widgets/dashboard/puzzle_widget.dart`
 - “All boards” tabs: `lib/widgets/dashboard/*`
-- Physical board viewer/editor: `lib/screens/physical_board_*`
 - Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
-- Grid board editor + goal viewer: `lib/screens/grid_board_editor.dart`, `lib/screens/grid_goal_viewer_screen.dart`
+- Grid board editor + goal viewer: `lib/screens/grid_editor.dart` (exports `grid_board_editor.dart`), `lib/screens/grid_goal_viewer_screen.dart`
+- Journal / Affirmations / Insights: `lib/screens/journal_notes_screen.dart`, `lib/screens/affirmation_screen.dart`, `lib/screens/global_insights_screen.dart`
 
 ---
 
@@ -469,16 +508,7 @@ These are the most common “click paths” and what files implement them.
 - Persist updates:
   - `GoalCanvasViewerScreen._saveComponents` → `VisionBoardComponentsStorageService`
 
-### C) Physical board: scan/import photo → create overlays → track
-- Editor: `lib/screens/physical_board_editor_screen.dart`
-  - Imports photo via `lib/services/board_scan_service.dart`
-  - Creates overlay goals: `GoalOverlayComponent` (`lib/models/goal_overlay_component.dart`)
-  - Persists components: `VisionBoardComponentsStorageService`
-- Viewer: `lib/screens/physical_board_viewer_screen.dart`
-  - Tap overlay → `_openHabitTracker` (bottom sheet) → `HabitTrackerSheet`
-  - Bottom sheet height is constrained so it does not cover the AppBar.
-
-### D) Grid board: open a tile-goal and track
+### C) Grid board: open a tile-goal and track
 - Grid editor: `lib/screens/grid_board_editor.dart`
   - Supports adding images via: local picker, Pexels search (`showPexelsSearchSheet`), or text
   - Images can be URLs (from default images or Pexels) or local file paths (after download/persist)
@@ -520,17 +550,18 @@ These are the most common “click paths” and what files implement them.
 - All boards habits tab: `lib/widgets/dashboard/all_boards_habits_tab.dart`
   - Flow: pick board → goal picker → `add_habit_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
 - All boards tasks tab: `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-  - Flow: pick board → goal picker → `add_task_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
-  - Add checklist item inside a task: `add_checklist_item_dialog.dart`
+  - Flow: pick board → goal picker → add task/todo (text input or in-sheet via `GoalTodoTab`) → `onSaveBoardComponents(boardId, updated)`
+  - Add checklist item / todo inside a task: inline in tracker or list screens (`goal_todo_tab.dart`, `text_input_dialog.dart`)
 
 ### G) Completion + feedback prompts (shared semantics)
-- Mutation logic: `lib/services/completion_mutations.dart`
-- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Completion application: `lib/services/habit_completion_applier.dart`
+- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
 - Implemented consistently across:
   - `lib/widgets/habit_tracker_sheet.dart`
   - `lib/screens/tasks_list_screen.dart`
   - `lib/widgets/dashboard/all_boards_tasks_tab.dart`
   - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
+  - Home widgets: `lib/screens/vision_board_home_widgets.dart`
 
 ### H) Rhythmic Timer: song-based habit completion
 - Timer screen: `lib/screens/rhythmic_timer_screen.dart` (supports both time and song modes)
@@ -627,13 +658,102 @@ Backend requires these environment variables (see `ENV_SETUP.md` for full list):
 
 ---
 
+## 19) Backend API and app integration
+
+The Flutter app talks to a Node/Express backend. Base URL and auth are provided by `DvAuthService`; all authenticated requests use `Authorization: Bearer <dvToken>`.
+
+### Backend overview
+- **Entry**: `backend/src/server.js` (Express app). Vercel serverless: `backend/api/index.js` exports the same app.
+- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`), `requireAdmin()` (requires dvAuth + admin user id in `DV_ADMIN_USER_IDS`).
+- **Base URL (app)**: `DvAuthService.backendBaseUrl()` — from `BACKEND_BASE_URL` (compile-time, default `https://digital-vision-board.onrender.com`).
+
+### Auth and token
+- **dvToken**: Backend-issued token stored in SharedPreferences (`dv_auth_token_v1`). Used as `Authorization: Bearer <dvToken>` on protected routes.
+- **Guest tokens**: Expire in 10 days; backend returns `expired_auth` when expired; app shows auth gateway on 401.
+- **Obtaining a token**: Guest (`POST /auth/guest`), Firebase exchange (`POST /auth/firebase/exchange`), or Canva OAuth (poll flow). Music OAuth (Spotify/YouTube Music) does not issue dvToken; it links the current user to a music provider.
+
+### API endpoints (current) and app usage
+
+| Method | Path | Auth | Purpose | App integration |
+|--------|------|------|---------|-----------------|
+| GET | `/` | — | Info text | — |
+| GET | `/health` | — | Health check | — |
+| GET | `/privacy-policy` | — | HTML privacy page | Canva panel / external link |
+| GET | `/stock/pexels/search` | — | Pexels search proxy (query, perPage) | `StockImagesService.searchPexelsUrls()` — grid Pexels search |
+| GET | `/stock/category-images` | — | Category images by coreValueId + category (DB cache) | `CategoryImagesService.getCategoryImages()` — wizard default images |
+| GET | `/wizard/defaults` | — | Core values + categories | `WizardDefaultsService` — wizard step 1 defaults (cached) |
+| GET | `/wizard/recommendations` | — | Goals for coreValueId + category + gender | `WizardRecommendationsService.get()` — wizard step 2 recommendations |
+| POST | `/wizard/recommendations/generate` | — | Generate recommendations (Gemini) | `WizardRecommendationsService.generate()` / `getOrGenerate()` |
+| POST | `/auth/guest` | — | Create guest session (body: home_timezone, gender) | `DvAuthService.continueAsGuest()` |
+| POST | `/auth/firebase/exchange` | — | Exchange Firebase idToken for dvToken | `DvAuthService.exchangeFirebaseIdTokenForDvToken()` |
+| GET | `/auth/canva/start_poll` | — | Canva OAuth start (returns authUrl, pollToken) | `DvAuthService.connectViaCanvaOAuth()` (poll) |
+| GET | `/auth/canva/poll` | — | Poll for Canva OAuth result (query: pollToken) | Same |
+| GET | `/canva/connect` | — | Alias for Canva OAuth start | — |
+| GET | `/auth/canva/start` | — | Canva OAuth start (redirect flow) | — |
+| GET | `/auth/canva/callback` | — | Canva OAuth callback | — |
+| GET | `/auth/spotify/start` | — | Spotify OAuth start (redirect) | User opens in browser; `MusicProviderSettingsScreen` launches URL |
+| GET | `/auth/spotify/callback` | — | Spotify OAuth callback | — |
+| GET | `/api/spotify/playlists` | dvAuth | List user playlists | `MusicProviderService` (Spotify), connection check in settings |
+| GET | `/api/spotify/search` | dvAuth | Search Spotify (q, type) | `MusicProviderService` |
+| GET | `/api/spotify/playlist/:playlistId/tracks` | dvAuth | Playlist tracks | `MusicProviderService` |
+| GET | `/auth/youtube-music/start` | — | YouTube Music OAuth start | Same pattern as Spotify |
+| GET | `/auth/youtube-music/callback` | — | YouTube Music callback | — |
+| GET | `/api/youtube-music/playlists` | dvAuth | List playlists | `MusicProviderService` (YouTube Music) |
+| GET | `/api/youtube-music/search` | dvAuth | Search | `MusicProviderService` |
+| GET | `/api/youtube-music/playlist/:playlistId/tracks` | dvAuth | Playlist tracks | `MusicProviderService` |
+| GET | `/habits` | dvAuth | Legacy habits list | — |
+| GET | `/templates` | dvAuth | List templates | `TemplatesService.listTemplates()` |
+| GET | `/templates/:id` | dvAuth | Get template by id | `TemplatesService.getTemplate()` |
+| GET | `/template-images/:id` | — | Template image (public) | `TemplatesService` image URL helper |
+| GET | `/sync/bootstrap` | dvAuth | Bootstrap empty app (boards, settings) | `SyncService.bootstrapIfNeeded()` |
+| POST | `/sync/push` | dvAuth | Push outbox (boards, habitCompletions, userSettings) | `SyncService.flush()` |
+| PUT | `/user/settings` | dvAuth | Update home_timezone, gender | `DvAuthService.putUserSettings()` |
+| GET | `/api/affirmations` | dvAuth | List affirmations (query: limit, offset) | `AffirmationService.loadAffirmations()` |
+| POST | `/api/affirmations` | dvAuth | Create affirmation | `AffirmationService.createAffirmation()` |
+| PUT | `/api/affirmations/:id` | dvAuth | Update affirmation | `AffirmationService.updateAffirmation()` |
+| DELETE | `/api/affirmations/:id` | dvAuth | Delete affirmation | `AffirmationService.deleteAffirmation()` |
+| PUT | `/api/affirmations/:id/pin` | dvAuth | Pin/unpin affirmation | `AffirmationService.togglePin()` |
+| GET | `/admin/templates` | admin | List templates (admin) | `TemplatesService.listTemplatesAdmin()` |
+| POST | `/admin/template-images` | admin | Upload template image (multipart) | `TemplatesService.uploadTemplateImage()` |
+| POST | `/admin/templates` | admin | Create template | `TemplatesService.createTemplate()` |
+| PUT | `/admin/templates/:id` | admin | Update template | `TemplatesService.updateTemplate()` |
+| DELETE | `/admin/templates/:id` | admin | Delete template | `TemplatesService.deleteTemplate()` |
+| POST | `/admin/wizard/sync-defaults` | admin | Sync wizard defaults (blocking) | `TemplatesService.syncWizardDefaults()` (legacy) |
+| POST | `/admin/wizard/sync-defaults/start` | admin | Start sync job | Admin / dev |
+| GET | `/admin/wizard/sync-defaults/status` | admin | Sync job status | `TemplatesService` poll |
+| POST | `/admin/stock/sync-category-images/start` | admin | Start category images sync | Admin / dev |
+| GET | `/admin/stock/sync-category-images/status` | admin | Sync job status | `TemplatesService` poll |
+| POST | `/admin/canva/import/current-page` | admin | Canva import (admin) | `TemplatesService.importCanvaCurrentPage()` |
+| GET | `/canva/packages` | dvAuth | Canva packages | Canva integration |
+| GET | `/canva/packages/latest` | dvAuth | Latest package | Canva integration |
+| GET | `/canva/packages/:id` | dvAuth | Package by id | Canva integration |
+| POST | `/habits` | dvAuth | Legacy habits | — |
+| POST | `/canva/sync` | dvAuth | Canva sync | Canva integration |
+| POST | `/canva/export` | dvAuth | Canva export | Canva integration |
+
+### App-side API usage summary
+- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange, Canva OAuth; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
+- **Sync**: `lib/services/sync_service.dart` — `GET /sync/bootstrap`, `POST /sync/push`; 401 sets `SyncService.authExpired`.
+- **Wizard**: `WizardDefaultsService` → `GET /wizard/defaults`; `WizardRecommendationsService` → `GET /wizard/recommendations`, `POST /wizard/recommendations/generate`.
+- **Stock images**: `StockImagesService` → `GET /stock/pexels/search`; `CategoryImagesService` → `GET /stock/category-images` (no auth).
+- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`; admin: `/admin/templates`, `/admin/template-images`, sync-defaults and sync-category-images start/status.
+- **Music**: `MusicProviderService` + `MusicProviderSettingsScreen` — Spotify/YouTube Music OAuth via `/auth/spotify/start`, `/auth/youtube-music/start`; API calls to `/api/spotify/*`, `/api/youtube-music/*` with Bearer token.
+- **Affirmations**: `AffirmationService` — CRUD and pin via `/api/affirmations*` with Bearer token.
+
+### Flow notes
+- **Guest**: App calls `POST /auth/guest` (optional body: home_timezone, gender), stores dvToken and expiresAt; subsequent requests use Bearer token until expiry; then app shows auth gateway.
+- **Sync**: On empty local boards, app calls `GET /sync/bootstrap` to seed boards/settings; after local changes, `SyncService` enqueues and calls `POST /sync/push` (best-effort, skipped on web when backend unreachable).
+- **Wizard**: Defaults and recommendations are public (no auth); category images and Pexels are also public; wizard steps use these to build the board locally.
+- **Music OAuth**: User taps Connect in settings; app opens `/auth/spotify/start` or `/auth/youtube-music/start` in browser; backend redirects to provider and stores tokens per user (by dvToken in session/callback); app then uses `/api/spotify/*` or `/api/youtube-music/*` with the same dvToken.
+
+---
+
 ## 17) Glossary (UI term → code type)
 
 - Board:
   - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `BoardsStorageService`
 - Goal (general concept: something you attach habits/tasks to):
-  - Freeform/goal canvas: usually an `ImageComponent` with `goal` metadata
-  - Physical board: `GoalOverlayComponent`
+  - Goal canvas: usually an `ImageComponent` with `goal` metadata
   - Grid: `GridTileModel` (converted to `ImageComponent` for tracker UI)
 - Layer:
   - A `VisionComponent` entry in the board’s components list (ordered by `zIndex`)

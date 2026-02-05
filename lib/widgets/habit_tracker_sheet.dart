@@ -77,7 +77,6 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   static GoalMetadata? _goalMetadataOrNull(VisionComponent c) {
     if (c is ImageComponent) return c.goal;
-    if (c is GoalOverlayComponent) return c.goal;
     return null;
   }
 
@@ -85,8 +84,6 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     final c = widget.component;
     final VisionComponent updated;
     if (c is ImageComponent) {
-      updated = c.copyWith(goal: nextGoal);
-    } else if (c is GoalOverlayComponent) {
       updated = c.copyWith(goal: nextGoal);
     } else {
       return;
@@ -151,9 +148,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   Future<void> _editHabit(HabitItem habit) async {
     final c = widget.component;
-    final goalDeadline = c is ImageComponent
-        ? c.goal?.deadline
-        : (c is GoalOverlayComponent ? c.goal.deadline : null);
+    final goalDeadline = c is ImageComponent ? c.goal?.deadline : null;
     final req = await showEditHabitDialog(
       context,
       habit: habit,
@@ -193,9 +188,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   Future<void> _addNewHabit() async {
     final habitName = _newHabitController.text.trim();
     final c = widget.component;
-    final goalDeadline = c is ImageComponent
-        ? c.goal?.deadline
-        : (c is GoalOverlayComponent ? c.goal.deadline : null);
+    final goalDeadline = c is ImageComponent ? c.goal?.deadline : null;
 
     final req = await showAddHabitDialog(
       context,
@@ -293,8 +286,6 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     final c = widget.component;
     final VisionComponent updated;
     if (c is ImageComponent) {
-      updated = c.copyWith(goal: goal);
-    } else if (c is GoalOverlayComponent) {
       updated = c.copyWith(goal: goal);
     } else {
       return;

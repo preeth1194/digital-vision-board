@@ -5,7 +5,6 @@ import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
-import '../models/goal_overlay_component.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
@@ -25,7 +24,7 @@ class HabitsListScreen extends StatefulWidget {
   final bool showAppBar;
   /// Whether to show the "Due YYYY-MM-DD" chip/text in habit rows.
   ///
-  /// Some contexts (e.g. VisionBoardEditorScreen's Habits tab) want a cleaner list.
+  /// Some contexts (e.g. embedded Habits tabs) want a cleaner list.
   final bool showDueDate;
 
   const HabitsListScreen({
@@ -66,8 +65,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   /// Helper to get goal from a component
   GoalMetadata? _getGoalFromComponent(VisionComponent component) {
     if (component is ImageComponent) {
-      return component.goal;
-    } else if (component is GoalOverlayComponent) {
       return component.goal;
     }
     return null;
@@ -148,7 +145,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   }
 
   static List<VisionComponent> _goalLikeComponents(List<VisionComponent> all) {
-    return all.where((c) => c is ImageComponent || c is GoalOverlayComponent).toList();
+    return all.where((c) => c is ImageComponent).toList();
   }
 
   /// Helper function to get the appropriate icon for a habit type
@@ -175,7 +172,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     final goalDeadline = selected is ImageComponent
         ? selected.goal?.deadline
-        : (selected is GoalOverlayComponent ? selected.goal.deadline : null);
+        : null;
 
     final req = await showAddHabitDialog(
       context,
@@ -321,7 +318,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     final goalDeadline = baseComponent is ImageComponent
         ? baseComponent.goal?.deadline
-        : (baseComponent is GoalOverlayComponent ? baseComponent.goal.deadline : null);
+        : null;
 
     final req = await showEditHabitDialog(
       context,

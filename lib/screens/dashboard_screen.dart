@@ -22,12 +22,8 @@ import 'grid_editor.dart';
 import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
-import 'physical_board_editor_screen.dart';
-import 'physical_board_viewer_screen.dart';
 import 'settings_screen.dart';
 import 'templates/template_gallery_screen.dart';
-import 'vision_board_editor_screen.dart';
-import '../models/goal_overlay_component.dart';
 import 'journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'vision_board_home_screen.dart';
@@ -578,13 +574,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => switch (layoutType) {
-          VisionBoardInfo.layoutGoalCanvas => GoalCanvasEditorScreen(
+        builder: (_) => GoalCanvasEditorScreen(
               boardId: id,
               title: board.title,
             ),
-          _ => VisionBoardEditorScreen(boardId: id, title: board.title, initialIsEditing: true),
-        },
       ),
     );
     await _clearActiveBoard();
@@ -637,23 +630,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _setActiveBoard(board.id);
     if (!mounted) return;
     final gridTemplate = GridTemplates.byId(board.templateId);
-
-    // Heuristic routing: boards that have GoalOverlayComponent are treated as physical boards,
-    // even if the stored layoutType is freeform (legacy import behavior).
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final loadedComponents = await VisionBoardComponentsStorageService.loadComponents(board.id, prefs: prefs);
-    final isPhysical = loadedComponents.any((c) => c is GoalOverlayComponent);
     if (!mounted) return;
 
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) {
-          if (isPhysical) {
-            return startInEditMode
-                ? PhysicalBoardEditorScreen(boardId: board.id, title: board.title, autoStartImport: false)
-                : PhysicalBoardViewerScreen(boardId: board.id, title: board.title);
-          }
           return switch (board.layoutType) {
             VisionBoardInfo.layoutGrid => GridEditorScreen(
                 boardId: board.id,
@@ -661,14 +642,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 initialIsEditing: startInEditMode,
                 template: gridTemplate,
               ),
-            VisionBoardInfo.layoutGoalCanvas => startInEditMode
+            _ => startInEditMode
                 ? GoalCanvasEditorScreen(boardId: board.id, title: board.title)
                 : GoalCanvasViewerScreen(boardId: board.id, title: board.title),
-            _ => VisionBoardEditorScreen(
-                boardId: board.id,
-                title: board.title,
-                initialIsEditing: startInEditMode,
-              ),
           };
         },
       ),

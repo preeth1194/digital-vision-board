@@ -129,7 +129,6 @@ class GlobalInsightsScreen extends StatelessWidget {
     for (final c in components) {
       GoalMetadata? meta;
       if (c is ImageComponent) meta = c.goal;
-      if (c is GoalOverlayComponent) meta = c.goal;
       if (meta == null) continue;
       out.addAll(meta.todoItems.where((t) => t.text.trim().isNotEmpty));
     }

@@ -25,7 +25,7 @@ Future<void> main() async {
   // Best-effort: keep home-screen widgets up-to-date (snapshot + deep-link toggles).
   unawaited(HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs));
   unawaited(PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs));
-  unawaited(WidgetDeepLinkService.start());
+  await WidgetDeepLinkService.start();
   HabitProgressWidgetActionQueueService.instance.start();
   // Firebase is optional at runtime until platform config files are added.
   // (google-services.json / GoogleService-Info.plist via FlutterFire.)

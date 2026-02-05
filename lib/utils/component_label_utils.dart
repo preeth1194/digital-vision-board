@@ -8,7 +8,6 @@ final class ComponentLabelUtils {
   static String categoryOrTitleOrId(VisionComponent component) {
     GoalMetadata? goal;
     if (component is ImageComponent) goal = component.goal;
-    if (component is GoalOverlayComponent) goal = component.goal;
 
     final category = (goal?.category ?? '').trim();
     if (category.isNotEmpty) return category;

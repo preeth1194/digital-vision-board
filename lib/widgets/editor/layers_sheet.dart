@@ -168,7 +168,6 @@ class _LayersSheetState extends State<_LayersSheet> {
   }
 
   IconData _getIconForType(VisionComponent c) {
-    if (c is GoalOverlayComponent) return Icons.flag_outlined;
     if (c is ImageComponent) return Icons.image;
     if (c is TextComponent) return Icons.text_fields;
     return Icons.layers;

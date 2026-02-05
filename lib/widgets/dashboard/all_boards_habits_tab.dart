@@ -82,7 +82,7 @@ class AllBoardsHabitsTab extends StatelessWidget {
 
           final goalDeadline = selected is ImageComponent
               ? selected.goal?.deadline
-              : (selected is GoalOverlayComponent ? selected.goal.deadline : null);
+              : null;
 
           final req = await showAddHabitDialog(
             context,

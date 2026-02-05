@@ -25,7 +25,7 @@ final class _OnboardingCarouselScreenState extends State<OnboardingCarouselScree
       icon: Icons.image_outlined,
       title: 'A Goal Operating System',
       body:
-          'This isn’t a standard vision board. Create visual boards (Freeform, Grid, or Physical photo overlays) and turn them into a system you can execute every day.',
+          'This isn’t a standard vision board. Create visual boards (Goal Canvas or Grid) and turn them into a system you can execute every day.',
     ),
     _OnboardingSlide(
       icon: Icons.check_circle_outline,

@@ -6,7 +6,6 @@ import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
-import '../models/goal_overlay_component.dart';
 import '../models/goal_metadata.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -444,8 +443,6 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
   GoalMetadata? _getGoalFromComponent(VisionComponent component) {
     if (component is ImageComponent) {
       return component.goal;
-    } else if (component is GoalOverlayComponent) {
-      return component.goal;
     }
     return null;
   }
@@ -585,8 +582,6 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     for (final c in widget.components) {
       GoalMetadata? goal;
       if (c is ImageComponent) {
-        goal = c.goal;
-      } else if (c is GoalOverlayComponent) {
         goal = c.goal;
       }
       final microHabit = goal?.actionPlan?.microHabit?.trim();

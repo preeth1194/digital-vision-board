@@ -832,7 +832,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           ],
         ),
       ),
-      appBar: AppBar(
+      // Hide app bar for routine screen (tabIndex == 6) since it has its own header
+      appBar: _tabIndex == 6 ? null : AppBar(
         toolbarHeight: 72,
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).colorScheme.surface,

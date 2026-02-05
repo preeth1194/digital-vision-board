@@ -81,6 +81,43 @@ class SunTimesService {
     return null;
   }
 
+  /// Clear cached location to force a refresh
+  static void clearCachedLocation() {
+    _cachedLat = null;
+    _cachedLng = null;
+  }
+
+  /// Force refresh location and get new sun times
+  static Future<({DateTime sunrise, DateTime sunset})?> refreshLocationAndGetSunTimes({
+    required DateTime date,
+    SharedPreferences? prefs,
+  }) async {
+    // Clear cache to force fresh location
+    clearCachedLocation();
+    
+    // Get fresh location
+    final position = await getCurrentLocation();
+    
+    if (position == null) {
+      // Try stored location as fallback
+      final stored = await getStoredLocation(prefs: prefs);
+      if (stored != null) {
+        return calculateSunTimes(
+          date: date,
+          latitude: stored.lat,
+          longitude: stored.lng,
+        );
+      }
+      return null;
+    }
+    
+    return calculateSunTimes(
+      date: date,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+  }
+
   /// Get stored location name
   static Future<String?> getStoredLocationName({SharedPreferences? prefs}) async {
     if (_cachedLocationName != null) {
@@ -143,25 +180,23 @@ class SunTimesService {
 
     // Convert to local time
     final localOffset = date.timeZoneOffset.inMinutes;
-    final sunriseMinutesLocal = sunriseMinutesUTC + localOffset;
-    final sunsetMinutesLocal = sunsetMinutesUTC + localOffset;
+    var sunriseMinutesLocal = sunriseMinutesUTC + localOffset;
+    var sunsetMinutesLocal = sunsetMinutesUTC + localOffset;
+
+    // Normalize to 0-1440 range (handle day boundary crossings)
+    sunriseMinutesLocal = sunriseMinutesLocal % 1440;
+    if (sunriseMinutesLocal < 0) sunriseMinutesLocal += 1440;
+    sunsetMinutesLocal = sunsetMinutesLocal % 1440;
+    if (sunsetMinutesLocal < 0) sunsetMinutesLocal += 1440;
 
     // Create DateTime objects
-    final sunrise = DateTime(
-      year,
-      date.month,
-      date.day,
-      (sunriseMinutesLocal ~/ 60).clamp(0, 23),
-      (sunriseMinutesLocal % 60).round().clamp(0, 59),
-    );
+    final sunriseHour = (sunriseMinutesLocal ~/ 60).clamp(0, 23);
+    final sunriseMin = (sunriseMinutesLocal % 60).round().clamp(0, 59);
+    final sunsetHour = (sunsetMinutesLocal ~/ 60).clamp(0, 23);
+    final sunsetMin = (sunsetMinutesLocal % 60).round().clamp(0, 59);
 
-    final sunset = DateTime(
-      year,
-      date.month,
-      date.day,
-      (sunsetMinutesLocal ~/ 60).clamp(0, 23),
-      (sunsetMinutesLocal % 60).round().clamp(0, 59),
-    );
+    final sunrise = DateTime(year, date.month, date.day, sunriseHour, sunriseMin);
+    final sunset = DateTime(year, date.month, date.day, sunsetHour, sunsetMin);
 
     return (sunrise: sunrise, sunset: sunset);
   }

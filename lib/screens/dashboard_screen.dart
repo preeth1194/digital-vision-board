@@ -35,6 +35,7 @@ import '../models/routine.dart';
 import '../services/routine_storage_service.dart';
 import 'routine_editor_screen.dart';
 import 'routine_timer_screen.dart';
+import '../widgets/navigation/animated_bottom_nav_bar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -246,6 +247,84 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     final hh = ((h % 12) == 0) ? 12 : (h % 12);
     final ampm = h >= 12 ? 'PM' : 'AM';
     return '$hh:${m.toString().padLeft(2, '0')} $ampm';
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
+  }
+
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final weekday = weekdays[now.weekday - 1];
+    final month = months[now.month - 1];
+    return '$weekday, $month ${now.day}';
+  }
+
+  Widget _buildCircularIconButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback onTap,
+    int badgeCount = 0,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        ),
+        child: badgeCount > 0
+            ? Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Icon(
+                      icon,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      size: 22,
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Center(
+                child: Icon(
+                  icon,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 22,
+                ),
+              ),
+      ),
+    );
   }
 
   Future<void> _openLandingScreen() async {
@@ -658,18 +737,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 2, 3, 4]; // Dashboard, Journal, Affirmations, Insights
+    const visibleTabIndices = <int>[1, 6, 7, 2, 4]; // Dashboard, Routine, Rituals, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
-
-    final appBarTitle = _tabIndex == 1
-        ? 'Dashboard'
-        : _tabIndex == 2
-            ? 'Journal'
-            : _tabIndex == 3
-                ? 'Affirmations'
-                : _tabIndex == 4
-                    ? 'Insights'
-                    : 'Digital Vision Board';
 
     final body = DashboardBody(
       tabIndex: _tabIndex,
@@ -764,50 +833,74 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ),
       ),
       appBar: AppBar(
-        title: Text(appBarTitle),
-        automaticallyImplyLeading: true,
-        // Material 3认为 AppBar can be translucent; make it solid so navigation is always visible.
+        toolbarHeight: 72,
+        automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        actions: [
-          Builder(
-            builder: (ctx) {
-              final count = _reminderSummary?.todayPendingCount ?? 0;
-              final icon = IconButton(
-                tooltip: 'Reminders',
-                onPressed: _openRemindersSheet,
-                icon: const Icon(Icons.notifications_outlined),
-              );
-              if (count <= 0) return icon;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  icon,
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(10),
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              // Avatar with menu
+              Builder(
+                builder: (scaffoldContext) => GestureDetector(
+                  onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.primary,
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
                       ),
-                      child: Text(
-                        count > 99 ? '99+' : '$count',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onError,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.person,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 24,
                       ),
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Greeting text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _getGreeting(),
+                      style: AppTypography.heading3(context),
+                    ),
+                    Text(
+                      _getFormattedDate(),
+                      style: AppTypography.caption(context),
+                    ),
+                  ],
+                ),
+              ),
+              // Notification icon with badge
+              Builder(
+                builder: (ctx) {
+                  final count = _reminderSummary?.todayPendingCount ?? 0;
+                  return _buildCircularIconButton(
+                    context,
+                    icon: Icons.notifications_outlined,
+                    onTap: _openRemindersSheet,
+                    badgeCount: count,
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: body,
       floatingActionButton: _tabIndex == 1
@@ -816,20 +909,39 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               onCreateRoutine: _createRoutine,
             )
           : null,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: AnimatedBottomNavBar(
         currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
         onTap: (i) {
           final nextTab = visibleTabIndices[i];
           setState(() => _tabIndex = nextTab);
           _refreshReminders();
         },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.book_outlined), label: 'Journal'),
-          BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Affirmations'),
-          BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Insights'),
+          AnimatedNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Home',
+          ),
+          AnimatedNavItem(
+            icon: Icons.schedule_outlined,
+            activeIcon: Icons.schedule_rounded,
+            label: 'Routine',
+          ),
+          AnimatedNavItem(
+            icon: Icons.self_improvement_outlined,
+            activeIcon: Icons.self_improvement,
+            label: 'Rituals',
+          ),
+          AnimatedNavItem(
+            icon: Icons.book_outlined,
+            activeIcon: Icons.book_rounded,
+            label: 'Journal',
+          ),
+          AnimatedNavItem(
+            icon: Icons.insights_outlined,
+            activeIcon: Icons.insights,
+            label: 'Insights',
+          ),
         ],
       ),
     );

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Standardized typography system for the app.
-/// All text styles use theme-aware colors and consistent sizing.
+/// All text styles use Inter font, theme-aware colors, and consistent sizing.
 class AppTypography {
   AppTypography._();
 
@@ -9,10 +10,11 @@ class AppTypography {
   /// Used for main screen titles
   static TextStyle heading1(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 24,
       fontWeight: FontWeight.bold,
       color: colorScheme.onSurface,
+      letterSpacing: -0.5,
     );
   }
 
@@ -20,10 +22,11 @@ class AppTypography {
   /// Used for section titles
   static TextStyle heading2(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: colorScheme.onSurface,
+      letterSpacing: -0.3,
     );
   }
 
@@ -31,10 +34,11 @@ class AppTypography {
   /// Used for subsection titles and card titles
   static TextStyle heading3(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 18,
       fontWeight: FontWeight.w600,
       color: colorScheme.onSurface,
+      letterSpacing: -0.2,
     );
   }
 
@@ -42,10 +46,11 @@ class AppTypography {
   /// Used for main content text
   static TextStyle body(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.normal,
       color: colorScheme.onSurface,
+      height: 1.5,
     );
   }
 
@@ -53,10 +58,11 @@ class AppTypography {
   /// Used for secondary content
   static TextStyle bodySmall(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 14,
       fontWeight: FontWeight.normal,
       color: colorScheme.onSurface,
+      height: 1.5,
     );
   }
 
@@ -64,10 +70,11 @@ class AppTypography {
   /// Used for captions, hints, and metadata
   static TextStyle caption(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 12,
       fontWeight: FontWeight.normal,
       color: colorScheme.onSurfaceVariant,
+      height: 1.4,
     );
   }
 
@@ -75,10 +82,11 @@ class AppTypography {
   /// Used for button text
   static TextStyle button(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.w500,
       color: colorScheme.onPrimary,
+      letterSpacing: 0.1,
     );
   }
 
@@ -86,20 +94,22 @@ class AppTypography {
   /// Used for less prominent text
   static TextStyle secondary(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 14,
       fontWeight: FontWeight.normal,
       color: colorScheme.onSurfaceVariant,
+      height: 1.5,
     );
   }
 
   /// Error text - uses error color
   static TextStyle error(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return TextStyle(
+    return GoogleFonts.inter(
       fontSize: 14,
       fontWeight: FontWeight.normal,
       color: colorScheme.error,
+      height: 1.5,
     );
   }
 }

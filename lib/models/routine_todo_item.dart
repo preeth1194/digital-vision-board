@@ -97,9 +97,11 @@ class RoutineTodoItem {
 
   factory RoutineTodoItem.fromJson(Map<String, dynamic> json) {
     final List<dynamic> datesJson = json['completedDates'] as List<dynamic>? ?? [];
-    final List<DateTime> dates = datesJson
-        .map((dateStr) => DateTime.parse(dateStr as String))
-        .toList();
+    final List<DateTime> dates = datesJson.map((dateStr) {
+      final parsed = DateTime.parse(dateStr as String);
+      // Normalize to local date to avoid timezone issues
+      return DateTime(parsed.year, parsed.month, parsed.day);
+    }).toList();
 
     return RoutineTodoItem(
       id: json['id'] as String,

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/vision_board_home_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
@@ -15,6 +16,7 @@ import 'services/puzzle_widget_snapshot_service.dart';
 import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/wizard_defaults_service.dart';
+import 'utils/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,35 +60,39 @@ class DigitalVisionBoardApp extends StatelessWidget {
           localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
           supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.light,
-            ),
+            colorScheme: AppColors.lightScheme,
             useMaterial3: true,
-            textTheme: const TextTheme(
-              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            textTheme: GoogleFonts.interTextTheme(
+              const TextTheme(
+                displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+                bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ).apply(
+              bodyColor: AppColors.darkest,
+              displayColor: AppColors.darkest,
             ),
           ),
           darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.dark,
-            ),
+            colorScheme: AppColors.darkScheme,
             useMaterial3: true,
-            textTheme: const TextTheme(
-              displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-              bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-              bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-              labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            textTheme: GoogleFonts.interTextTheme(
+              const TextTheme(
+                displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+                bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ).apply(
+              bodyColor: AppColors.lightest,
+              displayColor: AppColors.lightest,
             ),
           ),
           themeMode: mode,

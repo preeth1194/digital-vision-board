@@ -186,6 +186,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Settings'),
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: ListView(
         children: [
@@ -221,7 +225,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.widgets_outlined),
             title: const Text('Add home-screen widget'),
             subtitle: const Text('See step-by-step instructions'),
-            onTap: () => showHomeScreenWidgetInstructionsSheet(context),
+            onTap: () {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  showHomeScreenWidgetInstructionsSheet(context);
+                }
+              });
+            },
           ),
           const Divider(height: 0),
           ListTile(

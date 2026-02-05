@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/routine.dart';
@@ -10,6 +11,7 @@ import '../services/logical_date_service.dart';
 import '../services/icon_service.dart';
 import '../utils/app_typography.dart';
 import '../widgets/circular_countdown_timer.dart';
+import '../widgets/routine/confetti_overlay.dart';
 
 class RoutineTimerScreen extends StatefulWidget {
   final Routine routine;
@@ -41,6 +43,10 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
   final Map<int, int> _elapsedMsByIndex = {};
   int? _perTodoRunningIndex;
   Timer? _perTodoTick;
+
+  // Celebration animation state
+  bool _showCelebration = false;
+  String? _celebratingTodoId;
 
   DateTime get _today => LogicalDateService.today();
 
@@ -213,7 +219,26 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
 
   bool _isPerTodoRunning(int index) => _perTodoRunningIndex == index;
 
+  /// Mark todo complete with celebration animation
+  Future<void> _markTodoCompleteWithCelebration(RoutineTodoItem todo) async {
+    // Trigger haptic feedback immediately
+    HapticFeedback.mediumImpact();
+
+    // Start celebration animation
+    setState(() {
+      _showCelebration = true;
+      _celebratingTodoId = todo.id;
+    });
+
+    // Wait a moment for celebration to be visible, then mark complete
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    if (!mounted) return;
+    await _markTodoComplete(todo);
+  }
+
   Future<void> _markTodoComplete(RoutineTodoItem todo) async {
+    final wasCompleted = todo.isCompletedOnDate(_today);
     final updatedTodo = todo.toggleForDate(_today);
     setState(() {
       final index = _routine.todos.indexWhere((t) => t.id == todo.id);
@@ -232,23 +257,56 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
     }
 
     if (!mounted) return;
-    final nextIndex = _firstIncompleteIndex;
-    setState(() {
-      _currentTodoIndex = nextIndex;
-      _updatePerTodoTicker();
-    });
-    if (nextIndex < _routine.todos.length && _pageController.hasClients) {
-      _pageController.animateToPage(
-        nextIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
 
-    if (_allComplete && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Routine complete!')),
-      );
+    // Only auto-advance if we just completed (not uncompleted)
+    if (!wasCompleted) {
+      final nextIndex = _firstIncompleteIndex;
+      
+      // Wait for celebration to finish before moving to next
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      if (!mounted) return;
+      setState(() {
+        _currentTodoIndex = nextIndex;
+        _updatePerTodoTicker();
+      });
+      if (nextIndex < _routine.todos.length && _pageController.hasClients) {
+        _pageController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+        );
+      }
+
+      if (_allComplete && mounted) {
+        // Show a more celebratory message for completing all
+        HapticFeedback.heavyImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.celebration, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Amazing! Routine complete!',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } else {
+      // Uncompleting - stay on current page
+      setState(() {
+        _updatePerTodoTicker();
+      });
     }
   }
 
@@ -290,121 +348,207 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
   Widget _buildTodoCard(int index, RoutineTodoItem todo) {
     final scheme = Theme.of(context).colorScheme;
     final isCompleted = todo.isCompletedOnDate(_today);
+    final isCelebrating = _showCelebration && _celebratingTodoId == todo.id;
     final icon = IconService.iconFromCodePoint(todo.iconCodePoint);
     final total = _routine.todos.length;
 
+    // Colors
+    const successColor = Color(0xFF4CAF50);
+
     return Padding(
       key: ValueKey(todo.id),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Card(
-        elevation: 2,
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: isCompleted
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12, top: 2),
-                      child: Icon(Icons.check_circle, color: scheme.primary, size: 28),
-                    ),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(icon, size: 48, color: scheme.primary),
-                          const SizedBox(height: 16),
-                          Text(
-                            todo.title,
-                            style: AppTypography.heading2(context).copyWith(
-                              color: scheme.onSurfaceVariant,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Step ${index + 1} of $total',
-                            style: AppTypography.caption(context).copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          _buildMarkIncompleteButton(todo),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, size: 48, color: scheme.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      todo.title,
-                      style: AppTypography.heading2(context).copyWith(
-                        color: scheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Step ${index + 1} of $total',
-                      style: AppTypography.caption(context).copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildMarkCompleteButton(todo),
-                  ],
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Stack(
+        children: [
+          // Modern list tile card
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: isCompleted
+                  ? successColor.withValues(alpha: 0.08)
+                  : scheme.surfaceContainerHighest,
+              border: Border.all(
+                color: isCompleted
+                    ? successColor.withValues(alpha: 0.3)
+                    : scheme.outlineVariant.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-        ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: isCompleted
+                    ? () => _markTodoComplete(todo)
+                    : () => _markTodoCompleteWithCelebration(todo),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Checkbox / Icon area
+                      GestureDetector(
+                        onTap: isCompleted
+                            ? () => _markTodoComplete(todo)
+                            : () => _markTodoCompleteWithCelebration(todo),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isCompleted
+                                ? successColor
+                                : scheme.primaryContainer.withValues(alpha: 0.6),
+                            boxShadow: isCompleted
+                                ? [
+                                    BoxShadow(
+                                      color: successColor.withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Icon(
+                            isCompleted ? Icons.check_rounded : icon,
+                            size: isCompleted ? 28 : 26,
+                            color: isCompleted ? Colors.white : scheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Title
+                            Text(
+                              todo.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: isCompleted
+                                    ? scheme.onSurface.withValues(alpha: 0.6)
+                                    : scheme.onSurface,
+                                decoration: isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                decorationColor: scheme.onSurface.withValues(alpha: 0.4),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            // Subtitle row
+                            Row(
+                              children: [
+                                // Step indicator
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${index + 1}/$total',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                if (todo.durationMinutes != null) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 14,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${todo.durationMinutes} min',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                                if (isCompleted) ...[
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: successColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Done',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: successColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Action indicator
+                      const SizedBox(width: 8),
+                      Icon(
+                        isCompleted ? Icons.refresh_rounded : Icons.arrow_forward_ios_rounded,
+                        size: 18,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Confetti overlay
+          if (isCelebrating)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: ConfettiOverlay(
+                  onComplete: () {
+                    if (mounted) {
+                      setState(() {
+                        _showCelebration = false;
+                        _celebratingTodoId = null;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildMarkCompleteButton(RoutineTodoItem todo) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: () => _markTodoComplete(todo),
-        icon: const Icon(Icons.check, size: 18),
-        label: const Text('Mark complete'),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          minimumSize: const Size(double.infinity, 0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMarkIncompleteButton(RoutineTodoItem todo) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () => _markTodoComplete(todo),
-        icon: const Icon(Icons.undo, size: 18),
-        label: const Text('Mark incomplete'),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          minimumSize: const Size(double.infinity, 0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
 
   int get _currentPageTargetMs {
     if (_hasOverallTimer) return _overallTargetMs;

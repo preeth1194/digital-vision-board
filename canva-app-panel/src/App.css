@@ -1,17 +1,57 @@
+/* Modern Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --primary-color: #673AB7;
-  --primary-dark: #512DA8;
-  --primary-light: #9575CD;
-  --primary-container: #EDE7F6;
+  /* Light theme (default) - Blue color palette */
+  --primary-color: #5483B3;
+  --primary-dark: #052659;
+  --primary-light: #7DA0CA;
+  --primary-container: #C1E8FF;
   --on-primary: #FFFFFF;
   --surface: #FFFFFF;
-  --on-surface: #1C1B1F;
-  --on-surface-variant: #49454F;
-  --outline: #79747E;
-  --outline-variant: #CAC4D0;
-  --background: #FEFBFF;
+  --on-surface: #021024;
+  --on-surface-variant: #052659;
+  --outline: #7DA0CA;
+  --outline-variant: #C1E8FF;
+  --background: #F8FCFF;
   --error: #BA1A1A;
-  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow: rgba(2, 16, 36, 0.1);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --primary-color: #7DA0CA;
+  --primary-dark: #5483B3;
+  --primary-light: #C1E8FF;
+  --primary-container: #052659;
+  --on-primary: #021024;
+  --surface: #021024;
+  --on-surface: #C1E8FF;
+  --on-surface-variant: #7DA0CA;
+  --outline: #5483B3;
+  --outline-variant: #052659;
+  --background: #010812;
+  --error: #FFB4AB;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* System preference detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary-color: #7DA0CA;
+    --primary-dark: #5483B3;
+    --primary-light: #C1E8FF;
+    --primary-container: #052659;
+    --on-primary: #021024;
+    --surface: #021024;
+    --on-surface: #C1E8FF;
+    --on-surface-variant: #7DA0CA;
+    --outline: #5483B3;
+    --outline-variant: #052659;
+    --background: #010812;
+    --error: #FFB4AB;
+    --shadow: rgba(0, 0, 0, 0.3);
+  }
 }
 
 * {
@@ -21,9 +61,11 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--background);

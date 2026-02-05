@@ -12,6 +12,7 @@ import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/daily_overview_screen.dart';
 import '../../screens/affirmation_screen.dart';
+import '../../screens/routine_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
@@ -139,6 +140,22 @@ class DashboardBody extends StatelessWidget {
           onOpenRoutine: onOpenRoutine,
           onEditRoutine: onEditRoutine,
           onDeleteRoutine: onDeleteRoutine,
+        ),
+      6 => const RoutineScreen(),
+      7 => FutureBuilder<Map<String, List<VisionComponent>>>(
+          future: _loadAllBoardsComponents(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            return AllBoardsHabitsTab(
+              boards: boards,
+              componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
+              onSaveBoardComponents: (id, updated) async {
+                final b = _boardById(id);
+                if (b == null) return;
+                await _saveBoardComponents(b, updated);
+              },
+            );
+          },
         ),
       2 => const JournalNotesScreen(embedded: true),
       3 => AffirmationScreen(prefs: prefs),

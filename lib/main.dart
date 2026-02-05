@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/vision_board_home_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
@@ -96,7 +96,7 @@ class DigitalVisionBoardApp extends StatelessWidget {
             ),
           ),
           themeMode: mode,
-          home: const VisionBoardHomeScreen(),
+          home: const DashboardScreen(),
         );
       },
     );

@@ -140,6 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   Future<void> _maybeShowAuthGatewayIfMandatoryAfterTenDays() async {
+    // DISABLED: 10-day mandatory login restriction is disabled for this build.
+    return;
+    // ignore: dead_code
     if (_checkedMandatoryLogin) return;
     _checkedMandatoryLogin = true;
 

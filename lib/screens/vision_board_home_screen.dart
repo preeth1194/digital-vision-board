@@ -83,6 +83,9 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
   }
 
   Future<void> _maybeShowAuthGatewayIfMandatoryAfterTenDays() async {
+    // DISABLED: 10-day mandatory login restriction is disabled for this build.
+    return;
+    // ignore: dead_code
     if (_checkedMandatoryLogin) return;
     _checkedMandatoryLogin = true;
     final prefs = _prefs ?? await SharedPreferences.getInstance();

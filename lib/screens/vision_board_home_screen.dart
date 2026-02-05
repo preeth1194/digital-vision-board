@@ -4,9 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
 import '../services/dv_auth_service.dart';
+import '../services/puzzle_service.dart';
+import '../services/widget_deeplink_service.dart';
 import '../widgets/flip/flip_card.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'dashboard_screen.dart';
+import 'puzzle_game_screen.dart';
 import 'vision_board_home_widgets.dart';
 
 /// Landing screen:
@@ -31,6 +34,36 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPuzzleDeepLink());
+  }
+
+  Future<void> _checkPuzzleDeepLink() async {
+    final shouldOpen = await WidgetDeepLinkService.shouldOpenPuzzle(prefs: _prefs);
+    if (!shouldOpen || !mounted) return;
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final imagePath = await PuzzleService.getCurrentPuzzleImage(
+      boards: _boards.isEmpty ? null : _boards,
+      prefs: prefs,
+    );
+    if (imagePath == null || imagePath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No puzzle images available. Add goal images to your vision boards.'),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PuzzleGameScreen(
+          imagePath: imagePath,
+          prefs: prefs,
+        ),
+      ),
+    );
   }
 
   Future<void> _load() async {

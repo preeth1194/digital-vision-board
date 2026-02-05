@@ -19,7 +19,6 @@ class AllBoardsTodosTab extends StatelessWidget {
 
   static GoalMetadata? _goalMeta(VisionComponent c) {
     if (c is ImageComponent) return c.goal;
-    if (c is GoalOverlayComponent) return c.goal;
     return null;
   }
 
@@ -61,7 +60,6 @@ class AllBoardsTodosTab extends StatelessWidget {
             .toList();
         final nextMeta = meta.copyWith(todoItems: nextItems);
         if (c is ImageComponent) return c.copyWith(goal: nextMeta);
-        if (c is GoalOverlayComponent) return c.copyWith(goal: nextMeta);
         return c;
       }).toList();
 

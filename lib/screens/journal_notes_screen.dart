@@ -2034,18 +2034,10 @@ Future<_ExtractedNotesResult> _extractFromBoards({
     } else {
       final comps = await VisionBoardComponentsStorageService.loadComponents(b.id, prefs: prefs);
       for (final c in comps) {
-        String? goalTitle;
-        if (c is GoalOverlayComponent) {
-          final overlayTitle = (c.goal.title ?? '').trim();
-          final whyImportant = c.goal.cbt?.visualization;
-          if (overlayTitle.isNotEmpty) addGoal(title: overlayTitle, whyImportant: whyImportant);
-          goalTitle = overlayTitle.isEmpty ? null : overlayTitle;
-        }
-
         _extractFeedbackFromComponent(
           component: c,
           boardTitle: b.title,
-          goalTitle: goalTitle,
+          goalTitle: null,
           addFeedbackNote: addFeedbackNote,
         );
       }

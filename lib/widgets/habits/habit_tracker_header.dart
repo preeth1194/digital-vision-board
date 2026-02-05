@@ -25,12 +25,7 @@ class HabitTrackerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final link = component is ZoneComponent ? (component as ZoneComponent).link : null;
     final hasLink = link != null && link.isNotEmpty;
-    final goalCarrier = component is ImageComponent
-        ? (component as ImageComponent)
-        : (component is GoalOverlayComponent ? (component as GoalOverlayComponent) : null);
-    final goal = goalCarrier is ImageComponent
-        ? goalCarrier.goal
-        : (goalCarrier is GoalOverlayComponent ? goalCarrier.goal : null);
+    final goal = component is ImageComponent ? (component as ImageComponent).goal : null;
     final displayTitle = ComponentLabelUtils.categoryOrTitleOrId(component);
     final goalTitle = (goal?.title ?? '').trim();
     final dialogGoalTitle = goalTitle.isNotEmpty ? goalTitle : displayTitle;

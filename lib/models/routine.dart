@@ -23,6 +23,18 @@ class Routine {
   /// Timer type for overall mode: 'regular' | 'rhythmic' (only used if timeMode is 'overall')
   final String? overallTimerType;
 
+  /// Occurrence type: 'daily' | 'weekdays' | 'interval'
+  final String occurrenceType;
+
+  /// Weekdays for 'weekdays' occurrence type (0=Mon, 1=Tue, ... 6=Sun)
+  final List<int>? weekdays;
+
+  /// Interval in days for 'interval' occurrence type
+  final int? intervalDays;
+
+  /// Start date for the routine (used for interval calculation)
+  final DateTime? startDate;
+
   const Routine({
     required this.id,
     required this.title,
@@ -34,6 +46,10 @@ class Routine {
     this.overallDurationMinutes,
     this.overallPlaylistId,
     this.overallTimerType,
+    this.occurrenceType = 'daily',
+    this.weekdays,
+    this.intervalDays,
+    this.startDate,
   });
 
   Routine copyWith({
@@ -47,6 +63,10 @@ class Routine {
     int? overallDurationMinutes,
     String? overallPlaylistId,
     String? overallTimerType,
+    String? occurrenceType,
+    List<int>? weekdays,
+    int? intervalDays,
+    DateTime? startDate,
   }) {
     return Routine(
       id: id ?? this.id,
@@ -59,6 +79,10 @@ class Routine {
       overallDurationMinutes: overallDurationMinutes ?? this.overallDurationMinutes,
       overallPlaylistId: overallPlaylistId ?? this.overallPlaylistId,
       overallTimerType: overallTimerType ?? this.overallTimerType,
+      occurrenceType: occurrenceType ?? this.occurrenceType,
+      weekdays: weekdays ?? this.weekdays,
+      intervalDays: intervalDays ?? this.intervalDays,
+      startDate: startDate ?? this.startDate,
     );
   }
 
@@ -73,6 +97,10 @@ class Routine {
         'overallDurationMinutes': overallDurationMinutes,
         'overallPlaylistId': overallPlaylistId,
         'overallTimerType': overallTimerType,
+        'occurrenceType': occurrenceType,
+        'weekdays': weekdays,
+        'intervalDays': intervalDays,
+        'startDate': startDate?.toIso8601String(),
       };
 
   factory Routine.fromJson(Map<String, dynamic> json) {
@@ -80,6 +108,12 @@ class Routine {
     final List<RoutineTodoItem> todos = todosJson
         .map((todoJson) => RoutineTodoItem.fromJson(todoJson as Map<String, dynamic>))
         .toList();
+
+    final List<dynamic>? weekdaysJson = json['weekdays'] as List<dynamic>?;
+    final List<int>? weekdays = weekdaysJson?.map((e) => (e as num).toInt()).toList();
+
+    final String? startDateStr = json['startDate'] as String?;
+    final DateTime? startDate = startDateStr != null ? DateTime.tryParse(startDateStr) : null;
 
     return Routine(
       id: json['id'] as String,
@@ -95,6 +129,10 @@ class Routine {
       overallDurationMinutes: (json['overallDurationMinutes'] as num?)?.toInt(),
       overallPlaylistId: json['overallPlaylistId'] as String?,
       overallTimerType: json['overallTimerType'] as String?,
+      occurrenceType: (json['occurrenceType'] as String?) ?? 'daily',
+      weekdays: weekdays,
+      intervalDays: (json['intervalDays'] as num?)?.toInt(),
+      startDate: startDate,
     );
   }
 
@@ -116,8 +154,44 @@ class Routine {
     return completedCount / todos.length;
   }
 
+  /// Check if this routine should occur on a given date
+  bool occursOnDate(DateTime date) {
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    
+    switch (occurrenceType) {
+      case 'daily':
+        return true;
+      case 'weekdays':
+        if (weekdays == null || weekdays!.isEmpty) return true;
+        // DateTime.weekday: 1=Mon, 2=Tue, ... 7=Sun
+        // Our weekdays: 0=Mon, 1=Tue, ... 6=Sun
+        final dayIndex = normalizedDate.weekday - 1; // Convert to 0-based
+        return weekdays!.contains(dayIndex);
+      case 'interval':
+        if (intervalDays == null || intervalDays! <= 0) return true;
+        final start = startDate ?? DateTime.fromMillisecondsSinceEpoch(createdAtMs);
+        final normalizedStart = DateTime(start.year, start.month, start.day);
+        final daysDiff = normalizedDate.difference(normalizedStart).inDays;
+        return daysDiff >= 0 && daysDiff % intervalDays! == 0;
+      default:
+        return true;
+    }
+  }
+
+  /// Get the start time of this routine based on the first todo's scheduled time
+  int? getStartTimeMinutes() {
+    if (todos.isEmpty) return null;
+    // Find the first todo with a scheduled time
+    for (final todo in todos) {
+      if (todo.reminderMinutes != null) {
+        return todo.reminderMinutes;
+      }
+    }
+    return null;
+  }
+
   @override
   String toString() {
-    return 'Routine(id: $id, title: $title, todos: ${todos.length})';
+    return 'Routine(id: $id, title: $title, todos: ${todos.length}, occurrence: $occurrenceType)';
   }
 }

@@ -64,7 +64,6 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
   static GoalMetadata? _goalMeta(VisionComponent c) {
     if (c is ImageComponent) return c.goal;
-    if (c is GoalOverlayComponent) return c.goal;
     return null;
   }
 
@@ -72,7 +71,6 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
   static VisionComponent _withGoalMeta(VisionComponent c, GoalMetadata meta) {
     if (c is ImageComponent) return c.copyWith(goal: meta);
-    if (c is GoalOverlayComponent) return c.copyWith(goal: meta);
     return c;
   }
 

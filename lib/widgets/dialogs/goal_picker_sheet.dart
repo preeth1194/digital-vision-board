@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../models/goal_overlay_component.dart';
 import '../../models/vision_components.dart';
 import '../../utils/component_label_utils.dart';
 
@@ -21,7 +20,6 @@ Future<VisionComponent?> showGoalPickerSheet(
 }
 
 bool _isGoalLikeComponent(VisionComponent c) {
-  if (c is GoalOverlayComponent) return true;
   if (c is ImageComponent) return c.goal != null;
   return false;
 }

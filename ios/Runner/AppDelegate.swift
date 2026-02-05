@@ -20,10 +20,11 @@ import MediaPlayer
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
     
-    // Register music provider handler (placeholder for Spotify/Apple Music integration)
-    if let registrar = self.registrar(forPlugin: "MusicProviderHandler") {
-      MusicProviderHandler.register(with: registrar)
-    }
+    // Music provider handler registration commented out - file not in Xcode project
+    // To enable: Add MusicProviderHandler.swift to Runner target in Xcode
+    // if let registrar = self.registrar(forPlugin: "MusicProviderHandler") {
+    //   MusicProviderHandler.register(with: registrar)
+    // }
 
     if let controller = window?.rootViewController as? FlutterViewController {
       let channel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
@@ -32,7 +33,9 @@ import MediaPlayer
         switch call.method {
         case "updateWidgets":
           #if canImport(WidgetKit)
-          WidgetCenter.shared.reloadAllTimelines()
+          if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+          }
           #endif
           result(nil)
         case "writeSnapshotToAppGroup":
@@ -48,7 +51,9 @@ import MediaPlayer
           ud?.set(snapshot, forKey: self.snapshotKey)
           ud?.synchronize()
           #if canImport(WidgetKit)
-          WidgetCenter.shared.reloadAllTimelines()
+          if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+          }
           #endif
           result(nil)
         case "readAndClearQueuedWidgetActions":
@@ -85,7 +90,9 @@ import MediaPlayer
         switch call.method {
         case "updateWidgets":
           #if canImport(WidgetKit)
-          WidgetCenter.shared.reloadAllTimelines()
+          if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+          }
           #endif
           result(nil)
         case "writeSnapshotToAppGroup":
@@ -101,7 +108,9 @@ import MediaPlayer
           ud?.set(snapshot, forKey: self.puzzleSnapshotKey)
           ud?.synchronize()
           #if canImport(WidgetKit)
-          WidgetCenter.shared.reloadAllTimelines()
+          if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+          }
           #endif
           result(nil)
         default:

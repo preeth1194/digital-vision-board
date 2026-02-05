@@ -19,11 +19,12 @@ class CoinsService {
   }
 
   /// Add coins to the user's balance.
-  /// Returns the new total.
+  /// Returns the new total. Negative amounts can be used to deduct coins.
+  /// The balance will never go below zero.
   static Future<int> addCoins(int amount, {SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final current = p.getInt(_coinsKey) ?? 0;
-    final newTotal = current + amount;
+    final newTotal = (current + amount).clamp(0, double.maxFinite.toInt());
     await p.setInt(_coinsKey, newTotal);
     return newTotal;
   }

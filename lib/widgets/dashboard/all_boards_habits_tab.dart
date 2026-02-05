@@ -40,12 +40,21 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   final GlobalKey _coinTargetKey = GlobalKey();
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
 
   @override
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
     _loadCoins();
+    _scrollController.addListener(_onScroll);
+  }
+  
+  void _onScroll() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
   }
 
   @override
@@ -54,6 +63,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     if (widget.componentsByBoardId != oldWidget.componentsByBoardId) {
       _localComponents = Map.from(widget.componentsByBoardId);
     }
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCoins() async {
@@ -275,7 +291,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
     });
 
-    // Award coins on completion
+    // Award coins on completion, or deduct on uncheck
     if (!wasCompleted && coinsEarned != null && coinsEarned > 0) {
       final newTotal = await CoinsService.addCoins(coinsEarned);
       
@@ -306,6 +322,117 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           );
         }
       }
+    } else if (wasCompleted) {
+      // Deduct coins when unchecking a habit
+      final coinsToDeduct = CoinsService.habitCompletionCoins;
+      final newTotal = await CoinsService.addCoins(-coinsToDeduct);
+      
+      if (mounted) {
+        setState(() => _totalCoins = newTotal < 0 ? 0 : newTotal);
+        HapticFeedback.lightImpact();
+      }
+    }
+  }
+
+  Future<void> _editHabit(_HabitEntry entry) async {
+    // Collect all existing habits for duplicate check
+    final allHabits = <HabitItem>[];
+    for (final components in _localComponents.values) {
+      for (final comp in components) {
+        allHabits.addAll(comp.habits);
+      }
+    }
+
+    final req = await showAddHabitModal(
+      context,
+      existingHabits: allHabits,
+      initialHabit: entry.habit,
+    );
+    if (req == null || !mounted) return;
+
+    final updatedHabit = entry.habit.copyWith(
+      name: req.name,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+    );
+
+    final updatedHabits = entry.component.habits
+        .map((h) => h.id == entry.habit.id ? updatedHabit : h)
+        .toList();
+    final updatedComponent = entry.component.copyWithCommon(habits: updatedHabits);
+    final updatedComponents = entry.components
+        .map((c) => c.id == entry.component.id ? updatedComponent : c)
+        .toList();
+
+    await widget.onSaveBoardComponents(entry.boardId, updatedComponents);
+    setState(() {
+      _localComponents[entry.boardId] = updatedComponents;
+    });
+
+    // Update notifications if needed
+    if (updatedHabit.reminderEnabled) {
+      await NotificationsService.scheduleHabitReminders(updatedHabit);
+    }
+
+    HapticFeedback.mediumImpact();
+  }
+
+  Future<void> _deleteHabit(_HabitEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Habit'),
+        content: Text('Are you sure you want to delete "${entry.habit.name}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final updatedHabits = entry.component.habits
+        .where((h) => h.id != entry.habit.id)
+        .toList();
+    final updatedComponent = entry.component.copyWithCommon(habits: updatedHabits);
+    final updatedComponents = entry.components
+        .map((c) => c.id == entry.component.id ? updatedComponent : c)
+        .toList();
+
+    await widget.onSaveBoardComponents(entry.boardId, updatedComponents);
+    setState(() {
+      _localComponents[entry.boardId] = updatedComponents;
+    });
+
+    // Cancel any scheduled notifications for this habit
+    await NotificationsService.cancelHabitReminders(entry.habit);
+
+    HapticFeedback.mediumImpact();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${entry.habit.name}" deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -349,6 +476,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       children: [
         // Main content
         CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // Coins header with progress
             SliverToBoxAdapter(
@@ -409,97 +540,106 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           entry.habit.isCompletedForCurrentPeriod(now);
                       final cardKey = GlobalKey();
                       
-                      return AnimatedHabitCard(
-                        key: ValueKey(entry.habit.id),
-                        habit: entry.habit,
-                        boardTitle: entry.boardTitle,
-                        isCompleted: isCompleted,
-                        isScheduledToday: scheduledToday,
-                        coinsOnComplete: CoinsService.habitCompletionCoins,
+                      return _ScrollAnimatedItem(
                         index: index,
-                        onTap: () => _handleHabitTap(
-                          boardId: entry.boardId,
-                          boardTitle: entry.boardTitle,
-                          components: entry.components,
-                          component: entry.component,
-                          habit: entry.habit,
-                          cardKey: cardKey,
+                        scrollOffset: _scrollOffset,
+                        child: _SwipeableHabitCard(
+                          entry: entry,
+                          onEdit: () => _editHabit(entry),
+                          onDelete: () => _deleteHabit(entry),
+                          child: AnimatedHabitCard(
+                            key: ValueKey(entry.habit.id),
+                            habit: entry.habit,
+                            boardTitle: entry.boardTitle,
+                            isCompleted: isCompleted,
+                            isScheduledToday: scheduledToday,
+                            coinsOnComplete: CoinsService.habitCompletionCoins,
+                            index: index,
+                            onTap: () => _handleHabitTap(
+                              boardId: entry.boardId,
+                              boardTitle: entry.boardTitle,
+                              components: entry.components,
+                              component: entry.component,
+                              habit: entry.habit,
+                              cardKey: cardKey,
+                            ),
+                            onLongPress: () {
+                              // Navigate to timer if applicable
+                              final habit = entry.habit;
+                              if (habit.timeBound?.enabled == true || 
+                                  habit.locationBound?.enabled == true) {
+                                final isSongBased = habit.timeBound?.isSongBased ?? false;
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => isSongBased
+                                        ? RhythmicTimerScreen(
+                                            habit: habit,
+                                            onMarkCompleted: () async {
+                                              final latestComponents = 
+                                                  _localComponents[entry.boardId] ?? 
+                                                  const <VisionComponent>[];
+                                              final latestComponent = latestComponents
+                                                  .where((c) => c.id == entry.component.id)
+                                                  .cast<VisionComponent?>()
+                                                  .firstWhere((_) => true, orElse: () => null);
+                                              if (latestComponent == null) return;
+                                              final latestHabit = latestComponent.habits
+                                                  .where((h) => h.id == habit.id)
+                                                  .cast<HabitItem?>()
+                                                  .firstWhere((_) => true, orElse: () => null);
+                                              if (latestHabit == null) return;
+                                              final now2 = LogicalDateService.now();
+                                              if (!latestHabit.isScheduledOnDate(now2)) return;
+                                              if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                              await _toggleHabit(
+                                                boardId: entry.boardId,
+                                                boardTitle: entry.boardTitle,
+                                                components: latestComponents,
+                                                component: latestComponent,
+                                                habit: latestHabit,
+                                                wasCompleted: false,
+                                                completionType: CompletionType.habit,
+                                                coinsEarned: CoinsService.habitCompletionCoins,
+                                              );
+                                            },
+                                          )
+                                        : HabitTimerScreen(
+                                            habit: habit,
+                                            onMarkCompleted: () async {
+                                              final latestComponents = 
+                                                  _localComponents[entry.boardId] ?? 
+                                                  const <VisionComponent>[];
+                                              final latestComponent = latestComponents
+                                                  .where((c) => c.id == entry.component.id)
+                                                  .cast<VisionComponent?>()
+                                                  .firstWhere((_) => true, orElse: () => null);
+                                              if (latestComponent == null) return;
+                                              final latestHabit = latestComponent.habits
+                                                  .where((h) => h.id == habit.id)
+                                                  .cast<HabitItem?>()
+                                                  .firstWhere((_) => true, orElse: () => null);
+                                              if (latestHabit == null) return;
+                                              final now2 = LogicalDateService.now();
+                                              if (!latestHabit.isScheduledOnDate(now2)) return;
+                                              if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                              await _toggleHabit(
+                                                boardId: entry.boardId,
+                                                boardTitle: entry.boardTitle,
+                                                components: latestComponents,
+                                                component: latestComponent,
+                                                habit: latestHabit,
+                                                wasCompleted: false,
+                                                completionType: CompletionType.habit,
+                                                coinsEarned: CoinsService.habitCompletionCoins,
+                                              );
+                                            },
+                                          ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ),
-                        onLongPress: () {
-                          // Navigate to timer if applicable
-                          final habit = entry.habit;
-                          if (habit.timeBound?.enabled == true || 
-                              habit.locationBound?.enabled == true) {
-                            final isSongBased = habit.timeBound?.isSongBased ?? false;
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => isSongBased
-                                    ? RhythmicTimerScreen(
-                                        habit: habit,
-                                        onMarkCompleted: () async {
-                                          final latestComponents = 
-                                              _localComponents[entry.boardId] ?? 
-                                              const <VisionComponent>[];
-                                          final latestComponent = latestComponents
-                                              .where((c) => c.id == entry.component.id)
-                                              .cast<VisionComponent?>()
-                                              .firstWhere((_) => true, orElse: () => null);
-                                          if (latestComponent == null) return;
-                                          final latestHabit = latestComponent.habits
-                                              .where((h) => h.id == habit.id)
-                                              .cast<HabitItem?>()
-                                              .firstWhere((_) => true, orElse: () => null);
-                                          if (latestHabit == null) return;
-                                          final now2 = LogicalDateService.now();
-                                          if (!latestHabit.isScheduledOnDate(now2)) return;
-                                          if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                          await _toggleHabit(
-                                            boardId: entry.boardId,
-                                            boardTitle: entry.boardTitle,
-                                            components: latestComponents,
-                                            component: latestComponent,
-                                            habit: latestHabit,
-                                            wasCompleted: false,
-                                            completionType: CompletionType.habit,
-                                            coinsEarned: CoinsService.habitCompletionCoins,
-                                          );
-                                        },
-                                      )
-                                    : HabitTimerScreen(
-                                        habit: habit,
-                                        onMarkCompleted: () async {
-                                          final latestComponents = 
-                                              _localComponents[entry.boardId] ?? 
-                                              const <VisionComponent>[];
-                                          final latestComponent = latestComponents
-                                              .where((c) => c.id == entry.component.id)
-                                              .cast<VisionComponent?>()
-                                              .firstWhere((_) => true, orElse: () => null);
-                                          if (latestComponent == null) return;
-                                          final latestHabit = latestComponent.habits
-                                              .where((h) => h.id == habit.id)
-                                              .cast<HabitItem?>()
-                                              .firstWhere((_) => true, orElse: () => null);
-                                          if (latestHabit == null) return;
-                                          final now2 = LogicalDateService.now();
-                                          if (!latestHabit.isScheduledOnDate(now2)) return;
-                                          if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                          await _toggleHabit(
-                                            boardId: entry.boardId,
-                                            boardTitle: entry.boardTitle,
-                                            components: latestComponents,
-                                            component: latestComponent,
-                                            habit: latestHabit,
-                                            wasCompleted: false,
-                                            completionType: CompletionType.habit,
-                                            coinsEarned: CoinsService.habitCompletionCoins,
-                                          );
-                                        },
-                                      ),
-                              ),
-                            );
-                          }
-                        },
                       );
                     },
                     childCount: allHabits.length,
@@ -561,4 +701,248 @@ class _PendingCoinAnimation {
     required this.target,
     required this.coins,
   });
+}
+
+/// Widget that applies scroll-based micro-animations to list items
+class _ScrollAnimatedItem extends StatefulWidget {
+  final int index;
+  final double scrollOffset;
+  final Widget child;
+
+  const _ScrollAnimatedItem({
+    required this.index,
+    required this.scrollOffset,
+    required this.child,
+  });
+
+  @override
+  State<_ScrollAnimatedItem> createState() => _ScrollAnimatedItemState();
+}
+
+class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _lastScrollOffset = 0;
+  bool _isScrollingDown = false;
+  
+  // Estimated item height for calculating visibility
+  static const double _itemHeight = 80.0;
+  static const double _headerHeight = 120.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+      value: 1.0,
+    );
+    _lastScrollOffset = widget.scrollOffset;
+  }
+
+  @override
+  void didUpdateWidget(_ScrollAnimatedItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (widget.scrollOffset != oldWidget.scrollOffset) {
+      final delta = widget.scrollOffset - _lastScrollOffset;
+      final isScrollingNow = delta.abs() > 0.5;
+      
+      if (isScrollingNow) {
+        _isScrollingDown = delta > 0;
+        
+        // Calculate velocity-based scale
+        final velocity = delta.abs().clamp(0.0, 30.0) / 30.0;
+        final targetScale = 1.0 - (velocity * 0.03); // Max 3% scale reduction
+        
+        // Apply subtle tilt based on scroll direction and item position
+        if (!_controller.isAnimating) {
+          _controller.value = targetScale;
+        }
+      } else if (_controller.value < 1.0) {
+        // Spring back to normal when scrolling stops
+        _controller.animateTo(
+          1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      
+      _lastScrollOffset = widget.scrollOffset;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final scale = _controller.value;
+        
+        // Calculate subtle rotation based on position and scroll direction
+        final rotationFactor = _isScrollingDown ? 0.003 : -0.003;
+        final rotation = (1.0 - scale) * rotationFactor * 10;
+        
+        // Subtle horizontal offset for parallax effect
+        final horizontalOffset = (1.0 - scale) * (_isScrollingDown ? 2.0 : -2.0);
+        
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001) // Perspective
+            ..rotateX(rotation)
+            ..scale(scale)
+            ..translate(horizontalOffset, 0),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Swipeable wrapper for habit cards with edit (left swipe) and delete (right swipe) actions
+class _SwipeableHabitCard extends StatefulWidget {
+  final _HabitEntry entry;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final Widget child;
+
+  const _SwipeableHabitCard({
+    required this.entry,
+    required this.onEdit,
+    required this.onDelete,
+    required this.child,
+  });
+
+  @override
+  State<_SwipeableHabitCard> createState() => _SwipeableHabitCardState();
+}
+
+class _SwipeableHabitCardState extends State<_SwipeableHabitCard> {
+  double _dragExtent = 0;
+  static const double _actionThreshold = 80;
+  static const double _maxDrag = 100;
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragExtent += details.delta.dx;
+      _dragExtent = _dragExtent.clamp(-_maxDrag, _maxDrag);
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_dragExtent.abs() >= _actionThreshold) {
+      if (_dragExtent > 0) {
+        // Swiped right - Delete
+        HapticFeedback.mediumImpact();
+        widget.onDelete();
+      } else {
+        // Swiped left - Edit
+        HapticFeedback.mediumImpact();
+        widget.onEdit();
+      }
+    }
+    // Reset position
+    setState(() {
+      _dragExtent = 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (_dragExtent.abs() / _actionThreshold).clamp(0.0, 1.0);
+    final isRightSwipe = _dragExtent > 0;
+
+    return Stack(
+      children: [
+        // Background action indicators
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Row(
+                children: [
+                  // Delete action (right swipe reveals left side)
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.only(left: 24),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: isRightSwipe ? progress : 0,
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 150),
+                          scale: isRightSwipe ? 0.8 + (progress * 0.2) : 0.8,
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Edit action (left swipe reveals right side)
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade600,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        ),
+                      ),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 24),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: !isRightSwipe && _dragExtent != 0 ? progress : 0,
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 150),
+                          scale: !isRightSwipe ? 0.8 + (progress * 0.2) : 0.8,
+                          child: const Icon(
+                            Icons.edit_outlined,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Draggable card
+        GestureDetector(
+          onHorizontalDragUpdate: _onHorizontalDragUpdate,
+          onHorizontalDragEnd: _onHorizontalDragEnd,
+          child: AnimatedContainer(
+            duration: _dragExtent == 0
+                ? const Duration(milliseconds: 200)
+                : Duration.zero,
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(_dragExtent, 0, 0),
+            child: widget.child,
+          ),
+        ),
+      ],
+    );
+  }
 }

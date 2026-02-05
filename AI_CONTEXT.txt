@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
-Last updated: 2026-02-01
-Updated: Added section 19 (Backend API and app integration)—current endpoints, auth, and Flutter service mapping; Restructured by feature visibility; Vision board editor web-safe file access; Corrected completion feedback and add-task/todo flows; Fixed duplicate section numbering.
+Last updated: 2026-02-05
+Updated: Added sections 20-23 covering Coins/Gamification system, Routine system, Sun Times feature, and Confetti animations; Updated dashboard navigation to reflect Routine and Rituals tabs.
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -30,13 +30,15 @@ Daily loop:
 - **Screen**: `lib/screens/dashboard_screen.dart`
 - **Body**: `lib/widgets/dashboard/dashboard_body.dart` switches by tab index.
 
-**Bottom navigation (4 tabs):**
+**Bottom navigation (tabs):**
 | Tab        | Label       | Content |
 |-----------|-------------|---------|
 | tabIndex 1 | Dashboard  | `DashboardTab`: board list (VisionBoardPreviewCard), routines, PuzzleWidget, FAB (create board / create routine) |
 | tabIndex 2 | Journal    | `JournalNotesScreen` (embedded) |
 | tabIndex 3 | Affirmations | `AffirmationScreen` |
 | tabIndex 4 | Insights   | `GlobalInsightsScreen` (per-board or all boards) |
+| tabIndex 6 | Routines   | `RoutineScreen`: sun times header, date selector, routine timeline |
+| tabIndex 7 | Rituals    | `AllBoardsHabitsTab`: coins header, animated habit cards, gamified habit tracking |
 
 **Drawer (hamburger):**
 - User profile → `AuthGatewayScreen`
@@ -374,6 +376,10 @@ Code that runs on both web and mobile must not use `dart:io` File directly when 
 - Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
 - Grid board editor + goal viewer: `lib/screens/grid_editor.dart` (exports `grid_board_editor.dart`), `lib/screens/grid_goal_viewer_screen.dart`
 - Journal / Affirmations / Insights: `lib/screens/journal_notes_screen.dart`, `lib/screens/affirmation_screen.dart`, `lib/screens/global_insights_screen.dart`
+- Routines: `lib/screens/routine_screen.dart`, `lib/screens/routine_editor_screen.dart`, `lib/screens/routine_timer_screen.dart`, `lib/models/routine.dart`
+- Coins/Gamification: `lib/services/coins_service.dart`, `lib/widgets/rituals/coins_header.dart`, `lib/widgets/rituals/animated_habit_card.dart`
+- Sun Times: `lib/services/sun_times_service.dart`, `lib/widgets/routine/sun_times_header.dart`
+- Celebrations: `lib/widgets/routine/confetti_overlay.dart`, `lib/widgets/rituals/lottie_coin_overlay.dart`
 
 ---
 
@@ -571,6 +577,25 @@ These are the most common “click paths” and what files implement them.
 - Spotify selection: `lib/screens/spotify_selection_screen.dart` for choosing playlists/tracks
 - Music provider settings: `lib/screens/music_provider_settings_screen.dart` for OAuth connection
 
+### K) Routines: create and execute timed workflows
+- Main screen: `lib/screens/routine_screen.dart` (tab index 6)
+- Editor: `lib/screens/routine_editor_screen.dart` (create/edit routines with steps)
+- Timer: `lib/screens/routine_timer_screen.dart` (execute routine with step-by-step timer)
+- Models: `lib/models/routine.dart`, `lib/models/routine_todo_item.dart`
+- Storage: `lib/services/routine_storage_service.dart`
+- Flow: Dashboard → Routines tab → Create/Open routine → Editor/Timer → Complete steps → Confetti celebration
+- Schedule types: Daily, specific weekdays, custom interval
+- Timer modes: "Flexible Flow" (overall duration) or "Guided Steps" (per-step timers)
+
+### L) Rituals/Coins: gamified habit tracking
+- Rituals tab: `lib/widgets/dashboard/all_boards_habits_tab.dart` (tab index 7)
+- Coins service: `lib/services/coins_service.dart`
+- UI components: `lib/widgets/rituals/coins_header.dart`, `lib/widgets/rituals/animated_habit_card.dart`
+- Animations: `lib/widgets/rituals/lottie_coin_overlay.dart`, `lib/widgets/rituals/coin_animation_overlay.dart`
+- Completion sheet: `lib/widgets/rituals/habit_completion_sheet.dart`
+- Flow: View habits → Complete habit → Choose coping plan (5 coins) or full habit (10 coins) → Coin animation → Balance updated
+- Streak bonuses: 25 coins every 7-day streak
+
 ---
 
 ## 16) Typography and Theme System
@@ -745,6 +770,214 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 - **Sync**: On empty local boards, app calls `GET /sync/bootstrap` to seed boards/settings; after local changes, `SyncService` enqueues and calls `POST /sync/push` (best-effort, skipped on web when backend unreachable).
 - **Wizard**: Defaults and recommendations are public (no auth); category images and Pexels are also public; wizard steps use these to build the board locally.
 - **Music OAuth**: User taps Connect in settings; app opens `/auth/spotify/start` or `/auth/youtube-music/start` in browser; backend redirects to provider and stores tokens per user (by dvToken in session/callback); app then uses `/api/spotify/*` or `/api/youtube-music/*` with the same dvToken.
+
+---
+
+## 20) Coins / Gamification System
+
+The app includes a gamification system that rewards users with coins for habit completions.
+
+### Coins Service
+- **File**: `lib/services/coins_service.dart`
+- Manages user coin balance (stored in SharedPreferences as `user_total_coins`)
+- Coin awards:
+  - Coping plan completion: 5 coins
+  - Full habit completion: 10 coins
+  - Streak bonus (every 7 days): 25 coins
+- Streak bonuses are tracked per-habit to prevent duplicate awards
+
+### UI Components
+
+**CoinsHeader** (`lib/widgets/rituals/coins_header.dart`):
+- Displays at top of Rituals tab
+- Shows circular progress ring (completed/total rituals)
+- Total coin count with shine animation
+- "Today's Progress" text
+
+**AnimatedHabitCard** (`lib/widgets/rituals/animated_habit_card.dart`):
+- Animated habit cards with gradient backgrounds (theme-aware)
+- Coin badge showing reward amount (+X coins)
+- Streak indicator (🔥X)
+- Weekly progress bar
+- Staggered entrance animations
+
+**Coin Animations**:
+- `LottieCoinOverlay` (`lib/widgets/rituals/lottie_coin_overlay.dart`): Fullscreen Lottie animation using `assets/animations/coin.json`
+- `CoinAnimationOverlay` (`lib/widgets/rituals/coin_animation_overlay.dart`): Flying coin particles with quadratic bezier curves (8 coins by default)
+
+**HabitCompletionSheet** (`lib/widgets/rituals/habit_completion_sheet.dart`):
+- Bottom sheet for choosing completion type (coping plan vs full habit)
+- Shows coin rewards for each option
+- Triggers appropriate animations on selection
+
+### Completion Flow
+1. User completes habit → `showHabitCompletionSheet()`
+2. User chooses coping plan (5 coins) or full habit (10 coins)
+3. Fullscreen Lottie animation plays
+4. Flying coins animate to header
+5. Coins added to balance via `CoinsService.addCoins()`
+6. Streak bonus checked and awarded if applicable
+
+### Integration Points
+- Used in `AllBoardsHabitsTab` (`lib/widgets/dashboard/all_boards_habits_tab.dart`)
+- Integrated with `HabitCompletionApplier` service
+- Coins awarded across all habit completion flows in the app
+
+---
+
+## 21) Routine System
+
+Routines allow users to create sequential multi-step workflows with timers, scheduling, and completion tracking.
+
+### Data Models
+
+**Routine** (`lib/models/routine.dart`):
+- `id`, `title`, `createdAtMs`
+- `iconCodePoint`, `tileColorValue` (customization)
+- `todos: List<RoutineTodoItem>` (sequential steps)
+- `timeMode`: `'overall'` (single timer) or `'per_todo'` (individual timers)
+- `overallDurationMinutes`, `overallPlaylistId`, `overallTimerType` (for overall mode)
+- `occurrenceType`: `'daily'` | `'weekdays'` | `'interval'`
+- `weekdays`, `intervalDays`, `startDate` (for scheduling)
+- Helper: `occursOnDate(date)` checks if routine runs on given date
+
+**RoutineTodoItem** (`lib/models/routine_todo_item.dart`):
+- `id`, `title`, `order`
+- `iconCodePoint` (auto-detected from title)
+- `durationMinutes` (for per_todo mode)
+- `reminderMinutes` (scheduled start time)
+- `reminderEnabled`
+- `completionDates` (per-date completion tracking as ISO strings)
+- Helper: `isCompletedOnDate(date)`
+
+### Key Screens
+
+**RoutineEditorScreen** (`lib/screens/routine_editor_screen.dart`):
+- Full-featured routine editor (~2300 lines)
+- Title, icon, and color customization
+- Schedule options: Daily, Specific days (weekday picker), Custom interval
+- Timer modes:
+  - "Flexible Flow" (overall): Single timer for entire routine (5-120 min or custom)
+  - "Guided Steps" (per_todo): Individual timer per step
+- Steps management: Inline editing, drag to reorder, per-step duration/reminder
+- Auto-icon detection from step titles
+
+**RoutineTimerScreen** (`lib/screens/routine_timer_screen.dart`):
+- Timer screen with step-by-step execution
+- Large circular countdown timer (`CircularCountdownTimer`)
+- PageView for swiping between steps
+- Timer controls: Start/Pause, Reset, +/- time adjustments
+- Per-step completion with confetti animation
+- Auto-advance to next incomplete step
+- Visual feedback: Completed steps show checkmark, green background
+
+**RoutineScreen** (`lib/screens/routine_screen.dart`):
+- Main routine list screen (tab index 6)
+- Sun times header integration (see section 22)
+- Date selector to view routines for specific dates
+- Timeline view showing routines sorted by start time
+- Pull-to-refresh support
+
+### Storage
+- **File**: `lib/services/routine_storage_service.dart`
+- Persistence via SharedPreferences as JSON
+- Active routine ID tracked for widget support
+
+### Widgets
+- `RoutinePreviewCard` (`lib/widgets/dashboard/routine_preview_card.dart`): Card widget for dashboard
+- `RoutineTimelineItem` (`lib/widgets/routine/routine_timeline_item.dart`): Timeline visualization
+- `RoutineDateSelector` (`lib/widgets/routine/routine_date_selector.dart`): Date picker
+
+### Navigation
+- Dashboard tab index 6 → `RoutineScreen`
+- Dashboard tab: Routines section with `RoutinePreviewCard`
+- Create: FAB → `RoutineEditorScreen`
+- Open: Tap card → `RoutineTimerScreen`
+
+---
+
+## 22) Sun Times Feature
+
+Calculates and displays sunrise/sunset times based on user location with visual day progress.
+
+### SunTimesService (`lib/services/sun_times_service.dart`)
+- Location management via `geolocator` package
+- Caches location in SharedPreferences
+- Requests location permissions if needed
+- Falls back to defaults (6:00 AM / 6:00 PM) if unavailable
+- Calculation algorithm based on NOAA Solar Calculator
+- Methods:
+  - `getSunTimes(date)`: Returns sunrise/sunset for date
+  - `getDefaultSunTimes()`: Fallback times
+  - `formatTime(dateTime)`: Formats as "6:45 AM"
+  - `getDayProgress()`: Returns 0.0-1.0 progress between sunrise/sunset
+
+### SunTimesHeader Widget (`lib/widgets/routine/sun_times_header.dart`)
+- Visual display with sunrise/sunset times and icons
+- Arc visualization showing sun position throughout day
+- Animated sun indicator moving along 180-degree arc
+- Progress arc fills as day progresses
+- Custom painter (`_SunArcPainter`) with theme-aware colors
+- Horizon line and time markers (6AM, 12PM, 6PM)
+
+### Integration
+- Used in `RoutineScreen` above routine timeline
+- Updates every minute to show current sun position
+- Loads sun times when date changes
+- Location cached for performance
+
+---
+
+## 23) Confetti and Celebration Animations
+
+### Confetti Overlay (`lib/widgets/routine/confetti_overlay.dart`)
+- Custom particle system for routine step completion
+- Features:
+  - 50 particles by default (configurable)
+  - Random colors (gold, green, blue, pink, orange, purple)
+  - Two shapes: circles and rectangles
+  - Random sizes, angles, speeds, rotation speeds
+- Physics:
+  - Particles fly outward from center
+  - Gravity effect (particles fall)
+  - Fade out and scale down as animation progresses
+- Animation: 1.5s duration, haptic feedback on start
+- Used in `RoutineTimerScreen` when marking todo complete
+
+### Additional Animation Components
+- `AnimatedCheckmark`: Elastic scale animation for completion checkmarks
+- `CelebrationController`: Controller for managing celebration state
+
+---
+
+## 24) Add Habit Modal (Enhanced)
+
+**File**: `lib/widgets/rituals/add_habit_modal.dart`
+
+Multi-step wizard for creating habits with advanced options:
+
+### 4-Step Wizard
+1. **Name & Icon**: Text input + icon picker (16 predefined icons)
+2. **Color**: Gradient color picker (10 color schemes)
+3. **Schedule**: Occurrence type, weekday picker, interval stepper, time picker, reminders
+4. **Advanced Options**: Duration/timer settings, habit anchoring, location triggers
+
+### Advanced Features
+- **Time-bound habits**: Duration with unit (minutes/songs)
+- **Habit anchoring**: Chain habits together ("After X habit", "Before Y habit")
+- **Location triggers**: Geofencing with arrival/dwell modes, radius selection
+- **CBT enhancements**: Optional cognitive behavioral therapy fields
+
+### UI/UX
+- Slide-in animation from right
+- Step indicator at top
+- Modern Material 3 design
+- Theme-aware colors
+- Returns `HabitCreateRequest` object with all settings
+
+### Usage
+- Called via `showAddHabitModal()`
+- Integrates with existing habit creation flows
 
 ---
 

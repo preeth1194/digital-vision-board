@@ -65,7 +65,6 @@ Daily loop:
 - Widget guide: `WidgetGuideScreen`
 - Journal: `JournalNotesScreen`; Affirmations: `AffirmationScreen`; Insights: `GlobalInsightsScreen`
 - Per-board habits/todos lists: `HabitsListScreen`, `TodosListScreen` (opened from dashboard when a board is selected; tab 5 in body is used for todos/insights with board context)
-- Daily overview: `DailyOverviewScreen` (if used elsewhere)
 - Admin: `templates_admin_screen.dart` (admin only)
 
 ### Platform / web-safe file access

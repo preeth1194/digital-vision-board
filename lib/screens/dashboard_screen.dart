@@ -24,7 +24,7 @@ import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
 import 'settings_screen.dart';
 import 'templates/template_gallery_screen.dart';
-import 'journal_notes_screen.dart';
+import 'journal/journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
@@ -836,7 +836,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ),
       ),
       // Hide app bar for routine screen (tabIndex == 6) since it has its own header
-      appBar: _tabIndex == 6 ? null : AppBar(
+      appBar: (_tabIndex == 6 || _tabIndex == 2) ? null : AppBar(
         toolbarHeight: 72,
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).colorScheme.surface,

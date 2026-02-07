@@ -26,7 +26,7 @@ class AnimatedBottomNavBar extends StatelessWidget {
     const containerColor = AppColors.darkest;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: SafeArea(
         top: false,
         child: Container(

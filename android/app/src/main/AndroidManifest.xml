@@ -15,6 +15,8 @@
     <!-- Storage permissions for local file access -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <!-- Microphone for voice notes in journal -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="digital_vision_board"
         android:name="${applicationName}"

@@ -7,7 +7,7 @@ import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
-import '../../screens/journal_notes_screen.dart';
+import '../../screens/journal/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/affirmation_screen.dart';

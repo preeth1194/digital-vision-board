@@ -38,6 +38,33 @@ final class JournalStorageService {
     }
   }
 
+  /// Load entries filtered by book ID.
+  /// If bookId is null, returns all entries (for backward compat).
+  /// Entries without a bookId are treated as belonging to the default book.
+  static Future<List<JournalEntry>> loadEntriesByBook(
+    String? bookId, {
+    SharedPreferences? prefs,
+  }) async {
+    final allEntries = await loadEntries(prefs: prefs);
+    if (bookId == null) return allEntries;
+    // Entries without bookId belong to default book
+    return allEntries.where((e) {
+      if (e.bookId == null || e.bookId!.isEmpty) {
+        return bookId == 'default_journal';
+      }
+      return e.bookId == bookId;
+    }).toList();
+  }
+
+  /// Get entry count for a specific book.
+  static Future<int> getEntryCountForBook(
+    String bookId, {
+    SharedPreferences? prefs,
+  }) async {
+    final entries = await loadEntriesByBook(bookId, prefs: prefs);
+    return entries.length;
+  }
+
   static Future<void> saveEntries(
     List<JournalEntry> entries, {
     SharedPreferences? prefs,
@@ -57,6 +84,10 @@ final class JournalStorageService {
     List<String>? tags,
     String? goalTitle, // legacy; kept for backwards compatibility
     List<String>? imagePaths,
+    String? selectedFont,
+    List<Map<String, dynamic>>? imagePositions,
+    List<String>? audioPaths,
+    String? bookId,
     SharedPreferences? prefs,
   }) async {
     final t = text.trim();
@@ -72,6 +103,7 @@ final class JournalStorageService {
     final legacyGoal = (goalTitle ?? '').trim().isEmpty ? null : goalTitle!.trim();
     final rawTitle = (title ?? '').trim();
     final titleNorm = rawTitle.isEmpty ? null : rawTitle;
+    final bookIdNorm = (bookId ?? '').trim().isEmpty ? null : bookId!.trim();
     final entry = JournalEntry(
       id: 'jrnl_$now',
       createdAtMs: now,
@@ -81,6 +113,10 @@ final class JournalStorageService {
       goalTitle: legacyGoal,
       tags: tagsNorm,
       imagePaths: imagePaths ?? const [],
+      selectedFont: selectedFont,
+      imagePositions: imagePositions,
+      audioPaths: audioPaths ?? const [],
+      bookId: bookIdNorm,
     );
     await saveEntries([entry, ...existing], prefs: p);
     return entry;
@@ -104,6 +140,10 @@ final class JournalStorageService {
     List<String>? tags,
     String? goalTitle,
     List<String>? imagePaths,
+    String? selectedFont,
+    List<Map<String, dynamic>>? imagePositions,
+    List<String>? audioPaths,
+    String? bookId,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -124,6 +164,7 @@ final class JournalStorageService {
     final textNorm = text?.trim() ?? oldEntry.text;
     final deltaNorm = delta ?? oldEntry.delta;
     final imagePathsNorm = imagePaths ?? oldEntry.imagePaths;
+    final bookIdNorm = bookId ?? oldEntry.bookId;
 
     final updatedEntry = JournalEntry(
       id: oldEntry.id,
@@ -134,6 +175,10 @@ final class JournalStorageService {
       goalTitle: legacyGoal ?? oldEntry.goalTitle,
       tags: tagsNorm,
       imagePaths: imagePathsNorm,
+      selectedFont: selectedFont ?? oldEntry.selectedFont,
+      imagePositions: imagePositions ?? oldEntry.imagePositions,
+      audioPaths: audioPaths ?? oldEntry.audioPaths,
+      bookId: bookIdNorm,
     );
 
     final updatedEntries = List<JournalEntry>.from(existing);

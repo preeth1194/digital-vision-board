@@ -40,4 +40,19 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # Fix WeScan Swift 6 / Xcode 16+ compatibility:
+  # Remove @available(*, unavailable) stored properties which are now a compile error.
+  wescan_file = File.join(installer.sandbox.root, 'WeScan', 'WeScan', 'ImageScannerController.swift')
+  if File.exist?(wescan_file)
+    File.chmod(0644, wescan_file)
+    content = File.read(wescan_file)
+    patched = content
+      .gsub(/\s*@available\(\*, unavailable.*\)\s*\n\s*public var originalImage: UIImage\?\s*\n/, "\n")
+      .gsub(/\s*@available\(\*, unavailable.*\)\s*\n\s*public var scannedImage: UIImage\?\s*\n/, "\n")
+      .gsub(/\s*@available\(\*, unavailable.*\)\s*\n\s*public var enhancedImage: UIImage\?\s*\n/, "\n")
+      .gsub(/\s*@available\(\*, unavailable.*\)\s*\n\s*public var doesUserPreferEnhancedImage: Bool = false\s*\n/, "\n")
+    File.write(wescan_file, patched)
+    puts "Patched WeScan @available stored properties"
+  end
 end

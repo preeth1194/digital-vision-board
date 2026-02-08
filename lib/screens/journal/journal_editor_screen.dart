@@ -28,6 +28,8 @@ final class JournalEntryEditorScreen extends StatefulWidget {
   final String? initialTitle;
   /// Pre-fill tags for a brand-new entry (from the new-diary overlay).
   final List<String>? initialTags;
+  /// The book this entry belongs to.
+  final String? bookId;
 
   const JournalEntryEditorScreen({
     required this.goalTitles,
@@ -36,6 +38,7 @@ final class JournalEntryEditorScreen extends StatefulWidget {
     this.autoShowVoiceRecorder = false,
     this.initialTitle,
     this.initialTags,
+    this.bookId,
   });
 
   @override
@@ -62,6 +65,11 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
   EditorFont _selectedFont = EditorFont.merriweather;
   static const String _fontPrefKey = 'journal_editor_font_v1';
 
+  // Font size overlay
+  OverlayEntry? _fontSizeOverlay;
+  final GlobalKey _fontSizeBtnKey = GlobalKey();
+  final LayerLink _fontSizeLayerLink = LayerLink();
+
   late ScrollController _scrollController;
   @override
   void initState() {
@@ -70,6 +78,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       if (!mounted) return;
+      if (!_focusNode.hasFocus) _dismissFontSizeOverlay();
       setState(() => _focused = _focusNode.hasFocus);
     });
 
@@ -220,6 +229,8 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     _contentChangesSubscription?.cancel();
     _titleChangesSubscription?.cancel();
     _scrollController.dispose();
+    _fontSizeOverlay?.remove();
+    _fontSizeOverlay = null;
     _controller.dispose();
     _focusNode.dispose();
     _titleController.dispose();
@@ -325,6 +336,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
           goalTitle: legacyGoal,
           imagePaths: _imagePaths,
           audioPaths: _audioPaths,
+          bookId: widget.bookId,
           prefs: prefs,
         );
         if (entry != null) {
@@ -812,68 +824,6 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     );
   }
 
-  void _showFormattingMenu() {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Text Formatting',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 16),
-              quill.QuillSimpleToolbar(
-                controller: _controller,
-                config: quill.QuillSimpleToolbarConfig(
-                  toolbarSize: 24,
-                  multiRowsDisplay: false,
-                  showDividers: false,
-                  toolbarSectionSpacing: 8,
-                  toolbarRunSpacing: 4,
-                  buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
-                    base: quill.QuillToolbarBaseButtonOptions(
-                      iconSize: 20,
-                      iconButtonFactor: 1.2,
-                    ),
-                  ),
-                  showFontFamily: false,
-                  showFontSize: false,
-                  showStrikeThrough: false,
-                  showInlineCode: false,
-                  showColorButton: false,
-                  showBackgroundColorButton: false,
-                  showClearFormat: false,
-                  showAlignmentButtons: false,
-                  showHeaderStyle: false,
-                  showIndent: false,
-                  showLink: false,
-                  showSearchButton: false,
-                  showSubscript: false,
-                  showSuperscript: false,
-                  showUndo: true,
-                  showRedo: true,
-                  showBoldButton: true,
-                  showItalicButton: true,
-                  showUnderLineButton: true,
-                  showListBullets: true,
-                  showListNumbers: true,
-                  showListCheck: true,
-                  showQuote: true,
-                  showCodeBlock: false,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -923,7 +873,6 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                     Navigator.of(context).pop();
                   }
                 },
-                onFormat: _showFormattingMenu,
                 onAddImage: _pickImage,
                 onRecordVoice: _showVoiceRecorder,
                 onAddTag: () async {
@@ -1124,11 +1073,257 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                   ),
                 ),
               ),  // Expanded
+              // Inline formatting toolbar above keyboard (only when keyboard is open)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                child: (_focused && MediaQuery.of(context).viewInsets.bottom > 0)
+                    ? TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutBack,
+                        builder: (context, value, child) {
+                          return Transform.translate(
+                            offset: Offset(0, 16 * (1 - value)),
+                            child: Transform.scale(
+                              scale: 0.95 + 0.05 * value,
+                              alignment: Alignment.bottomCenter,
+                              child: Opacity(
+                                opacity: value.clamp(0.0, 1.0),
+                                child: child,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border(
+                              top: BorderSide(
+                                color: colorScheme.outlineVariant.withOpacity(0.2),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Custom font size button with overlay
+                              ListenableBuilder(
+                                listenable: _controller,
+                                builder: (context, _) {
+                                  final size = _currentFontSize;
+                                  return CompositedTransformTarget(
+                                    link: _fontSizeLayerLink,
+                                    child: GestureDetector(
+                                      key: _fontSizeBtnKey,
+                                      onTap: _toggleFontSizeOverlay,
+                                      child: Container(
+                                        height: 28,
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        margin: const EdgeInsets.only(right: 4),
+                                        decoration: BoxDecoration(
+                                          color: size != null
+                                              ? colorScheme.primary.withOpacity(0.12)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              size?.toString() ?? 'Font size',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                height: 1.0,
+                                                fontWeight: size != null ? FontWeight.w600 : FontWeight.w500,
+                                                color: size != null
+                                                    ? colorScheme.primary
+                                                    : colorScheme.onSurface.withOpacity(0.7),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 2),
+                                            Icon(
+                                              Icons.arrow_drop_down_rounded,
+                                              size: 18,
+                                              color: size != null
+                                                  ? colorScheme.primary
+                                                  : colorScheme.onSurface.withOpacity(0.5),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              // Remaining formatting buttons
+                              Expanded(
+                                child: quill.QuillSimpleToolbar(
+                                  controller: _controller,
+                                  config: quill.QuillSimpleToolbarConfig(
+                                    toolbarSize: 28,
+                                    multiRowsDisplay: false,
+                                    showDividers: false,
+                                    toolbarSectionSpacing: 4,
+                                    toolbarRunSpacing: 4,
+                                    buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                                      base: quill.QuillToolbarBaseButtonOptions(
+                                        iconSize: 20,
+                                        iconButtonFactor: 1.3,
+                                      ),
+                                    ),
+                                    showFontFamily: false,
+                                    showFontSize: false,
+                                    showHeaderStyle: false,
+                                    showStrikeThrough: true,
+                                    showInlineCode: false,
+                                    showColorButton: true,
+                                    showBackgroundColorButton: true,
+                                    showClearFormat: true,
+                                    showAlignmentButtons: true,
+                                    showIndent: true,
+                                    showLink: false,
+                                    showSearchButton: false,
+                                    showSubscript: false,
+                                    showSuperscript: false,
+                                    showUndo: true,
+                                    showRedo: true,
+                                    showBoldButton: true,
+                                    showItalicButton: true,
+                                    showUnderLineButton: true,
+                                    showListBullets: true,
+                                    showListNumbers: true,
+                                    showListCheck: true,
+                                    showQuote: true,
+                                    showCodeBlock: false,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // ── Font size overlay ──────────────────────────────────
+
+  static const List<int> _fontSizes = [12, 14, 16, 17, 18, 19, 20, 22, 24, 28, 32, 36, 48, 64, 96];
+
+  int? get _currentFontSize {
+    final style = _controller.getSelectionStyle();
+    final sizeAttr = style.attributes['size'];
+    if (sizeAttr == null || sizeAttr.value == null) return null;
+    return int.tryParse(sizeAttr.value.toString());
+  }
+
+  void _dismissFontSizeOverlay() {
+    _fontSizeOverlay?.remove();
+    _fontSizeOverlay = null;
+  }
+
+  void _toggleFontSizeOverlay() {
+    if (_fontSizeOverlay != null) {
+      _dismissFontSizeOverlay();
+      return;
+    }
+
+    final currentSize = _currentFontSize;
+
+    _fontSizeOverlay = OverlayEntry(
+      builder: (context) {
+        final theme = Theme.of(context);
+        final cs = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+        return Stack(
+          children: [
+            // Tap-away dismisser
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _dismissFontSizeOverlay,
+                behavior: HitTestBehavior.opaque,
+                child: const ColoredBox(color: Colors.transparent),
+              ),
+            ),
+            // Anchored above the font size button
+            CompositedTransformFollower(
+              link: _fontSizeLayerLink,
+              targetAnchor: Alignment.topCenter,
+              followerAnchor: Alignment.bottomCenter,
+              offset: const Offset(0, -8),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 12 * (1 - value)),
+                    child: Opacity(opacity: value, child: child),
+                  );
+                },
+                child: Material(
+                  color: isDark ? cs.surfaceContainerHigh : cs.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  elevation: 8,
+                  shadowColor: Colors.black.withOpacity(0.3),
+                  child: Container(
+                    width: 100,
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: _fontSizes.length,
+                      itemBuilder: (context, index) {
+                        final size = _fontSizes[index];
+                        final isSelected = currentSize == size;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            _controller.formatSelection(
+                              quill.Attribute.fromKeyValue('size', size.toString()),
+                            );
+                            _dismissFontSizeOverlay();
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '$size',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                                    color: isSelected ? cs.primary : cs.onSurface,
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Icon(Icons.check_rounded, size: 18, color: cs.primary),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_fontSizeOverlay!);
   }
 
   String _formatEntryDate() {
@@ -1139,3 +1334,4 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
+

@@ -9,7 +9,6 @@ class EditorAppBar extends StatelessWidget {
   final bool isEditing;
   final SaveStatus saveStatus;
   final VoidCallback onBack;
-  final VoidCallback onFormat;
   final VoidCallback onAddImage;
   final VoidCallback onAddTag;
   final VoidCallback onSelectFont;
@@ -20,7 +19,6 @@ class EditorAppBar extends StatelessWidget {
     required this.isEditing,
     required this.saveStatus,
     required this.onBack,
-    required this.onFormat,
     required this.onAddImage,
     required this.onAddTag,
     required this.onSelectFont,
@@ -96,11 +94,6 @@ class EditorAppBar extends StatelessWidget {
                   icon: Icons.font_download_outlined,
                   tooltip: 'Font: ${selectedFont.displayName}',
                   onTap: onSelectFont,
-                ),
-                AppBarIconButton(
-                  icon: Icons.text_format_rounded,
-                  tooltip: 'Formatting',
-                  onTap: onFormat,
                 ),
                 AppBarIconButton(
                   icon: Icons.image_outlined,

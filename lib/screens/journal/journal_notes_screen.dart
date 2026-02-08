@@ -191,6 +191,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
             JournalEntryEditorScreen(
           goalTitles: _goalTitles,
           existingTags: _allJournalTags(_journalEntries),
+          bookId: _selectedBookId,
         ),
         transitionsBuilder: _pageTransition,
         transitionDuration: const Duration(milliseconds: 400),
@@ -222,6 +223,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
           goalTitles: _goalTitles,
           existingTags: _allJournalTags(_journalEntries),
           autoShowVoiceRecorder: true,
+          bookId: _selectedBookId,
         ),
         transitionsBuilder: (context, animation, _, child) {
           final scale = Tween<double>(begin: 0.92, end: 1.0).animate(

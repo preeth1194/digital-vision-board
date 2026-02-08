@@ -138,7 +138,10 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
     final size = MediaQuery.of(context).size;
     final bookWidth = math.min(200.0, size.width * 0.5);
     final bookHeight = math.min(260.0, size.height * 0.32);
-    final openWidth = bookWidth * 2.2;
+    final openWidth = math.min(size.width * 0.88, bookWidth * 2.6);
+    final bottomNav = MediaQuery.of(context).padding.bottom + 80;
+    final topBar = MediaQuery.of(context).padding.top + 56;
+    final openHeight = size.height - topBar - bottomNav - 48;
     final coverColor = Color(widget.book.coverColor ?? JournalBook.defaultCoverColor);
 
     return AnimatedBuilder(
@@ -147,11 +150,15 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
         // Interpolate width between closed and open
         final currentWidth = bookWidth + (_openAnimation.value * (openWidth - bookWidth));
 
+        final currentHeight = bookHeight + (_openAnimation.value * (openHeight - bookHeight));
+
+        final extraPadding = 60.0 * (1.0 - _openAnimation.value) + 10.0 * _openAnimation.value;
+
         return SizedBox(
           width: currentWidth + 40,
-          height: bookHeight + 60,
+          height: currentHeight + extraPadding,
           child: Stack(
-            alignment: Alignment.center,
+            alignment: _isOpen ? Alignment.topCenter : Alignment.center,
             children: [
               // Book shadow (hidden when open)
               if (_openAnimation.value < 0.95)
@@ -184,11 +191,14 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                     scale: 0.9 + _openAnimation.value * 0.1,
                     child: _ExpandedEntriesList(
                       width: openWidth,
-                      height: bookHeight,
+                      height: openHeight,
                       coverColor: coverColor,
                       entries: widget.entries,
                       onOpenEntry: widget.onOpenEntry,
                       onDeleteEntry: widget.onDeleteEntry,
+                      onNewEntry: widget.onNewEntry,
+                      onDeleteBook: widget.onDeleteAllEntries,
+                      onCustomize: widget.onCustomizeColor,
                       bookName: widget.book.name,
                       isFullyOpen: _openAnimation.value > 0.95,
                       onClose: _toggleBook,
@@ -479,6 +489,9 @@ class _ExpandedEntriesList extends StatefulWidget {
   final List<JournalEntry> entries;
   final void Function(JournalEntry) onOpenEntry;
   final void Function(JournalEntry) onDeleteEntry;
+  final VoidCallback onNewEntry;
+  final VoidCallback onDeleteBook;
+  final VoidCallback onCustomize;
   final String bookName;
   final bool isFullyOpen;
   final VoidCallback onClose;
@@ -490,6 +503,9 @@ class _ExpandedEntriesList extends StatefulWidget {
     required this.entries,
     required this.onOpenEntry,
     required this.onDeleteEntry,
+    required this.onNewEntry,
+    required this.onDeleteBook,
+    required this.onCustomize,
     required this.bookName,
     required this.isFullyOpen,
     required this.onClose,
@@ -606,17 +622,38 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                       ],
                     ),
                   ),
-                  // Close button
-                  GestureDetector(
-                    onTap: widget.onClose,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.keyboard_arrow_up_rounded,
-                        size: 20,
-                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                  // Action buttons
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _HeaderActionBtn(
+                        icon: Icons.more_horiz_rounded,
+                        tooltip: 'More options',
+                        onTap: widget.onCustomize,
+                        isDark: isDark,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      _HeaderActionBtn(
+                        icon: Icons.delete_outline_rounded,
+                        tooltip: 'Delete book',
+                        onTap: widget.onDeleteBook,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 4),
+                      _HeaderActionBtn(
+                        icon: Icons.add_rounded,
+                        tooltip: 'New entry',
+                        onTap: widget.onNewEntry,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 4),
+                      _HeaderActionBtn(
+                        icon: Icons.keyboard_arrow_up_rounded,
+                        tooltip: 'Close',
+                        onTap: widget.onClose,
+                        isDark: isDark,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -747,8 +784,8 @@ class _EntryRowState extends State<_EntryRow> {
     return GestureDetector(
       onTap: widget.onEdit,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
@@ -766,7 +803,7 @@ class _EntryRowState extends State<_EntryRow> {
             // Color accent bar
             Container(
               width: 3,
-              height: 28,
+              height: 36,
               decoration: BoxDecoration(
                 color: widget.coverColor.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(2),
@@ -781,7 +818,7 @@ class _EntryRowState extends State<_EntryRow> {
                   Text(
                     widget.entry.title ?? 'Untitled',
                     style: GoogleFonts.inter(
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: widget.isDark
                           ? Colors.white
@@ -790,11 +827,11 @@ class _EntryRowState extends State<_EntryRow> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     widget.formattedDate,
                     style: GoogleFonts.inter(
-                      fontSize: 10,
+                      fontSize: 12,
                       color: widget.isDark
                           ? Colors.white54
                           : Colors.grey.shade500,
@@ -815,10 +852,10 @@ class _EntryRowState extends State<_EntryRow> {
                 scale: _editPressed ? 0.85 : 1.0,
                 duration: const Duration(milliseconds: 100),
                 child: Padding(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   child: Icon(
                     Icons.edit_outlined,
-                    size: 18,
+                    size: 20,
                     color: widget.isDark
                         ? Colors.white60
                         : Colors.grey.shade600,
@@ -839,10 +876,10 @@ class _EntryRowState extends State<_EntryRow> {
                 scale: _deletePressed ? 0.85 : 1.0,
                 duration: const Duration(milliseconds: 100),
                 child: Padding(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   child: Icon(
                     Icons.delete_outline_rounded,
-                    size: 18,
+                    size: 20,
                     color: _deletePressed
                         ? Colors.red.shade400
                         : (widget.isDark
@@ -853,6 +890,68 @@ class _EntryRowState extends State<_EntryRow> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Small icon button for the expanded entries list header
+// ---------------------------------------------------------------------------
+
+class _HeaderActionBtn extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _HeaderActionBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  State<_HeaderActionBtn> createState() => _HeaderActionBtnState();
+}
+
+class _HeaderActionBtnState extends State<_HeaderActionBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: Tooltip(
+        message: widget.tooltip,
+        child: AnimatedScale(
+          scale: _pressed ? 0.85 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: _pressed
+                  ? colorScheme.onSurface.withOpacity(0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 18,
+              color: widget.isDark
+                  ? Colors.white54
+                  : Colors.grey.shade600,
+            ),
+          ),
         ),
       ),
     );

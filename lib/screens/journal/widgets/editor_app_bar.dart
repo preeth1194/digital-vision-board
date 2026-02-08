@@ -14,6 +14,10 @@ class EditorAppBar extends StatelessWidget {
   final VoidCallback onSelectFont;
   final VoidCallback onRecordVoice;
   final EditorFont selectedFont;
+  final VoidCallback onFontSize;
+  final int? currentFontSize;
+  final GlobalKey fontSizeBtnKey;
+  final LayerLink fontSizeLayerLink;
 
   const EditorAppBar({
     required this.isEditing,
@@ -24,6 +28,10 @@ class EditorAppBar extends StatelessWidget {
     required this.onSelectFont,
     required this.onRecordVoice,
     required this.selectedFont,
+    required this.onFontSize,
+    required this.currentFontSize,
+    required this.fontSizeBtnKey,
+    required this.fontSizeLayerLink,
   });
 
   @override
@@ -94,6 +102,54 @@ class EditorAppBar extends StatelessWidget {
                   icon: Icons.font_download_outlined,
                   tooltip: 'Font: ${selectedFont.displayName}',
                   onTap: onSelectFont,
+                ),
+                // Font size button
+                CompositedTransformTarget(
+                  link: fontSizeLayerLink,
+                  child: GestureDetector(
+                    key: fontSizeBtnKey,
+                    onTap: onFontSize,
+                    child: Tooltip(
+                      message: 'Font Size',
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOutCubic,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: EditorSpacing.smallGap,
+                          vertical: EditorSpacing.smallGap,
+                        ),
+                        decoration: BoxDecoration(
+                          color: currentFontSize != null
+                              ? colorScheme.primary.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(EditorSpacing.smallRadius),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              currentFontSize?.toString() ?? 'Aa',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.0,
+                                fontWeight: currentFontSize != null ? FontWeight.w600 : FontWeight.w500,
+                                color: currentFontSize != null
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 16,
+                              color: currentFontSize != null
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 AppBarIconButton(
                   icon: Icons.image_outlined,

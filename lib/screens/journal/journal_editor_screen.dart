@@ -882,6 +882,10 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                 },
                 onSelectFont: _showFontPicker,
                 selectedFont: _selectedFont,
+                onFontSize: _toggleFontSizeOverlay,
+                currentFontSize: _currentFontSize,
+                fontSizeBtnKey: _fontSizeBtnKey,
+                fontSizeLayerLink: _fontSizeLayerLink,
               ),
               // Editor content area
               Expanded(
@@ -1105,62 +1109,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                               ),
                             ),
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Custom font size button with overlay
-                              ListenableBuilder(
-                                listenable: _controller,
-                                builder: (context, _) {
-                                  final size = _currentFontSize;
-                                  return CompositedTransformTarget(
-                                    link: _fontSizeLayerLink,
-                                    child: GestureDetector(
-                                      key: _fontSizeBtnKey,
-                                      onTap: _toggleFontSizeOverlay,
-                                      child: Container(
-                                        height: 28,
-                                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        margin: const EdgeInsets.only(right: 4),
-                                        decoration: BoxDecoration(
-                                          color: size != null
-                                              ? colorScheme.primary.withOpacity(0.12)
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              size?.toString() ?? 'Font size',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                height: 1.0,
-                                                fontWeight: size != null ? FontWeight.w600 : FontWeight.w500,
-                                                color: size != null
-                                                    ? colorScheme.primary
-                                                    : colorScheme.onSurface.withOpacity(0.7),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 2),
-                                            Icon(
-                                              Icons.arrow_drop_down_rounded,
-                                              size: 18,
-                                              color: size != null
-                                                  ? colorScheme.primary
-                                                  : colorScheme.onSurface.withOpacity(0.5),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              // Remaining formatting buttons
-                              Expanded(
-                                child: quill.QuillSimpleToolbar(
+                          child: quill.QuillSimpleToolbar(
                                   controller: _controller,
                                   config: quill.QuillSimpleToolbarConfig(
                                     toolbarSize: 28,
@@ -1200,9 +1149,6 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                     showCodeBlock: false,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       )
                     : const SizedBox.shrink(),
@@ -1253,19 +1199,19 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                 child: const ColoredBox(color: Colors.transparent),
               ),
             ),
-            // Anchored above the font size button
+            // Anchored below the font size button
             CompositedTransformFollower(
               link: _fontSizeLayerLink,
-              targetAnchor: Alignment.topCenter,
-              followerAnchor: Alignment.bottomCenter,
-              offset: const Offset(0, -8),
+              targetAnchor: Alignment.bottomCenter,
+              followerAnchor: Alignment.topCenter,
+              offset: const Offset(0, 8),
               child: TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.0, end: 1.0),
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
                 builder: (context, value, child) {
                   return Transform.translate(
-                    offset: Offset(0, 12 * (1 - value)),
+                    offset: Offset(0, -12 * (1 - value)),
                     child: Opacity(opacity: value, child: child),
                   );
                 },

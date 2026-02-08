@@ -23,6 +23,7 @@ class JournalBookCarousel extends StatefulWidget {
   final void Function(String bookId, int color) onColorChanged;
   final void Function(String bookId, String newTitle) onTitleChanged;
   final String? newBookId; // ID of newly created book to auto-focus title
+  final ValueChanged<bool>? onBookOpenChanged;
 
   const JournalBookCarousel({
     super.key,
@@ -39,6 +40,7 @@ class JournalBookCarousel extends StatefulWidget {
     required this.onColorChanged,
     required this.onTitleChanged,
     this.newBookId,
+    this.onBookOpenChanged,
   });
 
   @override
@@ -98,6 +100,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
     setState(() {
       _isBookOpen = isOpen;
     });
+    widget.onBookOpenChanged?.call(isOpen);
     // Recreate controller with new viewportFraction, preserving page
     final page = _currentPage;
     _pageController.dispose();
@@ -181,7 +184,9 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final closedHeight = math.min(320.0, size.height * 0.4);
-    final openHeight = math.min(360.0, size.height * 0.45);
+    final bottomNav = MediaQuery.of(context).padding.bottom + 80;
+    final topBar = MediaQuery.of(context).padding.top + 56;
+    final openHeight = size.height - topBar - bottomNav - 24;
     final itemHeight = _isBookOpen ? openHeight : closedHeight;
     final totalItems = widget.books.length + 1;
 
@@ -248,13 +253,13 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
           ),
         ),
         const SizedBox(height: 16),
-        // Action bar for current book
+        // Action bar for current book – hidden when book is open (buttons are inside)
         if (_currentPage < widget.books.length)
           BookActionBar(
             onMore: () => _showMoreOptions(widget.books[_currentPage]),
             onDelete: () => _confirmDeleteBook(widget.books[_currentPage]),
             onAdd: widget.onNewEntry,
-            isVisible: true,
+            isVisible: !_isBookOpen,
           ),
       ],
     );

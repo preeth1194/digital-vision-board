@@ -435,6 +435,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.only(
+                  top: 0,
                   bottom: MediaQuery.of(context).padding.bottom + 100,
                 ),
                 children: [

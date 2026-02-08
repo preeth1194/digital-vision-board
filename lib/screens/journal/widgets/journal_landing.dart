@@ -81,6 +81,7 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
   late final AnimationController _entranceController;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideIn;
+  bool _isBookOpen = false;
 
   @override
   void initState() {
@@ -118,24 +119,45 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
       opacity: _fadeIn,
       child: SlideTransition(
         position: _slideIn,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOutCubic,
+          padding: EdgeInsets.symmetric(horizontal: _isBookOpen ? 0 : 28),
           child: Column(
             children: [
-              SizedBox(height: MediaQuery.of(context).padding.top + 8),
-              // Title
-              Text(
-                'Here, your journal\ncomes to life',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.merriweather(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                  height: 1.35,
-                  letterSpacing: -0.5,
-                ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+                child: SizedBox(height: _isBookOpen ? 0 : MediaQuery.of(context).padding.top + 8),
               ),
-              const SizedBox(height: 32),
+              // Title – hides & collapses when book is open
+              AnimatedSize(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+                alignment: Alignment.topCenter,
+                child: _isBookOpen
+                    ? const SizedBox.shrink()
+                    : Column(
+                        children: [
+                          AnimatedOpacity(
+                            opacity: _isBookOpen ? 0.0 : 1.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Text(
+                              'Here, your journal\ncomes to life',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.merriweather(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
+                                height: 1.35,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+              ),
               // Book carousel or single book cover
               if (widget.books.isNotEmpty && 
                   widget.onBookSelected != null && 
@@ -159,6 +181,7 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                   onColorChanged: widget.onColorChanged!,
                   onTitleChanged: widget.onTitleChanged!,
                   newBookId: widget.newBookId,
+                  onBookOpenChanged: (open) => setState(() => _isBookOpen = open),
                 )
               else
                 GestureDetector(
@@ -480,7 +503,7 @@ class StackedEntryCards extends StatelessWidget {
         : const Color(0xFFDDD8D0);
 
     return SizedBox(
-      height: 280,
+      height: 400,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [

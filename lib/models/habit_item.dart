@@ -552,3 +552,34 @@ final class HabitChaining {
         relationship: json['relationship'] as String?,
       );
 }
+
+/// Result of the add/edit habit flow; used to create or update a [HabitItem].
+final class HabitCreateRequest {
+  final String name;
+  final String? frequency; // null | 'Daily' | 'Weekly'
+  final List<int> weeklyDays; // 1=Mon..7=Sun
+  final String? deadline; // YYYY-MM-DD
+  final String? afterHabitId;
+  final String? timeOfDay; // free-form, e.g. "07:00 AM"
+  final int? reminderMinutes;
+  final bool reminderEnabled;
+  final HabitChaining? chaining;
+  final CbtEnhancements? cbtEnhancements;
+  final HabitTimeBoundSpec? timeBound;
+  final HabitLocationBoundSpec? locationBound;
+
+  const HabitCreateRequest({
+    required this.name,
+    required this.frequency,
+    required this.weeklyDays,
+    required this.deadline,
+    required this.afterHabitId,
+    required this.timeOfDay,
+    required this.reminderMinutes,
+    required this.reminderEnabled,
+    required this.chaining,
+    required this.cbtEnhancements,
+    required this.timeBound,
+    required this.locationBound,
+  });
+}

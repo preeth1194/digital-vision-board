@@ -137,6 +137,9 @@ class HabitItem {
   /// Name of the habit
   final String name;
 
+  /// Optional category (e.g. Health, Fitness, Productivity).
+  final String? category;
+
   /// Optional frequency label. Supported values: 'Daily' (default), 'Weekly'.
   final String? frequency;
 
@@ -185,6 +188,7 @@ class HabitItem {
   const HabitItem({
     required this.id,
     required this.name,
+    this.category,
     this.frequency,
     this.weeklyDays = const [],
     this.deadline,
@@ -209,6 +213,7 @@ class HabitItem {
   HabitItem copyWith({
     String? id,
     String? name,
+    String? category,
     String? frequency,
     List<int>? weeklyDays,
     String? deadline,
@@ -226,6 +231,7 @@ class HabitItem {
     return HabitItem(
       id: id ?? this.id,
       name: name ?? this.name,
+      category: category ?? this.category,
       frequency: frequency ?? this.frequency,
       weeklyDays: weeklyDays ?? this.weeklyDays,
       deadline: deadline ?? this.deadline,
@@ -247,6 +253,7 @@ class HabitItem {
     return {
       'id': id,
       'name': name,
+      'category': category,
       'frequency': frequency,
       'weeklyDays': weeklyDays,
       'deadline': deadline,
@@ -333,6 +340,7 @@ class HabitItem {
     return HabitItem(
       id: json['id'] as String,
       name: json['name'] as String,
+      category: json['category'] as String?,
       frequency: normalizedFrequency,
       weeklyDays: normalizedWeeklyDays,
       deadline: json['deadline'] as String?,
@@ -556,6 +564,7 @@ final class HabitChaining {
 /// Result of the add/edit habit flow; used to create or update a [HabitItem].
 final class HabitCreateRequest {
   final String name;
+  final String? category;
   final String? frequency; // null | 'Daily' | 'Weekly'
   final List<int> weeklyDays; // 1=Mon..7=Sun
   final String? deadline; // YYYY-MM-DD
@@ -570,6 +579,7 @@ final class HabitCreateRequest {
 
   const HabitCreateRequest({
     required this.name,
+    this.category,
     required this.frequency,
     required this.weeklyDays,
     required this.deadline,

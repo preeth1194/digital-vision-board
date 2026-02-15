@@ -140,6 +140,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final newHabit = HabitItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,

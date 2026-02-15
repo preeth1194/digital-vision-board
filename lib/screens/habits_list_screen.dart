@@ -186,6 +186,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final newHabit = HabitItem(
       id: newId,
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,

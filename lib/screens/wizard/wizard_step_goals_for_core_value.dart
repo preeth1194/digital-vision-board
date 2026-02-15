@@ -618,6 +618,7 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,

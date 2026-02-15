@@ -204,6 +204,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         HabitItem(
           id: newId,
           name: req.name,
+          category: req.category,
           frequency: req.frequency,
           weeklyDays: req.weeklyDays,
           deadline: req.deadline,

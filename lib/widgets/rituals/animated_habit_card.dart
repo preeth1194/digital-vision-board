@@ -39,19 +39,21 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
   late Animation<double> _opacityAnimation;
   bool _isPressed = false;
 
-  // Theme-based gradient color sets using AppColors
+  // Theme-based gradient color sets — Organic Clarity (mint/sage/moss).
+  // Light: only pale backgrounds so forestGreen text passes WCAG AA.
+  // Dark: rich greens with light text for high contrast.
   static const List<List<Color>> _lightGradients = [
-    [AppColors.dark, AppColors.medium],
-    [Color(0xFF052659), Color(0xFF7DA0CA)],
-    [AppColors.medium, AppColors.light],
-    [Color(0xFF0A3D62), Color(0xFF5483B3)],
+    [AppColors.mintGreen, Colors.white],
+    [AppColors.lightest, Colors.white],
+    [AppColors.offWhite, AppColors.mintGreen],
+    [AppColors.mintGreen, AppColors.lightest],
   ];
 
   static const List<List<Color>> _darkGradients = [
-    [AppColors.dark, AppColors.medium],
-    [Color(0xFF0A1E3A), Color(0xFF5483B3)],
-    [AppColors.medium, AppColors.light],
-    [Color(0xFF052659), Color(0xFF7DA0CA)],
+    [AppColors.forestGreen, AppColors.mossGreen],
+    [AppColors.darkest, AppColors.mossGreen],
+    [AppColors.mossGreen, AppColors.forestGreen],
+    [AppColors.dark, AppColors.mossGreen],
   ];
 
   List<Color> _getCardGradient(BuildContext context) {
@@ -104,9 +106,12 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     final completionsThisWeek = _getCompletionsThisWeek(widget.habit, now);
     final cardGradient = _getCardGradient(context);
 
-    // Text colors
-    final textColor = colorScheme.onPrimary;
-    final subtitleColor = colorScheme.onPrimary.withValues(alpha: 0.7);
+    // Text colors — dark green on light mint cards, light on dark cards.
+    // Dark mode uses lightest green for high contrast on dark green gradients.
+    final textColor = isDark ? AppColors.lightest : AppColors.forestGreen;
+    final subtitleColor = isDark
+        ? AppColors.lightest.withValues(alpha: 0.7)
+        : AppColors.forestGreen.withValues(alpha: 0.65);
 
     return AnimatedBuilder(
       animation: _controller,
@@ -147,9 +152,13 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.6),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: cardGradient[0].withValues(alpha: _isPressed ? 0.15 : 0.25),
+                color: cardGradient[0].withValues(alpha: _isPressed ? 0.10 : 0.18),
                 blurRadius: _isPressed ? 6 : 12,
                 offset: Offset(0, _isPressed ? 2 : 4),
               ),
@@ -173,7 +182,36 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Row(
                     children: [
-                      // Left content
+                      // Completion checkmark (left side)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.isCompleted
+                              ? textColor
+                              : textColor.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: textColor.withValues(alpha: 0.8),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: widget.isCompleted
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  key: const ValueKey('check'),
+                                  color: cardGradient[0],
+                                  size: 18,
+                                )
+                              : const SizedBox(key: ValueKey('empty')),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Text content
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,35 +295,6 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                       const SizedBox(width: 10),
                       // Coins badge
                       _buildCoinsIndicator(),
-                      const SizedBox(width: 10),
-                      // Completion checkmark
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.isCompleted
-                              ? textColor
-                              : textColor.withValues(alpha: 0.15),
-                          border: Border.all(
-                            color: textColor.withValues(alpha: 0.8),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: widget.isCompleted
-                              ? Icon(
-                                  Icons.check_rounded,
-                                  key: const ValueKey('check'),
-                                  color: cardGradient[0],
-                                  size: 18,
-                                )
-                              : const SizedBox(key: ValueKey('empty')),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -343,10 +352,10 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFD700).withValues(alpha: 0.25),
+        color: AppColors.gold.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+          color: AppColors.gold.withValues(alpha: 0.4),
           width: 1,
         ),
       ),
@@ -356,10 +365,10 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
           Container(
             width: 14,
             height: 14,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                colors: [AppColors.gold, AppColors.gold.withValues(alpha: 0.7)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -381,7 +390,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Color(0xFFFFD700),
+              color: AppColors.gold,
             ),
           ),
         ],

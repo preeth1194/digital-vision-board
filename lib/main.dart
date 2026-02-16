@@ -91,8 +91,8 @@ class DigitalVisionBoardApp extends StatelessWidget {
                 labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ).apply(
-              bodyColor: AppColors.lightest,
-              displayColor: AppColors.lightest,
+              bodyColor: const Color(0xFFE8F5E9),
+              displayColor: const Color(0xFFE8F5E9),
             ),
           ),
           themeMode: mode,

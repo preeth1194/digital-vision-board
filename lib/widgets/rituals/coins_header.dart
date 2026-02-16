@@ -72,22 +72,28 @@ class _CoinsHeaderState extends State<CoinsHeader>
         gradient: LinearGradient(
           colors: isDark
               ? [
-                  AppColors.dark,
-                  AppColors.medium.withValues(alpha: 0.8),
+                  AppColors.forestGreen,
+                  AppColors.mossGreen.withValues(alpha: 0.8),
                 ]
               : [
-                  AppColors.light.withValues(alpha: 0.6),
-                  AppColors.lightest,
+                  AppColors.mintGreen.withValues(alpha: 0.3),
+                  AppColors.offWhite,
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.7),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: isDark
                 ? Colors.black.withValues(alpha: 0.3)
-                : AppColors.medium.withValues(alpha: 0.2),
+                : AppColors.mossGreen.withValues(alpha: 0.12),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -134,12 +140,12 @@ class _CoinsHeaderState extends State<CoinsHeader>
                   : Colors.white.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.5),
+                color: AppColors.gold.withValues(alpha: 0.5),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+                  color: AppColors.gold.withValues(alpha: 0.2),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -154,14 +160,14 @@ class _CoinsHeaderState extends State<CoinsHeader>
                   height: 28,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                    gradient: LinearGradient(
+                      colors: [AppColors.gold, AppColors.gold.withValues(alpha: 0.7)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFFD700).withValues(alpha: 0.5),
+                        color: AppColors.gold.withValues(alpha: 0.5),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -190,12 +196,12 @@ class _CoinsHeaderState extends State<CoinsHeader>
                           end: Alignment.centerRight,
                           colors: [
                             isDark
-                                ? const Color(0xFFFFD700)
-                                : const Color(0xFFE6A800),
+                                ? AppColors.gold
+                                : AppColors.gold,
                             const Color(0xFFFFFFFF),
                             isDark
-                                ? const Color(0xFFFFD700)
-                                : const Color(0xFFE6A800),
+                                ? AppColors.gold
+                                : AppColors.gold,
                           ],
                           stops: [
                             (_shineAnimation.value - 0.3).clamp(0.0, 1.0),
@@ -231,9 +237,7 @@ class _CoinsHeaderState extends State<CoinsHeader>
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: isDark
-                            ? const Color(0xFFFFD700)
-                            : const Color(0xFFE6A800),
+                        color: AppColors.gold,
                       ),
                     ),
                   ),

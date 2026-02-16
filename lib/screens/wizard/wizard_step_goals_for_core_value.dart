@@ -646,13 +646,11 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
-            suggestedGoalDeadline: null,
             existingHabits: otherHabits,
           );
 

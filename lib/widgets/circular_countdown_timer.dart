@@ -41,7 +41,7 @@ class CircularCountdownTimer extends StatelessWidget {
     this.size = 300,
     this.strokeWidth = 20,
     this.backgroundColor = const Color(0xFFE0E0E0),
-    this.progressColor = const Color(0xFF2196F3),
+    this.progressColor = const Color(0xFF4A7C59),
     this.textColor = Colors.black87,
   });
 

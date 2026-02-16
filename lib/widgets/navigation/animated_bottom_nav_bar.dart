@@ -46,14 +46,19 @@ class AnimatedBottomNavBar extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(items.length, (index) {
-                  return _FluidNavItem(
-                    item: items[index],
-                    isSelected: index == currentIndex,
-                    onTap: () => onTap(index),
-                    totalItems: items.length,
-                    availableWidth: constraints.maxWidth,
+                  final isSelected = index == currentIndex;
+                  return Flexible(
+                    flex: isSelected ? 2 : 1,
+                    child: Center(
+                      child: _FluidNavItem(
+                        item: items[index],
+                        isSelected: isSelected,
+                        onTap: () => onTap(index),
+                        totalItems: items.length,
+                        availableWidth: constraints.maxWidth,
+                      ),
+                    ),
                   );
                 }),
               );
@@ -94,7 +99,7 @@ class _FluidNavItemState extends State<_FluidNavItem>
 
   static const double _circleSize = 48.0;
   static const double _iconSize = 22.0;
-  static const double _spacing = 4.0;
+
 
   @override
   void initState() {
@@ -210,60 +215,53 @@ class _FluidNavItemState extends State<_FluidNavItem>
         return GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: _spacing / 2),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              height: _circleSize,
-              width: currentWidth,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(_circleSize / 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(_circleSize / 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    // Icon container
-                    SizedBox(
-                      width: _circleSize,
-                      height: _circleSize,
-                      child: Center(
-                        child: Icon(
-                          widget.isSelected ? widget.item.activeIcon : widget.item.icon,
-                          color: iconColor,
-                          size: _iconSize,
-                        ),
-                      ),
+          child: Container(
+            height: _circleSize,
+            constraints: BoxConstraints(minWidth: _iconSize + 8, maxWidth: currentWidth),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(_circleSize / 2),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(_circleSize / 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon container – shrinks gracefully
+                  Container(
+                    width: _circleSize,
+                    height: _circleSize,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      widget.isSelected ? widget.item.activeIcon : widget.item.icon,
+                      color: iconColor,
+                      size: _iconSize,
                     ),
-                    // Label (fades and slides in)
-                    if (_expandAnimation.value > 0.05)
-                      Flexible(
-                        child: Transform.translate(
-                          offset: Offset(_labelSlide.value, 0),
-                          child: Opacity(
-                            opacity: _labelOpacity.value.clamp(0.0, 1.0),
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: Text(
-                                widget.item.label,
-                                style: const TextStyle(
-                                  color: selectedLabelColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                  ),
+                  // Label (fades and slides in)
+                  if (_expandAnimation.value > 0.05)
+                    Flexible(
+                      child: Transform.translate(
+                        offset: Offset(_labelSlide.value, 0),
+                        child: Opacity(
+                          opacity: _labelOpacity.value.clamp(0.0, 1.0),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Text(
+                              widget.item.label,
+                              style: const TextStyle(
+                                color: selectedLabelColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
           ),

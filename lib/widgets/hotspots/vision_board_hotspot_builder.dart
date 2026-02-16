@@ -34,10 +34,10 @@ class VisionBoardHotspotBuilder extends StatefulWidget {
     this.selectedHotspots = const {},
     this.showLabels = true,
     this.isEditing = true,
-    this.hotspotBorderColor = const Color(0xFF39FF14),
-    this.hotspotFillColor = const Color(0x1A39FF14),
-    this.selectedHotspotBorderColor = Colors.blue,
-    this.selectedHotspotFillColor = const Color(0x332196F3),
+    this.hotspotBorderColor = const Color(0xFF4A7C59),
+    this.hotspotFillColor = const Color(0x1A4A7C59),
+    this.selectedHotspotBorderColor = const Color(0xFF2D5A3D),
+    this.selectedHotspotFillColor = const Color(0x332D5A3D),
     this.hotspotBorderWidth = 2.0,
   });
 

@@ -9,6 +9,7 @@ import '../models/routine_todo_item.dart';
 import '../services/routine_storage_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/icon_service.dart';
+import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../widgets/circular_countdown_timer.dart';
 import '../widgets/routine/confetti_overlay.dart';
@@ -295,7 +296,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: AppColors.mossGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
@@ -353,7 +354,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
     final total = _routine.todos.length;
 
     // Colors
-    const successColor = Color(0xFF4CAF50);
+    final successColor = AppColors.mossGreen;
 
     return Padding(
       key: ValueKey(todo.id),

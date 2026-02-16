@@ -48,7 +48,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
   List<VisionComponent> _components = [];
   String? _selectedId;
 
-  Color _backgroundColor = const Color(0xFFF7F7FA);
+  Color _backgroundColor = const Color(0xFFF8F9F4);
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
 

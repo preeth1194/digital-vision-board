@@ -26,12 +26,12 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
   final _random = math.Random();
 
   static const _colors = [
-    Color(0xFFFFD700), // Gold
-    Color(0xFF4CAF50), // Green
-    Color(0xFF2196F3), // Blue
+    Color(0xFFD4A843), // Gold
+    Color(0xFF4A7C59), // Moss Green
+    Color(0xFFA8D5BA), // Mint Green
     Color(0xFFE91E63), // Pink
     Color(0xFFFF9800), // Orange
-    Color(0xFF9C27B0), // Purple
+    Color(0xFF8FBC8F), // Sage Green
   ];
 
   @override

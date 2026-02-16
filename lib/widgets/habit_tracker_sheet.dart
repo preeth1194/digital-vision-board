@@ -147,12 +147,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   }
 
   Future<void> _editHabit(HabitItem habit) async {
-    final c = widget.component;
-    final goalDeadline = c is ImageComponent ? c.goal?.deadline : null;
     final req = await showEditHabitDialog(
       context,
       habit: habit,
-      suggestedGoalDeadline: goalDeadline,
       existingHabits: _habits.where((h) => h.id != habit.id).toList(),
     );
     if (req == null) return;
@@ -187,13 +184,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   Future<void> _addNewHabit() async {
     final habitName = _newHabitController.text.trim();
-    final c = widget.component;
-    final goalDeadline = c is ImageComponent ? c.goal?.deadline : null;
 
     final req = await showAddHabitDialog(
       context,
       initialName: habitName.isEmpty ? null : habitName,
-      suggestedGoalDeadline: goalDeadline,
       existingHabits: _habits,
     );
     if (req == null) return;

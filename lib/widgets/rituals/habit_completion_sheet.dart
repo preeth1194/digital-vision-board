@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/habit_item.dart';
 import '../../services/coins_service.dart';
+import '../../utils/app_colors.dart';
 
 /// Result from the habit completion sheet.
 class HabitCompletionResult {
@@ -159,7 +160,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                       title: 'Coping Plan',
                       subtitle: 'Used strategy\nwithout full habit',
                       coins: CoinsService.copingPlanCoins,
-                      gradientColors: const [Color(0xFF667eea), Color(0xFF764ba2)],
+                      gradientColors: const [AppColors.sageGreen, AppColors.mossGreen],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -172,7 +173,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                       title: 'Full Habit',
                       subtitle: 'Completed the\nentire habit',
                       coins: CoinsService.habitCompletionCoins,
-                      gradientColors: const [Color(0xFF11998e), Color(0xFF38ef7d)],
+                      gradientColors: const [AppColors.mossGreen, AppColors.mintGreen],
                     ),
                   ),
                 ],
@@ -216,18 +217,18 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.monetization_on,
                                   size: 16,
-                                  color: Color(0xFFFFD700),
+                                  color: AppColors.gold,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '+${CoinsService.getCoinsForCompletionType(_selectedType!)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFFFFD700),
+                                    color: AppColors.gold,
                                   ),
                                 ),
                               ],
@@ -397,7 +398,7 @@ class _CompletionOptionState extends State<_CompletionOption>
                 decoration: BoxDecoration(
                   color: widget.isSelected
                       ? Colors.white.withValues(alpha: 0.2)
-                      : const Color(0xFFFFD700).withValues(alpha: 0.2),
+                      : AppColors.gold.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -408,7 +409,7 @@ class _CompletionOptionState extends State<_CompletionOption>
                       size: 16,
                       color: widget.isSelected
                           ? Colors.white
-                          : const Color(0xFFFFAB00),
+                          : AppColors.gold,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -418,7 +419,7 @@ class _CompletionOptionState extends State<_CompletionOption>
                         fontWeight: FontWeight.w700,
                         color: widget.isSelected
                             ? Colors.white
-                            : const Color(0xFFFFAB00),
+                            : AppColors.gold,
                       ),
                     ),
                   ],

@@ -26,7 +26,7 @@ class _RoutineEditorScreenState extends State<RoutineEditorScreen> {
 
   String _title = '';
   int _iconCodePoint = Icons.list.codePoint;
-  int _tileColorValue = const Color(0xFFE0F2FE).value;
+  int _tileColorValue = const Color(0xFFE8F5E9).value;
   List<RoutineTodoItem> _todos = [];
 
   // Occurrence fields

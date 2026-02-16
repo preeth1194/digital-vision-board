@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/journal_entry.dart';
 import '../../services/journal_storage_service.dart';
 import '../../services/journal_image_storage_service.dart';
+import '../../utils/app_colors.dart';
 import 'models/journal_editor_models.dart';
 import 'widgets/editor_spacing.dart';
 import 'widgets/font_picker.dart';
@@ -831,13 +832,13 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     final isDark = theme.brightness == Brightness.dark;
     final tagsSorted = _tags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-    // Neumorphic background colors - using theme surface colors
+    // Background and paper colors — cream paper on offWhite background
     final bgColor = isDark
         ? colorScheme.surfaceContainerLowest
-        : colorScheme.surfaceContainerHighest;
+        : AppColors.offWhite;
     final paperColor = isDark
         ? colorScheme.surfaceContainerHigh
-        : colorScheme.surface;
+        : AppColors.cream;
 
     return PopScope(
       canPop: !_hasUnsavedChanges,

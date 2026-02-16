@@ -145,14 +145,12 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
           );
     if (req == null) return;
 

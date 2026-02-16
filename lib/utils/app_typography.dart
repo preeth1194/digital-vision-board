@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'app_colors.dart';
+
 /// Standardized typography system for the app.
 /// All text styles use Inter font, theme-aware colors, and consistent sizing.
+/// Headings use forestGreen in light mode for a crisp organic look.
 class AppTypography {
   AppTypography._();
+
+  /// Resolve the heading color: forestGreen in light mode, onSurface in dark.
+  static Color _headingColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? Theme.of(context).colorScheme.onSurface
+        : AppColors.forestGreen;
+  }
 
   /// Heading 1 - 24sp, bold
   /// Used for main screen titles
   static TextStyle heading1(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GoogleFonts.inter(
       fontSize: 24,
       fontWeight: FontWeight.bold,
-      color: colorScheme.onSurface,
+      color: _headingColor(context),
       letterSpacing: -0.5,
     );
   }
@@ -21,11 +31,10 @@ class AppTypography {
   /// Heading 2 - 20sp, semi-bold
   /// Used for section titles
   static TextStyle heading2(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GoogleFonts.inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      color: colorScheme.onSurface,
+      color: _headingColor(context),
       letterSpacing: -0.3,
     );
   }
@@ -33,11 +42,10 @@ class AppTypography {
   /// Heading 3 - 18sp, semi-bold
   /// Used for subsection titles and card titles
   static TextStyle heading3(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GoogleFonts.inter(
       fontSize: 18,
       fontWeight: FontWeight.w600,
-      color: colorScheme.onSurface,
+      color: _headingColor(context),
       letterSpacing: -0.2,
     );
   }

@@ -740,7 +740,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 6, 7, 2, 4]; // Dashboard, Routine, Rituals, Journal, Insights
+    const visibleTabIndices = <int>[1, 7, 6, 2, 4]; // Dashboard, Rituals, Routine, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -804,6 +804,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               onTap: () async {
                 Navigator.of(context).pop();
                 await _openRemindersSheet();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.format_quote_outlined),
+              title: const Text('Affirmations'),
+              onTap: () {
+                Navigator.of(context).pop();
+                setState(() => _tabIndex = 3);
               },
             ),
             ListTile(
@@ -890,18 +898,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   ],
                 ),
               ),
-              // Notification icon with badge
-              Builder(
-                builder: (ctx) {
-                  final count = _reminderSummary?.todayPendingCount ?? 0;
-                  return _buildCircularIconButton(
-                    context,
-                    icon: Icons.notifications_outlined,
-                    onTap: _openRemindersSheet,
-                    badgeCount: count,
-                  );
-                },
-              ),
             ],
           ),
         ),
@@ -927,14 +923,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             label: 'Home',
           ),
           AnimatedNavItem(
-            icon: Icons.schedule_outlined,
-            activeIcon: Icons.schedule_rounded,
-            label: 'Routine',
-          ),
-          AnimatedNavItem(
             icon: Icons.self_improvement_outlined,
             activeIcon: Icons.self_improvement,
             label: 'Rituals',
+          ),
+          AnimatedNavItem(
+            icon: Icons.schedule_outlined,
+            activeIcon: Icons.schedule_rounded,
+            label: 'Routine',
           ),
           AnimatedNavItem(
             icon: Icons.book_outlined,

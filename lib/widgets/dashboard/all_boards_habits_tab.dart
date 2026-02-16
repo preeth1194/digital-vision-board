@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../models/core_value.dart';
 import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
+import '../../services/boards_storage_service.dart';
 import '../../services/notifications_service.dart';
 import '../../services/logical_date_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/coins_service.dart';
+import '../../services/vision_board_components_storage_service.dart';
+import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../../screens/rhythmic_timer_screen.dart';
 import '../../services/habit_geofence_tracking_service.dart';
-import '../dialogs/goal_picker_sheet.dart';
 import '../rituals/add_habit_modal.dart';
 import '../rituals/coins_header.dart';
 import '../rituals/coin_animation_overlay.dart';
@@ -101,39 +104,62 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Future<void> _addHabitGlobal() async {
-    if (widget.boards.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please create a vision board first to add habits'),
-        ),
+  Future<({VisionBoardInfo board, List<VisionComponent> components})> _ensureBoardAndComponent() async {
+    VisionBoardInfo board;
+    List<VisionComponent> components;
+
+    if (widget.boards.isNotEmpty) {
+      final picked = widget.boards.length == 1
+          ? widget.boards.first
+          : await _pickBoard();
+      if (picked == null) return (board: widget.boards.first, components: const <VisionComponent>[]);
+      board = picked;
+      components = _localComponents[board.id] ?? const <VisionComponent>[];
+    } else {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      board = VisionBoardInfo(
+        id: 'board_$now',
+        title: 'My Board',
+        createdAtMs: now,
+        coreValueId: CoreValues.growthMindset,
+        iconCodePoint: Icons.self_improvement_outlined.codePoint,
+        tileColorValue: const Color(0xFFECFDF5).value,
+        layoutType: VisionBoardInfo.layoutFreeform,
       );
-      return;
+      final existingBoards = await BoardsStorageService.loadBoards();
+      await BoardsStorageService.saveBoards([...existingBoards, board]);
+      components = const <VisionComponent>[];
     }
-    final board = await _pickBoard();
-    if (board == null) return;
-    final components = _localComponents[board.id] ?? const <VisionComponent>[];
+
     if (components.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please add goals to "${board.title}" first'),
-        ),
+      final placeholder = TextComponent(
+        id: 'habits_holder_${DateTime.now().millisecondsSinceEpoch}',
+        position: Offset.zero,
+        size: const Size(100, 50),
+        text: '',
+        style: const TextStyle(),
       );
-      return;
+      components = [placeholder];
+      await VisionBoardComponentsStorageService.saveComponents(board.id, components);
+      setState(() => _localComponents[board.id] = components);
     }
-    if (!mounted) return;
-    final selected = await showGoalPickerSheet(
-      context,
-      components: components,
-      title: 'Select goal for habit',
-    );
-    if (selected == null) return;
-    if (!mounted) return;
+
+    return (board: board, components: components);
+  }
+
+  Future<void> _addHabitGlobal() async {
+    final result = await _ensureBoardAndComponent();
+    final board = result.board;
+    final components = result.components;
+    if (components.isEmpty || !mounted) return;
+
+    final target = components.first;
+
+    final allHabits = components.expand((c) => c.habits).toList();
     final req = await showAddHabitModal(
       // ignore: use_build_context_synchronously
       context,
-      existingHabits: selected.habits,
+      existingHabits: allHabits,
     );
     if (req == null) return;
 
@@ -156,18 +182,23 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
 
     final nextComponents = components.map((c) {
-      if (c.id != selected.id) return c;
+      if (c.id != target.id) return c;
       return c.copyWithCommon(habits: [...c.habits, newHabit]);
     }).toList();
 
-    await widget.onSaveBoardComponents(board.id, nextComponents);
+    final boardKnownToParent = widget.boards.any((b) => b.id == board.id);
+    if (boardKnownToParent) {
+      await widget.onSaveBoardComponents(board.id, nextComponents);
+    } else {
+      await VisionBoardComponentsStorageService.saveComponents(board.id, nextComponents);
+    }
     setState(() => _localComponents[board.id] = nextComponents);
 
     Future<void>(() async {
       await HabitGeofenceTrackingService.instance.configureForComponent(
         boardId: board.id,
-        componentId: selected.id,
-        habits: nextComponents.where((c) => c.id == selected.id).first.habits,
+        componentId: target.id,
+        habits: nextComponents.where((c) => c.id == target.id).first.habits,
       );
     });
 
@@ -312,7 +343,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.celebration, color: Color(0xFFFFD700)),
+                  Icon(Icons.celebration, color: AppColors.gold),
                   const SizedBox(width: 8),
                   Text('Streak bonus! +${CoinsService.streakBonusCoins} coins'),
                 ],
@@ -808,7 +839,7 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   }
 }
 
-/// Swipeable wrapper for habit cards with edit (left swipe) and delete (right swipe) actions
+/// Swipeable wrapper for habit cards — swipe left to reveal edit & delete action icons.
 class _SwipeableHabitCard extends StatefulWidget {
   final _HabitEntry entry;
   final VoidCallback onEdit;
@@ -826,124 +857,174 @@ class _SwipeableHabitCard extends StatefulWidget {
   State<_SwipeableHabitCard> createState() => _SwipeableHabitCardState();
 }
 
-class _SwipeableHabitCardState extends State<_SwipeableHabitCard> {
+class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
   double _dragExtent = 0;
-  static const double _actionThreshold = 80;
-  static const double _maxDrag = 100;
+  bool _isOpen = false;
+
+  static const double _revealWidth = 120.0;
+  static const double _snapThreshold = 50.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _animation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _animateTo(double target) {
+    _animation = Tween<double>(begin: _dragExtent, end: target).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward(from: 0).then((_) {
+      if (mounted) {
+        setState(() {
+          _dragExtent = target;
+          _isOpen = target != 0;
+        });
+      }
+    });
+  }
+
+  void _close() {
+    if (_dragExtent != 0) _animateTo(0);
+  }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     setState(() {
       _dragExtent += details.delta.dx;
-      _dragExtent = _dragExtent.clamp(-_maxDrag, _maxDrag);
+      _dragExtent = _dragExtent.clamp(-_revealWidth, 0);
     });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    if (_dragExtent.abs() >= _actionThreshold) {
-      if (_dragExtent > 0) {
-        // Swiped right - Delete
-        HapticFeedback.mediumImpact();
-        widget.onDelete();
-      } else {
-        // Swiped left - Edit
-        HapticFeedback.mediumImpact();
-        widget.onEdit();
-      }
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -300 || _dragExtent.abs() > _snapThreshold) {
+      _animateTo(-_revealWidth);
+    } else {
+      _animateTo(0);
     }
-    // Reset position
-    setState(() {
-      _dragExtent = 0;
-    });
+  }
+
+  void _onEditTap() {
+    HapticFeedback.mediumImpact();
+    _close();
+    widget.onEdit();
+  }
+
+  void _onDeleteTap() {
+    HapticFeedback.mediumImpact();
+    _close();
+    widget.onDelete();
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_dragExtent.abs() / _actionThreshold).clamp(0.0, 1.0);
-    final isRightSwipe = _dragExtent > 0;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Stack(
-      children: [
-        // Background action indicators
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Row(
-                children: [
-                  // Delete action (right swipe reveals left side)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
-                        ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final offset = _controller.isAnimating ? _animation.value : _dragExtent;
+        final revealProgress = (offset.abs() / _revealWidth).clamp(0.0, 1.0);
+
+        return Stack(
+          children: [
+            // Action buttons revealed on the right
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    // Action buttons container
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
                       ),
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.only(left: 24),
                       child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                        opacity: isRightSwipe ? progress : 0,
-                        child: AnimatedScale(
-                          duration: const Duration(milliseconds: 150),
-                          scale: isRightSwipe ? 0.8 + (progress * 0.2) : 0.8,
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Colors.white,
-                            size: 28,
+                        duration: const Duration(milliseconds: 100),
+                        opacity: revealProgress.clamp(0.0, 1.0),
+                        child: SizedBox(
+                          width: _revealWidth,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Edit button
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _onEditTap,
+                                  child: Container(
+                                    color: isDark
+                                        ? Colors.blueGrey.shade700
+                                        : colorScheme.primary.withValues(alpha: 0.85),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.edit_outlined,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Delete button
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _onDeleteTap,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade600,
+                                      borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(16),
+                                        bottomRight: Radius.circular(16),
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  // Edit action (left swipe reveals right side)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade600,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(16),
-                          bottomRight: Radius.circular(16),
-                        ),
-                      ),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 24),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                        opacity: !isRightSwipe && _dragExtent != 0 ? progress : 0,
-                        child: AnimatedScale(
-                          duration: const Duration(milliseconds: 150),
-                          scale: !isRightSwipe ? 0.8 + (progress * 0.2) : 0.8,
-                          child: const Icon(
-                            Icons.edit_outlined,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
-        // Draggable card
-        GestureDetector(
-          onHorizontalDragUpdate: _onHorizontalDragUpdate,
-          onHorizontalDragEnd: _onHorizontalDragEnd,
-          child: AnimatedContainer(
-            duration: _dragExtent == 0
-                ? const Duration(milliseconds: 200)
-                : Duration.zero,
-            curve: Curves.easeOutCubic,
-            transform: Matrix4.translationValues(_dragExtent, 0, 0),
-            child: widget.child,
-          ),
-        ),
-      ],
+            // Draggable card
+            GestureDetector(
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              onTap: _isOpen ? _close : null,
+              child: Transform.translate(
+                offset: Offset(offset, 0),
+                child: widget.child,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

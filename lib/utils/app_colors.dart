@@ -1,25 +1,36 @@
 import 'package:flutter/material.dart';
 
 /// Custom color palette for the Digital Vision Board app.
-/// Based on the blue color palette:
-/// - Darkest: #021024
-/// - Dark: #052659
-/// - Medium: #5483B3
-/// - Light: #7DA0CA
-/// - Lightest: #C1E8FF
+/// "Organic Clarity" theme — white and light green aesthetic.
+///
+/// Named palette:
+/// - Darkest: #1A2E1A (deep forest-black)
+/// - Dark:    #2D5A3D (forestGreen)
+/// - Medium:  #4A7C59 (mossGreen)
+/// - Light:   #A8D5BA (mintGreen)
+/// - Lightest: #D4EBD4 (pale green tint)
 class AppColors {
   AppColors._();
 
-  // Primary palette colors
-  static const Color darkest = Color(0xFF021024);
-  static const Color dark = Color(0xFF052659);
-  static const Color medium = Color(0xFF5483B3);
-  static const Color light = Color(0xFF7DA0CA);
-  static const Color lightest = Color(0xFFC1E8FF);
+  // ── Primary palette (abstract names kept for backward-compat) ──
+  static const Color darkest = Color(0xFF1A2E1A);
+  static const Color dark = Color(0xFF2D5A3D);
+  static const Color medium = Color(0xFF4A7C59);
+  static const Color light = Color(0xFFA8D5BA);
+  static const Color lightest = Color(0xFFD4EBD4);
 
-  // Additional derived colors
-  static const Color backgroundDark = Color(0xFF010812);
-  static const Color backgroundLight = Color(0xFFF8FCFF);
+  // ── Semantic named colors ──
+  static const Color offWhite = Color(0xFFF8F9F4);
+  static const Color mintGreen = Color(0xFFA8D5BA);
+  static const Color sageGreen = Color(0xFF8FBC8F);
+  static const Color mossGreen = Color(0xFF4A7C59);
+  static const Color forestGreen = Color(0xFF2D5A3D);
+  static const Color gold = Color(0xFFD4A843);
+  static const Color cream = Color(0xFFFAFAF5);
+
+  // ── Derived / utility colors ──
+  static const Color backgroundDark = Color(0xFF0F1A0F);
+  static const Color backgroundLight = Color(0xFFF8F9F4);
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color errorLight = Color(0xFFBA1A1A);
   static const Color errorDark = Color(0xFFFFB4AB);
@@ -30,20 +41,20 @@ class AppColors {
   static const ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
     // Primary
-    primary: medium,
+    primary: mossGreen,
     onPrimary: Colors.white,
-    primaryContainer: lightest,
+    primaryContainer: Color(0xFFE8F5E9),
     onPrimaryContainer: darkest,
     // Secondary
-    secondary: dark,
+    secondary: forestGreen,
     onSecondary: Colors.white,
-    secondaryContainer: light,
+    secondaryContainer: mintGreen,
     onSecondaryContainer: darkest,
-    // Tertiary
-    tertiary: dark,
+    // Tertiary (gold accent — coins, sliders)
+    tertiary: gold,
     onTertiary: Colors.white,
-    tertiaryContainer: lightest,
-    onTertiaryContainer: darkest,
+    tertiaryContainer: Color(0xFFFFF3D6),
+    onTertiaryContainer: Color(0xFF3E2E00),
     // Error
     error: errorLight,
     onError: onErrorLight,
@@ -52,25 +63,24 @@ class AppColors {
     // Surface
     surface: surfaceLight,
     onSurface: darkest,
-    onSurfaceVariant: dark,
+    onSurfaceVariant: forestGreen,
     // Outline
-    outline: medium,
-    outlineVariant: light,
-    // Background (deprecated but still used)
+    outline: mossGreen,
+    outlineVariant: mintGreen,
     // Shadow & Scrim
     shadow: darkest,
     scrim: darkest,
     // Inverse
     inverseSurface: darkest,
     onInverseSurface: lightest,
-    inversePrimary: light,
+    inversePrimary: mintGreen,
     // Surface variants
     surfaceContainerHighest: lightest,
-    surfaceContainerHigh: Color(0xFFE8F4FF),
-    surfaceContainer: Color(0xFFF0F8FF),
-    surfaceContainerLow: Color(0xFFF5FAFF),
+    surfaceContainerHigh: Color(0xFFE8F5E9),
+    surfaceContainer: Color(0xFFF0F7F0),
+    surfaceContainerLow: Color(0xFFF5FAF5),
     surfaceContainerLowest: surfaceLight,
-    surfaceDim: light,
+    surfaceDim: mintGreen,
     surfaceBright: surfaceLight,
   );
 
@@ -78,20 +88,20 @@ class AppColors {
   static const ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
     // Primary
-    primary: light,
+    primary: mintGreen,
     onPrimary: darkest,
-    primaryContainer: dark,
+    primaryContainer: forestGreen,
     onPrimaryContainer: lightest,
     // Secondary
     secondary: lightest,
     onSecondary: darkest,
-    secondaryContainer: dark,
+    secondaryContainer: forestGreen,
     onSecondaryContainer: lightest,
-    // Tertiary
-    tertiary: lightest,
-    onTertiary: darkest,
-    tertiaryContainer: dark,
-    onTertiaryContainer: lightest,
+    // Tertiary (gold accent — coins, sliders)
+    tertiary: Color(0xFFE8C46A),
+    onTertiary: Color(0xFF3E2E00),
+    tertiaryContainer: Color(0xFF5C4400),
+    onTertiaryContainer: Color(0xFFFFF3D6),
     // Error
     error: errorDark,
     onError: onErrorDark,
@@ -99,26 +109,25 @@ class AppColors {
     onErrorContainer: Color(0xFFFFDAD6),
     // Surface
     surface: darkest,
-    onSurface: lightest,
-    onSurfaceVariant: light,
+    onSurface: Color(0xFFE8F5E9),
+    onSurfaceVariant: mintGreen,
     // Outline
-    outline: medium,
-    outlineVariant: dark,
-    // Background (deprecated but still used)
+    outline: sageGreen,
+    outlineVariant: forestGreen,
     // Shadow & Scrim
     shadow: Colors.black,
     scrim: Colors.black,
     // Inverse
     inverseSurface: lightest,
     onInverseSurface: darkest,
-    inversePrimary: medium,
+    inversePrimary: mossGreen,
     // Surface variants
-    surfaceContainerHighest: dark,
-    surfaceContainerHigh: Color(0xFF0A1E3A),
-    surfaceContainer: Color(0xFF061528),
-    surfaceContainerLow: Color(0xFF040F1E),
+    surfaceContainerHighest: forestGreen,
+    surfaceContainerHigh: Color(0xFF1E3A1E),
+    surfaceContainer: Color(0xFF152B15),
+    surfaceContainerLow: Color(0xFF122412),
     surfaceContainerLowest: backgroundDark,
     surfaceDim: darkest,
-    surfaceBright: dark,
+    surfaceBright: forestGreen,
   );
 }

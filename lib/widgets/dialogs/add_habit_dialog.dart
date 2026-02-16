@@ -10,15 +10,13 @@ export '../../models/habit_item.dart' show HabitCreateRequest;
 Future<HabitCreateRequest?> showAddHabitDialog(
   BuildContext context, {
   String? initialName,
-  String? suggestedGoalDeadline,
   required List<HabitItem> existingHabits,
 }) async {
   return showAddHabitModal(
     context,
     existingHabits: existingHabits,
     initialHabit: null,
-      initialName: initialName,
-      suggestedGoalDeadline: suggestedGoalDeadline,
+    initialName: initialName,
   );
 }
 
@@ -26,13 +24,11 @@ Future<HabitCreateRequest?> showAddHabitDialog(
 Future<HabitCreateRequest?> showEditHabitDialog(
   BuildContext context, {
   required HabitItem habit,
-  String? suggestedGoalDeadline,
   required List<HabitItem> existingHabits,
 }) async {
   return showAddHabitModal(
     context,
     existingHabits: existingHabits,
-      initialHabit: habit,
-      suggestedGoalDeadline: suggestedGoalDeadline,
+    initialHabit: habit,
   );
 }

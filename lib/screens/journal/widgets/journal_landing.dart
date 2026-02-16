@@ -6,6 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
+import '../../../utils/app_colors.dart';
 import 'journal_book_carousel.dart';
 
 /// Dark, minimal landing page with book carousel and Record/Type action pill.
@@ -494,13 +495,13 @@ class StackedEntryCards extends StatelessWidget {
     final stackCount = entries.length.clamp(1, 3);
     final topEntry = entries.first;
 
-    // Paper-like back layer colors
+    // Paper-like back layer colors — cream/offWhite tones
     final backLayer1 = isDark
         ? colorScheme.surfaceContainer.withOpacity(0.6)
-        : const Color(0xFFE8E3DB);
+        : AppColors.cream;
     final backLayer2 = isDark
         ? colorScheme.surfaceContainer.withOpacity(0.4)
-        : const Color(0xFFDDD8D0);
+        : AppColors.offWhite;
 
     return SizedBox(
       height: 400,
@@ -633,16 +634,16 @@ class StackedFrontCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    // Paper gradient colors
+    // Paper gradient colors — cream/offWhite tones
     final flat = isDark
         ? colorScheme.surfaceContainerHigh
-        : const Color(0xFFF8F5F0);
+        : AppColors.cream;
     final highlight = isDark
         ? colorScheme.surfaceContainerHighest
-        : const Color(0xFFFFFDF8);
+        : Colors.white;
     final shadow = isDark
         ? colorScheme.surfaceContainer
-        : const Color(0xFFEDE8E0);
+        : AppColors.offWhite;
 
     final date = entry.createdAt;
     final preview = _getPreview();
@@ -863,23 +864,23 @@ class _LatestEntryOverlayState extends State<LatestEntryOverlay>
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    // Paper gradient colors
+    // Paper gradient colors — cream/offWhite tones
     final flat = isDark
         ? colorScheme.surfaceContainerHigh
-        : const Color(0xFFF8F5F0);
+        : AppColors.cream;
     final highlight = isDark
         ? colorScheme.surfaceContainerHighest
-        : const Color(0xFFFFFDF8);
+        : Colors.white;
     final shadow = isDark
         ? colorScheme.surfaceContainer
-        : const Color(0xFFEDE8E0);
+        : AppColors.offWhite;
 
     final backLayer1 = isDark
         ? colorScheme.surfaceContainer.withOpacity(0.6)
-        : const Color(0xFFE8E3DB);
+        : AppColors.cream;
     final backLayer2 = isDark
         ? colorScheme.surfaceContainer.withOpacity(0.4)
-        : const Color(0xFFDDD8D0);
+        : AppColors.offWhite;
 
     final date = widget.entry.createdAt;
     final preview = _getPreview();

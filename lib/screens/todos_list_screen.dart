@@ -248,14 +248,12 @@ class _TodosListScreenState extends State<TodosListScreen> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: meta.deadline,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: meta.deadline,
           );
     if (req == null) return;
 

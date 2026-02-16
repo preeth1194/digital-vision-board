@@ -23,24 +23,101 @@ const List<String> _kHabitCategories = [
   'Other',
 ];
 
+/// Common daily routines used as default options in the habit-stacking picker.
+const List<String> _kDefaultStackingHabits = [
+  'Brush teeth',
+  'Morning coffee',
+  'Shower',
+  'Breakfast',
+  'Lunch',
+  'Dinner',
+  'Wake up',
+  'Go to bed',
+  'Morning walk',
+  'Evening walk',
+  'Commute to work',
+  'Commute home',
+  'Workout',
+  'Meditation',
+  'Journaling',
+  'Reading',
+];
+
+/// Curated habit icons by category. Each category maps to thematically relevant icons only.
+/// Fitness: sports/workout only (no Nature, Goal, Sunlight). Categories may have 10+ icons.
 const List<(IconData, String)> _habitIcons = [
+  // Fitness (0-8): sports and workout only
   (Icons.fitness_center, 'Workout'),
-  (Icons.menu_book, 'Read'),
+  (Icons.directions_bike, 'Cycling'),
+  (Icons.directions_run, 'Running'),
+  (Icons.directions_walk, 'Walking'),
+  (Icons.sports_gymnastics, 'Stretch'),
+  (Icons.sports_basketball, 'Basketball'),
+  (Icons.sports_soccer, 'Soccer'),
+  (Icons.sports_tennis, 'Tennis'),
+  (Icons.pool, 'Swimming'),
+  // Health (9-15): medical, nutrition, sleep, wellness
   (Icons.water_drop, 'Water'),
   (Icons.restaurant, 'Food'),
   (Icons.bedtime, 'Sleep'),
+  (Icons.favorite, 'Heart'),
+  (Icons.local_hospital, 'Medical'),
   (Icons.psychology, 'Mental'),
-  (Icons.favorite, 'Health'),
-  (Icons.directions_bike, 'Exercise'),
+  (Icons.spa, 'Spa'),
+  // Productivity (16-23): tasks, time, focus, work
+  (Icons.menu_book, 'Read'),
   (Icons.coffee, 'Morning'),
-  (Icons.music_note, 'Creative'),
-  (Icons.mood, 'Happy'),
-  (Icons.wb_sunny, 'Energy'),
-  (Icons.eco, 'Nature'),
-  (Icons.bolt, 'Power'),
+  (Icons.schedule, 'Schedule'),
+  (Icons.check_circle, 'Task'),
+  (Icons.work, 'Work'),
+  (Icons.bolt, 'Focus'),
   (Icons.track_changes, 'Goal'),
-  (Icons.emoji_events, 'Win'),
+  (Icons.alarm, 'Alarm'),
+  // Mindfulness + Learning + Relationships + Finance + Creativity (24-48)
+  (Icons.self_improvement, 'Meditation'),
+  (Icons.mood, 'Calm'),
+  (Icons.eco, 'Nature'),
+  (Icons.school, 'Study'),
+  (Icons.lightbulb, 'Idea'),
+  (Icons.code, 'Code'),
+  (Icons.auto_stories, 'Books'),
+  (Icons.calculate, 'Math'),
+  (Icons.people, 'People'),
+  (Icons.favorite_border, 'Love'),
+  (Icons.handshake, 'Connect'),
+  (Icons.group, 'Group'),
+  (Icons.attach_money, 'Money'),
+  (Icons.savings, 'Savings'),
+  (Icons.account_balance_wallet, 'Wallet'),
+  (Icons.account_balance, 'Bank'),
+  (Icons.trending_up, 'Growth'),
+  (Icons.paid, 'Paid'),
+  (Icons.credit_card, 'Card'),
+  (Icons.brush, 'Brush'),
+  (Icons.palette, 'Palette'),
+  (Icons.design_services, 'Design'),
+  (Icons.music_note, 'Music'),
+  (Icons.photo_camera, 'Photo'),
+  (Icons.create, 'Create'),
 ];
+
+/// Maps each category to global icon indices from _habitIcons.
+/// Only thematically relevant icons per category. Fitness: sports/workout only (no Nature, Goal, Sunlight).
+const Map<String, List<int>> _categoryToIconIndices = {
+  'Fitness': [0, 1, 2, 3, 4, 5, 6, 7, 8], // Workout, Cycling, Running, Walking, Stretch, Basketball, Soccer, Tennis, Swimming
+  'Health': [9, 10, 11, 12, 13, 14, 15], // Water, Food, Sleep, Heart, Medical, Mental, Spa
+  'Productivity': [16, 17, 18, 19, 20, 21, 22, 23], // Read, Morning, Schedule, Task, Work, Focus, Goal, Alarm
+  'Mindfulness': [24, 15, 14, 11, 25, 26], // Meditation, Spa, Mental, Sleep, Calm, Nature
+  'Learning': [16, 27, 14, 28, 29, 30, 31], // Read, Study, Mental, Idea, Code, Books, Math
+  'Relationships': [32, 12, 33, 34, 35, 25], // People, Heart, Love, Connect, Group, Calm
+  'Finance': [36, 37, 38, 39, 40, 41, 42], // Money, Savings, Wallet, Bank, Growth, Paid, Card
+  'Creativity': [43, 44, 45, 46, 47, 48], // Brush, Palette, Design, Music, Photo, Create
+  'Other': [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47, 48,
+  ],
+};
 
 const List<Color> _hueSpectrumColors = [
   Color(0xFFFF0000), // red
@@ -63,7 +140,19 @@ final List<(String, List<Color>)> _habitColors = [
 ];
 
 const double _kControlSpacing = 20.0;
-const double _kHeaderToContentSpacing = 10.0;
+const double _kSectionSpacing = 24.0;
+
+/// Alert dropdown options: minutes before start time (5 mins to 1 hour)
+const List<int> _kReminderMinutesBeforeOptions = [5, 10, 15, 20, 25, 30, 45, 60];
+
+/// Theme-aware styling for CupertinoListSection.insetGrouped
+BoxDecoration _sectionDecoration(ColorScheme colorScheme) => BoxDecoration(
+      color: colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(10),
+    );
+
+Color _sectionSeparatorColor(ColorScheme colorScheme) =>
+    colorScheme.outlineVariant.withValues(alpha: 0.5);
 
 Color _contrastColor(Color background) {
   return background.computeLuminance() > 0.5
@@ -242,6 +331,27 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     });
   }
 
+  /// Icons filtered by current category. Returns (globalIndex, IconData, label).
+  /// When category is null, returns all icons. When set, returns only icons for that category.
+  List<(int, IconData, String)> get _iconsForCurrentCategory {
+    if (_category == null) {
+      return List.generate(
+        _habitIcons.length,
+        (i) => (i, _habitIcons[i].$1, _habitIcons[i].$2),
+      );
+    }
+    final indices = _categoryToIconIndices[_category];
+    if (indices == null || indices.isEmpty) {
+      return List.generate(
+        _habitIcons.length,
+        (i) => (i, _habitIcons[i].$1, _habitIcons[i].$2),
+      );
+    }
+    return indices
+        .map((i) => (i, _habitIcons[i].$1, _habitIcons[i].$2))
+        .toList();
+  }
+
   // Rhythm (Frequency) - all 7 days selected by default (daily logic)
   final Set<int> _weekdays = {0, 1, 2, 3, 4, 5, 6};
 
@@ -249,6 +359,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   TimeOfDay? _selectedTime;
   bool _reminderEnabled = false;
   TimeOfDay? _reminderTime;
+  int? _reminderMinutesBefore; // 5, 10, 15, 20, 25, 30, 45, 60 mins before start
 
   bool _locationEnabled = false;
   double? _locationLat;
@@ -271,7 +382,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   bool _habitStackingEnabled = true;
   String? _afterHabitId;
   String _anchorHabitText = '';
-  String _relationship = 'Immediately';
+  String _relationship = 'Before';
 
   final TextEditingController _triggerController = TextEditingController();
   final TextEditingController _actionController = TextEditingController();
@@ -307,6 +418,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     // Identity
     _habitNameController.text = habit.name;
     _category = habit.category;
+    if (_category != null) {
+      final indices = _categoryToIconIndices[_category];
+      if (indices != null &&
+          indices.isNotEmpty &&
+          !indices.contains(_selectedIconIndex)) {
+        _selectedIconIndex = indices.first;
+      }
+    }
 
     // Deadline
     if (habit.deadline != null && habit.deadline!.trim().isNotEmpty) {
@@ -334,6 +453,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       final hours = habit.reminderMinutes! ~/ 60;
       final minutes = habit.reminderMinutes! % 60;
       _reminderTime = TimeOfDay(hour: hours, minute: minutes);
+    } else if (_reminderEnabled) {
+      _reminderMinutesBefore = 15; // default when enabling
     }
 
     // Step 4: Triggers (Location)
@@ -361,18 +482,35 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       }
     }
 
+    // Derive reminderMinutesBefore from start time and reminder time (after Pacing sets start time)
+    if (_reminderEnabled && habit.reminderMinutes != null) {
+      final startTime = _timeBoundStartTime ?? const TimeOfDay(hour: 8, minute: 0);
+      final startMins = startTime.hour * 60 + startTime.minute;
+      final reminderMins = habit.reminderMinutes!;
+      final before = startMins - reminderMins;
+      if (_kReminderMinutesBeforeOptions.contains(before)) {
+        _reminderMinutesBefore = before;
+      } else {
+        _reminderMinutesBefore = 15;
+      }
+    }
+
     // Step 6: Strategy (Stacking)
     final chaining = habit.chaining;
     if (chaining != null && chaining.anchorHabit != null) {
       _habitStackingEnabled = true;
       _afterHabitId = chaining.anchorHabit;
-      _relationship = chaining.relationship ?? 'Immediately';
+      final rel = chaining.relationship ?? 'Before';
+      _relationship = (rel == 'Immediately') ? 'Before' : rel;
       // Try to find the anchor habit name
       final anchor = widget.existingHabits
           .where((h) => h.id == chaining.anchorHabit)
           .firstOrNull;
       if (anchor != null) {
         _anchorHabitText = anchor.name;
+      } else {
+        // Anchor may be a freeform name (default / custom habit)
+        _anchorHabitText = chaining.anchorHabit ?? '';
       }
     }
 
@@ -493,10 +631,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       );
     }
 
-    // 5. Calc Reminder
+    // 5. Calc Reminder (from start time - minutes before)
     int? reminderMins;
-    if (_reminderEnabled && _reminderTime != null) {
-      reminderMins = _reminderTime!.hour * 60 + _reminderTime!.minute;
+    if (_reminderEnabled &&
+        _reminderMinutesBefore != null &&
+        _timeBoundStartTime != null) {
+      final startMins =
+          _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+      reminderMins = (startMins - _reminderMinutesBefore!).clamp(0, 24 * 60 - 1);
     }
 
     // 6. Resolve deadline
@@ -566,6 +708,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     final colorScheme = theme.colorScheme;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final suggestedDeadline = widget.suggestedGoalDeadline?.trim();
+    final baseColor = colorScheme.onSurface;
 
     final topPadding = MediaQuery.of(context).padding.top;
 
@@ -605,9 +748,21 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         colorSectionKey: _colorSectionKey,
                         nameController: _habitNameController,
                         selectedCategory: _category,
-                        onCategoryChanged: (v) =>
-                            setState(() => _category = v),
+                        onCategoryChanged: (v) {
+                          setState(() {
+                            _category = v;
+                            if (v != null) {
+                              final indices = _categoryToIconIndices[v];
+                              if (indices != null &&
+                                  indices.isNotEmpty &&
+                                  !indices.contains(_selectedIconIndex)) {
+                                _selectedIconIndex = indices.first;
+                              }
+                            }
+                          });
+                        },
                         selectedIconIndex: _selectedIconIndex,
+                        iconsForCategory: _iconsForCurrentCategory,
                         selectedColorIndex: _selectedColorIndex,
                         allColors: _allColors,
                         colorPickerExpanded: _colorPickerExpanded,
@@ -629,19 +784,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           );
                         },
                       ),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       _Step5Pacing(
-                        startTime: _timeBoundStartTime,
-                        durationValue: _timeBoundDurationValue,
-                        durationUnit: _timeBoundDurationUnit,
-                        habitColor: _allColors[_selectedColorIndex].$2.first,
+                        habitColor: baseColor,
                         weekdays: _weekdays,
-                        onStartTimeChanged: (t) =>
-                            setState(() => _timeBoundStartTime = t),
-                        onDurationChanged: (value, unit) => setState(() {
-                          _timeBoundDurationValue = value;
-                          _timeBoundDurationUnit = unit;
-                        }),
                         onWeekdayToggled: (day) => setState(() {
                           if (_weekdays.contains(day))
                             _weekdays.remove(day);
@@ -649,26 +795,40 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             _weekdays.add(day);
                         }),
                       ),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       _Step4Triggers(
-                        habitColor: _allColors[_selectedColorIndex].$2.first,
+                        habitColor: baseColor,
                         scheduleStartTime: _timeBoundStartTime,
                         selectedTime: _selectedTime,
                         reminderEnabled: _reminderEnabled,
                         reminderTime: _reminderTime,
+                        reminderMinutesBefore: _reminderMinutesBefore,
+                        onReminderMinutesBeforeChanged: (v) =>
+                            setState(() => _reminderMinutesBefore = v),
+                        durationValue: _timeBoundDurationValue,
+                        durationUnit: _timeBoundDurationUnit,
+                        onStartTimeChanged: (t) =>
+                            setState(() => _timeBoundStartTime = t),
+                        onDurationChanged: (value, unit) => setState(() {
+                          _timeBoundDurationValue = value;
+                          _timeBoundDurationUnit = unit;
+                        }),
                         locationEnabled: _locationEnabled,
                         lat: _locationLat,
                         lng: _locationLng,
                         radius: _locationRadius,
                         triggerMode: _locationTriggerMode,
                         dwellMinutes: _locationDwellMinutes,
-                        onTimeChanged: (t) => setState(() {
-                          _selectedTime = t;
-                          if (t != null && _reminderTime == null)
-                            _reminderTime = t;
-                        }),
-                        onReminderToggle: (v) =>
-                            setState(() => _reminderEnabled = v),
+                        onTimeChanged: (t) =>
+                            setState(() => _selectedTime = t),
+                        onReminderToggle: (v) {
+                          setState(() {
+                            _reminderEnabled = v;
+                            if (v && _reminderMinutesBefore == null) {
+                              _reminderMinutesBefore = 15;
+                            }
+                          });
+                        },
                         onReminderTimeChanged: (t) =>
                             setState(() => _reminderTime = t),
                         onLocationToggle: (v) =>
@@ -684,9 +844,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onDwellMinutesChanged: (v) =>
                             setState(() => _locationDwellMinutes = v),
                       ),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       _Step6Strategy(
-                        habitColor: _allColors[_selectedColorIndex].$2.first,
+                        habitColor: baseColor,
                         habitStackingEnabled: _habitStackingEnabled,
                         onHabitStackingToggle: (v) {
                           setState(() {
@@ -708,11 +868,11 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
                       ),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       _buildCopingPlanSection(colorScheme),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       _buildDeadlineSection(colorScheme, suggestedDeadline),
-                      SizedBox(height: _kControlSpacing),
+                      SizedBox(height: _kSectionSpacing),
                       Row(
                         children: [
                           TextButton(
@@ -727,7 +887,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               widget.initialHabit != null
                                   ? 'Save Habit'
                                   : 'Create Habit',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: AppTypography.button(context).copyWith(fontWeight: FontWeight.w600),
                             ),
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -754,80 +914,57 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   }
 
   Widget _buildCopingPlanSection(ColorScheme colorScheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Coping Plan',
-          style: AppTypography.heading3(context),
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        'Coping Plan',
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
         ),
-        SizedBox(height: _kHeaderToContentSpacing),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: TextField(
+            controller: _triggerController,
+            style: AppTypography.body(context),
+            decoration: InputDecoration(
+              prefixText: "If ",
+              prefixStyle: AppTypography.body(context).copyWith(
+                color: colorScheme.tertiary,
+                fontWeight: FontWeight.bold,
+              ),
+              hintText: "I feel tired...",
+              hintStyle: AppTypography.body(context).copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Plan ahead for obstacles (If-Then)",
-                style: AppTypography.caption(context),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: TextField(
+            controller: _actionController,
+            style: AppTypography.body(context),
+            decoration: InputDecoration(
+              prefixText: "Then I will ",
+              prefixStyle: AppTypography.body(context).copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
               ),
-              SizedBox(height: _kControlSpacing),
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  controller: _triggerController,
-                  style: AppTypography.body(context),
-                  decoration: InputDecoration(
-                    prefixText: "If ",
-                    prefixStyle: AppTypography.body(context).copyWith(
-                      color: Colors.amber.shade700,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    hintText: "I feel tired...",
-                    hintStyle: AppTypography.body(context).copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
+              hintText: "do just 2 minutes.",
+              hintStyle: AppTypography.body(context).copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
-              SizedBox(height: _kControlSpacing),
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  controller: _actionController,
-                  style: AppTypography.body(context),
-                  decoration: InputDecoration(
-                    prefixText: "Then I will ",
-                    prefixStyle: AppTypography.body(context).copyWith(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    hintText: "do just 2 minutes.",
-                    hintStyle: AppTypography.body(context).copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-              ),
-            ],
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ),
       ],
@@ -838,69 +975,87 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     ColorScheme colorScheme,
     String? suggestedDeadline,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'End date',
-          style: AppTypography.heading3(context),
+    final deadlineChildren = <Widget>[
+      CupertinoListTile.notched(
+        leading: Icon(
+          Icons.event_outlined,
+          color: colorScheme.onSurfaceVariant,
+          size: 28,
         ),
-        SizedBox(height: _kHeaderToContentSpacing),
-        InkWell(
-          onTap: _pickDeadline,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.event_outlined, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    _deadline ??
-                        (suggestedDeadline != null && _useGoalDeadline
-                            ? 'Use goal deadline ($suggestedDeadline)'
-                            : 'Set an end date (optional)'),
-                    style: AppTypography.body(context).copyWith(
-                      color: _deadline != null || _useGoalDeadline
-                          ? colorScheme.onSurface
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-                if (_deadline != null)
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => setState(() {
-                      _deadline = null;
-                      _useGoalDeadline = false;
-                    }),
-                  ),
-                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
-              ],
-            ),
+        title: Text(
+          _deadline ??
+              (suggestedDeadline != null && _useGoalDeadline
+                  ? 'Use goal deadline ($suggestedDeadline)'
+                  : 'Set an end date (optional)'),
+          style: AppTypography.body(context).copyWith(
+            color: _deadline != null || _useGoalDeadline
+                ? colorScheme.onSurface
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
-        if (suggestedDeadline != null && suggestedDeadline.isNotEmpty) ...[
-          SizedBox(height: _kControlSpacing),
-          SwitchListTile(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_deadline != null)
+              GestureDetector(
+                onTap: () => setState(() {
+                  _deadline = null;
+                  _useGoalDeadline = false;
+                }),
+                child: Icon(
+                  Icons.clear,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 22,
+                ),
+              ),
+            if (_deadline != null) const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right,
+              color: colorScheme.onSurfaceVariant,
+              size: 22,
+            ),
+          ],
+        ),
+        onTap: _pickDeadline,
+      ),
+    ];
+    if (suggestedDeadline != null && suggestedDeadline.isNotEmpty) {
+      deadlineChildren.add(
+        CupertinoListTile.notched(
+          leading: Icon(
+            Icons.flag_outlined,
+            color: colorScheme.onSurfaceVariant,
+            size: 28,
+          ),
+          title: Text(
+            'Use goal deadline ($suggestedDeadline)',
+            style: AppTypography.body(context),
+          ),
+          trailing: CupertinoSwitch(
             value: _useGoalDeadline,
             onChanged: (v) => setState(() {
               _useGoalDeadline = v;
               _deadline = v ? suggestedDeadline : _deadline;
             }),
-            title: Text(
-              'Use goal deadline ($suggestedDeadline)',
-              style: AppTypography.bodySmall(context),
-            ),
-            contentPadding: EdgeInsets.zero,
+            activeTrackColor: colorScheme.primary,
           ),
-        ],
-      ],
+          onTap: null,
+        ),
+      );
+    }
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        'End date',
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: deadlineChildren,
     );
   }
 }
@@ -916,6 +1071,7 @@ class _Step1IdentityWithColor extends StatefulWidget {
   final String? selectedCategory;
   final ValueChanged<String?> onCategoryChanged;
   final int selectedIconIndex;
+  final List<(int, IconData, String)> iconsForCategory;
   final int selectedColorIndex;
   final List<(String, List<Color>)> allColors;
   final bool colorPickerExpanded;
@@ -933,6 +1089,7 @@ class _Step1IdentityWithColor extends StatefulWidget {
     required this.selectedCategory,
     required this.onCategoryChanged,
     required this.selectedIconIndex,
+    required this.iconsForCategory,
     required this.selectedColorIndex,
     required this.allColors,
     required this.colorPickerExpanded,
@@ -1012,7 +1169,7 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
             data: SliderTheme.of(context).copyWith(
               trackHeight: 0,
               overlayColor: Colors.transparent,
-              thumbColor: Colors.white,
+              thumbColor: colorScheme.surface,
               activeTrackColor: Colors.transparent,
               inactiveTrackColor: Colors.transparent,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
@@ -1040,23 +1197,25 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
     final colorScheme = Theme.of(context).colorScheme;
     final colors = widget.allColors[widget.selectedColorIndex].$2;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          "Habit",
-          style: AppTypography.heading3(context),
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        "Habit",
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
         ),
-        SizedBox(height: _kHeaderToContentSpacing),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: [
+        // Name + color row
         Container(
           key: widget.colorSectionKey,
           decoration: BoxDecoration(
             color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
+            borderRadius: BorderRadius.zero,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1108,18 +1267,15 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
                   ),
                 ),
               ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                child: widget.colorPickerExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 36,
-                              child: ListView.separated(
+              if (widget.colorPickerExpanded)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 36,
+                        child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: widget.allColors.length,
                                 separatorBuilder: (_, __) =>
@@ -1177,35 +1333,20 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
                                 ),
                               ),
                             ),
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeOutCubic,
-                              child: widget.customizeExpanded
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(top: 16),
-                                      child: _buildInlineHuePicker(colorScheme),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
+                      if (widget.customizeExpanded)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: _buildInlineHuePicker(colorScheme),
                         ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
-        SizedBox(height: _kControlSpacing),
-        Text(
-          "Category",
-          style: AppTypography.heading3(context),
-        ),
-        SizedBox(height: _kHeaderToContentSpacing),
-        Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
+        // Category row (before icon so icon list is filtered by category)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: widget.selectedCategory,
@@ -1216,8 +1357,8 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              borderRadius: BorderRadius.circular(16),
+              padding: EdgeInsets.zero,
+              borderRadius: BorderRadius.circular(12),
               items: _kHabitCategories
                   .map((c) => DropdownMenuItem<String>(
                         value: c,
@@ -1228,125 +1369,72 @@ class _Step1IdentityWithColorState extends State<_Step1IdentityWithColor> {
             ),
           ),
         ),
-        SizedBox(height: _kControlSpacing),
-        Row(
+        // Icon picker row (tile + expandable grid, filtered by category)
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              "Icon",
-              style: AppTypography.heading3(context),
-            ),
-            const Spacer(),
-            InkWell(
+            CupertinoListTile.notched(
+              leading: Icon(
+                _habitIcons[widget.selectedIconIndex].$1,
+                color: colors.first,
+                size: 28,
+              ),
+              title: Text(
+                _habitIcons[widget.selectedIconIndex].$2,
+                style: AppTypography.body(context),
+              ),
+              trailing: Icon(
+                _iconViewAllExpanded ? Icons.expand_less : Icons.expand_more,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
               onTap: () => setState(
                 () => _iconViewAllExpanded = !_iconViewAllExpanded,
               ),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "View all",
-                      style: AppTypography.bodySmall(context).copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      _iconViewAllExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 20,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
-              ),
             ),
-          ],
-        ),
-        SizedBox(height: _kHeaderToContentSpacing),
-        Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+            if (_iconViewAllExpanded)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: SizedBox(
                   height: 56,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: 5,
+                    itemCount: widget.iconsForCategory.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(width: 12),
-                    itemBuilder: (ctx, index) => SizedBox(
-                      width: 56,
-                      child: _AnimatedIconTile(
-                        icon: _habitIcons[index].$1,
-                        label: _habitIcons[index].$2,
-                        isSelected: widget.selectedIconIndex == index,
-                        onTap: () => widget.onIconSelected(index),
-                        accentColor: colors.first,
-                      ),
-                    ),
+                    itemBuilder: (ctx, index) {
+                      final entry = widget.iconsForCategory[index];
+                      final globalIndex = entry.$1;
+                      return SizedBox(
+                        width: 56,
+                        child: _AnimatedIconTile(
+                          icon: entry.$2,
+                          label: entry.$3,
+                          isSelected:
+                              widget.selectedIconIndex == globalIndex,
+                          onTap: () =>
+                              widget.onIconSelected(globalIndex),
+                          accentColor: colors.first,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                child: _iconViewAllExpanded
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 5,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1,
-                          children: List.generate(
-                            _habitIcons.length - 5,
-                            (i) {
-                              final index = i + 5;
-                              return _AnimatedIconTile(
-                                icon: _habitIcons[index].$1,
-                                label: _habitIcons[index].$2,
-                                isSelected: widget.selectedIconIndex == index,
-                                onTap: () => widget.onIconSelected(index),
-                                accentColor: colors.first,
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
+          ],
         ),
       ],
     );
   }
 }
 
-// Animated Icon Tile for carousel (compact: icon only)
+// Animated Icon Tile for carousel
 class _AnimatedIconTile extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
-  final bool compact;
   final Color? accentColor;
 
   const _AnimatedIconTile({
@@ -1354,7 +1442,6 @@ class _AnimatedIconTile extends StatefulWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.compact = true,
     this.accentColor,
   });
 
@@ -1443,21 +1530,6 @@ class _AnimatedIconTileState extends State<_AnimatedIconTile>
                 size: 26,
               ),
             ),
-            if (!widget.compact) ...[
-              const SizedBox(height: 4),
-              Text(
-                widget.label,
-                style: AppTypography.caption(context).copyWith(
-                  color: widget.isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: widget.isSelected
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ],
         ),
       ),
@@ -1536,125 +1608,8 @@ class _AnimatedColorTileState extends State<_AnimatedColorTile>
             ],
           ),
           child: widget.isSelected
-              ? const Icon(Icons.check, color: Colors.white, size: 22)
+              ? Icon(Icons.check, color: colorScheme.onPrimary, size: 22)
               : null,
-        ),
-      ),
-    );
-  }
-}
-
-// Animated Option Card
-class _AnimatedOptionCard extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final String description;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _AnimatedOptionCard({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedOptionCard> createState() => _AnimatedOptionCardState();
-}
-
-class _AnimatedOptionCardState extends State<_AnimatedOptionCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.98).animate(_controller),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? colorScheme.primaryContainer
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: widget.isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? colorScheme.primary.withValues(alpha: 0.15)
-                      : colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  widget.icon,
-                  color: widget.isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.label,
-                      style: AppTypography.body(context).copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: widget.isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.description,
-                      style: AppTypography.caption(context),
-                    ),
-                  ],
-                ),
-              ),
-              if (widget.isSelected)
-                Icon(Icons.check_circle, color: colorScheme.primary),
-            ],
-          ),
         ),
       ),
     );
@@ -1810,6 +1765,12 @@ class _Step4Triggers extends StatefulWidget {
   final TimeOfDay? selectedTime;
   final bool reminderEnabled;
   final TimeOfDay? reminderTime;
+  final int? reminderMinutesBefore;
+  final ValueChanged<int?> onReminderMinutesBeforeChanged;
+  final int durationValue;
+  final String durationUnit;
+  final ValueChanged<TimeOfDay?> onStartTimeChanged;
+  final void Function(int value, String unit) onDurationChanged;
   final bool locationEnabled;
   final double? lat;
   final double? lng;
@@ -1831,6 +1792,12 @@ class _Step4Triggers extends StatefulWidget {
     required this.selectedTime,
     required this.reminderEnabled,
     required this.reminderTime,
+    this.reminderMinutesBefore,
+    required this.onReminderMinutesBeforeChanged,
+    required this.durationValue,
+    required this.durationUnit,
+    required this.onStartTimeChanged,
+    required this.onDurationChanged,
     required this.locationEnabled,
     required this.lat,
     required this.lng,
@@ -1852,413 +1819,24 @@ class _Step4Triggers extends StatefulWidget {
 }
 
 class _Step4TriggersState extends State<_Step4Triggers> {
-  bool _alertTimePickerExpanded = false;
-  late DateTime _pendingAlertDateTime;
+  bool _startTimePickerExpanded = false;
+  bool _durationExpanded = false;
+  bool _alertExpanded = false;
+  late DateTime _pendingStartDateTime;
+  late TextEditingController _durationController;
+  late FocusNode _durationFocusNode;
 
-  void _syncPendingFromAlertTime() {
-    final t = widget.reminderTime ?? widget.selectedTime ?? TimeOfDay.now();
+  void _syncPendingFromStartTime() {
+    final st = widget.scheduleStartTime ?? TimeOfDay.now();
     final now = DateTime.now();
-    var pending = DateTime(
+    _pendingStartDateTime = DateTime(
       now.year,
       now.month,
       now.day,
-      t.hour,
-      t.minute,
-    );
-    // Clamp to schedule start time if alert must not exceed it
-    if (widget.scheduleStartTime != null) {
-      final maxDt = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        widget.scheduleStartTime!.hour,
-        widget.scheduleStartTime!.minute,
-      );
-      if (pending.isAfter(maxDt)) {
-        pending = maxDt;
-      }
-    }
-    _pendingAlertDateTime = pending;
-  }
-
-  void _confirmAlertTime() {
-    var confirmed = _pendingAlertDateTime;
-    if (widget.scheduleStartTime != null) {
-      final maxDt = DateTime(
-        confirmed.year,
-        confirmed.month,
-        confirmed.day,
-        widget.scheduleStartTime!.hour,
-        widget.scheduleStartTime!.minute,
-      );
-      if (confirmed.isAfter(maxDt)) {
-        confirmed = maxDt;
-      }
-    }
-    widget.onReminderTimeChanged(TimeOfDay.fromDateTime(confirmed));
-    widget.onTimeChanged(TimeOfDay.fromDateTime(confirmed));
-    setState(() => _alertTimePickerExpanded = false);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _syncPendingFromAlertTime();
-  }
-
-  @override
-  void didUpdateWidget(_Step4Triggers oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if ((oldWidget.reminderTime != widget.reminderTime ||
-            oldWidget.selectedTime != widget.selectedTime) &&
-        !_alertTimePickerExpanded) {
-      _syncPendingFromAlertTime();
-    }
-  }
-
-  TimeOfDay _clampToScheduleStart(TimeOfDay t) {
-    if (widget.scheduleStartTime == null) return t;
-    final tMins = t.hour * 60 + t.minute;
-    final maxMins =
-        widget.scheduleStartTime!.hour * 60 + widget.scheduleStartTime!.minute;
-    if (tMins <= maxMins) return t;
-    return widget.scheduleStartTime!;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final rawDisplay =
-        widget.reminderTime ?? widget.selectedTime ?? TimeOfDay.now();
-    final displayTime = _clampToScheduleStart(rawDisplay);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Alert header with toggle
-        Row(
-          children: [
-            Text(
-              "Alert",
-              style: AppTypography.heading3(context),
-            ),
-            const Spacer(),
-            Switch(
-              value: widget.reminderEnabled,
-              onChanged: widget.onReminderToggle,
-              activeColor: widget.habitColor,
-            ),
-          ],
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          child: widget.reminderEnabled
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: _kHeaderToContentSpacing),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  if (_alertTimePickerExpanded) {
-                                    _confirmAlertTime();
-                                  } else {
-                                    _syncPendingFromAlertTime();
-                                    _alertTimePickerExpanded = true;
-                                  }
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(16),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      color: colorScheme.onSurfaceVariant,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      (widget.reminderTime != null ||
-                                              widget.selectedTime != null)
-                                          ? displayTime.format(context)
-                                          : "Pick time",
-                                      style: (widget.reminderTime != null ||
-                                              widget.selectedTime != null)
-                                          ? AppTypography.body(context)
-                                              .copyWith(
-                                                color: widget.habitColor,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w600,
-                                              )
-                                          : AppTypography.caption(context),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeOutCubic,
-                            child: _alertTimePickerExpanded
-                                ? Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Divider(
-                                        height: 1,
-                                        color: colorScheme.outlineVariant
-                                            .withValues(alpha: 0.3),
-                                      ),
-                                      CupertinoTheme(
-                                        data: CupertinoThemeData(
-                                          brightness:
-                                              theme.brightness == Brightness.dark
-                                                  ? Brightness.dark
-                                                  : Brightness.light,
-                                        ),
-                                        child: SizedBox(
-                                          height: 180,
-                                          child: CupertinoDatePicker(
-                                            mode:
-                                                CupertinoDatePickerMode.time,
-                                            initialDateTime:
-                                                _pendingAlertDateTime,
-                                            use24hFormat: MediaQuery.of(
-                                              context,
-                                            ).alwaysUse24HourFormat,
-                                            minuteInterval: 1,
-                                            maximumDate:
-                                                widget.scheduleStartTime != null
-                                                    ? DateTime(
-                                                        _pendingAlertDateTime
-                                                            .year,
-                                                        _pendingAlertDateTime
-                                                            .month,
-                                                        _pendingAlertDateTime
-                                                            .day,
-                                                        widget
-                                                            .scheduleStartTime!
-                                                            .hour,
-                                                        widget
-                                                            .scheduleStartTime!
-                                                            .minute,
-                                                      )
-                                                    : null,
-                                            onDateTimeChanged: (v) {
-                                              final maxDt =
-                                                  widget.scheduleStartTime !=
-                                                          null
-                                                      ? DateTime(
-                                                          v.year,
-                                                          v.month,
-                                                          v.day,
-                                                          widget
-                                                              .scheduleStartTime!
-                                                              .hour,
-                                                          widget
-                                                              .scheduleStartTime!
-                                                              .minute,
-                                                        )
-                                                      : null;
-                                              final clamped = maxDt != null &&
-                                                      v.isAfter(maxDt)
-                                                  ? maxDt
-                                                  : v;
-                                              setState(() =>
-                                                  _pendingAlertDateTime =
-                                                      clamped);
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          16,
-                                          8,
-                                          16,
-                                          16,
-                                        ),
-                                        child: SizedBox(
-                                          width: double.infinity,
-                                          child: FilledButton(
-                                            onPressed: _confirmAlertTime,
-                                            child: const Text('Done'),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : const SizedBox.shrink(),
-        ),
-        SizedBox(height: _kControlSpacing),
-        // Location header with toggle
-        Row(
-          children: [
-            Text(
-              "Location",
-              style: AppTypography.heading3(context),
-            ),
-            const Spacer(),
-            Switch(
-              value: widget.locationEnabled,
-              onChanged: widget.onLocationToggle,
-              activeColor: widget.habitColor,
-            ),
-          ],
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          child: widget.locationEnabled
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: _kHeaderToContentSpacing),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () async {
-                            try {
-                              LocationPermission p =
-                                  await Geolocator.checkPermission();
-                              if (p == LocationPermission.denied) {
-                                p = await Geolocator.requestPermission();
-                              }
-                              if (p == LocationPermission.whileInUse ||
-                                  p == LocationPermission.always) {
-                                final pos =
-                                    await Geolocator.getCurrentPosition();
-                                widget.onLocationSelected(
-                                    pos.latitude, pos.longitude);
-                                widget.onLocationToggle(true);
-                              }
-                            } catch (e) {
-                              debugPrint('Location error: $e');
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.send,
-                                  color: colorScheme.onSurfaceVariant,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        "Location",
-                                        style: AppTypography.bodySmall(context)
-                                            .copyWith(
-                                          color:
-                                              colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        widget.lat != null
-                                            ? "Location set"
-                                            : "Add location",
-                                        style: widget.lat != null
-                                            ? AppTypography.body(context)
-                                                .copyWith(
-                                              color: widget.habitColor,
-                                              fontWeight: FontWeight.w500,
-                                            )
-                                            : AppTypography.caption(context),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+      st.hour,
+      st.minute,
     );
   }
-}
-
-// --- STEP 5: PACING ---
-class _Step5Pacing extends StatefulWidget {
-  final TimeOfDay? startTime;
-  final int durationValue;
-  final String durationUnit;
-  final Color habitColor;
-  final Set<int> weekdays;
-  final ValueChanged<TimeOfDay?> onStartTimeChanged;
-  final void Function(int value, String unit) onDurationChanged;
-  final ValueChanged<int> onWeekdayToggled;
-
-  const _Step5Pacing({
-    required this.startTime,
-    required this.durationValue,
-    required this.durationUnit,
-    required this.habitColor,
-    required this.weekdays,
-    required this.onStartTimeChanged,
-    required this.onDurationChanged,
-    required this.onWeekdayToggled,
-  });
-
-  @override
-  State<_Step5Pacing> createState() => _Step5PacingState();
-}
-
-class _Step5PacingState extends State<_Step5Pacing> {
-  late TextEditingController _durationController;
-  late FocusNode _durationFocusNode;
-  bool _startTimePickerExpanded = false;
-  bool _durationExpanded = false;
-  DateTime _pendingStartDateTime = DateTime.now();
 
   @override
   void initState() {
@@ -2275,27 +1853,19 @@ class _Step5PacingState extends State<_Step5Pacing> {
     _syncPendingFromStartTime();
   }
 
-  void _syncPendingFromStartTime() {
-    final st = widget.startTime ?? TimeOfDay.now();
-    final now = DateTime.now();
-    _pendingStartDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      st.hour,
-      st.minute,
-    );
-  }
-
   @override
-  void didUpdateWidget(_Step5Pacing oldWidget) {
+  void didUpdateWidget(_Step4Triggers oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.durationValue != widget.durationValue &&
         _durationController.text != widget.durationValue.toString()) {
       _durationController.text = widget.durationValue.toString();
     }
-    if (oldWidget.startTime != widget.startTime && !_startTimePickerExpanded) {
+    if (oldWidget.scheduleStartTime != widget.scheduleStartTime &&
+        !_startTimePickerExpanded) {
       _syncPendingFromStartTime();
+    }
+    if (oldWidget.reminderEnabled && !widget.reminderEnabled) {
+      _alertExpanded = false;
     }
   }
 
@@ -2318,131 +1888,169 @@ class _Step5PacingState extends State<_Step5Pacing> {
     setState(() => _startTimePickerExpanded = false);
   }
 
+  static String _formatMinutesBefore(int mins) =>
+      mins == 60 ? '1 hour before' : '$mins mins before';
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
     final startDefault = TimeOfDay.now();
-    final displayStart = widget.startTime ?? startDefault;
+    final displayStart = widget.scheduleStartTime ?? startDefault;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Schedule",
-          style: AppTypography.heading3(context),
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        "Reminders",
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
         ),
-        SizedBox(height: _kHeaderToContentSpacing),
-        Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(7, (index) {
-                        final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                        final selected = widget.weekdays.contains(index);
-                        return _AnimatedDayChip(
-                          label: days[index],
-                          isSelected: selected,
-                          accentColor: widget.habitColor,
-                          onTap: () => widget.onWeekdayToggled(index),
-                        );
-                      }),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: [
+        // Start time row
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  FocusScope.of(context).unfocus();
+                  setState(() {
+                    if (_startTimePickerExpanded) {
+                      _confirmStartTime();
+                    } else {
+                      _syncPendingFromStartTime();
+                      _startTimePickerExpanded = true;
+                      _durationExpanded = false;
+                      _alertExpanded = false;
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.zero,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Start time",
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            displayStart.format(context),
+                            style: AppTypography.body(context).copyWith(
+                              color: widget.habitColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_startTimePickerExpanded)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(
+                      alpha: 0.3,
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              FocusScope.of(context).unfocus();
-                              setState(() {
-                                if (_startTimePickerExpanded) {
-                                  _confirmStartTime();
-                                } else {
-                                  _syncPendingFromStartTime();
-                                  _startTimePickerExpanded = true;
-                                  _durationExpanded = false;
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      size: 20,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      displayStart.format(context),
-                                      style: AppTypography.body(context).copyWith(
-                                        color: widget.habitColor,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                  ),
+                  CupertinoTheme(
+                    data: CupertinoThemeData(
+                      brightness: theme.brightness == Brightness.dark
+                          ? Brightness.dark
+                          : Brightness.light,
+                    ),
+                    child: SizedBox(
+                      height: 180,
+                      child: CupertinoDatePicker(
+                        mode: CupertinoDatePickerMode.time,
+                        initialDateTime: _pendingStartDateTime,
+                        use24hFormat: MediaQuery.of(context)
+                            .alwaysUse24HourFormat,
+                        minuteInterval: 1,
+                        onDateTimeChanged: (v) =>
+                            setState(() => _pendingStartDateTime = v),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _confirmStartTime,
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        // Duration row
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _durationExpanded = true;
+                    _startTimePickerExpanded = false;
+                    _alertExpanded = false;
+                  });
+                },
+                borderRadius: BorderRadius.zero,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Duration",
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                      onTap: () {
-                        FocusScope.of(context).unfocus();
-                      },
-                          behavior: HitTestBehavior.opaque,
-                          child: Container(
-                            width: 24,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Center(
-                              child: Container(
-                                width: 1,
-                                height: 32,
-                                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: AnimatedSize(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutCubic,
-                            child: _durationExpanded
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Row(
+                          _durationExpanded
+                              ? Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.timer_outlined,
-                                      size: 20,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(width: 6),
                                     SizedBox(
                                       width: 48,
                                       child: TextField(
@@ -2451,19 +2059,20 @@ class _Step5PacingState extends State<_Step5Pacing> {
                                         keyboardType: TextInputType.number,
                                         textAlign: TextAlign.center,
                                         autofocus: true,
-                                        style: AppTypography.body(context).copyWith(
-                                          fontSize: 20,
-                                          color: widget.habitColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: AppTypography.body(context)
+                                            .copyWith(
+                                              fontSize: 18,
+                                              color: widget.habitColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                         decoration: InputDecoration(
                                           hintText: '5',
                                           isDense: true,
                                           contentPadding:
                                               const EdgeInsets.symmetric(
-                                                horizontal: 4,
-                                                vertical: 4,
-                                              ),
+                                            horizontal: 4,
+                                            vertical: 4,
+                                          ),
                                           border: InputBorder.none,
                                           enabledBorder: InputBorder.none,
                                           errorBorder: InputBorder.none,
@@ -2478,127 +2087,274 @@ class _Step5PacingState extends State<_Step5Pacing> {
                                       ),
                                     ),
                                     const SizedBox(width: 4),
-                                    DropdownButton<String>(
-                                      value: widget.durationUnit,
-                                      underline: const SizedBox.shrink(),
-                                      style: AppTypography.body(context).copyWith(
-                                        fontSize: 20,
-                                        color: widget.habitColor,
-                                        fontWeight: FontWeight.w600,
+                                    DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: widget.durationUnit,
+                                        isExpanded: false,
+                                        underline: const SizedBox.shrink(),
+                                        style: AppTypography.body(context)
+                                            .copyWith(
+                                              fontSize: 18,
+                                              color: widget.habitColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'minutes',
+                                            child: Text('min'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'hours',
+                                            child: Text('hr'),
+                                          ),
+                                        ],
+                                        onChanged: (unit) {
+                                          if (unit != null) {
+                                            widget.onDurationChanged(
+                                              widget.durationValue,
+                                              unit,
+                                            );
+                                          }
+                                        },
                                       ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'minutes',
-                                          child: Text('min'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'hours',
-                                          child: Text('hr'),
-                                        ),
-                                      ],
-                                      onChanged: (unit) {
-                                        if (unit != null) {
-                                          widget.onDurationChanged(
-                                            widget.durationValue,
-                                            unit,
-                                          );
-                                        }
-                                      },
                                     ),
                                   ],
+                                )
+                              : Text(
+                                  "${widget.durationValue} ${widget.durationUnit == 'hours' ? 'hr' : 'min'}",
+                                  style: AppTypography.body(context)
+                                      .copyWith(
+                                        color: widget.habitColor,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
-                              ],
-                            )
-                          : InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _durationExpanded = true;
-                                  _startTimePickerExpanded = false;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.timer_outlined,
-                                        size: 20,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        "${widget.durationValue} ${widget.durationUnit == 'hours' ? 'hr' : 'min'}",
-                                        style: AppTypography.body(context).copyWith(
-                                          color: widget.habitColor,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Alert row (collapsible when reminder enabled)
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.reminderEnabled
+                    ? () {
+                        setState(() {
+                          _alertExpanded = !_alertExpanded;
+                          _startTimePickerExpanded = false;
+                          _durationExpanded = false;
+                        });
+                      }
+                    : null,
+                borderRadius: BorderRadius.zero,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_outlined,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "Alert",
+                              style: AppTypography.bodySmall(context).copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
+                            Text(
+                              widget.reminderEnabled
+                                  ? _formatMinutesBefore(
+                                      widget.reminderMinutesBefore ??
+                                          _kReminderMinutesBeforeOptions.first,
+                                    )
+                                  : "Off",
+                              style: AppTypography.body(context).copyWith(
+                                color: widget.reminderEnabled
+                                    ? widget.habitColor
+                                    : colorScheme.onSurfaceVariant,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      CupertinoSwitch(
+                        value: widget.reminderEnabled,
+                        onChanged: widget.onReminderToggle,
+                        activeTrackColor: widget.habitColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_alertExpanded && widget.reminderEnabled)
+              Material(
+                color: Colors.transparent,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Divider(
+                      height: 1,
+                      color: colorScheme.outlineVariant.withValues(
+                        alpha: 0.3,
+                      ),
+                    ),
+                    ..._kReminderMinutesBeforeOptions.map((mins) {
+                      final isSelected =
+                          (widget.reminderMinutesBefore ?? 15) == mins;
+                      return InkWell(
+                        onTap: () {
+                          widget.onReminderMinutesBeforeChanged(mins);
+                          setState(() => _alertExpanded = false);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _formatMinutesBefore(mins),
+                                  style: AppTypography.body(context),
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(
+                                  Icons.check,
+                                  color: widget.habitColor,
+                                  size: 22,
+                                ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    }),
                   ],
                 ),
               ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                child: _startTimePickerExpanded
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Divider(
-                            height: 1,
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.3,
-                            ),
-                          ),
-                          CupertinoTheme(
-                            data: CupertinoThemeData(
-                              brightness: theme.brightness == Brightness.dark
-                                  ? Brightness.dark
-                                  : Brightness.light,
-                            ),
-                            child: SizedBox(
-                              height: 180,
-                              child: CupertinoDatePicker(
-                                mode: CupertinoDatePickerMode.time,
-                                initialDateTime: _pendingStartDateTime,
-                                use24hFormat: MediaQuery.of(
-                                  context,
-                                ).alwaysUse24HourFormat,
-                                minuteInterval: 1,
-                                onDateTimeChanged: (v) =>
-                                    setState(() => _pendingStartDateTime = v),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _confirmStartTime,
-                                child: const Text('Done'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
+          ],
+        ),
+        // Location row
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CupertinoListTile.notched(
+              leading: Icon(
+                Icons.location_on_outlined,
+                color: colorScheme.onSurfaceVariant,
+                size: 28,
               ),
-            ],
+              title: Text(
+                "Location",
+                style: AppTypography.body(context),
+              ),
+              additionalInfo: widget.lat != null
+                  ? Text(
+                      "Location set",
+                      style: AppTypography.body(context).copyWith(
+                        color: widget.habitColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : null,
+              trailing: CupertinoSwitch(
+                value: widget.locationEnabled,
+                onChanged: widget.onLocationToggle,
+                activeTrackColor: widget.habitColor,
+              ),
+              onTap: () async {
+                if (widget.locationEnabled) return;
+                try {
+                  LocationPermission p =
+                      await Geolocator.checkPermission();
+                  if (p == LocationPermission.denied) {
+                    p = await Geolocator.requestPermission();
+                  }
+                  if (p == LocationPermission.whileInUse ||
+                      p == LocationPermission.always) {
+                    final pos =
+                        await Geolocator.getCurrentPosition();
+                    widget.onLocationSelected(
+                        pos.latitude, pos.longitude);
+                    widget.onLocationToggle(true);
+                  }
+                } catch (e) {
+                  debugPrint('Location error: $e');
+                }
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// --- STEP 5: PACING (Weekdays only; start time and duration are in Reminders) ---
+class _Step5Pacing extends StatelessWidget {
+  final Color habitColor;
+  final Set<int> weekdays;
+  final ValueChanged<int> onWeekdayToggled;
+
+  const _Step5Pacing({
+    required this.habitColor,
+    required this.weekdays,
+    required this.onWeekdayToggled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        "Schedule",
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: [
+        // Weekdays row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+              final selected = weekdays.contains(index);
+              return _AnimatedDayChip(
+                label: days[index],
+                isSelected: selected,
+                accentColor: habitColor,
+                onTap: () => onWeekdayToggled(index),
+              );
+            }),
           ),
         ),
       ],
@@ -2607,7 +2363,7 @@ class _Step5PacingState extends State<_Step5Pacing> {
 }
 
 // --- STEP 6: HABIT STACKING ---
-class _Step6Strategy extends StatelessWidget {
+class _Step6Strategy extends StatefulWidget {
   final Color habitColor;
   final bool habitStackingEnabled;
   final ValueChanged<bool> onHabitStackingToggle;
@@ -2635,273 +2391,422 @@ class _Step6Strategy extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Habit Stacking header with toggle
-        Row(
-          children: [
-            Text(
-              "Habit Stacking",
-              style: AppTypography.heading3(context),
-            ),
-            const Spacer(),
-            Switch(
-              value: habitStackingEnabled,
-              onChanged: onHabitStackingToggle,
-              activeColor: habitColor,
-            ),
-          ],
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          child: habitStackingEnabled
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: _kHeaderToContentSpacing),
-                    // Habit Stacking Section
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.link,
-                                  color: colorScheme.onSurfaceVariant),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  "Link this habit to an existing routine",
-                                  style: AppTypography.body(context).copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: _kControlSpacing),
-
-                          // Relationship selector
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: DropdownButton<String>(
-                              dropdownColor: colorScheme.surfaceContainerHighest,
-                              value: relationship,
-                              isExpanded: true,
-                              style: AppTypography.body(context),
-                              underline: const SizedBox(),
-                              icon: Icon(
-                                Icons.keyboard_arrow_down,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              items: ['Immediately', 'After', 'Before']
-                                  .map((e) =>
-                                      DropdownMenuItem(value: e, child: Text(e)))
-                                  .toList(),
-                              onChanged: (v) => onRelationshipChanged(v!),
-                            ),
-                          ),
-
-                          SizedBox(height: _kControlSpacing),
-
-                          if (existingHabits.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: DropdownButton<String?>(
-                                value: afterHabitId,
-                                hint: Text(
-                                  "Select an existing habit",
-                                  style: AppTypography.body(context).copyWith(
-                                    color: colorScheme.onSurfaceVariant
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                dropdownColor:
-                                    colorScheme.surfaceContainerHighest,
-                                isExpanded: true,
-                                underline: const SizedBox(),
-                                icon: Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                items: [
-                                  DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text(
-                                      "None",
-                                      style: AppTypography.body(context)
-                                          .copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                  ...existingHabits.map(
-                                    (h) => DropdownMenuItem(
-                                      value: h.id,
-                                      child: Text(
-                                        h.name,
-                                        style: AppTypography.body(context),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: onAfterHabitIdChanged,
-                              ),
-                            )
-                          else
-                            TextField(
-                              onChanged: onAnchorTextChanged,
-                              style: AppTypography.body(context),
-                              decoration: InputDecoration(
-                                hintText: "e.g., brushing teeth",
-                                hintStyle: AppTypography.body(context)
-                                    .copyWith(
-                                  color: colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.5),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surfaceContainerHigh,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.all(16),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
+  State<_Step6Strategy> createState() => _Step6StrategyState();
 }
 
-// ============================================================================
-// UI HELPER WIDGETS
-// ============================================================================
-
-class _GlassTile extends StatefulWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
-  final VoidCallback onTap;
-
-  const _GlassTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.trailing,
-    required this.onTap,
-  });
-
-  @override
-  State<_GlassTile> createState() => _GlassTileState();
-}
-
-class _GlassTileState extends State<_GlassTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _Step6StrategyState extends State<_Step6Strategy> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _showSuggestions = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
+    if (widget.anchorHabitText.isNotEmpty) {
+      _searchController.text = widget.anchorHabitText;
+    }
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _showSuggestions = _searchFocusNode.hasFocus;
+      });
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _Step6Strategy oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.anchorHabitText != oldWidget.anchorHabitText &&
+        widget.anchorHabitText != _searchController.text) {
+      _searchController.text = widget.anchorHabitText;
+    }
+    // Auto-focus the search field when habit stacking is toggled on
+    if (widget.habitStackingEnabled && !oldWidget.habitStackingEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _searchFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Builds the merged + filtered suggestion list from user habits and defaults.
+  List<_HabitSuggestion> _buildSuggestions() {
+    final query = _searchController.text.trim().toLowerCase();
+    final existingNames =
+        widget.existingHabits.map((h) => h.name.toLowerCase()).toSet();
+
+    final List<_HabitSuggestion> results = [];
+
+    // User's own habits
+    for (final h in widget.existingHabits) {
+      if (query.isEmpty || h.name.toLowerCase().contains(query)) {
+        results.add(_HabitSuggestion(
+          label: h.name,
+          habitId: h.id,
+          isDefault: false,
+        ));
+      }
+    }
+
+    // Default habits (exclude duplicates already in user habits)
+    for (final name in _kDefaultStackingHabits) {
+      if (!existingNames.contains(name.toLowerCase())) {
+        if (query.isEmpty || name.toLowerCase().contains(query)) {
+          results.add(_HabitSuggestion(
+            label: name,
+            habitId: null,
+            isDefault: true,
+          ));
+        }
+      }
+    }
+
+    return results;
+  }
+
+  void _selectSuggestion(_HabitSuggestion suggestion) {
+    _searchController.text = suggestion.label;
+    widget.onAnchorTextChanged(suggestion.label);
+    widget.onAfterHabitIdChanged(suggestion.habitId);
+    _searchFocusNode.unfocus();
+    setState(() => _showSuggestions = false);
+  }
+
+  void _clearSelection() {
+    _searchController.clear();
+    widget.onAnchorTextChanged('');
+    widget.onAfterHabitIdChanged(null);
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.98).animate(_controller),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(widget.icon, color: colorScheme.onSurfaceVariant),
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        "Habit Stacking",
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: _sectionDecoration(colorScheme),
+      separatorColor: _sectionSeparatorColor(colorScheme),
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CupertinoListTile.notched(
+              leading: Icon(
+                Icons.link,
+                color: colorScheme.onSurfaceVariant,
+                size: 28,
               ),
-              const SizedBox(width: 16),
-              Expanded(
+              title: Text(
+                "Link this habit to an existing routine",
+                style: AppTypography.body(context).copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              trailing: CupertinoSwitch(
+                value: widget.habitStackingEnabled,
+                onChanged: widget.onHabitStackingToggle,
+                activeTrackColor: widget.habitColor,
+              ),
+              onTap: null,
+            ),
+            if (widget.habitStackingEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      widget.title,
-                      style: AppTypography.body(
-                        context,
-                      ).copyWith(fontWeight: FontWeight.w600),
+                    // Relationship picker (Before / After)
+                    Builder(builder: (context) {
+                      const options = ['Before', 'After'];
+                      final safeValue = options.contains(widget.relationship)
+                          ? widget.relationship
+                          : 'Before';
+                      return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButton<String>(
+                        dropdownColor:
+                            colorScheme.surfaceContainerHighest,
+                        value: safeValue,
+                        isExpanded: true,
+                        style: AppTypography.body(context),
+                        underline: const SizedBox(),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        items: ['Before', 'After']
+                            .map((e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(e),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            widget.onRelationshipChanged(v!),
+                      ),
+                    );
+                    }),
+                    SizedBox(height: _kControlSpacing),
+
+                    // Searchable habit picker
+                    TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      style: AppTypography.body(context),
+                      onChanged: (v) {
+                        widget.onAnchorTextChanged(v);
+                        // Clear the linked habit ID when user starts typing
+                        if (widget.afterHabitId != null) {
+                          widget.onAfterHabitIdChanged(null);
+                        }
+                        setState(() => _showSuggestions = true);
+                      },
+                      decoration: InputDecoration(
+                        hintText: "Search or type a habit...",
+                        hintStyle: AppTypography.body(context).copyWith(
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.6),
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  size: 18,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                onPressed: _clearSelection,
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHigh,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.subtitle,
-                      style: AppTypography.caption(context),
-                    ),
+
+                    // Suggestion list
+                    if (_showSuggestions) _buildSuggestionList(colorScheme),
                   ],
                 ),
               ),
-              if (widget.trailing != null) widget.trailing!,
-              Icon(
-                Icons.chevron_right,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionList(ColorScheme colorScheme) {
+    final suggestions = _buildSuggestions();
+    final query = _searchController.text.trim();
+
+    // Split into user habits and default habits
+    final userHabits =
+        suggestions.where((s) => !s.isDefault).toList();
+    final defaultHabits =
+        suggestions.where((s) => s.isDefault).toList();
+
+    // Check if typed text matches any suggestion exactly
+    final exactMatch = suggestions.any(
+      (s) => s.label.toLowerCase() == query.toLowerCase(),
+    );
+
+    if (suggestions.isEmpty && query.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      constraints: const BoxConstraints(maxHeight: 220),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          children: [
+            // "Use custom" option when typed text doesn't match any suggestion
+            if (query.isNotEmpty && !exactMatch)
+              _SuggestionTile(
+                label: 'Use "$query"',
+                icon: Icons.add_circle_outline,
+                iconColor: widget.habitColor,
+                colorScheme: colorScheme,
+                onTap: () {
+                  widget.onAnchorTextChanged(query);
+                  widget.onAfterHabitIdChanged(null);
+                  _searchFocusNode.unfocus();
+                  setState(() => _showSuggestions = false);
+                },
               ),
+
+            // User's own habits section
+            if (userHabits.isNotEmpty) ...[
+              _SectionLabel(
+                label: 'Your Habits',
+                colorScheme: colorScheme,
+              ),
+              ...userHabits.map((s) => _SuggestionTile(
+                    label: s.label,
+                    icon: Icons.person_outline,
+                    iconColor: colorScheme.primary,
+                    colorScheme: colorScheme,
+                    isSelected: widget.afterHabitId == s.habitId,
+                    onTap: () => _selectSuggestion(s),
+                  )),
+            ],
+
+            // Default habits section
+            if (defaultHabits.isNotEmpty) ...[
+              _SectionLabel(
+                label: 'Common Habits',
+                colorScheme: colorScheme,
+              ),
+              ...defaultHabits.map((s) => _SuggestionTile(
+                    label: s.label,
+                    icon: Icons.auto_awesome_outlined,
+                    iconColor: colorScheme.tertiary,
+                    colorScheme: colorScheme,
+                    isSelected:
+                        s.label == widget.anchorHabitText &&
+                            widget.afterHabitId == null,
+                    onTap: () => _selectSuggestion(s),
+                  )),
+            ],
+
+            // Empty state
+            if (suggestions.isEmpty && query.isNotEmpty && exactMatch)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No matching habits found',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption(context).copyWith(
+                    color: colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Internal model for a habit suggestion entry.
+class _HabitSuggestion {
+  final String label;
+  final String? habitId;
+  final bool isDefault;
+
+  const _HabitSuggestion({
+    required this.label,
+    this.habitId,
+    required this.isDefault,
+  });
+}
+
+/// Section header label inside the suggestion list.
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final ColorScheme colorScheme;
+
+  const _SectionLabel({required this.label, required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        label,
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+/// Single tappable row in the suggestion list.
+class _SuggestionTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+  final ColorScheme colorScheme;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _SuggestionTile({
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+    required this.colorScheme,
+    this.isSelected = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.4)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTypography.body(context).copyWith(
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_circle, size: 18, color: iconColor),
             ],
           ),
         ),
@@ -2910,81 +2815,3 @@ class _GlassTileState extends State<_GlassTile>
   }
 }
 
-class _MiniOptionButton extends StatefulWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _MiniOptionButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  State<_MiniOptionButton> createState() => _MiniOptionButtonState();
-}
-
-class _MiniOptionButtonState extends State<_MiniOptionButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.95).animate(_controller),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: widget.selected
-                ? colorScheme.primary
-                : colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: widget.selected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant,
-              width: widget.selected ? 0 : 1,
-            ),
-          ),
-          child: Text(
-            widget.label,
-            style: AppTypography.bodySmall(context).copyWith(
-              color: widget.selected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.normal,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}

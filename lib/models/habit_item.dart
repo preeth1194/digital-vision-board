@@ -182,6 +182,10 @@ class HabitItem {
   /// Optional location-based settings (geofence + dwell).
   final HabitLocationBoundSpec? locationBound;
 
+  /// Optional icon index into the global [habitIcons] list.
+  /// When null, the card falls back to the first icon for the category.
+  final int? iconIndex;
+
   /// List of dates when this habit was completed (stored as date-only, no time)
   final List<DateTime> completedDates;
 
@@ -201,6 +205,7 @@ class HabitItem {
     this.cbtEnhancements,
     this.timeBound,
     this.locationBound,
+    this.iconIndex,
     this.completedDates = const [],
   });
 
@@ -226,6 +231,7 @@ class HabitItem {
     CbtEnhancements? cbtEnhancements,
     HabitTimeBoundSpec? timeBound,
     HabitLocationBoundSpec? locationBound,
+    int? iconIndex,
     List<DateTime>? completedDates,
   }) {
     return HabitItem(
@@ -244,6 +250,7 @@ class HabitItem {
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
       timeBound: timeBound ?? this.timeBound,
       locationBound: locationBound ?? this.locationBound,
+      iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
     );
   }
@@ -266,6 +273,7 @@ class HabitItem {
       'cbtEnhancements': cbtEnhancements?.toJson(),
       'timeBound': timeBound?.toJson(),
       'locationBound': locationBound?.toJson(),
+      'iconIndex': iconIndex,
       'stats': stats,
       'completedDates': completedDates
           .map((date) => date.toIso8601String().split('T')[0])
@@ -336,6 +344,8 @@ class HabitItem {
         (json['time_bound'] as Map<String, dynamic>?);
     final locationBoundRaw = (json['locationBound'] as Map<String, dynamic>?) ??
         (json['location_bound'] as Map<String, dynamic>?);
+    final iconIndex = (json['iconIndex'] as num?)?.toInt() ??
+        (json['icon_index'] as num?)?.toInt();
     
     return HabitItem(
       id: json['id'] as String,
@@ -359,6 +369,7 @@ class HabitItem {
               : null,
       timeBound: (timeBoundRaw != null) ? HabitTimeBoundSpec.fromJson(timeBoundRaw) : null,
       locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
+      iconIndex: iconIndex,
       completedDates: dates,
     );
   }
@@ -576,6 +587,7 @@ final class HabitCreateRequest {
   final CbtEnhancements? cbtEnhancements;
   final HabitTimeBoundSpec? timeBound;
   final HabitLocationBoundSpec? locationBound;
+  final int? iconIndex;
 
   const HabitCreateRequest({
     required this.name,
@@ -591,5 +603,6 @@ final class HabitCreateRequest {
     required this.cbtEnhancements,
     required this.timeBound,
     required this.locationBound,
+    this.iconIndex,
   });
 }

@@ -56,6 +56,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
     );
   }
 

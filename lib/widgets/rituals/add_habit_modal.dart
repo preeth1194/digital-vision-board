@@ -210,7 +210,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     // Identity
     _habitNameController.text = habit.name;
     _category = habit.category;
-    if (_category != null) {
+    if (habit.iconIndex != null) {
+      _selectedIconIndex = habit.iconIndex!;
+    } else if (_category != null) {
       final indices = categoryToIconIndices[_category];
       if (indices != null &&
           indices.isNotEmpty &&
@@ -521,6 +523,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       cbtEnhancements: cbtEnhancements,
       timeBound: timeBound,
       locationBound: locationBound,
+      iconIndex: _selectedIconIndex,
     );
 
     Navigator.of(context).pop(request);

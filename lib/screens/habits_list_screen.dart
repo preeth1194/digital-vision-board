@@ -195,6 +195,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
       completedDates: const [],
     );
 
@@ -323,6 +324,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     final updatedHabit = baseHabit.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -334,6 +336,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
     );
 
     final nextComponents = _components.map((c) {

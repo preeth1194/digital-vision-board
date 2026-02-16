@@ -159,6 +159,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       if (idx == -1) return;
       _habits[idx] = habit.copyWith(
         name: req.name,
+        category: req.category,
         frequency: req.frequency,
         weeklyDays: req.weeklyDays,
         deadline: req.deadline,
@@ -170,6 +171,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         cbtEnhancements: req.cbtEnhancements,
         timeBound: req.timeBound,
         locationBound: req.locationBound,
+        iconIndex: req.iconIndex,
       );
       _updateComponent();
     });
@@ -210,6 +212,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           cbtEnhancements: req.cbtEnhancements,
           timeBound: req.timeBound,
           locationBound: req.locationBound,
+          iconIndex: req.iconIndex,
           completedDates: const [],
         ),
       );

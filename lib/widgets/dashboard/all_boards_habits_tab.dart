@@ -178,6 +178,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
       completedDates: const [],
     );
 
@@ -384,6 +385,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
     final updatedHabit = entry.habit.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -395,6 +397,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       locationBound: req.locationBound,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
+      iconIndex: req.iconIndex,
     );
 
     final updatedHabits = entry.component.habits
@@ -558,7 +561,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
-            // Habits list
+            // Habits list with timeline
             if (allHabits.isNotEmpty)
               SliverPadding(
                 padding: const EdgeInsets.only(top: 8, bottom: 100),
@@ -571,105 +574,152 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       final isCompleted = scheduledToday && 
                           entry.habit.isCompletedForCurrentPeriod(now);
                       final cardKey = GlobalKey();
+                      final isFirst = index == 0;
+                      final isLast = index == allHabits.length - 1;
                       
                       return _ScrollAnimatedItem(
                         index: index,
                         scrollOffset: _scrollOffset,
-                        child: _SwipeableHabitCard(
-                          entry: entry,
-                          onEdit: () => _editHabit(entry),
-                          onDelete: () => _deleteHabit(entry),
-                          child: AnimatedHabitCard(
-                            key: ValueKey(entry.habit.id),
-                            habit: entry.habit,
-                            boardTitle: entry.boardTitle,
-                            isCompleted: isCompleted,
-                            isScheduledToday: scheduledToday,
-                            coinsOnComplete: CoinsService.habitCompletionCoins,
-                            index: index,
-                            onTap: () => _handleHabitTap(
-                              boardId: entry.boardId,
-                              boardTitle: entry.boardTitle,
-                              components: entry.components,
-                              component: entry.component,
-                              habit: entry.habit,
-                              cardKey: cardKey,
-                            ),
-                            onLongPress: () {
-                              // Navigate to timer if applicable
-                              final habit = entry.habit;
-                              if (habit.timeBound?.enabled == true || 
-                                  habit.locationBound?.enabled == true) {
-                                final isSongBased = habit.timeBound?.isSongBased ?? false;
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => isSongBased
-                                        ? RhythmicTimerScreen(
-                                            habit: habit,
-                                            onMarkCompleted: () async {
-                                              final latestComponents = 
-                                                  _localComponents[entry.boardId] ?? 
-                                                  const <VisionComponent>[];
-                                              final latestComponent = latestComponents
-                                                  .where((c) => c.id == entry.component.id)
-                                                  .cast<VisionComponent?>()
-                                                  .firstWhere((_) => true, orElse: () => null);
-                                              if (latestComponent == null) return;
-                                              final latestHabit = latestComponent.habits
-                                                  .where((h) => h.id == habit.id)
-                                                  .cast<HabitItem?>()
-                                                  .firstWhere((_) => true, orElse: () => null);
-                                              if (latestHabit == null) return;
-                                              final now2 = LogicalDateService.now();
-                                              if (!latestHabit.isScheduledOnDate(now2)) return;
-                                              if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                              await _toggleHabit(
-                                                boardId: entry.boardId,
-                                                boardTitle: entry.boardTitle,
-                                                components: latestComponents,
-                                                component: latestComponent,
-                                                habit: latestHabit,
-                                                wasCompleted: false,
-                                                completionType: CompletionType.habit,
-                                                coinsEarned: CoinsService.habitCompletionCoins,
-                                              );
-                                            },
-                                          )
-                                        : HabitTimerScreen(
-                                            habit: habit,
-                                            onMarkCompleted: () async {
-                                              final latestComponents = 
-                                                  _localComponents[entry.boardId] ?? 
-                                                  const <VisionComponent>[];
-                                              final latestComponent = latestComponents
-                                                  .where((c) => c.id == entry.component.id)
-                                                  .cast<VisionComponent?>()
-                                                  .firstWhere((_) => true, orElse: () => null);
-                                              if (latestComponent == null) return;
-                                              final latestHabit = latestComponent.habits
-                                                  .where((h) => h.id == habit.id)
-                                                  .cast<HabitItem?>()
-                                                  .firstWhere((_) => true, orElse: () => null);
-                                              if (latestHabit == null) return;
-                                              final now2 = LogicalDateService.now();
-                                              if (!latestHabit.isScheduledOnDate(now2)) return;
-                                              if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                              await _toggleHabit(
-                                                boardId: entry.boardId,
-                                                boardTitle: entry.boardTitle,
-                                                components: latestComponents,
-                                                component: latestComponent,
-                                                habit: latestHabit,
-                                                wasCompleted: false,
-                                                completionType: CompletionType.habit,
-                                                coinsEarned: CoinsService.habitCompletionCoins,
-                                              );
-                                            },
-                                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Timeline column
+                                SizedBox(
+                                  width: 40,
+                                  child: Column(
+                                    children: [
+                                      // Top dashed line
+                                      Expanded(
+                                        child: isFirst
+                                            ? const SizedBox()
+                                            : const _TimelineDash(),
+                                      ),
+                                      // Checkpoint circle (tappable)
+                                      _TimelineCheckpoint(
+                                        isCompleted: isCompleted,
+                                        onTap: () => _handleHabitTap(
+                                          boardId: entry.boardId,
+                                          boardTitle: entry.boardTitle,
+                                          components: entry.components,
+                                          component: entry.component,
+                                          habit: entry.habit,
+                                          cardKey: cardKey,
+                                        ),
+                                      ),
+                                      // Bottom dashed line
+                                      Expanded(
+                                        child: isLast
+                                            ? const SizedBox()
+                                            : const _TimelineDash(),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              }
-                            },
+                                ),
+                                const SizedBox(width: 4),
+                                // Card
+                                Expanded(
+                                  child: _SwipeableHabitCard(
+                                    entry: entry,
+                                    onEdit: () => _editHabit(entry),
+                                    onDelete: () => _deleteHabit(entry),
+                                    child: AnimatedHabitCard(
+                                      key: ValueKey(entry.habit.id),
+                                      habit: entry.habit,
+                                      boardTitle: entry.boardTitle,
+                                      isCompleted: isCompleted,
+                                      isScheduledToday: scheduledToday,
+                                      coinsOnComplete: CoinsService.habitCompletionCoins,
+                                      index: index,
+                                      onTap: () => _handleHabitTap(
+                                        boardId: entry.boardId,
+                                        boardTitle: entry.boardTitle,
+                                        components: entry.components,
+                                        component: entry.component,
+                                        habit: entry.habit,
+                                        cardKey: cardKey,
+                                      ),
+                                      onLongPress: () {
+                                        final habit = entry.habit;
+                                        if (habit.timeBound?.enabled == true || 
+                                            habit.locationBound?.enabled == true) {
+                                          final isSongBased = habit.timeBound?.isSongBased ?? false;
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => isSongBased
+                                                  ? RhythmicTimerScreen(
+                                                      habit: habit,
+                                                      onMarkCompleted: () async {
+                                                        final latestComponents = 
+                                                            _localComponents[entry.boardId] ?? 
+                                                            const <VisionComponent>[];
+                                                        final latestComponent = latestComponents
+                                                            .where((c) => c.id == entry.component.id)
+                                                            .cast<VisionComponent?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestComponent == null) return;
+                                                        final latestHabit = latestComponent.habits
+                                                            .where((h) => h.id == habit.id)
+                                                            .cast<HabitItem?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestHabit == null) return;
+                                                        final now2 = LogicalDateService.now();
+                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
+                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                                        await _toggleHabit(
+                                                          boardId: entry.boardId,
+                                                          boardTitle: entry.boardTitle,
+                                                          components: latestComponents,
+                                                          component: latestComponent,
+                                                          habit: latestHabit,
+                                                          wasCompleted: false,
+                                                          completionType: CompletionType.habit,
+                                                          coinsEarned: CoinsService.habitCompletionCoins,
+                                                        );
+                                                      },
+                                                    )
+                                                  : HabitTimerScreen(
+                                                      habit: habit,
+                                                      onMarkCompleted: () async {
+                                                        final latestComponents = 
+                                                            _localComponents[entry.boardId] ?? 
+                                                            const <VisionComponent>[];
+                                                        final latestComponent = latestComponents
+                                                            .where((c) => c.id == entry.component.id)
+                                                            .cast<VisionComponent?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestComponent == null) return;
+                                                        final latestHabit = latestComponent.habits
+                                                            .where((h) => h.id == habit.id)
+                                                            .cast<HabitItem?>()
+                                                            .firstWhere((_) => true, orElse: () => null);
+                                                        if (latestHabit == null) return;
+                                                        final now2 = LogicalDateService.now();
+                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
+                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+                                                        await _toggleHabit(
+                                                          boardId: entry.boardId,
+                                                          boardTitle: entry.boardTitle,
+                                                          components: latestComponents,
+                                                          component: latestComponent,
+                                                          habit: latestHabit,
+                                                          wasCompleted: false,
+                                                          completionType: CompletionType.habit,
+                                                          coinsEarned: CoinsService.habitCompletionCoins,
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -947,15 +997,15 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
             // Action buttons revealed on the right
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     const Spacer(),
                     // Action buttons container
                     ClipRRect(
                       borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
                       ),
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 100),
@@ -990,8 +1040,8 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     decoration: BoxDecoration(
                                       color: Colors.red.shade600,
                                       borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(16),
-                                        bottomRight: Radius.circular(16),
+                                        topRight: Radius.circular(24),
+                                        bottomRight: Radius.circular(24),
                                       ),
                                     ),
                                     alignment: Alignment.center,
@@ -1027,4 +1077,100 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
       },
     );
   }
+}
+
+// =============================================================================
+// Timeline widgets
+// =============================================================================
+
+/// Checkpoint circle for the timeline — orange with checkmark when completed,
+/// grey outline when incomplete.
+class _TimelineCheckpoint extends StatelessWidget {
+  final bool isCompleted;
+  final VoidCallback? onTap;
+  const _TimelineCheckpoint({required this.isCompleted, this.onTap});
+
+  static const _completedColor = Color(0xFFE8802A);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.3)
+        : Colors.grey.shade400;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isCompleted ? _completedColor : Colors.transparent,
+          border: Border.all(
+            color: isCompleted ? _completedColor : borderColor,
+            width: isCompleted ? 0 : 1.5,
+          ),
+        ),
+        child: isCompleted
+            ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+            : null,
+      ),
+    );
+  }
+}
+
+/// Vertical dashed line segment for the timeline.
+class _TimelineDash extends StatelessWidget {
+  const _TimelineDash();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark
+        ? Colors.white.withValues(alpha: 0.15)
+        : Colors.grey.shade300;
+
+    return SizedBox(
+      width: 2,
+      child: CustomPaint(
+        painter: _DashedLinePainter(color: color),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+/// Paints a vertical dashed line.
+class _DashedLinePainter extends CustomPainter {
+  final Color color;
+  const _DashedLinePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    const dashHeight = 4.0;
+    const gapHeight = 4.0;
+    final centerX = size.width / 2;
+    double y = 0;
+
+    while (y < size.height) {
+      canvas.drawLine(
+        Offset(centerX, y),
+        Offset(centerX, (y + dashHeight).clamp(0, size.height)),
+        paint,
+      );
+      y += dashHeight + gapHeight;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLinePainter oldDelegate) =>
+      color != oldDelegate.color;
 }

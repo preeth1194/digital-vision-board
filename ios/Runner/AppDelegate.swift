@@ -19,106 +19,108 @@ import MediaPlayer
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    
-    // Music provider handler registration commented out - file not in Xcode project
-    // To enable: Add MusicProviderHandler.swift to Runner target in Xcode
-    // if let registrar = self.registrar(forPlugin: "MusicProviderHandler") {
-    //   MusicProviderHandler.register(with: registrar)
-    // }
-
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
-      channel.setMethodCallHandler { [weak self] call, result in
-        guard let self = self else { return }
-        switch call.method {
-        case "updateWidgets":
-          #if canImport(WidgetKit)
-          if #available(iOS 14.0, *) {
-            WidgetCenter.shared.reloadAllTimelines()
-          }
-          #endif
-          result(nil)
-        case "writeSnapshotToAppGroup":
-          guard
-            let args = call.arguments as? [String: Any],
-            let snapshot = args["snapshot"] as? String
-          else {
-            result(nil)
-            return
-          }
-          let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
-          let ud = UserDefaults(suiteName: groupId)
-          ud?.set(snapshot, forKey: self.snapshotKey)
-          ud?.synchronize()
-          #if canImport(WidgetKit)
-          if #available(iOS 14.0, *) {
-            WidgetCenter.shared.reloadAllTimelines()
-          }
-          #endif
-          result(nil)
-        case "readAndClearQueuedWidgetActions":
-          let groupId: String
-          if let args = call.arguments as? [String: Any], let g = args["iosAppGroupId"] as? String {
-            groupId = g
-          } else {
-            groupId = "group.seerohabitseeding"
-          }
-          let ud = UserDefaults(suiteName: groupId)
-          let raw = ud?.array(forKey: self.actionQueueKey) as? [[String: Any]] ?? []
-          ud?.set([], forKey: self.actionQueueKey)
-          ud?.synchronize()
-          // Flutter expects List<Map<String, String>>.
-          let mapped: [[String: String]] = raw.map { item in
-            var out: [String: String] = [:]
-            for (k, v) in item {
-              out[String(describing: k)] = String(describing: v)
-            }
-            return out
-          }
-          result(mapped)
-        default:
-          result(FlutterMethodNotImplemented)
-        }
-      }
-    }
-
-    // Register puzzle widget method channel
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let puzzleChannel = FlutterMethodChannel(name: puzzleChannelName, binaryMessenger: controller.binaryMessenger)
-      puzzleChannel.setMethodCallHandler { [weak self] call, result in
-        guard let self = self else { return }
-        switch call.method {
-        case "updateWidgets":
-          #if canImport(WidgetKit)
-          if #available(iOS 14.0, *) {
-            WidgetCenter.shared.reloadAllTimelines()
-          }
-          #endif
-          result(nil)
-        case "writeSnapshotToAppGroup":
-          guard
-            let args = call.arguments as? [String: Any],
-            let snapshot = args["snapshot"] as? String
-          else {
-            result(nil)
-            return
-          }
-          let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
-          let ud = UserDefaults(suiteName: groupId)
-          ud?.set(snapshot, forKey: self.puzzleSnapshotKey)
-          ud?.synchronize()
-          #if canImport(WidgetKit)
-          if #available(iOS 14.0, *) {
-            WidgetCenter.shared.reloadAllTimelines()
-          }
-          #endif
-          result(nil)
-        default:
-          result(FlutterMethodNotImplemented)
-        }
-      }
-    }
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func applicationDidFinishLaunching(_ application: UIApplication) {
+    super.applicationDidFinishLaunching(application)
+    // Use FlutterPluginRegistry API instead of rootViewController (avoids flutter-launch-rootvc deprecation)
+    if let registrar = registrar(forPlugin: "HabitProgressWidget") {
+      _registerHabitProgressChannel(messenger: registrar.messenger())
+    }
+    if let registrar = registrar(forPlugin: "PuzzleWidget") {
+      _registerPuzzleChannel(messenger: registrar.messenger())
+    }
+  }
+
+  private func _registerHabitProgressChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: channelName, binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { return }
+      switch call.method {
+      case "updateWidgets":
+        #if canImport(WidgetKit)
+        if #available(iOS 14.0, *) {
+          WidgetCenter.shared.reloadAllTimelines()
+        }
+        #endif
+        result(nil)
+      case "writeSnapshotToAppGroup":
+        guard
+          let args = call.arguments as? [String: Any],
+          let snapshot = args["snapshot"] as? String
+        else {
+          result(nil)
+          return
+        }
+        let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
+        let ud = UserDefaults(suiteName: groupId)
+        ud?.set(snapshot, forKey: self.snapshotKey)
+        ud?.synchronize()
+        #if canImport(WidgetKit)
+        if #available(iOS 14.0, *) {
+          WidgetCenter.shared.reloadAllTimelines()
+        }
+        #endif
+        result(nil)
+      case "readAndClearQueuedWidgetActions":
+        let groupId: String
+        if let args = call.arguments as? [String: Any], let g = args["iosAppGroupId"] as? String {
+          groupId = g
+        } else {
+          groupId = "group.seerohabitseeding"
+        }
+        let ud = UserDefaults(suiteName: groupId)
+        let raw = ud?.array(forKey: self.actionQueueKey) as? [[String: Any]] ?? []
+        ud?.set([], forKey: self.actionQueueKey)
+        ud?.synchronize()
+        let mapped: [[String: String]] = raw.map { item in
+          var out: [String: String] = [:]
+          for (k, v) in item {
+            out[String(describing: k)] = String(describing: v)
+          }
+          return out
+        }
+        result(mapped)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private func _registerPuzzleChannel(messenger: FlutterBinaryMessenger) {
+    let puzzleChannel = FlutterMethodChannel(name: puzzleChannelName, binaryMessenger: messenger)
+    puzzleChannel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { return }
+      switch call.method {
+      case "updateWidgets":
+        #if canImport(WidgetKit)
+        if #available(iOS 14.0, *) {
+          WidgetCenter.shared.reloadAllTimelines()
+        }
+        #endif
+        result(nil)
+      case "writeSnapshotToAppGroup":
+        guard
+          let args = call.arguments as? [String: Any],
+          let snapshot = args["snapshot"] as? String
+        else {
+          result(nil)
+          return
+        }
+        let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
+        let ud = UserDefaults(suiteName: groupId)
+        ud?.set(snapshot, forKey: self.puzzleSnapshotKey)
+        ud?.synchronize()
+        #if canImport(WidgetKit)
+        if #available(iOS 14.0, *) {
+          WidgetCenter.shared.reloadAllTimelines()
+        }
+        #endif
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 }

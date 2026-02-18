@@ -8,7 +8,6 @@ import '../utils/app_typography.dart';
 import '../services/dv_auth_service.dart';
 import '../services/app_settings_service.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
-import 'music_provider_settings_screen.dart';
 
 final class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -198,17 +197,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Appearance'),
             subtitle: Text(_themeModeLabel(_themeMode)),
             onTap: _pickThemeMode,
-          ),
-          const Divider(height: 0),
-          ListTile(
-            leading: const Icon(Icons.music_note),
-            title: const Text('Music Provider Settings'),
-            subtitle: const Text('Configure Spotify or Apple Music for rhythmic timers'),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MusicProviderSettingsScreen()),
-              );
-            },
           ),
           const Divider(height: 0),
         ],

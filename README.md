@@ -112,3 +112,9 @@ open coverage/html/index.html
 - Web builds generate static files in `build/web/`
 - Can be deployed to any static hosting service
 - Optional Firebase Hosting deployment is configured in the workflow
+
+#### Spotify on iOS Simulator
+- The Spotify app cannot be installed on the iOS Simulator (no App Store). The app detects this via `canOpenURL(spotify:)`.
+- **Connect Spotify** still works on the simulator: tapping it opens the OAuth flow in Safari, so you can connect your account and test the flow.
+- The row shows "Connect Spotify (app not installed)" when the Spotify app is not detected; you can still tap to connect.
+- For playback/control features that require the Spotify app, use a physical device.

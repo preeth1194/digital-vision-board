@@ -2,6 +2,8 @@
 
 This project uses Firebase Auth (Google Sign-In, phone auth) for login. FlutterFire config is in place for project **seerohabitseeding**.
 
+**Note:** Firebase config files (`google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart`) are in `.gitignore` to avoid exposing API keys. You must run `flutterfire configure` before your first build. See [SECURITY_CREDENTIALS.md](SECURITY_CREDENTIALS.md) if you received an API key exposure warning.
+
 ## Prerequisites
 
 1. **Firebase CLI** (for project management):

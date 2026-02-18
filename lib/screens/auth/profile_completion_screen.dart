@@ -218,7 +218,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
               color: colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           ValueListenableBuilder<MeasurementUnit>(
             valueListenable: AppSettingsService.measurementUnit,
             builder: (context, unit, _) {
@@ -232,32 +232,31 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   ),
                 ),
                 margin: EdgeInsets.zero,
-                backgroundColor: colorScheme.surface,
-                decoration: habitSectionDecoration(colorScheme),
+                backgroundColor: Colors.transparent,
+                decoration: const BoxDecoration(),
                 separatorColor: habitSectionSeparatorColor(colorScheme),
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.zero,
-                    ),
-                    child: Row(
+                  // Profile icon centered (reference layout)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
                       children: [
                         ProfileAvatar(
                           initial: _nameController.text.isNotEmpty
                               ? _nameController.text[0].toUpperCase()
                               : '?',
                           imagePath: _profilePicPath,
-                          radius: 32,
+                          radius: 48,
                           onTap: _changeProfilePhoto,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(height: 4),
                         TextButton(
                           onPressed: _changeProfilePhoto,
                           child: Text(
                             'Change photo',
-                            style: AppTypography.body(context),
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.primary,
+                            ),
                           ),
                         ),
                       ],
@@ -495,7 +494,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           FilledButton(
             onPressed: _loading ? null : _save,
             child: _loading

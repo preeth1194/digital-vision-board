@@ -15,8 +15,8 @@ import 'rhythmic_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
-import '../widgets/dialogs/goal_picker_sheet.dart';
-
+/// Habits list UI; reads habits from [components] (component.habits, backward compat)
+/// and writes via [onComponentsUpdated]. Callers must sync to [HabitStorageService].
 class HabitsListScreen extends StatefulWidget {
   final String? boardId;
   final List<VisionComponent> components;
@@ -144,10 +144,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     return LogicalDateService.toIsoDate(d);
   }
 
-  static List<VisionComponent> _goalLikeComponents(List<VisionComponent> all) {
-    return all.where((c) => c is ImageComponent).toList();
-  }
-
   /// Helper function to get the appropriate icon for a habit type
   static Widget _getHabitTypeIcon(HabitItem habit) {
     if (habit.timeBound?.isSongBased == true) {
@@ -162,23 +158,26 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     return const SizedBox.shrink(); // No icon for regular habits
   }
 
-  Future<void> _addHabitFromGoalPicker() async {
-    final selected = await showGoalPickerSheet(
-      context,
-      components: _goalLikeComponents(_components),
-      title: 'Select goal for habit',
-    );
-    if (selected == null) return;
+  Future<void> _addHabit() async {
+    if (_components.isEmpty) {
+      final placeholder = TextComponent(
+        id: 'habits_holder_${DateTime.now().millisecondsSinceEpoch}',
+        position: Offset.zero,
+        size: const Size(100, 50),
+        text: '',
+        style: const TextStyle(),
+      );
+      setState(() => _components = [placeholder]);
+      widget.onComponentsUpdated(_components);
+    }
 
-    final goalDeadline = selected is ImageComponent
-        ? selected.goal?.deadline
-        : null;
+    final target = _components.first;
 
+    final allHabits = _components.expand((c) => c.habits).toList();
     final req = await showAddHabitDialog(
       context,
       initialName: null,
-      suggestedGoalDeadline: goalDeadline,
-      existingHabits: selected.habits,
+      existingHabits: allHabits,
     );
     if (req == null) return;
 
@@ -186,6 +185,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final newHabit = HabitItem(
       id: newId,
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -197,11 +197,14 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
       completedDates: const [],
     );
 
     final nextComponents = _components.map((c) {
-      if (c.id != selected.id) return c;
+      if (c.id != target.id) return c;
       return c.copyWithCommon(habits: [...c.habits, newHabit]);
     }).toList();
 
@@ -211,22 +214,21 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final boardId = widget.boardId;
     if (boardId != null && boardId.trim().isNotEmpty) {
       Future<void>(() async {
-        // Keep location tracking in sync when new location-based habits are added.
-        final updatedSelected = nextComponents
-            .where((c) => c.id == selected.id)
+        final updatedTarget = nextComponents
+            .where((c) => c.id == target.id)
             .cast<VisionComponent?>()
             .firstWhere((_) => true, orElse: () => null);
-        if (updatedSelected == null) return;
+        if (updatedTarget == null) return;
         await HabitGeofenceTrackingService.instance.configureForComponent(
           boardId: boardId,
-          componentId: selected.id,
-          habits: updatedSelected.habits,
+          componentId: target.id,
+          habits: updatedTarget.habits,
         );
       });
     }
 
     Future<void>(() async {
-      if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(newHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(newHabit);
@@ -316,14 +318,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         .firstWhere((_) => true, orElse: () => null);
     final baseHabit = hNow ?? habit;
 
-    final goalDeadline = baseComponent is ImageComponent
-        ? baseComponent.goal?.deadline
-        : null;
-
     final req = await showEditHabitDialog(
       context,
       habit: baseHabit,
-      suggestedGoalDeadline: goalDeadline,
       existingHabits: baseComponent.habits.where((h) => h.id != baseHabit.id).toList(),
     );
     if (req == null) return;
@@ -331,6 +328,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     final updatedHabit = baseHabit.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -342,6 +340,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
 
     final nextComponents = _components.map((c) {
@@ -367,7 +368,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     // Best-effort: re-schedule notifications for the updated habit.
     Future<void>(() async {
       await NotificationsService.cancelHabitReminders(updatedHabit);
-      if (!updatedHabit.reminderEnabled || updatedHabit.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(updatedHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(updatedHabit);
@@ -465,7 +466,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _addHabitFromGoalPicker,
+              onPressed: _addHabit,
               icon: const Icon(Icons.add),
               label: const Text('Add habit'),
             ),
@@ -481,7 +482,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             FilledButton.icon(
-              onPressed: _addHabitFromGoalPicker,
+              onPressed: _addHabit,
               icon: const Icon(Icons.add),
               label: const Text('Add habit'),
             ),
@@ -713,7 +714,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
           IconButton(
             tooltip: 'Add habit',
             icon: const Icon(Icons.add),
-            onPressed: _addHabitFromGoalPicker,
+            onPressed: _addHabit,
           ),
         ],
       ),

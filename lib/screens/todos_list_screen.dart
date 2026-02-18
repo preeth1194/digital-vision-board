@@ -77,6 +77,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -88,6 +89,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
   }
 
@@ -247,14 +251,12 @@ class _TodosListScreenState extends State<TodosListScreen> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: meta.deadline,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: meta.deadline,
           );
     if (req == null) return;
 

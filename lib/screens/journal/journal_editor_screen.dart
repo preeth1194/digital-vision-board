@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/journal_entry.dart';
 import '../../services/journal_storage_service.dart';
 import '../../services/journal_image_storage_service.dart';
+import '../../utils/app_colors.dart';
 import 'models/journal_editor_models.dart';
 import 'widgets/editor_spacing.dart';
 import 'widgets/font_picker.dart';
@@ -831,13 +832,13 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     final isDark = theme.brightness == Brightness.dark;
     final tagsSorted = _tags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-    // Neumorphic background colors - using theme surface colors
+    // Background and paper colors — cream paper on offWhite background
     final bgColor = isDark
         ? colorScheme.surfaceContainerLowest
-        : colorScheme.surfaceContainerHighest;
+        : AppColors.offWhite;
     final paperColor = isDark
         ? colorScheme.surfaceContainerHigh
-        : colorScheme.surface;
+        : AppColors.cream;
 
     return PopScope(
       canPop: !_hasUnsavedChanges,
@@ -913,25 +914,27 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Page header with date
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                EditorSpacing.contentPadding,
-                                EditorSpacing.elementGap + 4,
-                                EditorSpacing.contentPadding,
-                                0,
-                              ),
-                              child: Text(
-                                _formatEntryDate(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme.primary.withOpacity(0.7),
-                                  letterSpacing: 0.5,
+                            // Page header with date (hidden for Goal Logs entries)
+                            if (widget.existingEntry?.id.startsWith('goal_log_') != true) ...[
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  EditorSpacing.contentPadding,
+                                  EditorSpacing.elementGap + 4,
+                                  EditorSpacing.contentPadding,
+                                  0,
+                                ),
+                                child: Text(
+                                  _formatEntryDate(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: colorScheme.primary.withOpacity(0.7),
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: EditorSpacing.smallGap),
+                              SizedBox(height: EditorSpacing.smallGap),
+                            ],
                             // Large title field
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: EditorSpacing.contentPadding),

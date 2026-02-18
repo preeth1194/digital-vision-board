@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/vision_components.dart';
+import '../utils/app_colors.dart';
 import 'manipulable/resize_handle.dart';
 import 'manipulable/resize_logic.dart';
 
@@ -41,7 +42,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   static const Color _selectionBorderColor = Colors.white;
   static const List<BoxShadow> _viewSelectionShadow = [
     BoxShadow(
-      color: Color(0x66000000),
+      color: AppColors.shadowMedium,
       blurRadius: 14,
       spreadRadius: 2,
       offset: Offset(0, 6),
@@ -49,7 +50,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
   ];
   static const List<BoxShadow> _editSelectionShadow = [
     BoxShadow(
-      color: Color(0x33000000),
+      color: AppColors.shadowLight,
       blurRadius: 6,
       offset: Offset(0, 2),
     ),

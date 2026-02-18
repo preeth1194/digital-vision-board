@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../utils/app_colors.dart';
 
 /// A circular countdown timer widget that displays remaining time/progress
 /// as a reducing circle, similar to a clock countdown.
@@ -40,8 +41,8 @@ class CircularCountdownTimer extends StatelessWidget {
     this.targetText,
     this.size = 300,
     this.strokeWidth = 20,
-    this.backgroundColor = const Color(0xFFE0E0E0),
-    this.progressColor = const Color(0xFF2196F3),
+    this.backgroundColor = AppColors.timerTrackGrey,
+    this.progressColor = AppColors.mossGreen,
     this.textColor = Colors.black87,
   });
 

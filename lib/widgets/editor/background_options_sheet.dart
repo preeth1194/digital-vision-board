@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
 
 Future<void> showBackgroundOptionsSheet(
   BuildContext context, {
@@ -11,14 +12,14 @@ Future<void> showBackgroundOptionsSheet(
     showDragHandle: true,
     builder: (context) {
       final colors = <Color>[
-        const Color(0xFFF7F7FA),
+        AppColors.editorBgMist,
         Colors.white,
-        const Color(0xFF111827),
-        const Color(0xFF0EA5E9),
-        const Color(0xFF10B981),
-        const Color(0xFFF59E0B),
-        const Color(0xFFEF4444),
-        const Color(0xFF8B5CF6),
+        AppColors.editorBgDarkNavy,
+        AppColors.editorBgCyan,
+        AppColors.editorBgEmerald,
+        AppColors.editorBgAmber,
+        AppColors.editorBgCrimson,
+        AppColors.editorBgViolet,
       ];
 
       return SafeArea(

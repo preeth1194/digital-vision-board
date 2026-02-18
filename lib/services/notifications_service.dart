@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/habit_item.dart';
 import 'app_settings_service.dart';
+import 'notification_routing_service.dart';
 
 class NotificationsService {
   NotificationsService._();
@@ -20,15 +22,46 @@ class NotificationsService {
     if (kIsWeb) return;
 
     tz.initializeTimeZones();
-    // Use device local timezone as default.
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     const initSettings = InitializationSettings(android: android, iOS: ios);
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
     _initialized = true;
+
+    // Handle cold-start: app was killed, user tapped a notification to launch.
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails != null &&
+        launchDetails.didNotificationLaunchApp &&
+        launchDetails.notificationResponse != null) {
+      // Delay slightly so the navigator is mounted before we try to show a sheet.
+      Future.delayed(const Duration(milliseconds: 600), () {
+        _onNotificationTap(launchDetails.notificationResponse!);
+      });
+    }
+  }
+
+  static void _onNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final type = data['type'] as String?;
+      if (type == 'geofence_completion') {
+        NotificationRoutingService.handleGeofenceCompletionTap(
+          boardId: data['boardId'] as String,
+          componentId: data['componentId'] as String,
+          habitId: data['habitId'] as String,
+        );
+      }
+    } catch (e) {
+      debugPrint('Notification tap payload error: $e');
+    }
   }
 
   static Future<bool> requestPermissionsIfNeeded() async {
@@ -69,36 +102,70 @@ class NotificationsService {
     return _stableId('habit:${habit.id}:snooze:$isoDate');
   }
 
-  static AndroidNotificationDetails _getAndroidChannel({String? customSoundPath}) {
+  static List<int>? _vibrationPatternForType(String? vibrationType) {
+    switch (vibrationType) {
+      case 'none':
+        return null;
+      case 'short':
+        return [0, 100];
+      case 'long':
+        return [0, 500, 200, 500];
+      case 'default':
+      default:
+        return null; // platform default
+    }
+  }
+
+  static AndroidNotificationDetails _getAndroidChannel({
+    String? customSoundPath,
+    String? vibrationType,
+  }) {
+    final enableVibration = vibrationType != 'none';
+    final pattern = _vibrationPatternForType(vibrationType);
     return AndroidNotificationDetails(
       'habit_reminders',
       'Habit reminders',
       channelDescription: 'Reminders for scheduled habits',
       importance: Importance.max,
       priority: Priority.max,
-      enableVibration: true,
+      enableVibration: enableVibration,
+      vibrationPattern: pattern != null ? Int64List.fromList(pattern) : null,
       playSound: true,
       sound: customSoundPath != null
           ? UriAndroidNotificationSound('file://$customSoundPath')
-          : null, // null means use default system sound
+          : null,
     );
   }
 
-  static NotificationDetails _getPlatformDetails({String? customSoundPath}) {
+  static NotificationDetails _getPlatformDetails({
+    String? customSoundPath,
+    String? vibrationType,
+  }) {
     return NotificationDetails(
-      android: _getAndroidChannel(customSoundPath: customSoundPath),
+      android: _getAndroidChannel(
+        customSoundPath: customSoundPath,
+        vibrationType: vibrationType,
+      ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
         sound: customSoundPath,
-        // Note: InterruptionLevel.critical requires a Critical Alerts entitlement from Apple.
-        // This entitlement must be requested from Apple and requires justification.
-        // Users must grant permission in iOS Settings > Notifications > [App Name] > Critical Alerts.
-        // Without the entitlement, this will fall back to a lower interruption level.
         interruptionLevel: InterruptionLevel.critical,
       ),
     );
+  }
+
+  /// Resolves the effective sound path for a habit.
+  /// Per-habit sound takes priority, then global setting, then null (system default).
+  static String? _resolveSoundPath(HabitItem habit) {
+    final perHabit = habit.timeBound?.notificationSound;
+    if (perHabit == 'none') return null;
+    // Built-in preset ids are short names; file paths contain slashes
+    if (perHabit != null && perHabit.contains('/')) return perHabit;
+    // For built-in presets we don't have actual audio files bundled yet,
+    // so fall through to global custom sound or system default.
+    return AppSettingsService.customAlarmSoundPath.value;
   }
 
   static tz.TZDateTime _nextInstanceForTimeTodayOrTomorrow(TimeOfDay time) {
@@ -144,23 +211,50 @@ class NotificationsService {
     }
   }
 
+  /// Whether this habit should have a scheduled notification.
+  /// True when either a manual reminder is enabled, or the timer addon has a
+  /// start time (notification sound != 'none').
+  static bool shouldSchedule(HabitItem habit) {
+    if (habit.reminderEnabled && habit.reminderMinutes != null) return true;
+    if (habit.startTimeMinutes != null &&
+        habit.timeBound != null &&
+        habit.timeBound!.enabled &&
+        habit.timeBound!.notificationSound != 'none') {
+      return true;
+    }
+    return false;
+  }
+
   static Future<void> scheduleHabitReminders(HabitItem habit) async {
     if (kIsWeb) return;
     await ensureInitialized();
 
-    if (!habit.reminderEnabled || habit.reminderMinutes == null) {
+    if (!shouldSchedule(habit)) {
       await cancelHabitReminders(habit);
       return;
     }
 
-    final minutes = habit.reminderMinutes!;
+    // Determine the notification time: explicit reminder time, or start time
+    final int minutes;
+    if (habit.reminderEnabled && habit.reminderMinutes != null) {
+      minutes = habit.reminderMinutes!;
+    } else if (habit.startTimeMinutes != null) {
+      minutes = habit.startTimeMinutes!;
+    } else {
+      await cancelHabitReminders(habit);
+      return;
+    }
     final time = TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
 
     // Clear any older schedules first
     await cancelHabitReminders(habit);
 
-    final customSoundPath = AppSettingsService.customAlarmSoundPath.value;
-    final platformDetails = _getPlatformDetails(customSoundPath: customSoundPath);
+    final customSoundPath = _resolveSoundPath(habit);
+    final vibrationType = habit.timeBound?.vibrationType;
+    final platformDetails = _getPlatformDetails(
+      customSoundPath: customSoundPath,
+      vibrationType: vibrationType,
+    );
 
     final freq = (habit.frequency ?? '').trim().toLowerCase();
     if (freq == 'weekly' && habit.weeklyDays.isNotEmpty) {
@@ -206,8 +300,12 @@ class NotificationsService {
       time.minute,
     );
     if (when.isBefore(now)) return;
-    final customSoundPath = AppSettingsService.customAlarmSoundPath.value;
-    final platformDetails = _getPlatformDetails(customSoundPath: customSoundPath);
+    final customSoundPath = _resolveSoundPath(habit);
+    final vibrationType = habit.timeBound?.vibrationType;
+    final platformDetails = _getPlatformDetails(
+      customSoundPath: customSoundPath,
+      vibrationType: vibrationType,
+    );
     await _plugin.zonedSchedule(
       _habitSnoozeId(habit, iso),
       'Habit reminder',
@@ -215,6 +313,55 @@ class NotificationsService {
       when,
       platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Geofence auto-completion notifications
+  // ---------------------------------------------------------------------------
+
+  static NotificationDetails _geofenceCompletionDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'geofence_completions',
+        'Location completions',
+        channelDescription: 'Notifications when a habit is auto-completed by location',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
+  static Future<void> showGeofenceCompletionNotification({
+    required String habitId,
+    required String habitName,
+    required String boardId,
+    required String componentId,
+  }) async {
+    debugPrint('[Notification] showGeofenceCompletionNotification: habitName=$habitName');
+    if (kIsWeb) return;
+    await ensureInitialized();
+
+    final payload = jsonEncode({
+      'type': 'geofence_completion',
+      'habitId': habitId,
+      'boardId': boardId,
+      'componentId': componentId,
+    });
+
+    await _plugin.show(
+      _stableId('geofence:$habitId'),
+      'You completed "$habitName"!',
+      'Tell us how it went.',
+      _geofenceCompletionDetails(),
+      payload: payload,
     );
   }
 }

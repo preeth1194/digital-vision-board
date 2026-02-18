@@ -12,6 +12,7 @@ import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../services/image_service.dart';
 import '../services/stock_images_service.dart';
 import '../services/templates_service.dart';
@@ -494,16 +495,23 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   }
 
   Future<void> _clearTile(int index) async {
+    final tile = _tileAt(index);
     await _setTile(
       index,
-      _tileAt(index).copyWith(
+      tile.copyWith(
         type: 'empty',
         content: null,
         goal: null,
         habits: const [],
+        habitIds: const [],
         tasks: const [],
       ),
     );
+    // Remove this component's habits from HabitStorageService.
+    final existing = await HabitStorageService.getHabitsForComponent(tile.id, prefs: _prefs);
+    for (final h in existing) {
+      await HabitStorageService.deleteHabit(h.id, prefs: _prefs);
+    }
   }
 
   Future<void> _ensureGoalTitle(int index, {String? suggestedTitle}) async {
@@ -568,6 +576,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           // If there's no goal metadata, keep it null so labels can fall back cleanly.
           goal: t.goal,
           habits: t.habits,
+          habitIds: t.habitIds,
           tasks: t.tasks,
         ),
       );
@@ -587,6 +596,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         tasks: c.tasks,
       );
     }).toList();
+    // Sync habits to HabitStorageService (source of truth) when writing to tiles.
+    final previousHabitIds = <String, Set<String>>{};
+    for (final t in _tiles) {
+      final ids = <String>{...t.habits.map((h) => h.id), ...t.habitIds};
+      if (ids.isNotEmpty) previousHabitIds[t.id] = ids;
+    }
+    await HabitStorageService.syncComponentsHabits(
+      widget.boardId,
+      updated,
+      previousHabitIds,
+      prefs: _prefs,
+    );
     await _saveTiles(next);
   }
 

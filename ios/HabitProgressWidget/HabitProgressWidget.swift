@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-private let appGroupId = "group.digital_vision_board"
+private let appGroupId = "group.seerohabitseeding"
 private let snapshotKey = "habit_progress_widget_snapshot_v1"
 
 struct HabitProgressEntry: TimelineEntry {

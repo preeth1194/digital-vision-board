@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/app_colors.dart';
 
 /// A confetti celebration overlay that displays animated particles.
 class ConfettiOverlay extends StatefulWidget {
@@ -8,11 +9,16 @@ class ConfettiOverlay extends StatefulWidget {
   final Duration duration;
   final int particleCount;
 
+  /// Optional emission origin in global coordinates. When provided, particles
+  /// burst from this point instead of the center of the overlay.
+  final Offset? origin;
+
   const ConfettiOverlay({
     super.key,
     this.onComplete,
     this.duration = const Duration(milliseconds: 1500),
     this.particleCount = 50,
+    this.origin,
   });
 
   @override
@@ -26,12 +32,12 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
   final _random = math.Random();
 
   static const _colors = [
-    Color(0xFFFFD700), // Gold
-    Color(0xFF4CAF50), // Green
-    Color(0xFF2196F3), // Blue
-    Color(0xFFE91E63), // Pink
-    Color(0xFFFF9800), // Orange
-    Color(0xFF9C27B0), // Purple
+    AppColors.gold,
+    AppColors.mossGreen,
+    AppColors.mintGreen,
+    AppColors.confettiPink,
+    AppColors.confettiOrange,
+    AppColors.sageGreen,
   ];
 
   @override
@@ -53,14 +59,15 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
   }
 
   _Particle _createParticle() {
-    final angle = _random.nextDouble() * 2 * math.pi;
-    final speed = 100 + _random.nextDouble() * 200;
-    final size = 6.0 + _random.nextDouble() * 8.0;
-    final rotationSpeed = (_random.nextDouble() - 0.5) * 10;
+    // Bias upward: angles mostly in the upper half (-30 to 210 degrees)
+    final angle = -math.pi * 0.15 + _random.nextDouble() * math.pi * 1.3;
+    final speed = 40 + _random.nextDouble() * 80;
+    final size = 4.0 + _random.nextDouble() * 5.0;
+    final rotationSpeed = (_random.nextDouble() - 0.5) * 6;
 
     return _Particle(
       color: _colors[_random.nextInt(_colors.length)],
-      angle: angle,
+      angle: -angle, // negate so particles fly upward
       speed: speed,
       size: size,
       rotationSpeed: rotationSpeed,
@@ -84,6 +91,7 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
           painter: _ConfettiPainter(
             particles: _particles,
             progress: _controller.value,
+            origin: widget.origin,
           ),
         );
       },
@@ -114,19 +122,21 @@ class _Particle {
 class _ConfettiPainter extends CustomPainter {
   final List<_Particle> particles;
   final double progress;
+  final Offset? origin;
 
   _ConfettiPainter({
     required this.particles,
     required this.progress,
+    this.origin,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
+    final centerX = origin?.dx ?? size.width / 2;
+    final centerY = origin?.dy ?? size.height / 2;
 
-    // Gravity effect - particles slow down and fall
-    final gravity = progress * progress * 150;
+    // Gentle gravity — particles drift down slowly
+    final gravity = progress * progress * 60;
 
     for (final particle in particles) {
       // Calculate position with physics

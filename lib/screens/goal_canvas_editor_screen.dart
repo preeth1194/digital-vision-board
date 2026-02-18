@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
+import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/image_persistence.dart';
@@ -24,7 +25,8 @@ import '../widgets/vision_board_builder.dart';
 ///
 /// - User adds a goal by picking an image -> cropper -> saved as a layer.
 /// - User can drag/resize layers.
-/// - Habits are tracked per goal (image) layer.
+/// - Habits are tracked per goal (image) layer (edited in viewer / HabitTrackerSheet).
+/// - This screen does not write habits; habit data is read from components for display only (backward compat via component.habits).
 /// - Text is allowed for decoration (not for tracking).
 class GoalCanvasEditorScreen extends StatefulWidget {
   final String boardId;
@@ -48,7 +50,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
   List<VisionComponent> _components = [];
   String? _selectedId;
 
-  Color _backgroundColor = const Color(0xFFF7F7FA);
+  Color _backgroundColor = AppColors.offWhite;
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'habit_item.dart';
-import 'task_item.dart';
+import 'task_and_checklist_models.dart';
 import 'vision_component.dart';
 
 final class TextComponent extends VisionComponent {
@@ -18,6 +18,7 @@ final class TextComponent extends VisionComponent {
     super.scale,
     super.zIndex,
     super.habits,
+    super.habitIds,
     super.tasks,
     super.isDisabled,
     required this.text,
@@ -37,6 +38,7 @@ final class TextComponent extends VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<String>? habitIds,
     List<TaskItem>? tasks,
     bool? isDisabled,
   }) {
@@ -48,6 +50,7 @@ final class TextComponent extends VisionComponent {
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
       habits: habits ?? this.habits,
+      habitIds: habitIds ?? this.habitIds,
       tasks: tasks ?? this.tasks,
       isDisabled: isDisabled ?? this.isDisabled,
       text: text,
@@ -70,6 +73,7 @@ final class TextComponent extends VisionComponent {
         scale: scale,
         zIndex: zIndex,
         habits: habits,
+        habitIds: habitIds,
         tasks: tasks,
         isDisabled: isDisabled ?? this.isDisabled,
         text: text ?? this.text,
@@ -87,31 +91,36 @@ final class TextComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
+        'habitIds': habitIds,
         'isDisabled': isDisabled,
         'text': text,
         'style': VisionComponent.textStyleToJson(style),
         'textAlign': textAlign.index,
       };
 
-  factory TextComponent.fromJson(Map<String, dynamic> json) => TextComponent(
-        id: json['id'] as String,
-        position: VisionComponent.offsetFromJson(
-          json['position'] as Map<String, dynamic>,
-        ),
-        size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
-        rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
-        scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
-        zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
-        habits: VisionComponent.habitsFromJson(json['habits']),
-        tasks: VisionComponent.tasksFromJson(json['tasks']),
-        isDisabled: json['isDisabled'] as bool? ?? false,
-        text: json['text'] as String? ?? '',
-        style: VisionComponent.textStyleFromJson(
-          (json['style'] as Map<String, dynamic>? ?? const {}),
-        ),
-        textAlign: (json['textAlign'] is num)
-            ? TextAlign.values[(json['textAlign'] as num).toInt().clamp(0, TextAlign.values.length - 1)]
-            : TextAlign.left,
-      );
+  factory TextComponent.fromJson(Map<String, dynamic> json) {
+    final habits = VisionComponent.habitsFromJson(json['habits']);
+    return TextComponent(
+      id: json['id'] as String,
+      position: VisionComponent.offsetFromJson(
+        json['position'] as Map<String, dynamic>,
+      ),
+      size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
+      zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
+      habits: habits,
+      habitIds: VisionComponent.habitIdsFromJson(json['habitIds'], fallbackHabits: habits),
+      tasks: VisionComponent.tasksFromJson(json['tasks']),
+      isDisabled: json['isDisabled'] as bool? ?? false,
+      text: json['text'] as String? ?? '',
+      style: VisionComponent.textStyleFromJson(
+        (json['style'] as Map<String, dynamic>? ?? const {}),
+      ),
+      textAlign: (json['textAlign'] is num)
+          ? TextAlign.values[(json['textAlign'] as num).toInt().clamp(0, TextAlign.values.length - 1)]
+          : TextAlign.left,
+    );
+  }
 }
 

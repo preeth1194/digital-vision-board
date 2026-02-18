@@ -16,7 +16,7 @@ import 'journal_editor_screen.dart';
 import 'models/journal_editor_models.dart';
 import 'widgets/choose_cover_screen.dart';
 import 'widgets/journal_browse.dart';
-import 'widgets/journal_landing.dart';
+import 'widgets/journal_hero_section.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
   final bool embedded;
@@ -80,9 +80,6 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   List<_NoteFeedItem> _feedbackAndTaggedJournalFeed = const [];
   List<JournalEntry> _journalEntries = const [];
   bool _hasGoalLogs = false;
-
-  // Stacked paper card overlay state
-  bool _showLatestEntry = false;
 
   // Journal books state
   List<JournalBook> _books = const [];
@@ -423,58 +420,39 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   Widget _journalTab() {
     final filteredEntries = _filteredJournalEntries;
 
-    return Stack(
+    return Column(
       children: [
-        Column(
-          children: [
-            // Pinned header (acts like an app bar)
-            JournalBrowseSection(
-              onAddBook: _handleAddBook,
-            ),
-            // Scrollable content beneath
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.only(
-                  top: 0,
-                  bottom: MediaQuery.of(context).padding.bottom + 100,
-                ),
-                children: [
-                  JournalHeroSection(
-                    onType: _openNewJournalEditor,
-                    onRecord: _openNewJournalEditorWithVoice,
-                    onBookTap: () {
-                      if (filteredEntries.isNotEmpty) {
-                        setState(() => _showLatestEntry = !_showLatestEntry);
-                      }
-                    },
-                    entryCount: filteredEntries.length,
-                    books: _books,
-                    selectedBookId: _selectedBookId,
-                    entryCounts: _bookEntryCounts,
-                    entriesByBook: _entriesByBook,
-                    onBookSelected: _handleBookSelected,
-                    onAddBook: _handleAddBook,
-                    onOpenEntry: _handleOpenEntry,
-                    onDeleteEntry: _handleDeleteEntry,
-                    onDeleteBook: _handleDeleteBook,
-                    onColorChanged: _handleColorChanged,
-                    onTitleChanged: _handleTitleChanged,
-                    newBookId: _newBookId,
-                  ),
-                ],
-              ),
-            ),
-          ],
+        // Pinned header (acts like an app bar)
+        JournalBrowseSection(
+          onAddBook: _handleAddBook,
         ),
-        if (_showLatestEntry && filteredEntries.isNotEmpty)
-          LatestEntryOverlay(
-            entry: filteredEntries.first,
-            onTap: () {
-              setState(() => _showLatestEntry = false);
-              _openJournalEditorForEdit(filteredEntries.first);
-            },
-            onDismiss: () => setState(() => _showLatestEntry = false),
+        // Scrollable content beneath
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.only(
+              top: 0,
+              bottom: MediaQuery.of(context).padding.bottom + 100,
+            ),
+            children: [
+              JournalHeroSection(
+                onType: _openNewJournalEditor,
+                onRecord: _openNewJournalEditorWithVoice,
+                books: _books,
+                selectedBookId: _selectedBookId,
+                entryCounts: _bookEntryCounts,
+                entriesByBook: _entriesByBook,
+                onBookSelected: _handleBookSelected,
+                onAddBook: _handleAddBook,
+                onOpenEntry: _handleOpenEntry,
+                onDeleteEntry: _handleDeleteEntry,
+                onDeleteBook: _handleDeleteBook,
+                onColorChanged: _handleColorChanged,
+                onTitleChanged: _handleTitleChanged,
+                newBookId: _newBookId,
+              ),
+            ],
           ),
+        ),
       ],
     );
   }

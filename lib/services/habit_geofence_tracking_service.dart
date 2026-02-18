@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geofence_service/geofence_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +11,7 @@ import 'grid_tiles_storage_service.dart';
 import 'habit_completion_applier.dart';
 import 'habit_timer_state_service.dart';
 import 'logical_date_service.dart';
+import 'notifications_service.dart';
 import 'vision_board_components_storage_service.dart';
 
 /// App-level geofence tracker for location-bound habits.
@@ -126,6 +128,7 @@ final class HabitGeofenceTrackingService {
           'boardId': t.boardId,
           'componentId': t.componentId,
           'targetMs': targetMs,
+          'triggerMode': lb.triggerMode,
         },
         latitude: lb.lat,
         longitude: lb.lng,
@@ -136,14 +139,20 @@ final class HabitGeofenceTrackingService {
       _svc.addGeofence(geofence);
     }
 
+    debugPrint('[Geofence] _rebuildService: ${targets.length} target(s)');
     if (targets.isEmpty) {
       if (_svc.isRunningService) {
         await _svc.stop();
+        debugPrint('[Geofence] Stopped service (no targets)');
       }
       return;
     }
 
-    if (_svc.isRunningService) return;
+    if (_svc.isRunningService) {
+      debugPrint('[Geofence] Service already running');
+      return;
+    }
+    debugPrint('[Geofence] Starting geofence service...');
     await _svc.start().catchError(_onError);
   }
 
@@ -153,6 +162,7 @@ final class HabitGeofenceTrackingService {
     GeofenceStatus geofenceStatus,
     Location location,
   ) async {
+    debugPrint('[Geofence] Status changed: ${geofence.id} -> $geofenceStatus');
     final data = geofence.data;
     if (data is! Map) return;
 
@@ -160,12 +170,12 @@ final class HabitGeofenceTrackingService {
     final boardId = data['boardId'] as String?;
     final componentId = data['componentId'] as String?;
     final targetMs = (data['targetMs'] as num?)?.toInt() ?? 0;
+    final triggerMode = data['triggerMode'] as String? ?? 'arrival';
 
     if (habitId == null || habitId.trim().isEmpty) return;
     if (boardId == null || boardId.trim().isEmpty) return;
     if (componentId == null || componentId.trim().isEmpty) return;
 
-    // ENTER/DWELL -> inside, EXIT -> outside
     final inside = geofenceStatus != GeofenceStatus.EXIT;
     final eventMs = location.timestamp.millisecondsSinceEpoch;
 
@@ -181,7 +191,32 @@ final class HabitGeofenceTrackingService {
       eventMs: eventMs,
     );
 
-    // Auto-complete in background (process alive) when the time target is reached.
+    debugPrint('[Geofence] targetMs=$targetMs, inside=$inside, triggerMode=$triggerMode');
+
+    // "departure" mode: complete when the user exits the geofence.
+    if (triggerMode == 'departure' && !inside) {
+      final iso = LogicalDateService.isoToday();
+      final didComplete = await HabitCompletionApplier.markCompleted(
+        boardId: boardId,
+        componentId: componentId,
+        habitId: habitId,
+        logicalDateIso: iso,
+        prefs: prefs,
+      );
+      debugPrint('[Geofence] Departure complete -> didComplete=$didComplete');
+      if (didComplete) {
+        final habitName = _lookupHabitName(boardId, componentId, habitId);
+        await NotificationsService.showGeofenceCompletionNotification(
+          habitId: habitId,
+          habitName: habitName ?? 'your habit',
+          boardId: boardId,
+          componentId: componentId,
+        );
+      }
+      return;
+    }
+
+    // Dwell-based: accumulate time inside and auto-complete once target is reached.
     if (targetMs > 0) {
       final acc = await HabitTimerStateService.accumulatedMsNow(
         prefs: prefs,
@@ -189,6 +224,7 @@ final class HabitGeofenceTrackingService {
         logicalDate: logicalDate,
         nowMs: eventMs,
       );
+      debugPrint('[Geofence] accumulated=${acc}ms / target=${targetMs}ms');
       if (acc >= targetMs) {
         await HabitTimerStateService.pause(
           prefs: prefs,
@@ -197,19 +233,40 @@ final class HabitGeofenceTrackingService {
           nowMs: eventMs,
         );
         final iso = LogicalDateService.isoToday();
-        await HabitCompletionApplier.markCompleted(
+        final didComplete = await HabitCompletionApplier.markCompleted(
           boardId: boardId,
           componentId: componentId,
           habitId: habitId,
           logicalDateIso: iso,
           prefs: prefs,
         );
+        debugPrint('[Geofence] markCompleted -> didComplete=$didComplete');
+        if (didComplete) {
+          final habitName = _lookupHabitName(boardId, componentId, habitId);
+          debugPrint('[Geofence] Showing notification for "$habitName"');
+          await NotificationsService.showGeofenceCompletionNotification(
+            habitId: habitId,
+            habitName: habitName ?? 'your habit',
+            boardId: boardId,
+            componentId: componentId,
+          );
+        }
       }
     }
   }
 
+  String? _lookupHabitName(String boardId, String componentId, String habitId) {
+    final key = '$boardId::$componentId';
+    final targets = _targetsByComponentKey[key];
+    if (targets == null) return null;
+    for (final t in targets) {
+      if (t.habit.id == habitId) return t.habit.name;
+    }
+    return null;
+  }
+
   void _onError(dynamic error) {
-    // Best-effort; errors are surfaced by permission UX elsewhere.
+    debugPrint('[Geofence] Error: $error');
   }
 }
 

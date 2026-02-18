@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
+import '../../../services/journal_book_storage_service.dart';
 import 'book_action_bar.dart';
 import 'interactive_journal_book.dart';
 
@@ -51,6 +52,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   late PageController _pageController;
   int _currentPage = 0;
   bool _isBookOpen = false;
+  final Map<String, GlobalKey> _bookKeys = {};
 
   static const double _closedViewportFraction = 0.65;
   static const double _openViewportFraction = 0.95;
@@ -100,43 +102,22 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
     setState(() {
       _isBookOpen = isOpen;
     });
-    widget.onBookOpenChanged?.call(isOpen);
-    // Recreate controller with new viewportFraction, preserving page
     final page = _currentPage;
     _pageController.dispose();
     _pageController = PageController(
       initialPage: page,
       viewportFraction: isOpen ? _openViewportFraction : _closedViewportFraction,
     );
-  }
-
-  void _showMoreOptions(JournalBook book) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.palette_outlined),
-              title: const Text('Change Cover Color'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showColorPicker(book);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Rename Book'),
-              onTap: () {
-                Navigator.pop(ctx);
-                // Title editing is handled inline on the book
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+    if (isOpen) {
+      // Delay heading collapse so it stays visible while the book animates open
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _isBookOpen) {
+          widget.onBookOpenChanged?.call(true);
+        }
+      });
+    } else {
+      widget.onBookOpenChanged?.call(false);
+    }
   }
 
   void _showColorPicker(JournalBook book) async {
@@ -154,6 +135,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   }
 
   void _confirmDeleteBook(JournalBook book) {
+    if (book.id == JournalBookStorageService.goalLogsBookId) return;
     final entryCount = widget.entryCounts[book.id] ?? 0;
     showDialog(
       context: context,
@@ -223,6 +205,8 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
               final entries = widget.entriesByBook[book.id] ?? [];
               final isNewBook = book.id == widget.newBookId;
 
+              final bookKey = _bookKeys.putIfAbsent(book.id, () => GlobalKey());
+
               return AnimatedScale(
                 scale: isActive ? 1.0 : 0.85,
                 duration: const Duration(milliseconds: 200),
@@ -233,6 +217,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: InteractiveJournalBook(
+                      key: bookKey,
                       book: book,
                       entryCount: entryCount,
                       entries: entries,
@@ -256,7 +241,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
         // Action bar for current book – hidden when book is open (buttons are inside)
         if (_currentPage < widget.books.length)
           BookActionBar(
-            onMore: () => _showMoreOptions(widget.books[_currentPage]),
+            onColor: () => _showColorPicker(widget.books[_currentPage]),
             onDelete: () => _confirmDeleteBook(widget.books[_currentPage]),
             onAdd: widget.onNewEntry,
             isVisible: !_isBookOpen,

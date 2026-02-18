@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/journal_book.dart';
+import '../utils/app_colors.dart';
 
 /// Service for persisting and retrieving journal books.
 final class JournalBookStorageService {
@@ -12,6 +13,9 @@ final class JournalBookStorageService {
 
   /// Default book ID for entries without a book association.
   static const String defaultBookId = 'default_journal';
+
+  /// Book ID for the auto-created, non-deletable "Goal Logs" book.
+  static const String goalLogsBookId = 'goal_logs';
 
   /// Load all books from storage. Returns empty list if none exist.
   static Future<List<JournalBook>> loadBooks({SharedPreferences? prefs}) async {
@@ -74,11 +78,12 @@ final class JournalBookStorageService {
     return book;
   }
 
-  /// Delete a book by ID.
+  /// Delete a book by ID. The Goal Logs book cannot be deleted.
   static Future<void> deleteBook(
     String id, {
     SharedPreferences? prefs,
   }) async {
+    if (id == goalLogsBookId) return;
     final p = prefs ?? await SharedPreferences.getInstance();
     final existing = await loadBooks(prefs: p);
     final next = existing.where((b) => b.id != id).toList();
@@ -115,13 +120,15 @@ final class JournalBookStorageService {
     return updated;
   }
 
-  /// Ensure a default book exists. Creates one if no books exist.
-  /// Returns the list of books (with default created if needed).
+  /// Ensure default books exist (Journal + Goal Logs).
+  /// Returns the list of books (with defaults created if needed).
   static Future<List<JournalBook>> ensureDefaultBook({
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     var books = await loadBooks(prefs: p);
+    var changed = false;
+
     if (books.isEmpty) {
       final defaultBook = JournalBook(
         id: defaultBookId,
@@ -130,8 +137,24 @@ final class JournalBookStorageService {
         subtitle: 'written by you',
         coverColor: JournalBook.defaultCoverColor,
       );
-      await saveBooks([defaultBook], prefs: p);
       books = [defaultBook];
+      changed = true;
+    }
+
+    if (!books.any((b) => b.id == goalLogsBookId)) {
+      final goalLogsBook = JournalBook(
+        id: goalLogsBookId,
+        name: 'Goal Logs',
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        subtitle: 'habit completions',
+        coverColor: AppColors.coverLightGreen,
+      );
+      books = [...books, goalLogsBook];
+      changed = true;
+    }
+
+    if (changed) {
+      await saveBooks(books, prefs: p);
     }
     return books;
   }

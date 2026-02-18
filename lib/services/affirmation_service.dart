@@ -10,6 +10,7 @@ import '../models/vision_components.dart';
 import 'boards_storage_service.dart';
 import 'dv_auth_service.dart';
 import 'grid_tiles_storage_service.dart';
+import 'habit_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 
 /// Service for managing affirmations with backend sync and local storage fallback
@@ -228,6 +229,7 @@ final class AffirmationService {
   static Future<List<String>> getCategoriesFromBoards({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final boards = await BoardsStorageService.loadBoards(prefs: p);
+    final allHabits = await HabitStorageService.loadAll(prefs: p);
     final categories = <String>{};
     
     for (final board in boards) {
@@ -245,7 +247,7 @@ final class AffirmationService {
                   zIndex: 0,
                   imagePath: t.content ?? '',
                   goal: t.goal,
-                  habits: t.habits,
+                  habits: allHabits.where((h) => h.componentId == t.id).toList(),
                 ))
             .toList();
       } else {

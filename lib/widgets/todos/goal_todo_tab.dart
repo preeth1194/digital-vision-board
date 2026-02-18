@@ -44,6 +44,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -55,6 +56,9 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
   }
 
@@ -144,14 +148,12 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
           );
     if (req == null) return;
 

@@ -1,7 +1,7 @@
 import AppIntents
 import WidgetKit
 
-private let appGroupId = "group.digital_vision_board"
+private let appGroupId = "group.seerohabitseeding"
 private let snapshotKey = "habit_progress_widget_snapshot_v1"
 private let actionQueueKey = "habit_progress_widget_action_queue_v1"
 

@@ -46,7 +46,7 @@ tasks.named("preBuild").configure {
 }
 
 android {
-    namespace = "com.digitalvisionboard.app"
+    namespace = "com.seerohabitseeding.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -62,7 +62,7 @@ android {
 
     defaultConfig {
         // Application ID for Google Play - must be unique and not use com.example
-        applicationId = "com.digitalvisionboard.app"
+        applicationId = "com.seerohabitseeding.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -72,7 +72,7 @@ android {
         
         // Manifest placeholders for OAuth redirects (used by plugins like google_sign_in)
         manifestPlaceholders["redirectHostName"] = "localhost"
-        manifestPlaceholders["redirectSchemeName"] = "com.example.digital_vision_board"
+        manifestPlaceholders["redirectSchemeName"] = "com.seerohabitseeding.app"
     }
 
     signingConfigs {

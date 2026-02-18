@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
+import '../../utils/app_colors.dart';
 
 class NewBoardConfig {
   final String title;
@@ -139,11 +140,11 @@ class _GridTemplatePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = <Color>[
-      const Color(0xFFEEF2FF),
-      const Color(0xFFE0F2FE),
-      const Color(0xFFECFDF5),
-      const Color(0xFFFFF7ED),
-      const Color(0xFFF3E8FF),
+      AppColors.pastelIndigo,
+      AppColors.pastelBlue,
+      AppColors.pastelGreen,
+      AppColors.pastelOrange,
+      AppColors.pastelPurple,
     ];
 
     return ClipRRect(

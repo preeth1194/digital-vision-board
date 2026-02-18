@@ -9,6 +9,7 @@ import '../models/image_component.dart';
 import '../models/goal_metadata.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import '../services/micro_habit_storage_service.dart';
@@ -102,6 +103,7 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
+          habitIds: t.habitIds,
         ),
       );
     }
@@ -113,6 +115,18 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
     _prefs ??= prefs;
 
     if (widget.board.layoutType == VisionBoardInfo.layoutGrid) {
+      // Sync habits to HabitStorageService when writing to tiles.
+      final previousHabitIds = <String, Set<String>>{};
+      for (final t in _tiles) {
+        final ids = <String>{...t.habits.map((h) => h.id), ...t.habitIds};
+        if (ids.isNotEmpty) previousHabitIds[t.id] = ids;
+      }
+      await HabitStorageService.syncComponentsHabits(
+        widget.board.id,
+        updated,
+        previousHabitIds,
+        prefs: prefs,
+      );
       // Write habits back onto tiles by id.
       final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
       final nextTiles = _tiles.map((t) {
@@ -130,6 +144,18 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
       return;
     }
 
+    // Sync habits to HabitStorageService when writing components (canvas boards).
+    final previousHabitIds = <String, Set<String>>{};
+    for (final c in _components) {
+      final ids = <String>{...c.habits.map((h) => h.id), ...c.habitIds};
+      if (ids.isNotEmpty) previousHabitIds[c.id] = ids;
+    }
+    await HabitStorageService.syncComponentsHabits(
+      widget.board.id,
+      updated,
+      previousHabitIds,
+      prefs: prefs,
+    );
     await VisionBoardComponentsStorageService.saveComponents(widget.board.id, updated, prefs: prefs);
     if (!mounted) return;
     setState(() => _components = updated);

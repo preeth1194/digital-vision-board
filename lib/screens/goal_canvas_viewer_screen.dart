@@ -8,10 +8,12 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
+import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
 import '../services/vision_board_components_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../widgets/editor/layers_sheet.dart';
 import '../widgets/habit_tracker_sheet.dart';
 import '../widgets/vision_board_builder.dart';
@@ -40,7 +42,7 @@ class GoalCanvasViewerScreen extends StatefulWidget {
 class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   bool _loading = true;
   List<VisionComponent> _components = [];
-  Color _backgroundColor = const Color(0xFFF7F7FA);
+  Color _backgroundColor = AppColors.offWhite;
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
   String? _selectedId;
@@ -87,6 +89,18 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
 
   Future<void> _saveComponents(List<VisionComponent> updated) async {
     final prefs = await SharedPreferences.getInstance();
+    // Sync habits to HabitStorageService when writing components.
+    final previousHabitIds = <String, Set<String>>{};
+    for (final c in _components) {
+      final ids = <String>{...c.habits.map((h) => h.id), ...c.habitIds};
+      if (ids.isNotEmpty) previousHabitIds[c.id] = ids;
+    }
+    await HabitStorageService.syncComponentsHabits(
+      widget.boardId,
+      updated,
+      previousHabitIds,
+      prefs: prefs,
+    );
     await VisionBoardComponentsStorageService.saveComponents(widget.boardId, updated, prefs: prefs);
     if (!mounted) return;
     setState(() => _components = updated);

@@ -287,6 +287,7 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
                                 frontAffirmation: _currentAffirmation,
                                 backAffirmation: _nextAffirmation,
                                 onFlip: _onFlip,
+                                onSettings: _openSettings,
                                 showPinIndicator: true,
                               ),
                             ),
@@ -306,58 +307,10 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
               ),
       ),
       floatingActionButton: _affirmations.isNotEmpty
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Filter FAB (smaller)
-                FloatingActionButton.small(
-                  heroTag: 'filter',
-                  onPressed: _showFilterMenu,
-                  backgroundColor: _selectedCategory != null && _selectedCategory != 'All'
-                      ? colorScheme.primaryContainer
-                      : null,
-                  foregroundColor: _selectedCategory != null && _selectedCategory != 'All'
-                      ? colorScheme.onPrimaryContainer
-                      : null,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(Icons.filter_list),
-                      if (_selectedCategory != null && _selectedCategory != 'All')
-                        Positioned(
-                          right: -4,
-                          top: -4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 12,
-                              minHeight: 12,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Settings FAB (smaller)
-                FloatingActionButton.small(
-                  heroTag: 'settings',
-                  onPressed: _openSettings,
-                  child: const Icon(Icons.settings),
-                ),
-                const SizedBox(height: 12),
-                // Add FAB (main, larger)
-                FloatingActionButton(
-                  heroTag: 'add',
-                  onPressed: _openManagement,
-                  child: const Icon(Icons.add),
-                ),
-              ],
+          ? FloatingActionButton(
+              heroTag: 'add',
+              onPressed: _openManagement,
+              child: const Icon(Icons.add),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/dv_auth_service.dart';
+import 'profile_completion_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -45,11 +46,22 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
           // Auto-resolve on Android sometimes.
           try {
             final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+            final phone = cred.user?.phoneNumber;
+            if (phone != null && phone.isNotEmpty) {
+              await DvAuthService.setUserDisplayInfo(phoneNumber: phone);
+            }
             final idToken = await cred.user?.getIdToken();
             if ((idToken ?? '').trim().isEmpty) return;
             await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
             if (!mounted) return;
-            Navigator.of(context).pop(true);
+            if (!await DvAuthService.isProfileComplete()) {
+              final ok = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+              );
+              if (ok == true && mounted) Navigator.of(context).pop(true);
+            } else {
+              Navigator.of(context).pop(true);
+            }
           } catch (_) {
             // ignore; user can still enter SMS manually
           }
@@ -95,13 +107,24 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     try {
       final credential = PhoneAuthProvider.credential(verificationId: vid!, smsCode: code);
       final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final phone = cred.user?.phoneNumber;
+      if (phone != null && phone.isNotEmpty) {
+        await DvAuthService.setUserDisplayInfo(phoneNumber: phone);
+      }
       final idToken = await cred.user?.getIdToken();
       if ((idToken ?? '').trim().isEmpty) {
         throw Exception('Could not get Firebase idToken.');
       }
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      if (!await DvAuthService.isProfileComplete()) {
+        final ok = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+        );
+        if (ok == true && mounted) Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());

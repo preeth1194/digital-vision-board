@@ -65,6 +65,19 @@ final class SyncService {
     } else {
       await DvAuthService.setGender('prefer_not_to_say', prefs: p);
     }
+    final displayName = decoded['display_name'] as String?;
+    final weightKg = decoded['weight_kg'];
+    final heightCm = decoded['height_cm'];
+    final dateOfBirth = decoded['date_of_birth'] as String?;
+    if (displayName != null || weightKg != null || heightCm != null || dateOfBirth != null) {
+      await DvAuthService.setProfileInfo(
+        displayName: displayName?.trim().isNotEmpty == true ? displayName!.trim() : null,
+        weightKg: weightKg is num ? weightKg.toDouble() : null,
+        heightCm: heightCm is num ? heightCm.toDouble() : null,
+        dateOfBirth: dateOfBirth?.trim().isNotEmpty == true ? dateOfBirth!.trim() : null,
+        prefs: p,
+      );
+    }
 
     final boardsRaw = decoded['boards'];
     if (boardsRaw is! List) {
@@ -236,12 +249,20 @@ final class SyncService {
 
     final tz = await DvAuthService.getHomeTimezone(prefs: p);
     final gender = await DvAuthService.getGender(prefs: p);
+    final displayName = await DvAuthService.getDisplayName(prefs: p);
+    final weightKg = await DvAuthService.getWeightKg(prefs: p);
+    final heightCm = await DvAuthService.getHeightCm(prefs: p);
+    final dateOfBirth = await DvAuthService.getDateOfBirth(prefs: p);
     final body = <String, dynamic>{
       if (boards.isNotEmpty) 'boards': boards,
       if (habitCompletions.isNotEmpty) 'habitCompletions': habitCompletions,
       'userSettings': {
         if (tz != null && tz.trim().isNotEmpty) 'homeTimezone': tz.trim(),
         'gender': gender,
+        if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+        if (weightKg != null) 'weightKg': weightKg,
+        if (heightCm != null) 'heightCm': heightCm,
+        if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'dateOfBirth': dateOfBirth,
       },
     };
 

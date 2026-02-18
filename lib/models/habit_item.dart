@@ -1,4 +1,5 @@
 import 'cbt_enhancements.dart';
+import 'habit_action_step.dart';
 
 final class HabitTimeBoundSpec {
   final bool enabled;
@@ -13,6 +14,12 @@ final class HabitTimeBoundSpec {
   final String? spotifyPlaylistId;
   /// Selected Spotify track IDs (optional, for song-based mode)
   final List<String>? spotifyTrackIds;
+  /// Per-habit notification sound identifier.
+  /// Built-in: 'default', 'chime', 'bell', 'gentle', 'alert', 'none'.
+  /// Custom: a file path string.
+  final String? notificationSound;
+  /// Per-habit vibration type: 'none', 'default', 'short', 'long'.
+  final String? vibrationType;
 
   const HabitTimeBoundSpec({
     required this.enabled,
@@ -21,6 +28,8 @@ final class HabitTimeBoundSpec {
     this.mode = 'time',
     this.spotifyPlaylistId,
     this.spotifyTrackIds,
+    this.notificationSound,
+    this.vibrationType,
   });
 
   bool get isTimeBased => mode == 'time';
@@ -40,6 +49,8 @@ final class HabitTimeBoundSpec {
         'mode': mode,
         'spotifyPlaylistId': spotifyPlaylistId,
         'spotifyTrackIds': spotifyTrackIds,
+        'notificationSound': notificationSound,
+        'vibrationType': vibrationType,
       };
 
   factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
@@ -51,6 +62,8 @@ final class HabitTimeBoundSpec {
     final spotifyTrackIds = (json['spotifyTrackIds'] as List<dynamic>?)
         ?.map((e) => e.toString())
         .toList();
+    final notificationSound = json['notificationSound'] as String?;
+    final vibrationType = json['vibrationType'] as String?;
     return HabitTimeBoundSpec(
       enabled: enabled,
       duration: duration,
@@ -58,6 +71,8 @@ final class HabitTimeBoundSpec {
       mode: mode,
       spotifyPlaylistId: spotifyPlaylistId,
       spotifyTrackIds: spotifyTrackIds,
+      notificationSound: notificationSound,
+      vibrationType: vibrationType,
     );
   }
 
@@ -68,6 +83,8 @@ final class HabitTimeBoundSpec {
     String? mode,
     String? spotifyPlaylistId,
     List<String>? spotifyTrackIds,
+    String? notificationSound,
+    String? vibrationType,
   }) {
     return HabitTimeBoundSpec(
       enabled: enabled ?? this.enabled,
@@ -76,6 +93,8 @@ final class HabitTimeBoundSpec {
       mode: mode ?? this.mode,
       spotifyPlaylistId: spotifyPlaylistId ?? this.spotifyPlaylistId,
       spotifyTrackIds: spotifyTrackIds ?? this.spotifyTrackIds,
+      notificationSound: notificationSound ?? this.notificationSound,
+      vibrationType: vibrationType ?? this.vibrationType,
     );
   }
 }
@@ -89,6 +108,8 @@ final class HabitLocationBoundSpec {
   final String triggerMode;
   /// Used when triggerMode is 'dwell' or 'both'
   final int? dwellMinutes;
+  /// Human-readable address resolved via geocoding.
+  final String? address;
 
   const HabitLocationBoundSpec({
     required this.enabled,
@@ -97,6 +118,7 @@ final class HabitLocationBoundSpec {
     required this.radiusMeters,
     required this.triggerMode,
     required this.dwellMinutes,
+    this.address,
   });
 
   Map<String, dynamic> toJson() => {
@@ -106,6 +128,7 @@ final class HabitLocationBoundSpec {
         'radiusMeters': radiusMeters,
         'triggerMode': triggerMode,
         'dwellMinutes': dwellMinutes,
+        'address': address,
       };
 
   factory HabitLocationBoundSpec.fromJson(Map<String, dynamic> json) {
@@ -117,6 +140,7 @@ final class HabitLocationBoundSpec {
         150;
     final triggerMode = (json['triggerMode'] as String?) ?? (json['trigger_mode'] as String?) ?? 'arrival';
     final dwellMinutes = (json['dwellMinutes'] as num?)?.toInt() ?? (json['dwell_minutes'] as num?)?.toInt();
+    final address = json['address'] as String?;
     return HabitLocationBoundSpec(
       enabled: enabled,
       lat: lat,
@@ -124,6 +148,28 @@ final class HabitLocationBoundSpec {
       radiusMeters: radiusMeters,
       triggerMode: triggerMode,
       dwellMinutes: dwellMinutes,
+      address: address,
+    );
+  }
+
+  HabitLocationBoundSpec copyWith({
+    bool? enabled,
+    double? lat,
+    double? lng,
+    int? radiusMeters,
+    String? triggerMode,
+    int? dwellMinutes,
+    String? address,
+    bool clearAddress = false,
+  }) {
+    return HabitLocationBoundSpec(
+      enabled: enabled ?? this.enabled,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      radiusMeters: radiusMeters ?? this.radiusMeters,
+      triggerMode: triggerMode ?? this.triggerMode,
+      dwellMinutes: dwellMinutes ?? this.dwellMinutes,
+      address: clearAddress ? null : (address ?? this.address),
     );
   }
 }
@@ -136,6 +182,9 @@ class HabitItem {
 
   /// Name of the habit
   final String name;
+
+  /// Optional category (e.g. Health, Fitness, Productivity).
+  final String? category;
 
   /// Optional frequency label. Supported values: 'Daily' (default), 'Weekly'.
   final String? frequency;
@@ -179,12 +228,29 @@ class HabitItem {
   /// Optional location-based settings (geofence + dwell).
   final HabitLocationBoundSpec? locationBound;
 
+  /// Optional icon index into the global [habitIcons] list.
+  /// When null, the card falls back to the first icon for the category.
+  final int? iconIndex;
+
   /// List of dates when this habit was completed (stored as date-only, no time)
   final List<DateTime> completedDates;
+
+  /// Ordered action steps for this habit (simplified routine steps).
+  final List<HabitActionStep> actionSteps;
+
+  /// Start time in minutes since midnight for timeline placement.
+  final int? startTimeMinutes;
+
+  /// Board this habit belongs to (null for standalone habits).
+  final String? boardId;
+
+  /// Component/tile this habit belongs to (null for standalone habits).
+  final String? componentId;
 
   const HabitItem({
     required this.id,
     required this.name,
+    this.category,
     this.frequency,
     this.weeklyDays = const [],
     this.deadline,
@@ -197,7 +263,12 @@ class HabitItem {
     this.cbtEnhancements,
     this.timeBound,
     this.locationBound,
+    this.iconIndex,
     this.completedDates = const [],
+    this.actionSteps = const [],
+    this.startTimeMinutes,
+    this.boardId,
+    this.componentId,
   });
 
   Map<String, int> get stats => {
@@ -205,10 +276,14 @@ class HabitItem {
         'total_completions': completedDates.length,
       };
 
-  /// Creates a copy of this habit with optional field overrides
+  /// Creates a copy of this habit with optional field overrides.
+  ///
+  /// Use the `clearX` flags to explicitly set nullable fields to null
+  /// (since passing null normally means "keep existing value").
   HabitItem copyWith({
     String? id,
     String? name,
+    String? category,
     String? frequency,
     List<int>? weeklyDays,
     String? deadline,
@@ -220,12 +295,20 @@ class HabitItem {
     HabitChaining? chaining,
     CbtEnhancements? cbtEnhancements,
     HabitTimeBoundSpec? timeBound,
+    bool clearTimeBound = false,
     HabitLocationBoundSpec? locationBound,
+    int? iconIndex,
     List<DateTime>? completedDates,
+    List<HabitActionStep>? actionSteps,
+    int? startTimeMinutes,
+    bool clearStartTimeMinutes = false,
+    String? boardId,
+    String? componentId,
   }) {
     return HabitItem(
       id: id ?? this.id,
       name: name ?? this.name,
+      category: category ?? this.category,
       frequency: frequency ?? this.frequency,
       weeklyDays: weeklyDays ?? this.weeklyDays,
       deadline: deadline ?? this.deadline,
@@ -236,9 +319,14 @@ class HabitItem {
       feedbackByDate: feedbackByDate ?? this.feedbackByDate,
       chaining: chaining ?? this.chaining,
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
-      timeBound: timeBound ?? this.timeBound,
+      timeBound: clearTimeBound ? null : (timeBound ?? this.timeBound),
       locationBound: locationBound ?? this.locationBound,
+      iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
+      actionSteps: actionSteps ?? this.actionSteps,
+      startTimeMinutes: clearStartTimeMinutes ? null : (startTimeMinutes ?? this.startTimeMinutes),
+      boardId: boardId ?? this.boardId,
+      componentId: componentId ?? this.componentId,
     );
   }
 
@@ -247,6 +335,7 @@ class HabitItem {
     return {
       'id': id,
       'name': name,
+      'category': category,
       'frequency': frequency,
       'weeklyDays': weeklyDays,
       'deadline': deadline,
@@ -259,10 +348,15 @@ class HabitItem {
       'cbtEnhancements': cbtEnhancements?.toJson(),
       'timeBound': timeBound?.toJson(),
       'locationBound': locationBound?.toJson(),
+      'iconIndex': iconIndex,
       'stats': stats,
       'completedDates': completedDates
           .map((date) => date.toIso8601String().split('T')[0])
-          .toList(), // Store as ISO-8601 date strings (YYYY-MM-DD)
+          .toList(),
+      'actionSteps': actionSteps.map((s) => s.toJson()).toList(),
+      'startTimeMinutes': startTimeMinutes,
+      'boardId': boardId,
+      'componentId': componentId,
     };
   }
 
@@ -329,10 +423,24 @@ class HabitItem {
         (json['time_bound'] as Map<String, dynamic>?);
     final locationBoundRaw = (json['locationBound'] as Map<String, dynamic>?) ??
         (json['location_bound'] as Map<String, dynamic>?);
+    final iconIndex = (json['iconIndex'] as num?)?.toInt() ??
+        (json['icon_index'] as num?)?.toInt();
+
+    final actionStepsRaw = json['actionSteps'] as List<dynamic>? ??
+        json['action_steps'] as List<dynamic>? ??
+        const [];
+    final actionSteps = actionStepsRaw
+        .whereType<Map<String, dynamic>>()
+        .map((e) => HabitActionStep.fromJson(e))
+        .toList();
+
+    final startTimeMinutes = (json['startTimeMinutes'] as num?)?.toInt() ??
+        (json['start_time_minutes'] as num?)?.toInt();
     
     return HabitItem(
       id: json['id'] as String,
       name: json['name'] as String,
+      category: json['category'] as String?,
       frequency: normalizedFrequency,
       weeklyDays: normalizedWeeklyDays,
       deadline: json['deadline'] as String?,
@@ -351,7 +459,12 @@ class HabitItem {
               : null,
       timeBound: (timeBoundRaw != null) ? HabitTimeBoundSpec.fromJson(timeBoundRaw) : null,
       locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
+      iconIndex: iconIndex,
       completedDates: dates,
+      actionSteps: actionSteps,
+      startTimeMinutes: startTimeMinutes,
+      boardId: json['boardId'] as String?,
+      componentId: json['componentId'] as String?,
     );
   }
 
@@ -523,16 +636,21 @@ class HabitItem {
 final class HabitCompletionFeedback {
   final int rating; // 1..5
   final String? note;
-  const HabitCompletionFeedback({required this.rating, required this.note});
+  /// Total coins awarded for this completion (base + step bonus + media bonus).
+  /// Stored so we can deduct the exact amount on uncheck.
+  final int? coinsEarned;
+  const HabitCompletionFeedback({required this.rating, required this.note, this.coinsEarned});
 
   Map<String, dynamic> toJson() => {
         'rating': rating,
         'note': note,
+        if (coinsEarned != null) 'coinsEarned': coinsEarned,
       };
 
   factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) => HabitCompletionFeedback(
         rating: (json['rating'] as num?)?.toInt() ?? 0,
         note: json['note'] as String?,
+        coinsEarned: (json['coinsEarned'] as num?)?.toInt(),
       );
 }
 
@@ -551,4 +669,47 @@ final class HabitChaining {
         anchorHabit: (json['anchorHabit'] as String?) ?? (json['anchor_habit'] as String?),
         relationship: json['relationship'] as String?,
       );
+}
+
+/// Result of the add/edit habit flow; used to create or update a [HabitItem].
+final class HabitCreateRequest {
+  final String name;
+  final String? category;
+  final String? frequency; // null | 'Daily' | 'Weekly'
+  final List<int> weeklyDays; // 1=Mon..7=Sun
+  final String? deadline; // YYYY-MM-DD
+  final String? afterHabitId;
+  final String? timeOfDay; // free-form, e.g. "07:00 AM"
+  final int? reminderMinutes;
+  final bool reminderEnabled;
+  final HabitChaining? chaining;
+  final CbtEnhancements? cbtEnhancements;
+  final HabitTimeBoundSpec? timeBound;
+  final HabitLocationBoundSpec? locationBound;
+  final int? iconIndex;
+  final List<HabitActionStep> actionSteps;
+  final int? startTimeMinutes;
+  final String? notificationSound;
+  final String? vibrationType;
+
+  const HabitCreateRequest({
+    required this.name,
+    this.category,
+    required this.frequency,
+    required this.weeklyDays,
+    required this.deadline,
+    required this.afterHabitId,
+    required this.timeOfDay,
+    required this.reminderMinutes,
+    required this.reminderEnabled,
+    required this.chaining,
+    required this.cbtEnhancements,
+    required this.timeBound,
+    required this.locationBound,
+    this.iconIndex,
+    this.actionSteps = const [],
+    this.startTimeMinutes,
+    this.notificationSound,
+    this.vibrationType,
+  });
 }

@@ -618,6 +618,7 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
   static HabitItem _applyHabitRequest(HabitItem base, HabitCreateRequest req) {
     return base.copyWith(
       name: req.name,
+      category: req.category,
       frequency: req.frequency,
       weeklyDays: req.weeklyDays,
       deadline: req.deadline,
@@ -629,6 +630,9 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
   }
 
@@ -645,13 +649,11 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
         ? await showAddHabitDialog(
             context,
             existingHabits: otherHabits,
-            suggestedGoalDeadline: null,
             initialName: item.text.trim().isEmpty ? null : item.text.trim(),
           )
         : await showEditHabitDialog(
             context,
             habit: existing,
-            suggestedGoalDeadline: null,
             existingHabits: otherHabits,
           );
 

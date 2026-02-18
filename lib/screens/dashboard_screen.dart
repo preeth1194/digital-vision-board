@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../utils/app_typography.dart';
+import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/core_value.dart';
 import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
+import '../services/habit_storage_service.dart';
+import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dashboard/expandable_fab.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
@@ -31,11 +34,15 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
+import 'earn_badges_screen.dart';
+import '../models/grid_tile_model.dart';
+import '../models/habit_item.dart';
 import '../models/routine.dart';
+import '../models/vision_components.dart';
+import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
-import 'routine_editor_screen.dart';
-import 'routine_timer_screen.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
+import '../widgets/profile_avatar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -63,13 +70,41 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   VoidCallback? _syncAuthListener;
   final ValueNotifier<int> _boardDataVersion = ValueNotifier<int>(0);
 
+  // Coin state shared with the habits tab
+  final ValueNotifier<int> _coinNotifier = ValueNotifier<int>(0);
+  final GlobalKey _coinTargetKey = GlobalKey();
+
+  // Profile avatar for app bar and drawer (refreshed when returning from Account)
+  final ValueNotifier<({String? picPath, String initial})> _profileAvatarNotifier =
+      ValueNotifier((picPath: null, initial: '?'));
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _init();
+    _loadCoins();
     _startAutoRefreshReminders();
     _checkPuzzleDeepLink();
+  }
+
+  Future<void> _loadProfileAvatar() async {
+    final displayName = await DvAuthService.getDisplayName(prefs: _prefs);
+    final identifier = await DvAuthService.getUserDisplayIdentifier(prefs: _prefs);
+    final picPath = await DvAuthService.getProfilePicPath(prefs: _prefs);
+    final initial = (displayName != null && displayName.isNotEmpty)
+        ? displayName[0].toUpperCase()
+        : (identifier != null && identifier.isNotEmpty)
+            ? identifier[0].toUpperCase()
+            : '?';
+    if (mounted) {
+      _profileAvatarNotifier.value = (picPath: picPath, initial: initial);
+    }
+  }
+
+  Future<void> _loadCoins() async {
+    final coins = await CoinsService.getTotalCoins();
+    _coinNotifier.value = coins;
   }
 
   Future<void> _checkPuzzleDeepLink() async {
@@ -91,6 +126,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       SyncService.authExpired.removeListener(_syncAuthListener!);
     }
     _boardDataVersion.dispose();
+    _coinNotifier.dispose();
+    _profileAvatarNotifier.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -99,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshReminders();
+      _loadCoins();
       // Best-effort: if user is still on a guest session after 10 days, re-prompt.
       _maybeShowAuthGatewayIfMandatoryAfterTenDays();
     }
@@ -114,6 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    await HabitStorageService.migrateFromBoardsIfNeeded(prefs: _prefs);
     await DvAuthService.migrateLegacyTokenIfNeeded(prefs: _prefs);
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
     await LogicalDateService.ensureInitialized(prefs: _prefs);
@@ -124,6 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _refreshReminders();
     await _maybeShowAuthGatewayIfGuestExpired();
     await _maybeShowAuthGatewayIfMandatoryAfterTenDays();
+    await _loadProfileAvatar();
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -263,13 +303,79 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
-  String _getFormattedDate() {
-    final now = DateTime.now();
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final weekday = weekdays[now.weekday - 1];
-    final month = months[now.month - 1];
-    return '$weekday, $month ${now.day}';
+  Widget _buildCoinBadge(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ValueListenableBuilder<int>(
+      valueListenable: _coinNotifier,
+      builder: (context, coins, _) {
+        return GestureDetector(
+          onTap: _openEarnBadges,
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            key: _coinTargetKey,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Gold coin icon
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.goldLight, AppColors.goldDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: AppColors.amberBorder,
+                    width: 1.5,
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    '\$',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Coin count
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.4),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Text(
+                  '$coins',
+                  key: ValueKey(coins),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? AppColors.lightest : AppColors.darkest,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildCircularIconButton(
@@ -460,6 +566,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         fullscreenDialog: true,
       ),
     );
+    await _loadProfileAvatar();
     if (res == true) {
       // Token refreshed (guest) or user logged in. Attempt bootstrap/sync/prune.
       await SyncService.bootstrapIfNeeded(prefs: _prefs);
@@ -470,8 +577,63 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
+  Future<void> _signOut() async {
+    await DvAuthService.signOut();
+    try {
+      await DvAuthService.continueAsGuest(prefs: _prefs);
+    } catch (_) {}
+    if (!mounted) return;
+    await SyncService.bootstrapIfNeeded(prefs: _prefs);
+    await LogicalDateService.reloadHomeTimezone(prefs: _prefs);
+    await SyncService.pruneLocalFeedback(prefs: _prefs);
+    await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
+    await _reload();
+  }
+
   void _openSettings() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
+  Future<void> _openEarnBadges() async {
+    // Gather all habits from all boards (handles both freeform and grid layouts)
+    final allHabits = <HabitItem>[];
+    for (final board in _boards) {
+      List<VisionComponent> components;
+      if (board.layoutType == VisionBoardInfo.layoutGrid) {
+        final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: _prefs);
+        components = tiles
+            .where((t) => t.type != 'empty')
+            .map((t) => ImageComponent(
+                  id: t.id,
+                  position: Offset.zero,
+                  size: const Size(1, 1),
+                  rotation: 0,
+                  scale: 1,
+                  zIndex: t.index,
+                  imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+                  goal: t.goal,
+                  habits: t.habits,
+                ))
+            .toList();
+      } else {
+        components = await VisionBoardComponentsStorageService.loadComponents(
+          board.id,
+          prefs: _prefs,
+        );
+      }
+      for (final comp in components) {
+        allHabits.addAll(comp.habits);
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EarnBadgesScreen(
+          allHabits: allHabits,
+          totalCoins: _coinNotifier.value,
+        ),
+      ),
+    );
   }
 
   Future<void> _openPuzzleGame() async {
@@ -521,83 +683,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await BoardsStorageService.clearActiveBoardId(prefs: prefs);
     if (!mounted) return;
     setState(() => _activeBoardId = null);
-  }
-
-  Future<void> _createRoutine() async {
-    final res = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const RoutineEditorScreen()),
-    );
-    if (mounted && res == true) {
-      await _reloadRoutines();
-    }
-  }
-
-  Future<void> _openRoutine(Routine routine) async {
-    await RoutineStorageService.setActiveRoutineId(routine.id, prefs: _prefs);
-    if (!mounted) return;
-    setState(() => _activeRoutineId = routine.id);
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => RoutineTimerScreen(routine: routine),
-      ),
-    );
-    await RoutineStorageService.clearActiveRoutineId(prefs: _prefs);
-    if (!mounted) return;
-    setState(() => _activeRoutineId = null);
-    await _reloadRoutines();
-  }
-
-  Future<void> _editRoutine(Routine routine) async {
-    final res = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => RoutineEditorScreen(routine: routine),
-      ),
-    );
-    if (mounted && res == true) {
-      await _reloadRoutines();
-    }
-  }
-
-  Future<void> _deleteRoutine(Routine routine) async {
-    final ok = await showConfirmDialog(
-      context,
-      title: 'Delete routine?',
-      message: 'Delete "${routine.title}"? This cannot be undone.',
-      confirmText: 'Delete',
-      confirmColor: Theme.of(context).colorScheme.error,
-    );
-    if (!ok) return;
-
-    try {
-      final prefs = _prefs ?? await SharedPreferences.getInstance();
-      await RoutineStorageService.deleteRoutineData(routine.id, prefs: prefs);
-
-      final next = _routines.where((r) => r.id != routine.id).toList();
-      await RoutineStorageService.saveRoutines(next, prefs: prefs);
-      if (_activeRoutineId == routine.id) {
-        await RoutineStorageService.clearActiveRoutineId(prefs: prefs);
-      }
-      if (!mounted) return;
-      setState(() {
-        _routines = next;
-        if (_activeRoutineId == routine.id) _activeRoutineId = null;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted "${routine.title}"')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error deleting routine: ${e.toString()}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
   }
 
   Future<void> _createBoard() async {
@@ -740,7 +825,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 6, 7, 2, 4]; // Dashboard, Routine, Rituals, Journal, Insights
+    const visibleTabIndices = <int>[1, 7, 6, 2, 4]; // Dashboard, Rituals, Routine, Journal, Insights
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -751,14 +836,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       activeRoutineId: _activeRoutineId,
       prefs: _prefs,
       boardDataVersion: _boardDataVersion,
+      coinNotifier: _coinNotifier,
+      coinTargetKey: _coinTargetKey,
       onCreateBoard: _createBoard,
-      onCreateRoutine: _createRoutine,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
-      onOpenRoutine: _openRoutine,
-      onEditRoutine: _editRoutine,
-      onDeleteRoutine: _deleteRoutine,
     );
 
     return Scaffold(
@@ -775,15 +858,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     'Digital Vision Board',
                     style: AppTypography.heading3(context),
                   ),
-                  const SizedBox(height: 8),
-                  FutureBuilder<String?>(
-                    future: DvAuthService.getCanvaUserId(prefs: _prefs),
-                    builder: (context, snap) {
-                      final id = (snap.data ?? '').trim();
-                      final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                      return Text(
-                        label,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<({String? picPath, String initial})>(
+                    valueListenable: _profileAvatarNotifier,
+                    builder: (context, profile, _) {
+                      return FutureBuilder<String?>(
+                        future: DvAuthService.getCanvaUserId(prefs: _prefs),
+                        builder: (context, snap) {
+                          final id = (snap.data ?? '').trim();
+                          final label = id.isEmpty ? 'Guest session' : 'Signed in';
+                          return Row(
+                            children: [
+                              ProfileAvatar(
+                                initial: profile.initial,
+                                imagePath: profile.picPath,
+                                radius: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -799,11 +901,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               },
             ),
             ListTile(
-              leading: const Icon(Icons.notifications_outlined),
-              title: const Text('Notifications'),
-              onTap: () async {
+              leading: const Icon(Icons.format_quote_outlined),
+              title: const Text('Affirmations'),
+              onTap: () {
                 Navigator.of(context).pop();
-                await _openRemindersSheet();
+                setState(() => _tabIndex = 3);
               },
             ),
             ListTile(
@@ -832,6 +934,21 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 );
               },
             ),
+            FutureBuilder<String?>(
+              future: DvAuthService.getCanvaUserId(prefs: _prefs),
+              builder: (context, snap) {
+                final id = (snap.data ?? '').trim();
+                if (id.isEmpty) return const SizedBox.shrink();
+                return ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Sign out'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _signOut();
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -851,57 +968,26 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               Builder(
                 builder: (scaffoldContext) => GestureDetector(
                   onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).colorScheme.primary,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.person,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 24,
-                      ),
+                  child: ValueListenableBuilder<({String? picPath, String initial})>(
+                    valueListenable: _profileAvatarNotifier,
+                    builder: (context, profile, _) => ProfileAvatar(
+                      initial: profile.initial,
+                      imagePath: profile.picPath,
+                      radius: 24,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              // Greeting text
+              // Greeting text (date removed)
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _getGreeting(),
-                      style: AppTypography.heading3(context),
-                    ),
-                    Text(
-                      _getFormattedDate(),
-                      style: AppTypography.caption(context),
-                    ),
-                  ],
+                child: Text(
+                  _getGreeting(),
+                  style: AppTypography.heading3(context),
                 ),
               ),
-              // Notification icon with badge
-              Builder(
-                builder: (ctx) {
-                  final count = _reminderSummary?.todayPendingCount ?? 0;
-                  return _buildCircularIconButton(
-                    context,
-                    icon: Icons.notifications_outlined,
-                    onTap: _openRemindersSheet,
-                    badgeCount: count,
-                  );
-                },
-              ),
+              // Coin badge
+              _buildCoinBadge(context),
             ],
           ),
         ),
@@ -910,7 +996,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       floatingActionButton: _tabIndex == 1
           ? ExpandableFAB(
               onCreateBoard: _createBoard,
-              onCreateRoutine: _createRoutine,
             )
           : null,
       bottomNavigationBar: AnimatedBottomNavBar(
@@ -927,14 +1012,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             label: 'Home',
           ),
           AnimatedNavItem(
-            icon: Icons.schedule_outlined,
-            activeIcon: Icons.schedule_rounded,
-            label: 'Routine',
-          ),
-          AnimatedNavItem(
             icon: Icons.self_improvement_outlined,
             activeIcon: Icons.self_improvement,
             label: 'Rituals',
+          ),
+          AnimatedNavItem(
+            icon: Icons.schedule_outlined,
+            activeIcon: Icons.schedule_rounded,
+            label: 'Routine',
           ),
           AnimatedNavItem(
             icon: Icons.book_outlined,

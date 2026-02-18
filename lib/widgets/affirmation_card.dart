@@ -8,6 +8,7 @@ class AffirmationCard extends StatefulWidget {
   final Affirmation? frontAffirmation;
   final Affirmation? backAffirmation;
   final VoidCallback? onFlip;
+  final VoidCallback? onSettings;
   final Color? cardColor;
   final bool showPinIndicator;
 
@@ -16,6 +17,7 @@ class AffirmationCard extends StatefulWidget {
     this.frontAffirmation,
     this.backAffirmation,
     this.onFlip,
+    this.onSettings,
     this.cardColor,
     this.showPinIndicator = true,
   });
@@ -145,61 +147,78 @@ class _AffirmationCardState extends State<AffirmationCard>
           color: Colors.transparent,
           child: InkWell(
             onTap: _handleTap,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.showPinIndicator && affirmation.isPinned) ...[
-                    Align(
-                      alignment: Alignment.topRight,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (widget.showPinIndicator && affirmation.isPinned) ...[
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Icon(
+                            Icons.push_pin,
+                            color: colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            affirmation.text,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (affirmation.category != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            affirmation.category!,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to flip',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.onSettings != null)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: widget.onSettings,
                       child: Icon(
-                        Icons.push_pin,
-                        color: colorScheme.primary,
+                        Icons.settings,
                         size: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        affirmation.text,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                          height: 1.4,
-                        ),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
-                  if (affirmation.category != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        affirmation.category!,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap to flip',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ),

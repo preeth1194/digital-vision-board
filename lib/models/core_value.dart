@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 /// Core values a board can be centered around.
 ///
@@ -30,7 +31,7 @@ final class CoreValues {
     id: growthMindset,
     label: 'Growth & Mindset',
     icon: Icons.self_improvement_outlined,
-    tileColor: Color(0xFFECFDF5),
+    tileColor: AppColors.pastelGreen,
   );
 
   static const List<CoreValue> all = [
@@ -39,25 +40,25 @@ final class CoreValues {
       id: careerAmbition,
       label: 'Career & Ambition',
       icon: Icons.work_outline,
-      tileColor: Color(0xFFE0F2FE),
+      tileColor: AppColors.pastelBlue,
     ),
     CoreValue(
       id: creativityExpression,
       label: 'Creativity & Expression',
       icon: Icons.brush_outlined,
-      tileColor: Color(0xFFF3E8FF),
+      tileColor: AppColors.pastelPurple,
     ),
     CoreValue(
       id: lifestyleAdventure,
       label: 'Lifestyle & Adventure',
       icon: Icons.travel_explore,
-      tileColor: Color(0xFFFFF7ED),
+      tileColor: AppColors.pastelOrange,
     ),
     CoreValue(
       id: connectionCommunity,
       label: 'Connection & Community',
       icon: Icons.people_outline,
-      tileColor: Color(0xFFFFF1F2),
+      tileColor: AppColors.pastelPink,
     ),
   ];
 

@@ -1,55 +1,24 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/cbt_enhancements.dart';
+import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
-import '../../utils/app_colors.dart';
+import '../../services/boards_storage_service.dart';
+import '../../services/vision_board_components_storage_service.dart';
+import '../../services/grid_tiles_storage_service.dart';
+import '../../models/vision_board_info.dart';
+import '../../models/vision_components.dart';
+import '../../models/grid_tile_model.dart';
 import '../../utils/app_typography.dart';
-import '../dialogs/add_habit_dialog.dart';
-
-// ============================================================================
-// Data Models & Constants
-// ============================================================================
-
-const List<(IconData, String)> _habitIcons = [
-  (Icons.fitness_center, 'Workout'),
-  (Icons.menu_book, 'Read'),
-  (Icons.water_drop, 'Water'),
-  (Icons.restaurant, 'Food'),
-  (Icons.bedtime, 'Sleep'),
-  (Icons.psychology, 'Mental'),
-  (Icons.favorite, 'Health'),
-  (Icons.directions_bike, 'Exercise'),
-  (Icons.coffee, 'Morning'),
-  (Icons.music_note, 'Creative'),
-  (Icons.mood, 'Happy'),
-  (Icons.wb_sunny, 'Energy'),
-  (Icons.eco, 'Nature'),
-  (Icons.bolt, 'Power'),
-  (Icons.track_changes, 'Goal'),
-  (Icons.emoji_events, 'Win'),
-];
-
-final List<(String, List<Color>)> _habitColors = [
-  ('Blue', [AppColors.medium, AppColors.dark]),
-  ('Sky', [AppColors.lightest, AppColors.light]),
-  ('Purple', [const Color(0xFFA78BFA), const Color(0xFF7C3AED)]),
-  ('Indigo', [const Color(0xFF818CF8), const Color(0xFF4F46E5)]),
-  ('Cyan', [const Color(0xFF22D3EE), const Color(0xFF0891B2)]),
-  ('Green', [const Color(0xFF4ADE80), const Color(0xFF16A34A)]),
-  ('Emerald', [const Color(0xFF34D399), const Color(0xFF059669)]),
-  ('Amber', [const Color(0xFFFBBF24), const Color(0xFFD97706)]),
-  ('Orange', [const Color(0xFFFB923C), const Color(0xFFEA580C)]),
-  ('Pink', [const Color(0xFFF472B6), const Color(0xFFDB2777)]),
-];
-
-const List<({String value, String label, IconData icon, String description})>
-    _occurrenceOptions = [
-  (value: 'daily', label: 'Daily', icon: Icons.sunny, description: 'Every day'),
-  (value: 'weekdays', label: 'Specific Days', icon: Icons.calendar_view_week_rounded, description: 'Select days'),
-  (value: 'interval', label: 'Interval', icon: Icons.repeat_rounded, description: 'Every X days'),
-];
+import 'addon_tools_section.dart';
+import 'habit_form_constants.dart';
+import 'habit_form_identity_section.dart';
+import 'habit_form_pacing_section.dart';
+import 'habit_form_strategy_section.dart';
+import 'habit_form_triggers_section.dart';
 
 // ============================================================================
 // Main Entry Function
@@ -57,19 +26,22 @@ const List<({String value, String label, IconData icon, String description})>
 
 /// Shows the Add Habit modal with a slide-in animation from the right.
 /// Returns a [HabitCreateRequest] if the user creates a habit, null otherwise.
+/// This is the unified entry point for all habit add/edit flows.
 Future<HabitCreateRequest?> showAddHabitModal(
   BuildContext context, {
   required List<HabitItem> existingHabits,
   HabitItem? initialHabit,
+  String? initialName,
 }) {
   return Navigator.of(context).push<HabitCreateRequest?>(
     PageRouteBuilder<HabitCreateRequest?>(
       opaque: false,
       barrierDismissible: false,
       pageBuilder: (context, animation, secondaryAnimation) {
-        return _CreateHabitWizard(
+        return _CreateHabitPage(
           existingHabits: existingHabits,
           initialHabit: initialHabit,
+          initialName: initialName,
         );
       },
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -93,109 +65,357 @@ Future<HabitCreateRequest?> showAddHabitModal(
 }
 
 // ============================================================================
-// Main Wizard Widget
+// Main Scrollable Page Widget
 // ============================================================================
 
-class _CreateHabitWizard extends StatefulWidget {
+class _CreateHabitPage extends StatefulWidget {
   final List<HabitItem> existingHabits;
   final HabitItem? initialHabit;
+  final String? initialName;
 
-  const _CreateHabitWizard({
+  const _CreateHabitPage({
     required this.existingHabits,
     this.initialHabit,
+    this.initialName,
   });
 
   @override
-  State<_CreateHabitWizard> createState() => _CreateHabitWizardState();
+  State<_CreateHabitPage> createState() => _CreateHabitPageState();
 }
 
-class _CreateHabitWizardState extends State<_CreateHabitWizard> 
+class _CreateHabitPageState extends State<_CreateHabitPage>
     with TickerProviderStateMixin {
-  // Navigation State
-  int _currentStep = 0;
-  final int _totalSteps = 6;
-  
-  // Slide animation controller
-  AnimationController? _slideController;
-  Animation<Offset>? _slideAnimation;
-  bool _isAnimating = false;
-  int _displayedStep = 0;
-
   // --- FORM DATA STATE ---
 
-  // Step 1: Identity
+  // Identity
   final TextEditingController _habitNameController = TextEditingController();
   int _selectedIconIndex = 0;
 
-  // Step 2: Aesthetics
+  // Aesthetics
   int _selectedColorIndex = 0;
+  final Map<int, (Color, Color)> _customizedPresets = {};
+  bool _colorPickerExpanded = false;
+  bool _customizeExpanded = false;
+  final GlobalKey _colorSectionKey = GlobalKey();
 
-  // Step 3: Rhythm (Frequency)
-  String _occurrenceType = 'daily';
-  final Set<int> _weekdays = {};
-  int _intervalDays = 1;
+  String? _category;
 
-  // Step 4: Triggers (Time & Location)
+  List<(String, List<Color>)> get _allColors {
+    return List.generate(7, (i) {
+      final override = _customizedPresets[i];
+      if (override != null) return ('Custom', [override.$1, override.$2]);
+      return habitColors[i];
+    });
+  }
+
+  /// Icons filtered by current category. Returns (globalIndex, IconData, label).
+  /// When category is null, returns all icons. When set, returns only icons for that category.
+  List<(int, IconData, String)> get _iconsForCurrentCategory {
+    if (_category == null) {
+      return List.generate(
+        habitIcons.length,
+        (i) => (i, habitIcons[i].$1, habitIcons[i].$2),
+      );
+    }
+    final indices = categoryToIconIndices[_category];
+    if (indices == null || indices.isEmpty) {
+      return List.generate(
+        habitIcons.length,
+        (i) => (i, habitIcons[i].$1, habitIcons[i].$2),
+      );
+    }
+    return indices
+        .map((i) => (i, habitIcons[i].$1, habitIcons[i].$2))
+        .toList();
+  }
+
+  // Rhythm (Frequency) - all 7 days selected by default (daily logic)
+  final Set<int> _weekdays = {0, 1, 2, 3, 4, 5, 6};
+
+  // Addon tools
+  bool _remindersAddonAdded = false;
+  bool _timerAddonAdded = false;
+
+  // Timer sound & vibration
+  String _notificationSound = 'default';
+  String _vibrationType = 'default';
+
+  // Validation errors
+  String? _nameError;
+  String? _triggerError;
+  String? _actionError;
+  String? _anchorHabitError;
+  String? _actionStepsError;
+
+  // Triggers (Time & Location)
   TimeOfDay? _selectedTime;
   bool _reminderEnabled = false;
   TimeOfDay? _reminderTime;
-  
-  // Location Data
+  int? _reminderMinutesBefore; // 5, 10, 15, 20, 25, 30, 45, 60 mins before start
+
   bool _locationEnabled = false;
   double? _locationLat;
   double? _locationLng;
   int _locationRadius = 150;
   String _locationTriggerMode = 'arrival';
   int _locationDwellMinutes = 5;
+  String? _locationAddress;
 
-  // Step 5: Pacing (Duration)
-  bool _timeBoundEnabled = false;
-  int _timeBoundDuration = 15;
-  String _timeBoundUnit = 'minutes';
+  // Pacing - start time + duration (value + unit)
+  TimeOfDay? _timeBoundStartTime;
+  int _timeBoundDurationValue = 15;
+  String _timeBoundDurationUnit = 'minutes';
 
-  // Step 6: Strategy (Stacking & CBT)
+  int get _timeBoundDurationMinutes {
+    final v = _timeBoundDurationValue < 0 ? 0 : _timeBoundDurationValue;
+    return _timeBoundDurationUnit == 'hours' ? v * 60 : v;
+  }
+
+  // Action Steps
+  bool _actionStepsEnabled = false;
+  List<HabitActionStep> _actionSteps = [];
+
+  // Strategy (Stacking & CBT)
+  bool _habitStackingEnabled = false;
   String? _afterHabitId;
   String _anchorHabitText = '';
-  String _relationship = 'Immediately';
-  
-  // Strategy Card (CBT)
+  String _relationship = 'Before';
+
   final TextEditingController _triggerController = TextEditingController();
   final TextEditingController _actionController = TextEditingController();
+
+  // Commitment / Deadline
+  // One of: '21', '66', '90', 'none', 'custom', 'goal'
+  String _selectedMilestone = 'none';
+  DateTime? _customDeadlineDate;
+  bool _milestoneExpanded = false;
+
+  // Time conflict detection
+  List<HabitItem> _allHabitsForConflict = [];
+  String? _timeConflictError;
+  TimeOfDay? _suggestedStartTime;
+  String? _slotAvailableInfo;
 
   @override
   void initState() {
     super.initState();
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _slideAnimation = _createSlideAnimation(Offset.zero, Offset.zero);
-    
-    // Pre-populate fields if editing an existing habit
+    if (widget.initialName != null &&
+        widget.initialName!.trim().isNotEmpty &&
+        widget.initialHabit == null) {
+      _habitNameController.text = widget.initialName!.trim();
+    }
     _initializeFromHabit();
+    // Default start time when creating new habit
+    if (_timeBoundStartTime == null) {
+      _timeBoundStartTime = TimeOfDay.now();
+    }
+
+    _habitNameController.addListener(_clearNameError);
+    _triggerController.addListener(_clearTriggerError);
+    _actionController.addListener(_clearActionError);
+
+    _loadAllHabitsForConflict();
   }
-  
+
+  Future<void> _loadAllHabitsForConflict() async {
+    final prefs = await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: prefs);
+    final List<HabitItem> habits = [];
+    for (final board in boards) {
+      List<VisionComponent> components;
+      if (board.layoutType == VisionBoardInfo.layoutGrid) {
+        final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+        components = tiles
+            .where((t) => t.type != 'empty')
+            .map((t) => ImageComponent(
+                  id: t.id,
+                  position: Offset.zero,
+                  size: const Size(1, 1),
+                  rotation: 0,
+                  scale: 1,
+                  zIndex: t.index,
+                  imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+                  goal: t.goal,
+                  habits: t.habits,
+                ))
+            .toList();
+      } else {
+        components = await VisionBoardComponentsStorageService.loadComponents(
+          board.id,
+          prefs: prefs,
+        );
+      }
+      for (final comp in components) {
+        habits.addAll(comp.habits);
+      }
+    }
+    if (mounted) {
+      setState(() => _allHabitsForConflict = habits);
+      _checkTimeConflict();
+    }
+  }
+
+  void _checkTimeConflict() {
+    if (_timeBoundStartTime == null || !_timerAddonAdded) {
+      setState(() {
+        _timeConflictError = null;
+        _suggestedStartTime = null;
+        _slotAvailableInfo = null;
+      });
+      return;
+    }
+
+    final startMins = _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+    final duration = _timeBoundDurationMinutes;
+    final newEnd = startMins + duration;
+    final editingId = widget.initialHabit?.id;
+
+    final List<(int, int, String)> occupied = [];
+    String? conflictName;
+
+    for (final h in _allHabitsForConflict) {
+      if (h.id == editingId) continue;
+      final hStart = h.startTimeMinutes;
+      if (hStart == null) continue;
+      final tb = h.timeBound;
+      if (tb == null || !tb.enabled || tb.durationMinutes <= 0) continue;
+
+      final hEnd = hStart + tb.durationMinutes;
+      occupied.add((hStart, hEnd, h.name));
+
+      if (startMins < hEnd && hStart < newEnd) {
+        conflictName = h.name;
+      }
+    }
+
+    final endTime = TimeOfDay(hour: (newEnd ~/ 60) % 24, minute: newEnd % 60);
+
+    if (conflictName != null) {
+      occupied.sort((a, b) => a.$1.compareTo(b.$1));
+      final suggested = _findNearestAvailableTime(startMins, duration, occupied);
+      setState(() {
+        _timeConflictError = 'Conflicts with "$conflictName"';
+        _suggestedStartTime = suggested;
+        _slotAvailableInfo = null;
+      });
+    } else {
+      final startStr = _formatTime(_timeBoundStartTime!);
+      final endStr = _formatTime(endTime);
+      setState(() {
+        _timeConflictError = null;
+        _suggestedStartTime = null;
+        _slotAvailableInfo = '$startStr – $endStr is available';
+      });
+    }
+  }
+
+  String _formatTime(TimeOfDay t) {
+    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final m = t.minute.toString().padLeft(2, '0');
+    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$h:$m $p';
+  }
+
+  TimeOfDay? _findNearestAvailableTime(
+    int preferredStart, int duration, List<(int, int, String)> occupied,
+  ) {
+    const maxMins = 24 * 60;
+    int? bestStart;
+    int bestDist = maxMins;
+
+    bool fits(int cs) {
+      if (cs < 0 || cs + duration > maxMins) return false;
+      final ce = cs + duration;
+      for (final (s, e, _) in occupied) {
+        if (cs < e && s < ce) return false;
+      }
+      return true;
+    }
+
+    void tryCandidate(int c) {
+      if (!fits(c)) return;
+      final dist = (c - preferredStart).abs();
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestStart = c;
+      }
+    }
+
+    tryCandidate(0);
+    for (final (_, e, _) in occupied) {
+      tryCandidate(e);
+    }
+    for (final (s, _, _) in occupied) {
+      tryCandidate(s - duration);
+    }
+
+    if (bestStart == null) return null;
+    return TimeOfDay(hour: bestStart! ~/ 60, minute: bestStart! % 60);
+  }
+
+  void _clearNameError() {
+    if (_nameError != null) setState(() => _nameError = null);
+  }
+
+  void _clearTriggerError() {
+    if (_triggerError != null) setState(() => _triggerError = null);
+  }
+
+  void _clearActionError() {
+    if (_actionError != null) setState(() => _actionError = null);
+  }
+
   void _initializeFromHabit() {
     final habit = widget.initialHabit;
     if (habit == null) return;
-    
-    // Step 1: Identity
+
+    // Identity
     _habitNameController.text = habit.name;
-    // Try to find matching icon index (default to 0 if not found)
-    // Icon is not stored in HabitItem, so keep default
-    
-    // Step 3: Rhythm (Frequency)
-    if (habit.frequency == 'Weekly' || habit.isWeekly) {
-      _occurrenceType = 'weekdays';
-      // Convert weeklyDays (1=Mon..7=Sun) to our format (0=Mon..6=Sun)
+    _category = habit.category;
+    if (habit.iconIndex != null) {
+      _selectedIconIndex = habit.iconIndex!;
+    } else if (_category != null) {
+      final indices = categoryToIconIndices[_category];
+      if (indices != null &&
+          indices.isNotEmpty &&
+          !indices.contains(_selectedIconIndex)) {
+        _selectedIconIndex = indices.first;
+      }
+    }
+
+    // Deadline -> reverse-map to milestone
+    if (habit.deadline != null && habit.deadline!.trim().isNotEmpty) {
+      final deadlineStr = habit.deadline!.trim();
+      final deadlineDate = DateTime.tryParse(deadlineStr);
+      if (deadlineDate != null) {
+        final daysFromNow = deadlineDate.difference(DateTime.now()).inDays;
+        // Check if it matches a milestone preset (within +/- 2 day tolerance)
+        if ((daysFromNow - 21).abs() <= 2) {
+          _selectedMilestone = '21';
+        } else if ((daysFromNow - 66).abs() <= 2) {
+          _selectedMilestone = '66';
+        } else if ((daysFromNow - 90).abs() <= 2) {
+          _selectedMilestone = '90';
+        } else {
+          _selectedMilestone = 'custom';
+          _customDeadlineDate = deadlineDate;
+        }
+      } else {
+        _selectedMilestone = 'custom';
+      }
+    }
+
+    // Rhythm (Frequency)
+    if (habit.frequency == 'Daily' || habit.weeklyDays.isEmpty) {
+      _weekdays.clear();
+      _weekdays.addAll([0, 1, 2, 3, 4, 5, 6]);
+    } else {
       _weekdays.clear();
       for (final day in habit.weeklyDays) {
         _weekdays.add(day - 1);
       }
-    } else {
-      _occurrenceType = 'daily';
     }
-    
+
     // Step 4: Triggers (Time)
     if (habit.timeOfDay != null && habit.timeOfDay!.isNotEmpty) {
       _selectedTime = _parseTimeOfDay(habit.timeOfDay!);
@@ -205,8 +425,10 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
       final hours = habit.reminderMinutes! ~/ 60;
       final minutes = habit.reminderMinutes! % 60;
       _reminderTime = TimeOfDay(hour: hours, minute: minutes);
+    } else if (_reminderEnabled) {
+      _reminderMinutesBefore = 15; // default when enabling
     }
-    
+
     // Step 4: Triggers (Location)
     final loc = habit.locationBound;
     if (loc != null && loc.enabled) {
@@ -216,28 +438,79 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
       _locationRadius = loc.radiusMeters;
       _locationTriggerMode = loc.triggerMode;
       _locationDwellMinutes = loc.dwellMinutes ?? 5;
+      _locationAddress = loc.address;
     }
-    
-    // Step 5: Pacing (Duration)
+
+    // Pacing (Duration)
     final tb = habit.timeBound;
     if (tb != null && tb.enabled) {
-      _timeBoundEnabled = true;
-      _timeBoundDuration = tb.duration;
-      _timeBoundUnit = tb.unit;
+      final stm = habit.startTimeMinutes;
+      _timeBoundStartTime = stm != null
+          ? TimeOfDay(hour: stm ~/ 60, minute: stm % 60)
+          : const TimeOfDay(hour: 8, minute: 0);
+      final d = tb.durationMinutes <= 0 ? 15 : tb.durationMinutes;
+      if (d >= 60 && d % 60 == 0) {
+        _timeBoundDurationValue = d ~/ 60;
+        _timeBoundDurationUnit = 'hours';
+      } else {
+        _timeBoundDurationValue = d;
+        _timeBoundDurationUnit = 'minutes';
+      }
     }
-    
+
+    // Derive reminderMinutesBefore from start time and reminder time (after Pacing sets start time)
+    if (_reminderEnabled && habit.reminderMinutes != null) {
+      final startTime = _timeBoundStartTime ?? const TimeOfDay(hour: 8, minute: 0);
+      final startMins = startTime.hour * 60 + startTime.minute;
+      final reminderMins = habit.reminderMinutes!;
+      final before = startMins - reminderMins;
+      if (kReminderMinutesBeforeOptions.contains(before)) {
+        _reminderMinutesBefore = before;
+      } else {
+        _reminderMinutesBefore = 15;
+      }
+    }
+
+    // Auto-enable reminders addon if the habit has any trigger data
+    if (_reminderEnabled || _locationEnabled) {
+      _remindersAddonAdded = true;
+    }
+    // Auto-enable timer addon if the habit has start time / duration
+    if (_timeBoundStartTime != null) {
+      _timerAddonAdded = true;
+    }
+
+    // Timer sound & vibration
+    if (tb != null) {
+      _notificationSound = tb.notificationSound ?? 'default';
+      _vibrationType = tb.vibrationType ?? 'default';
+    }
+
     // Step 6: Strategy (Stacking)
     final chaining = habit.chaining;
     if (chaining != null && chaining.anchorHabit != null) {
+      _habitStackingEnabled = true;
       _afterHabitId = chaining.anchorHabit;
-      _relationship = chaining.relationship ?? 'Immediately';
+      final rel = chaining.relationship ?? 'Before';
+      _relationship = (rel == 'Immediately') ? 'Before' : rel;
       // Try to find the anchor habit name
-      final anchor = widget.existingHabits.where((h) => h.id == chaining.anchorHabit).firstOrNull;
+      final anchor = widget.existingHabits
+          .where((h) => h.id == chaining.anchorHabit)
+          .firstOrNull;
       if (anchor != null) {
         _anchorHabitText = anchor.name;
+      } else {
+        // Anchor may be a freeform name (default / custom habit)
+        _anchorHabitText = chaining.anchorHabit ?? '';
       }
     }
-    
+
+    // Action Steps
+    if (habit.actionSteps.isNotEmpty) {
+      _actionStepsEnabled = true;
+      _actionSteps = List<HabitActionStep>.from(habit.actionSteps);
+    }
+
     // Step 6: Strategy (CBT) - map to trigger/action controllers
     final cbt = habit.cbtEnhancements;
     if (cbt != null) {
@@ -247,9 +520,8 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
       _actionController.text = cbt.ifThenPlan ?? '';
     }
   }
-  
+
   TimeOfDay? _parseTimeOfDay(String timeStr) {
-    // Parse formats like "07:00 AM" or "14:30"
     try {
       final cleaned = timeStr.trim().toUpperCase();
       final isPM = cleaned.contains('PM');
@@ -266,114 +538,103 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
     } catch (_) {}
     return null;
   }
-  
-  Animation<Offset> _createSlideAnimation(Offset begin, Offset end) {
-    return Tween<Offset>(
-      begin: begin,
-      end: end,
-    ).animate(CurvedAnimation(
-      parent: _slideController!,
-      curve: Curves.easeOutCubic,
-    ));
+
+  static String _toIsoDate(DateTime d) {
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  Future<void> _pickCustomDeadline() async {
+    final now = DateTime.now();
+    final initial = _customDeadlineDate ?? now.add(const Duration(days: 30));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now,
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _customDeadlineDate = picked;
+      _selectedMilestone = 'custom';
+    });
   }
 
   @override
   void dispose() {
-    _slideController?.dispose();
+    _habitNameController.removeListener(_clearNameError);
+    _triggerController.removeListener(_clearTriggerError);
+    _actionController.removeListener(_clearActionError);
     _habitNameController.dispose();
     _triggerController.dispose();
     _actionController.dispose();
     super.dispose();
   }
 
-  // --- Navigation Logic with Slide Animation ---
-
-  Future<void> _animateToStep(int newStep) async {
-    if (_isAnimating || newStep == _currentStep) return;
-    if (newStep < 0 || newStep >= _totalSteps) return;
-    if (_slideController == null) return;
-    
-    _isAnimating = true;
-    final goingForward = newStep > _currentStep;
-    
-    // Set up slide out animation
-    _slideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset(goingForward ? -1.0 : 1.0, 0),
-    ).animate(CurvedAnimation(
-      parent: _slideController!,
-      curve: Curves.easeInOutCubic,
-    ));
-    
-    // Slide out current step
-    await _slideController!.forward();
-    
-    // Update step
-    setState(() {
-      _currentStep = newStep;
-      _displayedStep = newStep;
-    });
-    
-    // Reset and set up slide in animation
-    _slideController!.reset();
-    _slideAnimation = Tween<Offset>(
-      begin: Offset(goingForward ? 1.0 : -1.0, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController!,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    // Slide in new step
-    await _slideController!.forward();
-    
-    _isAnimating = false;
-  }
-
-  void _nextPage() {
-    if (_currentStep < _totalSteps - 1) {
-      HapticFeedback.selectionClick();
-      _animateToStep(_currentStep + 1);
-    } else {
-      _handleCommit();
-    }
-  }
-
-  void _prevPage() {
-    if (_currentStep > 0) {
-      HapticFeedback.selectionClick();
-      _animateToStep(_currentStep - 1);
-    } else {
-      Navigator.pop(context);
-    }
-  }
-
   // --- Save Logic ---
 
   void _handleCommit() {
     HapticFeedback.mediumImpact();
-    
-    // Default Name if empty
-    final habitName = _habitNameController.text.trim().isNotEmpty
-        ? _habitNameController.text.trim()
-        : _habitIcons[_selectedIconIndex].$2;
+
+    // Validate mandatory fields
+    bool hasError = false;
+
+    if (_habitNameController.text.trim().isEmpty) {
+      _nameError = 'Please enter a habit name';
+      hasError = true;
+    }
+    if (_triggerController.text.trim().isEmpty) {
+      _triggerError = 'Please enter a trigger';
+      hasError = true;
+    }
+    if (_actionController.text.trim().isEmpty) {
+      _actionError = 'Please enter a coping action';
+      hasError = true;
+    }
+    if (_habitStackingEnabled && _anchorHabitText.trim().isEmpty) {
+      _anchorHabitError = 'Please select or enter a habit';
+      hasError = true;
+    }
+    if (_actionStepsEnabled) {
+      final nonEmpty = _actionSteps.where((s) => s.title.trim().isNotEmpty).toList();
+      if (nonEmpty.isEmpty) {
+        _actionStepsError = 'Add at least one step with a title';
+        hasError = true;
+      } else {
+        _actionStepsError = null;
+      }
+    }
+
+    if (hasError) {
+      setState(() {});
+      return;
+    }
+
+    final habitName = _habitNameController.text.trim();
 
     // 1. Build CBT Logic
     CbtEnhancements? cbtEnhancements;
-    if (_triggerController.text.isNotEmpty || _actionController.text.isNotEmpty) {
+    if (_triggerController.text.isNotEmpty ||
+        _actionController.text.isNotEmpty) {
       cbtEnhancements = CbtEnhancements(
         predictedObstacle: _triggerController.text.trim(),
         ifThenPlan: _actionController.text.trim(),
       );
     }
 
-    // 2. Build TimeBound
+    // 2. Build TimeBound (start time + duration) — only when timer addon is active
     HabitTimeBoundSpec? timeBound;
-    if (_timeBoundEnabled) {
+    if (_timerAddonAdded && _timeBoundStartTime != null && _timeBoundDurationMinutes > 0) {
+      final maxVal = _timeBoundDurationUnit == 'hours' ? 24 : 24 * 60;
       timeBound = HabitTimeBoundSpec(
         enabled: true,
-        duration: _timeBoundDuration,
-        unit: _timeBoundUnit,
+        duration: _timeBoundDurationValue.clamp(1, maxVal),
+        unit: _timeBoundDurationUnit,
+        mode: 'time',
+        notificationSound: _notificationSound,
+        vibrationType: _vibrationType,
       );
     }
 
@@ -381,7 +642,9 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
     HabitChaining? chaining;
     if (_anchorHabitText.isNotEmpty || _afterHabitId != null) {
       chaining = HabitChaining(
-        anchorHabit: _anchorHabitText.trim().isEmpty ? null : _anchorHabitText.trim(),
+        anchorHabit: _anchorHabitText.trim().isEmpty
+            ? null
+            : _anchorHabitText.trim(),
         relationship: _relationship,
       );
     }
@@ -395,30 +658,78 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
         lng: _locationLng!,
         radiusMeters: _locationRadius,
         triggerMode: _locationTriggerMode,
-        dwellMinutes: _locationTriggerMode == 'dwell' ? _locationDwellMinutes : null,
+        dwellMinutes: _locationTriggerMode == 'dwell'
+            ? _locationDwellMinutes
+            : null,
+        address: _locationAddress,
       );
     }
 
-    // 5. Calc Reminder
+    // 5. Calc Reminder (from start time - minutes before)
     int? reminderMins;
-    if (_reminderEnabled && _reminderTime != null) {
-      reminderMins = _reminderTime!.hour * 60 + _reminderTime!.minute;
+    if (_reminderEnabled &&
+        _reminderMinutesBefore != null &&
+        _timeBoundStartTime != null) {
+      final startMins =
+          _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+      reminderMins = (startMins - _reminderMinutesBefore!).clamp(0, 24 * 60 - 1);
     }
 
-    // 6. Create Request
+    // 6. Resolve deadline from selected milestone
+    String? resolvedDeadline;
+    switch (_selectedMilestone) {
+      case '21':
+      case '66':
+      case '90':
+        final days = int.parse(_selectedMilestone);
+        resolvedDeadline = _toIsoDate(
+          DateTime.now().add(Duration(days: days)),
+        );
+        break;
+      case 'custom':
+        if (_customDeadlineDate != null) {
+          resolvedDeadline = _toIsoDate(_customDeadlineDate!);
+        }
+        break;
+      case 'none':
+      default:
+        resolvedDeadline = null;
+    }
+
+    // 7. Compute startTimeMinutes from _timeBoundStartTime
+    int? startTimeMinutes;
+    if (_timerAddonAdded && _timeBoundStartTime != null) {
+      startTimeMinutes = _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+    }
+
+    // 8. Filter out empty action steps
+    final filteredSteps = _actionSteps
+        .where((s) => s.title.trim().isNotEmpty)
+        .toList();
+    for (int i = 0; i < filteredSteps.length; i++) {
+      filteredSteps[i] = filteredSteps[i].copyWith(order: i);
+    }
+
+    // 9. Create Request
     final request = HabitCreateRequest(
       name: habitName,
+      category: _category,
       frequency: _mapFrequency(),
       weeklyDays: _mapWeeklyDays(),
-      deadline: null,
+      deadline: resolvedDeadline,
       afterHabitId: _afterHabitId,
-      timeOfDay: _selectedTime != null ? _formatTimeOfDay(_selectedTime!) : null,
+      timeOfDay: _selectedTime != null
+          ? _formatTimeOfDay(_selectedTime!)
+          : null,
       reminderMinutes: reminderMins,
       reminderEnabled: _reminderEnabled,
       chaining: chaining,
       cbtEnhancements: cbtEnhancements,
       timeBound: timeBound,
       locationBound: locationBound,
+      iconIndex: _selectedIconIndex,
+      actionSteps: filteredSteps,
+      startTimeMinutes: startTimeMinutes,
     );
 
     Navigator.of(context).pop(request);
@@ -427,19 +738,11 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
   // --- Helpers ---
 
   String? _mapFrequency() {
-    switch (_occurrenceType) {
-      case 'daily': return 'Daily';
-      case 'weekdays': 
-      case 'interval': return 'Weekly';
-      default: return null;
-    }
+    return _weekdays.length == 7 ? 'Daily' : 'Weekly';
   }
 
   List<int> _mapWeeklyDays() {
-    if (_occurrenceType == 'weekdays') {
-      return _weekdays.map((d) => d + 1).toList()..sort();
-    }
-    return [];
+    return _weekdays.map((d) => d + 1).toList()..sort();
   }
 
   String _formatTimeOfDay(TimeOfDay time) {
@@ -449,86 +752,15 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
     return '$hour:$minute $period';
   }
 
-  Widget _buildCurrentStep() {
-    switch (_displayedStep) {
-      case 0:
-        return _Step1Identity(
-          nameController: _habitNameController,
-          selectedIconIndex: _selectedIconIndex,
-          onIconSelected: (i) => setState(() => _selectedIconIndex = i),
-        );
-      case 1:
-        return _Step2Aesthetics(
-          selectedColorIndex: _selectedColorIndex,
-          selectedIconIndex: _selectedIconIndex,
-          habitName: _habitNameController.text.isNotEmpty 
-              ? _habitNameController.text 
-              : _habitIcons[_selectedIconIndex].$2,
-          onColorSelected: (i) => setState(() => _selectedColorIndex = i),
-        );
-      case 2:
-        return _Step3Rhythm(
-          occurrenceType: _occurrenceType,
-          weekdays: _weekdays,
-          intervalDays: _intervalDays,
-          onTypeChanged: (v) => setState(() => _occurrenceType = v),
-          onWeekdayToggled: (day) => setState(() {
-            if (_weekdays.contains(day)) _weekdays.remove(day);
-            else _weekdays.add(day);
-          }),
-          onIntervalChanged: (v) => setState(() => _intervalDays = v),
-        );
-      case 3:
-        return _Step4Triggers(
-          selectedTime: _selectedTime,
-          reminderEnabled: _reminderEnabled,
-          reminderTime: _reminderTime,
-          locationEnabled: _locationEnabled,
-          lat: _locationLat,
-          lng: _locationLng,
-          radius: _locationRadius,
-          triggerMode: _locationTriggerMode,
-          dwellMinutes: _locationDwellMinutes,
-          onTimeChanged: (t) => setState(() {
-             _selectedTime = t;
-             if(t != null && _reminderTime == null) _reminderTime = t;
-          }),
-          onReminderToggle: (v) => setState(() => _reminderEnabled = v),
-          onReminderTimeChanged: (t) => setState(() => _reminderTime = t),
-          onLocationToggle: (v) => setState(() => _locationEnabled = v),
-          onLocationSelected: (lat, lng) => setState(() {
-            _locationLat = lat;
-            _locationLng = lng;
-          }),
-          onRadiusChanged: (v) => setState(() => _locationRadius = v),
-          onTriggerModeChanged: (v) => setState(() => _locationTriggerMode = v),
-          onDwellMinutesChanged: (v) => setState(() => _locationDwellMinutes = v),
-        );
-      case 4:
-        return _Step5Pacing(
-          timeBoundEnabled: _timeBoundEnabled,
-          duration: _timeBoundDuration,
-          unit: _timeBoundUnit,
-          onToggle: (v) => setState(() => _timeBoundEnabled = v),
-          onDurationChanged: (v) => setState(() => _timeBoundDuration = v),
-          onUnitChanged: (v) => setState(() => _timeBoundUnit = v),
-        );
-      case 5:
-        return _Step6Strategy(
-          existingHabits: widget.existingHabits,
-          triggerController: _triggerController,
-          actionController: _actionController,
-          afterHabitId: _afterHabitId,
-          anchorHabitText: _anchorHabitText,
-          relationship: _relationship,
-          isEditing: widget.initialHabit != null,
-          onAfterHabitIdChanged: (v) => setState(() => _afterHabitId = v),
-          onAnchorTextChanged: (v) => setState(() => _anchorHabitText = v),
-          onRelationshipChanged: (v) => setState(() => _relationship = v),
-        );
-      default:
-        return const SizedBox();
-    }
+  void _onAfterHabitIdChanged(String? id) {
+    setState(() {
+      _afterHabitId = id;
+      if (id != null) {
+        final h = widget.existingHabits.where((x) => x.id == id).firstOrNull;
+        if (h != null) _anchorHabitText = h.name;
+      }
+      if (_anchorHabitError != null) _anchorHabitError = null;
+    });
   }
 
   // --- Build ---
@@ -537,129 +769,291 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
+    final baseColor = colorScheme.onSurface;
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      backgroundColor: colorScheme.surface, 
-      body: Container(
+      backgroundColor: colorScheme.surface,
+      bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [colorScheme.surface, colorScheme.surfaceContainerHighest, AppColors.medium.withValues(alpha: 0.3)]
-                : [colorScheme.surface, colorScheme.surfaceContainerLow, AppColors.light.withValues(alpha: 0.3)],
+          color: colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
           ),
         ),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          12,
+          20,
+          bottomPadding > 0 ? bottomPadding : 12,
+        ),
+        child: Row(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: _handleCommit,
+              icon: const Icon(Icons.check_rounded, size: 20),
+              label: Text(
+                widget.initialHabit != null ? 'Save Habit' : 'Create Habit',
+                style: AppTypography.button(context)
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Container(
+        color: colorScheme.surface,
         child: Column(
           children: [
-            // 1. Header with Progress Bar (SafeArea for top only)
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Column(
-                  children: [
-                    // Step indicator text
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Step ${_currentStep + 1} of $_totalSteps",
-                          style: AppTypography.caption(context),
-                        ),
-                        Text(
-                          _getStepTitle(_currentStep),
-                          style: AppTypography.caption(context).copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+            Expanded(
+              child: Listener(
+                onPointerDown: (e) {
+                  if (!_customizeExpanded && !_colorPickerExpanded) return;
+                  final box =
+                      _colorSectionKey.currentContext?.findRenderObject()
+                          as RenderBox?;
+                  if (box != null && box.hasSize) {
+                    final bounds = box.localToGlobal(Offset.zero) & box.size;
+                    if (bounds.contains(e.position)) return;
+                  }
+                  setState(() {
+                    _customizeExpanded = false;
+                    _colorPickerExpanded = false;
+                  });
+                },
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    topPadding,
+                    20,
+                    20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Step1IdentityWithColor(
+                        colorSectionKey: _colorSectionKey,
+                        nameController: _habitNameController,
+                        nameError: _nameError,
+                        selectedCategory: _category,
+                        onCategoryChanged: (v) {
+                          setState(() {
+                            _category = v;
+                            if (v != null) {
+                              final indices = categoryToIconIndices[v];
+                              if (indices != null &&
+                                  indices.isNotEmpty &&
+                                  !indices.contains(_selectedIconIndex)) {
+                                _selectedIconIndex = indices.first;
+                              }
+                            }
+                          });
+                        },
+                        selectedIconIndex: _selectedIconIndex,
+                        iconsForCategory: _iconsForCurrentCategory,
+                        selectedColorIndex: _selectedColorIndex,
+                        allColors: _allColors,
+                        colorPickerExpanded: _colorPickerExpanded,
+                        customizeExpanded: _customizeExpanded,
+                        onColorPickerExpandedChanged: (v) => setState(() {
+                          _colorPickerExpanded = v;
+                          if (v) _milestoneExpanded = false;
+                        }),
+                        onCustomizeExpandedChanged: (v) =>
+                            setState(() => _customizeExpanded = v),
+                        onIconSelected: (i) =>
+                            setState(() => _selectedIconIndex = i),
+                        onColorSelected: (i) =>
+                            setState(() => _selectedColorIndex = i),
+                        onCustomizePreset: (index, gradientColor, darkColor) {
+                          setState(
+                            () => _customizedPresets[index] = (
+                              gradientColor,
+                              darkColor,
+                            ),
+                          );
+                        },
+                        onSectionExpanded: () =>
+                            setState(() => _milestoneExpanded = false),
+                      ),
+                      SizedBox(height: kSectionSpacing),
+                      _buildScheduleSection(colorScheme, baseColor),
+                      SizedBox(height: kSectionSpacing),
+                      _buildCopingPlanSection(colorScheme),
+                      SizedBox(height: kSectionSpacing),
+                      Step6Strategy(
+                        habitColor: baseColor,
+                        habitStackingEnabled: _habitStackingEnabled,
+                        onHabitStackingToggle: (v) {
+                          setState(() {
+                            _habitStackingEnabled = v;
+                            if (v) _milestoneExpanded = false;
+                            if (!v) {
+                              _afterHabitId = null;
+                              _anchorHabitText = '';
+                              _anchorHabitError = null;
+                            }
+                          });
+                        },
+                        existingHabits: widget.existingHabits,
+                        afterHabitId: _afterHabitId,
+                        anchorHabitText: _anchorHabitText,
+                        relationship: _relationship,
+                        isEditing: widget.initialHabit != null,
+                        onAfterHabitIdChanged: _onAfterHabitIdChanged,
+                        onAnchorTextChanged: (v) => setState(() {
+                          _anchorHabitText = v;
+                          if (_anchorHabitError != null) _anchorHabitError = null;
+                        }),
+                        onRelationshipChanged: (v) =>
+                            setState(() => _relationship = v),
+                        anchorHabitError: _anchorHabitError,
+                        actionStepsEnabled: _actionStepsEnabled,
+                        onActionStepsToggle: (v) {
+                          setState(() {
+                            _actionStepsEnabled = v;
+                            _actionStepsError = null;
+                            if (!v) _actionSteps = [];
+                          });
+                        },
+                        actionStepsError: _actionStepsError,
+                        actionSteps: _actionSteps,
+                        onActionStepsChanged: (steps) => setState(() {
+                          _actionSteps = steps;
+                          if (_actionStepsError != null) _actionStepsError = null;
+                        }),
+                      ),
+                      if (_remindersAddonAdded || _timerAddonAdded) ...[
+                        SizedBox(height: kSectionSpacing),
+                        Step4Triggers(
+                          habitColor: baseColor,
+                          showReminderFields: _remindersAddonAdded,
+                          showDurationField: _timerAddonAdded,
+                          scheduleStartTime: _timeBoundStartTime,
+                          selectedTime: _selectedTime,
+                          reminderEnabled: _reminderEnabled,
+                          reminderTime: _reminderTime,
+                          reminderMinutesBefore: _reminderMinutesBefore,
+                          onReminderMinutesBeforeChanged: (v) =>
+                              setState(() => _reminderMinutesBefore = v),
+                          durationValue: _timeBoundDurationValue,
+                          durationUnit: _timeBoundDurationUnit,
+                          onStartTimeChanged: (t) {
+                            setState(() => _timeBoundStartTime = t);
+                            _checkTimeConflict();
+                          },
+                          onDurationChanged: (value, unit) {
+                            setState(() {
+                              _timeBoundDurationValue = value;
+                              _timeBoundDurationUnit = unit;
+                            });
+                            _checkTimeConflict();
+                          },
+                          timeConflictError: _timeConflictError,
+                          suggestedStartTime: _suggestedStartTime,
+                          slotAvailableInfo: _slotAvailableInfo,
+                          onSuggestionTap: _suggestedStartTime != null ? () {
+                            setState(() => _timeBoundStartTime = _suggestedStartTime);
+                            _checkTimeConflict();
+                          } : null,
+                          locationEnabled: _locationEnabled,
+                          lat: _locationLat,
+                          lng: _locationLng,
+                          radius: _locationRadius,
+                          triggerMode: _locationTriggerMode,
+                          dwellMinutes: _locationDwellMinutes,
+                          locationAddress: _locationAddress,
+                          onAddressChanged: (v) =>
+                              setState(() => _locationAddress = v),
+                          onTimeChanged: (t) =>
+                              setState(() => _selectedTime = t),
+                          onReminderToggle: (v) {
+                            setState(() {
+                              _reminderEnabled = v;
+                              if (v && _reminderMinutesBefore == null) {
+                                _reminderMinutesBefore = 15;
+                              }
+                            });
+                          },
+                          onReminderTimeChanged: (t) =>
+                              setState(() => _reminderTime = t),
+                          onLocationToggle: (v) {
+                            setState(() {
+                              _locationEnabled = v;
+                              if (!v) _locationAddress = null;
+                            });
+                          },
+                          onLocationSelected: (lat, lng) => setState(() {
+                            _locationLat = lat;
+                            _locationLng = lng;
+                          }),
+                          onRadiusChanged: (v) =>
+                              setState(() => _locationRadius = v),
+                          onTriggerModeChanged: (v) =>
+                              setState(() => _locationTriggerMode = v),
+                          onDwellMinutesChanged: (v) =>
+                              setState(() => _locationDwellMinutes = v),
+                          notificationSound: _notificationSound,
+                          onNotificationSoundChanged: (v) =>
+                              setState(() => _notificationSound = v),
+                          vibrationType: _vibrationType,
+                          onVibrationTypeChanged: (v) =>
+                              setState(() => _vibrationType = v),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Progress bar
-                    TweenAnimationBuilder<double>(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutCubic,
-                      tween: Tween<double>(
-                        begin: 0, 
-                        end: (_currentStep + 1) / _totalSteps
+                      SizedBox(height: kSectionSpacing),
+                      AddonToolsSection(
+                        habitColor: baseColor,
+                        remindersAdded: _remindersAddonAdded,
+                        onRemindersToggle: (added) {
+                          setState(() {
+                            _remindersAddonAdded = added;
+                            if (!added) {
+                              _reminderEnabled = false;
+                              _reminderMinutesBefore = null;
+                              _reminderTime = null;
+                              _selectedTime = null;
+                              _locationEnabled = false;
+                              _locationLat = null;
+                              _locationLng = null;
+                              _locationAddress = null;
+                            }
+                          });
+                        },
+                        timerAdded: _timerAddonAdded,
+                        onTimerToggle: (added) {
+                          setState(() {
+                            _timerAddonAdded = added;
+                            if (!added) {
+                              _timeBoundStartTime = null;
+                              _timeBoundDurationValue = 15;
+                              _timeBoundDurationUnit = 'minutes';
+                            }
+                          });
+                        },
                       ),
-                      builder: (context, value, _) => LinearProgressIndicator(
-                        value: value,
-                        backgroundColor: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                        valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                        minHeight: 6,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 2. Main Content with Slide Animation
-            Expanded(
-              child: _slideAnimation != null
-                  ? SlideTransition(
-                      position: _slideAnimation!,
-                      child: _buildCurrentStep(),
-                    )
-                  : _buildCurrentStep(),
-            ),
-
-            // 3. Navigation Bar (pinned at bottom)
-            Container(
-              padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPadding > 0 ? bottomPadding : 16),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                      // Space for fixed bottom bar
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Back button (always enabled)
-                  TextButton.icon(
-                    onPressed: _prevPage,
-                    icon: const Icon(
-                      Icons.arrow_back_rounded,
-                      size: 20,
-                    ),
-                    label: const Text("Back"),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
-                  
-                  const Spacer(),
-
-                  // Next/Create button
-                  ElevatedButton.icon(
-                    onPressed: _isAnimating ? null : _nextPage,
-                    icon: _currentStep == _totalSteps - 1 
-                        ? const Icon(Icons.check_rounded, size: 20)
-                        : const Icon(Icons.arrow_forward_rounded, size: 20),
-                    label: Text(
-                      _currentStep == _totalSteps - 1 
-                          ? (widget.initialHabit != null ? "Save Habit" : "Create Habit")
-                          : "Next",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 2,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
@@ -667,1682 +1061,397 @@ class _CreateHabitWizardState extends State<_CreateHabitWizard>
       ),
     );
   }
-  
-  String _getStepTitle(int step) {
-    switch (step) {
-      case 0: return "Identity";
-      case 1: return "Aesthetics";
-      case 2: return "Rhythm";
-      case 3: return "Triggers";
-      case 4: return "Pacing";
-      case 5: return "Strategy";
-      default: return "";
-    }
-  }
-}
 
-// ============================================================================
-// STEP WIDGETS
-// ============================================================================
-
-// --- STEP 1: IDENTITY ---
-class _Step1Identity extends StatelessWidget {
-  final TextEditingController nameController;
-  final int selectedIconIndex;
-  final ValueChanged<int> onIconSelected;
-
-  const _Step1Identity({
-    required this.nameController,
-    required this.selectedIconIndex,
-    required this.onIconSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "What is your new ritual?", 
-            style: AppTypography.heading2(context),
-            textAlign: TextAlign.center
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Name it to claim it.", 
-            style: AppTypography.secondary(context),
-            textAlign: TextAlign.center
-          ),
-          const SizedBox(height: 32),
-          
-          TextField(
-            controller: nameController,
-            style: AppTypography.body(context),
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: "e.g., Morning Meditation",
-              hintStyle: AppTypography.body(context).copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              filled: true,
-              fillColor: colorScheme.surfaceContainerHighest,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16), 
-                borderSide: BorderSide.none
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: colorScheme.primary, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(18),
-            ),
-          ),
-          const SizedBox(height: 32),
-          
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Choose an Icon", 
-              style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4, 
-              mainAxisSpacing: 12, 
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.85,
-            ),
-            itemCount: _habitIcons.length,
-            itemBuilder: (ctx, index) => _AnimatedIconTile(
-              icon: _habitIcons[index].$1,
-              label: _habitIcons[index].$2,
-              isSelected: selectedIconIndex == index,
-              onTap: () => onIconSelected(index),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-// Animated Icon Tile with micro-interactions
-class _AnimatedIconTile extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _AnimatedIconTile({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedIconTile> createState() => _AnimatedIconTileState();
-}
-
-class _AnimatedIconTileState extends State<_AnimatedIconTile> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _bounceAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _bounceAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedIconTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isSelected && !oldWidget.isSelected) {
-      _controller.forward().then((_) => _controller.reverse());
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.lightImpact();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final scale = widget.isSelected 
-              ? _bounceAnimation.value 
-              : _scaleAnimation.value;
-          return Transform.scale(
-            scale: scale,
-            child: child,
-          );
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: widget.isSelected 
-                ? colorScheme.primaryContainer
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: widget.isSelected 
-                  ? colorScheme.primary 
-                  : colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: widget.isSelected ? 2 : 1,
-            ),
-            boxShadow: widget.isSelected ? [
-              BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ] : null,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: widget.isSelected 
-                      ? colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  widget.icon,
-                  color: widget.isSelected 
-                      ? colorScheme.primary 
-                      : colorScheme.onSurfaceVariant,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.label,
-                style: AppTypography.caption(context).copyWith(
-                  color: widget.isSelected 
-                      ? colorScheme.primary 
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+  Widget _buildCopingPlanSection(ColorScheme colorScheme) {
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        'Safety Net',
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
         ),
       ),
-    );
-  }
-}
-
-// --- STEP 2: AESTHETICS ---
-class _Step2Aesthetics extends StatelessWidget {
-  final int selectedColorIndex;
-  final int selectedIconIndex;
-  final String habitName;
-  final ValueChanged<int> onColorSelected;
-
-  const _Step2Aesthetics({
-    required this.selectedColorIndex,
-    required this.selectedIconIndex,
-    required this.habitName,
-    required this.onColorSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final colors = _habitColors[selectedColorIndex].$2;
-    final icon = _habitIcons[selectedIconIndex].$1;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "Set the Vibe", 
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Choose a color that inspires you.", 
-            style: AppTypography.secondary(context),
-          ),
-          const SizedBox(height: 32),
-          
-          // Preview Card with animation
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 400),
-            tween: Tween(begin: 0.95, end: 1.0),
-            curve: Curves.easeOutBack,
-            builder: (context, scale, child) => Transform.scale(
-              scale: scale,
-              child: child,
-            ),
-            child: Container(
-              height: 130,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: colors, 
-                  begin: Alignment.topLeft, 
-                  end: Alignment.bottomRight
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.first.withValues(alpha: 0.4), 
-                    blurRadius: 20, 
-                    offset: const Offset(0, 8)
-                  )
-                ],
-              ),
-              child: Row(
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: habitSectionDecoration(colorScheme),
+      separatorColor: habitSectionSeparatorColor(colorScheme),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    width: 48,
+                    padding: const EdgeInsets.symmetric(vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.24), 
-                      borderRadius: BorderRadius.circular(14)
+                      color: colorScheme.tertiary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(icon, color: Colors.white, size: 32),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'IF',
+                      style: AppTypography.caption(context).copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        color: colorScheme.tertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          habitName, 
-                          style: AppTypography.heading3(context).copyWith(color: Colors.white), 
-                          overflow: TextOverflow.ellipsis
+                    child: TextField(
+                      controller: _triggerController,
+                      style: AppTypography.body(context),
+                      decoration: InputDecoration(
+                        hintText: "I'm feeling too tired...",
+                        hintStyle: AppTypography.body(context).copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          fontSize: 14,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Daily Ritual", 
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8))
+                        errorText: _triggerError,
+                        errorStyle: AppTypography.caption(context).copyWith(
+                          color: colorScheme.error,
+                          fontSize: 11,
                         ),
-                      ],
+                        border: UnderlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _triggerError != null
+                                ? colorScheme.error
+                                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _triggerError != null
+                                ? colorScheme.error
+                                : colorScheme.primary,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.only(bottom: 4),
+                        isDense: true,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Pick a Color Theme", 
-              style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5, 
-              mainAxisSpacing: 12, 
-              crossAxisSpacing: 12
-            ),
-            itemCount: _habitColors.length,
-            itemBuilder: (ctx, index) => _AnimatedColorTile(
-              colors: _habitColors[index].$2,
-              isSelected: selectedColorIndex == index,
-              onTap: () => onColorSelected(index),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-// Animated Color Tile
-class _AnimatedColorTile extends StatefulWidget {
-  final List<Color> colors;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _AnimatedColorTile({
-    required this.colors,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedColorTile> createState() => _AnimatedColorTileState();
-}
-
-class _AnimatedColorTileState extends State<_AnimatedColorTile> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.lightImpact();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: widget.colors),
-            shape: BoxShape.circle,
-            border: widget.isSelected 
-                ? Border.all(color: colorScheme.onSurface, width: 3) 
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: widget.colors.first.withValues(alpha: 0.4), 
-                blurRadius: widget.isSelected ? 12 : 6,
-                offset: const Offset(0, 2),
-              )
+              Padding(
+                padding: const EdgeInsets.only(left: 23),
+                child: Container(
+                  height: 16,
+                  width: 2,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'THEN',
+                      style: AppTypography.caption(context).copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        color: colorScheme.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _actionController,
+                      style: AppTypography.body(context),
+                      decoration: InputDecoration(
+                        hintText: "I will just do 2 minutes.",
+                        hintStyle: AppTypography.body(context).copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          fontSize: 14,
+                        ),
+                        errorText: _actionError,
+                        errorStyle: AppTypography.caption(context).copyWith(
+                          color: colorScheme.error,
+                          fontSize: 11,
+                        ),
+                        border: UnderlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _actionError != null
+                                ? colorScheme.error
+                                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _actionError != null
+                                ? colorScheme.error
+                                : colorScheme.primary,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.only(bottom: 4),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-          child: widget.isSelected 
-              ? const Icon(Icons.check, color: Colors.white, size: 22) 
-              : null,
+        ),
+      ],
+    );
+  }
+
+  String _milestoneDisplayText() {
+    if (_selectedMilestone == 'custom' && _customDeadlineDate != null) {
+      return 'Custom: ${_toIsoDate(_customDeadlineDate!)}';
+    }
+    for (final preset in kMilestonePresets) {
+      if (preset.id == _selectedMilestone) {
+        final star = preset.isRecommended ? ' \u2B50' : '';
+        return '${preset.label} · ${preset.subtitle}$star';
+      }
+    }
+    return 'No End Date';
+  }
+
+  Widget _buildMilestoneRow({
+    required ColorScheme colorScheme,
+    required String id,
+    required String label,
+    required String subtitle,
+    bool isRecommended = false,
+    IconData? leadingIcon,
+  }) {
+    final selected = _selectedMilestone == id;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedMilestone = id);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 20,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 12),
+            if (leadingIcon != null) ...[
+              Icon(
+                leadingIcon,
+                size: 16,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  text: label,
+                  style: AppTypography.body(context).copyWith(
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    color: selected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '  $subtitle',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.7),
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                    if (isRecommended)
+                      const TextSpan(
+                        text: ' \u2B50',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-// --- STEP 3: RHYTHM ---
-class _Step3Rhythm extends StatelessWidget {
-  final String occurrenceType;
-  final Set<int> weekdays;
-  final int intervalDays;
-  final ValueChanged<String> onTypeChanged;
-  final ValueChanged<int> onWeekdayToggled;
-  final ValueChanged<int> onIntervalChanged;
+  Widget _buildScheduleSection(ColorScheme colorScheme, Color baseColor) {
+    final customDateLabel = _customDeadlineDate != null
+        ? _toIsoDate(_customDeadlineDate!)
+        : null;
 
-  const _Step3Rhythm({
-    required this.occurrenceType,
-    required this.weekdays,
-    required this.intervalDays,
-    required this.onTypeChanged,
-    required this.onWeekdayToggled,
-    required this.onIntervalChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "Define the Rhythm", 
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Consistency builds momentum.", 
-            style: AppTypography.secondary(context),
-          ),
-          const SizedBox(height: 32),
-
-          // Option Cards
-          ..._occurrenceOptions.map((opt) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _AnimatedOptionCard(
-              icon: opt.icon,
-              label: opt.label,
-              description: opt.description,
-              isSelected: occurrenceType == opt.value,
-              onTap: () => onTypeChanged(opt.value),
-            ),
-          )),
-
-          // Logic for Weekdays
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: occurrenceType == 'weekdays' ? Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    "Select Days", 
-                    style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(7, (index) {
-                      final days = ['M','T','W','T','F','S','S'];
-                      final selected = weekdays.contains(index);
-                      return _AnimatedDayChip(
-                        label: days[index],
-                        isSelected: selected,
-                        onTap: () => onWeekdayToggled(index),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ) : const SizedBox.shrink(),
-          ),
-          
-          // Logic for Interval
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: occurrenceType == 'interval' ? Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _AnimatedIconButton(
-                    icon: Icons.remove_rounded,
-                    onTap: () => onIntervalChanged(intervalDays > 1 ? intervalDays - 1 : 1),
-                  ),
-                  const SizedBox(width: 24),
-                  Column(
-                    children: [
-                      Text(
-                        "$intervalDays", 
-                        style: AppTypography.heading1(context).copyWith(
-                          fontSize: 48,
-                        ),
-                      ),
-                      Text(
-                        intervalDays == 1 ? "day" : "days",
-                        style: AppTypography.secondary(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 24),
-                  _AnimatedIconButton(
-                    icon: Icons.add_rounded,
-                    onTap: () => onIntervalChanged(intervalDays + 1),
-                  ),
-                ],
-              ),
-            ) : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 24),
-        ],
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        'Schedule',
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
       ),
-    );
-  }
-}
-
-// Animated Option Card
-class _AnimatedOptionCard extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final String description;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _AnimatedOptionCard({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedOptionCard> createState() => _AnimatedOptionCardState();
-}
-
-class _AnimatedOptionCardState extends State<_AnimatedOptionCard> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.98).animate(_controller),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: widget.isSelected 
-                ? colorScheme.primaryContainer
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.isSelected 
-                  ? colorScheme.primary 
-                  : colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: widget.isSelected ? 2 : 1,
-            ),
-          ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: habitSectionDecoration(colorScheme),
+      separatorColor: habitSectionSeparatorColor(colorScheme),
+      children: [
+        // Weekdays row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: widget.isSelected 
-                      ? colorScheme.primary.withValues(alpha: 0.15)
-                      : colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  widget.icon, 
-                  color: widget.isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.label, 
-                      style: AppTypography.body(context).copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: widget.isSelected ? colorScheme.primary : colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.description, 
-                      style: AppTypography.caption(context),
-                    ),
-                  ],
-                ),
-              ),
-              if(widget.isSelected) 
-                Icon(Icons.check_circle, color: colorScheme.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Animated Day Chip
-class _AnimatedDayChip extends StatefulWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _AnimatedDayChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedDayChip> createState() => _AnimatedDayChipState();
-}
-
-class _AnimatedDayChipState extends State<_AnimatedDayChip> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.85).animate(
-          CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-        ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 40, 
-          height: 40,
-          decoration: BoxDecoration(
-            color: widget.isSelected ? colorScheme.primary : colorScheme.surfaceContainerHigh,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: widget.isSelected ? colorScheme.primary : colorScheme.outlineVariant,
-              width: widget.isSelected ? 0 : 1,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            widget.label, 
-            style: AppTypography.bodySmall(context).copyWith(
-              color: widget.isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Animated Icon Button
-class _AnimatedIconButton extends StatefulWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _AnimatedIconButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  State<_AnimatedIconButton> createState() => _AnimatedIconButtonState();
-}
-
-class _AnimatedIconButtonState extends State<_AnimatedIconButton> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.9).animate(_controller),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(widget.icon, color: colorScheme.primary, size: 28),
-        ),
-      ),
-    );
-  }
-}
-
-// --- STEP 4: TRIGGERS ---
-class _Step4Triggers extends StatelessWidget {
-  final TimeOfDay? selectedTime;
-  final bool reminderEnabled;
-  final TimeOfDay? reminderTime;
-  final bool locationEnabled;
-  final double? lat;
-  final double? lng;
-  final int radius;
-  final String triggerMode;
-  final int dwellMinutes;
-  final ValueChanged<TimeOfDay?> onTimeChanged;
-  final ValueChanged<bool> onReminderToggle;
-  final ValueChanged<TimeOfDay?> onReminderTimeChanged;
-  final ValueChanged<bool> onLocationToggle;
-  final void Function(double, double) onLocationSelected;
-  final ValueChanged<int> onRadiusChanged;
-  final ValueChanged<String> onTriggerModeChanged;
-  final ValueChanged<int> onDwellMinutesChanged;
-
-  const _Step4Triggers({
-    required this.selectedTime,
-    required this.reminderEnabled,
-    required this.reminderTime,
-    required this.locationEnabled,
-    required this.lat,
-    required this.lng,
-    required this.radius,
-    required this.triggerMode,
-    required this.dwellMinutes,
-    required this.onTimeChanged,
-    required this.onReminderToggle,
-    required this.onReminderTimeChanged,
-    required this.onLocationToggle,
-    required this.onLocationSelected,
-    required this.onRadiusChanged,
-    required this.onTriggerModeChanged,
-    required this.onDwellMinutesChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "Set Triggers", 
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "When and where do you want to be reminded?", 
-            style: AppTypography.secondary(context),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-
-          // Time Picker
-          _GlassTile(
-            icon: Icons.access_time_rounded,
-            title: selectedTime == null ? "Set Start Time" : selectedTime!.format(context),
-            subtitle: "When do you want to start?",
-            trailing: selectedTime != null 
-                ? Icon(Icons.check_circle, color: colorScheme.primary, size: 20)
-                : null,
-            onTap: () async {
-              final t = await showTimePicker(
-                context: context, 
-                initialTime: selectedTime ?? TimeOfDay.now(),
-              );
-              if(t != null) onTimeChanged(t);
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Reminder Switch
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SwitchListTile(
-              title: Text(
-                "Send Notification", 
-                style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                "Get reminded when it's time",
-                style: AppTypography.caption(context),
-              ),
-              secondary: Icon(Icons.notifications_outlined, color: colorScheme.onSurfaceVariant),
-              value: reminderEnabled,
-              onChanged: onReminderToggle,
-              activeColor: colorScheme.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-          ),
-          
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: reminderEnabled ? Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _GlassTile(
-                icon: Icons.alarm,
-                title: reminderTime == null ? "Pick reminder time" : "Alert at ${reminderTime!.format(context)}",
-                subtitle: "When should we notify you?",
-                onTap: () async {
-                  final t = await showTimePicker(
-                    context: context, 
-                    initialTime: reminderTime ?? selectedTime ?? TimeOfDay.now(),
-                  );
-                  if(t != null) onReminderTimeChanged(t);
-                },
-              ),
-            ) : const SizedBox.shrink(),
-          ),
-          
-          const SizedBox(height: 24),
-          Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-          const SizedBox(height: 16),
-
-          // Location
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SwitchListTile(
-              title: Text(
-                "Location Trigger", 
-                style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                locationEnabled && lat != null 
-                    ? "Location set" 
-                    : "Remind me when I arrive somewhere",
-                style: AppTypography.caption(context),
-              ),
-              secondary: Icon(Icons.location_on_outlined, color: colorScheme.onSurfaceVariant),
-              value: locationEnabled,
-              onChanged: (val) async {
-                if (val) {
-                  try {
-                    LocationPermission p = await Geolocator.checkPermission();
-                    if(p == LocationPermission.denied) {
-                      p = await Geolocator.requestPermission();
-                    }
-                    if(p == LocationPermission.whileInUse || p == LocationPermission.always) {
-                      final pos = await Geolocator.getCurrentPosition();
-                      onLocationSelected(pos.latitude, pos.longitude);
-                      onLocationToggle(true);
-                    }
-                  } catch(e) { 
-                    debugPrint('Location error: $e'); 
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+              final selected = _weekdays.contains(index);
+              return AnimatedDayChip(
+                label: days[index],
+                isSelected: selected,
+                accentColor: baseColor,
+                onTap: () => setState(() {
+                  if (_weekdays.contains(index)) {
+                    _weekdays.remove(index);
+                  } else {
+                    _weekdays.add(index);
                   }
-                } else {
-                  onLocationToggle(false);
-                }
-              },
-              activeColor: colorScheme.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
+                }),
+              );
+            }),
           ),
-          
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: locationEnabled && lat != null ? Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Trigger Mode",
-                      style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniOptionButton(
-                            label: "On Arrival",
-                            selected: triggerMode == 'arrival',
-                            onTap: () => onTriggerModeChanged('arrival'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MiniOptionButton(
-                            label: "After Dwell",
-                            selected: triggerMode == 'dwell',
-                            onTap: () => onTriggerModeChanged('dwell'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (triggerMode == 'dwell') ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        "Dwell time: $dwellMinutes minutes",
-                        style: AppTypography.caption(context),
-                      ),
-                      Slider(
-                        value: dwellMinutes.toDouble(),
-                        min: 1,
-                        max: 30,
-                        divisions: 29,
-                        activeColor: colorScheme.primary,
-                        inactiveColor: colorScheme.outlineVariant,
-                        onChanged: (v) => onDwellMinutesChanged(v.round()),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ) : const SizedBox.shrink(),
+        ),
+        // Milestone - collapsed tile
+        CupertinoListTile.notched(
+          leading: Icon(
+            Icons.timer_outlined,
+            color: colorScheme.primary,
+            size: 24,
           ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-// --- STEP 5: PACING ---
-class _Step5Pacing extends StatelessWidget {
-  final bool timeBoundEnabled;
-  final int duration;
-  final String unit;
-  final ValueChanged<bool> onToggle;
-  final ValueChanged<int> onDurationChanged;
-  final ValueChanged<String> onUnitChanged;
-
-  const _Step5Pacing({
-    required this.timeBoundEnabled,
-    required this.duration,
-    required this.unit,
-    required this.onToggle,
-    required this.onDurationChanged,
-    required this.onUnitChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "Pacing & Flow", 
-            style: AppTypography.heading2(context),
+          title: Text(
+            _milestoneDisplayText(),
+            style: AppTypography.body(context),
           ),
-          const SizedBox(height: 8),
-          Text(
-            "How long should this habit take?", 
-            style: AppTypography.secondary(context),
+          trailing: Icon(
+            _milestoneExpanded ? Icons.expand_less : Icons.expand_more,
+            size: 20,
+            color: colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 32),
-
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-            ),
+          onTap: () => setState(() {
+            _milestoneExpanded = !_milestoneExpanded;
+            if (_milestoneExpanded) {
+              _colorPickerExpanded = false;
+              _customizeExpanded = false;
+            }
+          }),
+        ),
+        // Milestone expanded content
+        if (_milestoneExpanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                for (final preset in kMilestonePresets)
+                  _buildMilestoneRow(
+                    colorScheme: colorScheme,
+                    id: preset.id,
+                    label: preset.label,
+                    subtitle: preset.subtitle,
+                    isRecommended: preset.isRecommended,
+                  ),
+                const SizedBox(height: 2),
+                GestureDetector(
+                  onTap: _pickCustomDeadline,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
                       children: [
                         Icon(
-                          Icons.timer_outlined, 
-                          color: timeBoundEnabled ? colorScheme.primary : colorScheme.onSurfaceVariant
+                          _selectedMilestone == 'custom'
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 20,
+                          color: _selectedMilestone == 'custom'
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.5),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          "Timer Mode", 
-                          style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 16,
+                          color: _selectedMilestone == 'custom'
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
                         ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            customDateLabel != null
+                                ? 'Custom: $customDateLabel'
+                                : 'Pick a custom end date',
+                            style: AppTypography.body(context).copyWith(
+                              color: _selectedMilestone == 'custom'
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.6),
+                              fontWeight: _selectedMilestone == 'custom'
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                        if (_selectedMilestone == 'custom' &&
+                            customDateLabel != null)
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _customDeadlineDate = null;
+                              _selectedMilestone = 'none';
+                            }),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                       ],
                     ),
-                    Switch(
-                      value: timeBoundEnabled, 
-                      onChanged: onToggle, 
-                      activeColor: colorScheme.primary
-                    ),
-                  ],
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  child: timeBoundEnabled ? Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _AnimatedIconButton(
-                            icon: Icons.remove_rounded,
-                            onTap: () => onDurationChanged(duration > 5 ? duration - 5 : 5),
-                          ),
-                          const SizedBox(width: 24),
-                          Column(
-                            children: [
-                              Text(
-                                "$duration", 
-                                style: AppTypography.heading1(context).copyWith(
-                                  fontSize: 56,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 24),
-                          _AnimatedIconButton(
-                            icon: Icons.add_rounded,
-                            onTap: () => onDurationChanged(duration + 5),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Unit selector
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _MiniOptionButton(
-                            label: "Minutes",
-                            selected: unit == 'minutes',
-                            onTap: () => onUnitChanged('minutes'),
-                          ),
-                          const SizedBox(width: 12),
-                          _MiniOptionButton(
-                            label: "Songs",
-                            selected: unit == 'songs',
-                            onTap: () => onUnitChanged('songs'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        unit == 'songs' 
-                            ? "Complete after $duration songs" 
-                            : "Focus for $duration minutes",
-                        style: AppTypography.caption(context),
-                      ),
-                    ],
-                  ) : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-          
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: !timeBoundEnabled ? Padding(
-              padding: const EdgeInsets.only(top: 24),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        "Without a timer, you'll mark this habit complete manually.",
-                        style: AppTypography.caption(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ) : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-// --- STEP 6: STRATEGY ---
-class _Step6Strategy extends StatelessWidget {
-  final List<HabitItem> existingHabits;
-  final TextEditingController triggerController;
-  final TextEditingController actionController;
-  final String? afterHabitId;
-  final String anchorHabitText;
-  final String relationship;
-  final bool isEditing;
-  final ValueChanged<String?> onAfterHabitIdChanged;
-  final ValueChanged<String> onAnchorTextChanged;
-  final ValueChanged<String> onRelationshipChanged;
-
-  const _Step6Strategy({
-    required this.existingHabits,
-    required this.triggerController,
-    required this.actionController,
-    required this.afterHabitId,
-    required this.anchorHabitText,
-    required this.relationship,
-    required this.onAfterHabitIdChanged,
-    required this.onAnchorTextChanged,
-    required this.onRelationshipChanged,
-    this.isEditing = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            "Success Strategy", 
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Set yourself up for success.", 
-            style: AppTypography.secondary(context),
-          ),
-          const SizedBox(height: 32),
-
-          // Habit Stacking Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.link, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    Text(
-                      "Habit Stacking", 
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Link this habit to an existing routine",
-                  style: AppTypography.caption(context),
-                ),
-                const SizedBox(height: 16),
-                
-                // Relationship selector
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButton<String>(
-                    dropdownColor: colorScheme.surfaceContainerHighest,
-                    value: relationship,
-                    isExpanded: true,
-                    style: AppTypography.body(context),
-                    underline: const SizedBox(),
-                    icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurfaceVariant),
-                    items: ['Immediately', 'After', 'Before']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => onRelationshipChanged(v!),
-                  ),
-                ),
-                
-                const SizedBox(height: 12),
-                
-                if (existingHabits.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButton<String?>(
-                      value: afterHabitId,
-                      hint: Text(
-                        "Select an existing habit", 
-                        style: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      dropdownColor: colorScheme.surfaceContainerHighest,
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurfaceVariant),
-                      items: [
-                        DropdownMenuItem<String?>(
-                          value: null, 
-                          child: Text("None", style: AppTypography.body(context).copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          )),
-                        ),
-                        ...existingHabits.map((h) => DropdownMenuItem(
-                          value: h.id, 
-                          child: Text(h.name, style: AppTypography.body(context)),
-                        )),
-                      ],
-                      onChanged: onAfterHabitIdChanged,
-                    ),
-                  )
-                else
-                  TextField(
-                    onChanged: onAnchorTextChanged,
-                    style: AppTypography.body(context),
-                    decoration: InputDecoration(
-                      hintText: "e.g., brushing teeth",
-                      hintStyle: AppTypography.body(context).copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHigh,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // The If-Then Plan (CBT)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.psychology_outlined, color: colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    Text(
-                      "Coping Plan", 
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Plan ahead for obstacles (If-Then)",
-                  style: AppTypography.caption(context),
-                ),
-                const SizedBox(height: 16),
-                
-                // If field
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TextField(
-                    controller: triggerController,
-                    style: AppTypography.body(context),
-                    decoration: InputDecoration(
-                      prefixText: "If ",
-                      prefixStyle: AppTypography.body(context).copyWith(
-                        color: Colors.amber.shade700, 
-                        fontWeight: FontWeight.bold
-                      ),
-                      hintText: "I feel tired...",
-                      hintStyle: AppTypography.body(context).copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 12),
-                
-                // Then field
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TextField(
-                    controller: actionController,
-                    style: AppTypography.body(context),
-                    decoration: InputDecoration(
-                      prefixText: "Then I will ",
-                      prefixStyle: AppTypography.body(context).copyWith(
-                        color: Colors.green.shade700, 
-                        fontWeight: FontWeight.bold
-                      ),
-                      hintText: "do just 2 minutes.",
-                      hintStyle: AppTypography.body(context).copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          
-          // Encouraging message
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Text("🎯", style: const TextStyle(fontSize: 24)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    isEditing 
-                        ? "You're all set! Tap 'Save Habit' to update your changes."
-                        : "You're all set! Tap 'Create Habit' to start your journey.",
-                    style: AppTypography.bodySmall(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
+      ],
     );
   }
 }
 
-// ============================================================================
-// UI HELPER WIDGETS
-// ============================================================================
-
-class _GlassTile extends StatefulWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
-  final VoidCallback onTap;
-
-  const _GlassTile({
-    required this.icon, 
-    required this.title, 
-    required this.subtitle, 
-    this.trailing,
-    required this.onTap
-  });
-
-  @override
-  State<_GlassTile> createState() => _GlassTileState();
-}
-
-class _GlassTileState extends State<_GlassTile> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.98).animate(_controller),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest, 
-            borderRadius: BorderRadius.circular(16)
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(widget.icon, color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title, 
-                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.subtitle, 
-                      style: AppTypography.caption(context),
-                    ),
-                  ],
-                ),
-              ),
-              if (widget.trailing != null) widget.trailing!,
-              Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniOptionButton extends StatefulWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _MiniOptionButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  State<_MiniOptionButton> createState() => _MiniOptionButtonState();
-}
-
-class _MiniOptionButtonState extends State<_MiniOptionButton> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        HapticFeedback.selectionClick();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.95).animate(_controller),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: widget.selected ? colorScheme.primary : colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: widget.selected ? colorScheme.primary : colorScheme.outlineVariant,
-              width: widget.selected ? 0 : 1,
-            ),
-          ),
-          child: Text(
-            widget.label,
-            style: AppTypography.bodySmall(context).copyWith(
-              color: widget.selected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.normal,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}

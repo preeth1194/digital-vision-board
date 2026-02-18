@@ -39,3 +39,10 @@ backend/tmp/
 # Canva panel build output
 canva-app-panel/dist/
 
+# Firebase / Google config (contains API keys - do not commit to public repos)
+# Generate with: flutterfire configure --project=seerohabitseeding
+# lib/firebase_options.dart is kept; use API key restrictions in GCP Console
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+

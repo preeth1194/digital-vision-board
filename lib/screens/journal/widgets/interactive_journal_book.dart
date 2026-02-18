@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
+import '../../../services/journal_book_storage_service.dart';
+import '../../../utils/app_colors.dart';
 
 /// An interactive 3D journal book that opens on tap to reveal entries.
 class InteractiveJournalBook extends StatefulWidget {
@@ -200,6 +202,7 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                       onDeleteBook: widget.onDeleteAllEntries,
                       onCustomize: widget.onCustomizeColor,
                       bookName: widget.book.name,
+                      bookId: widget.book.id,
                       isFullyOpen: _openAnimation.value > 0.95,
                       onClose: _toggleBook,
                     ),
@@ -409,6 +412,17 @@ class _BookCover extends StatelessWidget {
                                     ),
                                   ),
                           ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Written by you',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.6),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           // Page count
                           Row(
@@ -493,6 +507,7 @@ class _ExpandedEntriesList extends StatefulWidget {
   final VoidCallback onDeleteBook;
   final VoidCallback onCustomize;
   final String bookName;
+  final String bookId;
   final bool isFullyOpen;
   final VoidCallback onClose;
 
@@ -507,6 +522,7 @@ class _ExpandedEntriesList extends StatefulWidget {
     required this.onDeleteBook,
     required this.onCustomize,
     required this.bookName,
+    required this.bookId,
     required this.isFullyOpen,
     required this.onClose,
   });
@@ -564,7 +580,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
         decoration: BoxDecoration(
           color: isDark
               ? colorScheme.surfaceContainerHigh
-              : const Color(0xFFFAF8F5),
+              : AppColors.warmIvory,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: widget.coverColor.withOpacity(0.3),
@@ -632,13 +648,15 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                         onTap: widget.onCustomize,
                         isDark: isDark,
                       ),
-                      const SizedBox(width: 4),
-                      _HeaderActionBtn(
-                        icon: Icons.delete_outline_rounded,
-                        tooltip: 'Delete book',
-                        onTap: widget.onDeleteBook,
-                        isDark: isDark,
-                      ),
+                      if (widget.bookId != JournalBookStorageService.goalLogsBookId) ...[
+                        const SizedBox(width: 4),
+                        _HeaderActionBtn(
+                          icon: Icons.delete_outline_rounded,
+                          tooltip: 'Delete book',
+                          onTap: widget.onDeleteBook,
+                          isDark: isDark,
+                        ),
+                      ],
                       const SizedBox(width: 4),
                       _HeaderActionBtn(
                         icon: Icons.add_rounded,

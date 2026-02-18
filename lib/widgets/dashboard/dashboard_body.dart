@@ -7,6 +7,7 @@ import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../../services/habit_storage_service.dart';
 import '../../screens/journal/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
@@ -25,15 +26,13 @@ class DashboardBody extends StatelessWidget {
   final String? activeRoutineId;
   final SharedPreferences? prefs;
   final ValueNotifier<int> boardDataVersion;
+  final ValueNotifier<int>? coinNotifier;
+  final GlobalKey? coinTargetKey;
 
   final VoidCallback onCreateBoard;
-  final VoidCallback onCreateRoutine;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
-  final ValueChanged<Routine> onOpenRoutine;
-  final ValueChanged<Routine> onEditRoutine;
-  final ValueChanged<Routine> onDeleteRoutine;
 
   const DashboardBody({
     super.key,
@@ -44,14 +43,12 @@ class DashboardBody extends StatelessWidget {
     required this.activeRoutineId,
     required this.prefs,
     required this.boardDataVersion,
+    this.coinNotifier,
+    this.coinTargetKey,
     required this.onCreateBoard,
-    required this.onCreateRoutine,
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
-    required this.onOpenRoutine,
-    required this.onEditRoutine,
-    required this.onDeleteRoutine,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -73,6 +70,7 @@ class DashboardBody extends StatelessWidget {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
+          habitIds: t.habitIds,
         ),
       );
     }
@@ -90,6 +88,18 @@ class DashboardBody extends StatelessWidget {
   Future<void> _saveBoardComponents(VisionBoardInfo board, List<VisionComponent> updated) async {
     if (board.layoutType == VisionBoardInfo.layoutGrid) {
       final existingTiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      // Sync habits to HabitStorageService when writing to tiles.
+      final previousHabitIds = <String, Set<String>>{};
+      for (final t in existingTiles) {
+        final ids = <String>{...t.habits.map((h) => h.id), ...t.habitIds};
+        if (ids.isNotEmpty) previousHabitIds[t.id] = ids;
+      }
+      await HabitStorageService.syncComponentsHabits(
+        board.id,
+        updated,
+        previousHabitIds,
+        prefs: prefs,
+      );
       final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
       final nextTiles = existingTiles.map((t) {
         final c = byId[t.id];
@@ -132,15 +142,11 @@ class DashboardBody extends StatelessWidget {
           activeRoutineId: activeRoutineId,
           prefs: prefs,
           onCreateBoard: onCreateBoard,
-          onCreateRoutine: onCreateRoutine,
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
-          onOpenRoutine: onOpenRoutine,
-          onEditRoutine: onEditRoutine,
-          onDeleteRoutine: onDeleteRoutine,
         ),
-      6 => const RoutineScreen(),
+      6 => RoutineScreen(dataVersion: boardDataVersion),
       7 => FutureBuilder<Map<String, List<VisionComponent>>>(
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {
@@ -153,6 +159,8 @@ class DashboardBody extends StatelessWidget {
                 if (b == null) return;
                 await _saveBoardComponents(b, updated);
               },
+              coinNotifier: coinNotifier,
+              coinTargetKey: coinTargetKey,
             );
           },
         ),

@@ -86,6 +86,68 @@ class ImageService {
     }
   }
 
+  /// Picks an image (gallery/camera), crops to square, and persists to app storage.
+  /// Returns the persisted path or null if cancelled.
+  static Future<String?> pickAndCropProfileImage(
+    BuildContext context, {
+    required ImageSource source,
+  }) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      if (kIsWeb) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image picking/cropping is not supported on web yet.'),
+            ),
+          );
+        }
+        return null;
+      }
+
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked == null) return null;
+
+      final CroppedFile? cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressQuality: 85,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            statusBarColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop',
+            aspectRatioLockEnabled: true,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+      if (cropped == null || cropped.path.isEmpty) return null;
+
+      try {
+        final persisted = await persistImageToAppStorage(cropped.path);
+        if (persisted != null && persisted.isNotEmpty) return persisted;
+      } catch (_) {}
+
+      return cropped.path;
+    } finally {
+      _busy = false;
+    }
+  }
+
   /// Downloads an image from [url], resizes so the max side is [maxSidePx],
   /// encodes as JPEG ([jpegQuality]), and persists into app-owned storage.
   ///

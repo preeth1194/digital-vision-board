@@ -15,7 +15,6 @@ import '../services/sync_service.dart';
 import '../services/micro_habit_storage_service.dart';
 import '../services/overall_streak_storage_service.dart';
 import 'habit_timer_screen.dart';
-import 'rhythmic_timer_screen.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/vision_board/component_image.dart';
 
@@ -982,24 +981,15 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                       icon: Icon(hasTimer ? Icons.timer_outlined : Icons.location_on_outlined),
                                       onPressed: () async {
                                         if (hasTimer) {
-                                          final isSongBased = it.habit.timeBound?.isSongBased ?? false;
                                           await Navigator.of(context).push(
                                             MaterialPageRoute<void>(
-                                              builder: (_) => isSongBased
-                                                  ? RhythmicTimerScreen(
-                                                      habit: it.habit,
-                                                      onMarkCompleted: () async {
-                                                        await widget.onToggleHabit(it.componentId, it.habit);
-                                                        await _updateStreak();
-                                                      },
-                                                    )
-                                                  : HabitTimerScreen(
-                                                      habit: it.habit,
-                                                      onMarkCompleted: () async {
-                                                        await widget.onToggleHabit(it.componentId, it.habit);
-                                                        await _updateStreak();
-                                                      },
-                                                    ),
+                                              builder: (_) => HabitTimerScreen(
+                                                habit: it.habit,
+                                                onMarkCompleted: () async {
+                                                  await widget.onToggleHabit(it.componentId, it.habit);
+                                                  await _updateStreak();
+                                                },
+                                              ),
                                             ),
                                           );
                                           await _updateStreak();

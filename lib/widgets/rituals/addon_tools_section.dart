@@ -11,11 +11,6 @@ class AddonToolsSection extends StatelessWidget {
   final ValueChanged<bool> onRemindersToggle;
   final bool timerAdded;
   final ValueChanged<bool> onTimerToggle;
-  final bool playSongsAdded;
-  final ValueChanged<bool> onPlaySongsToggle;
-  final int durationMinutes;
-  /// Called when user taps to configure Play Songs. Receives sheet context to pop it first.
-  final void Function(BuildContext sheetContext)? onConfigurePlaySongs;
 
   const AddonToolsSection({
     super.key,
@@ -24,14 +19,10 @@ class AddonToolsSection extends StatelessWidget {
     required this.onRemindersToggle,
     required this.timerAdded,
     required this.onTimerToggle,
-    required this.playSongsAdded,
-    required this.onPlaySongsToggle,
-    required this.durationMinutes,
-    this.onConfigurePlaySongs,
   });
 
   int get _activeCount =>
-      (remindersAdded ? 1 : 0) + (timerAdded ? 1 : 0) + (playSongsAdded ? 1 : 0);
+      (remindersAdded ? 1 : 0) + (timerAdded ? 1 : 0);
 
   void _showAddonSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -41,8 +32,6 @@ class AddonToolsSection extends StatelessWidget {
         final colorScheme = Theme.of(ctx).colorScheme;
         var localReminders = remindersAdded;
         var localTimer = timerAdded;
-        var localPlaySongs = playSongsAdded;
-        final canEnablePlaySongs = timerAdded && durationMinutes > 10;
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             return Container(
@@ -109,38 +98,6 @@ class AddonToolsSection extends StatelessWidget {
                         setSheetState(() => localTimer = v);
                         onTimerToggle(v);
                       },
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                    _AddonToggleRow(
-                      icon: Icons.music_note_outlined,
-                      activeIcon: Icons.music_note_rounded,
-                      title: 'Play Songs',
-                      subtitle: 'Playlist or number of songs',
-                      isActive: localPlaySongs,
-                      accentColor: habitColor,
-                      onChanged: (v) {
-                        if (v && !canEnablePlaySongs) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'Play Songs requires Timer to be enabled and duration greater than 10 minutes.',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          return;
-                        }
-                        setSheetState(() => localPlaySongs = v);
-                        onPlaySongsToggle(v);
-                      },
-                      onRowTap: localPlaySongs && onConfigurePlaySongs != null
-                          ? () => onConfigurePlaySongs!(ctx)
-                          : null,
                     ),
                     const SizedBox(height: 8),
                   ],

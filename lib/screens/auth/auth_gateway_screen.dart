@@ -2,14 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/image_service.dart';
-import '../../services/music_provider_service.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
@@ -33,7 +28,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
   bool _loading = false;
   String? _error;
   int _profileDataKey = 0;
-  final SpotifyProvider _spotifyProvider = SpotifyProvider();
 
   Future<bool> _isSignedIn() async {
     final token = await DvAuthService.getDvToken();
@@ -170,81 +164,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     }
   }
 
-  Future<bool> _checkSpotifyConnection() async {
-    try {
-      final dvToken = await DvAuthService.getDvToken();
-      if (dvToken == null) return false;
-      final url = Uri.parse('${DvAuthService.backendBaseUrl()}/api/spotify/playlists')
-          .replace(queryParameters: {'limit': '1', 'offset': '0'});
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $dvToken', 'accept': 'application/json'},
-      );
-      return response.statusCode >= 200 && response.statusCode < 300;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _connectSpotify() async {
-    final dvToken = await DvAuthService.getDvToken();
-    if (dvToken == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please sign in first to connect Spotify'), backgroundColor: Colors.orange),
-        );
-      }
-      return;
-    }
-    final authUrl = Uri.parse('${DvAuthService.backendBaseUrl()}/auth/spotify/start')
-        .replace(queryParameters: {'returnTo': 'dvb://spotify-oauth', 'origin': 'dvb', 'dvToken': dvToken});
-    final launched = await launchUrl(authUrl, mode: LaunchMode.externalApplication);
-    if (!launched) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open Spotify OAuth URL'), backgroundColor: Colors.red),
-        );
-      }
-      return;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Complete Spotify connection in the browser, then return to the app.'),
-          duration: Duration(seconds: 5),
-        ),
-      );
-    }
-  }
-
-  Future<void> _disconnectSpotify() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('music_provider_preference');
-    if (mounted) {
-      setState(() => _profileDataKey++);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Spotify disconnected')));
-    }
-  }
-
-  Future<void> _onSpotifyTap({required bool connected}) async {
-    if (connected) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Disconnect Spotify'),
-          content: const Text('Disconnect your Spotify account? You can reconnect anytime.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Disconnect')),
-          ],
-        ),
-      );
-      if (confirm == true) await _disconnectSpotify();
-    } else {
-      await _connectSpotify();
-    }
-  }
-
   Widget _buildSignedInView(BuildContext context, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return FutureBuilder<Map<String, dynamic>>(
@@ -257,8 +176,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
         final gender = await DvAuthService.getGender();
         final dob = await DvAuthService.getDateOfBirth();
         final profilePicPath = await DvAuthService.getProfilePicPath();
-        final spotifyAvailable = await _spotifyProvider.isAvailable();
-        final spotifyConnected = spotifyAvailable ? await _checkSpotifyConnection() : false;
         return {
           'identifier': identifier,
           'displayName': displayName,
@@ -267,8 +184,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           'gender': gender,
           'dob': dob,
           'profilePicPath': profilePicPath,
-          'spotifyAvailable': spotifyAvailable,
-          'spotifyConnected': spotifyConnected,
         };
       }(),
       builder: (context, snap) {
@@ -281,8 +196,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
         final gender = data['gender'] as String? ?? 'prefer_not_to_say';
         final dob = data['dob'] as String?;
         final profilePicPath = data['profilePicPath'] as String?;
-        final spotifyAvailable = data['spotifyAvailable'] as bool? ?? false;
-        final spotifyConnected = data['spotifyConnected'] as bool? ?? false;
         final label = (displayName != null && displayName.isNotEmpty)
             ? displayName
             : (identifier != null && identifier.isNotEmpty)
@@ -419,21 +332,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                     trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
                     onTap: _openProfileEdit,
                   ),
-                CupertinoListTile.notched(
-                  leading: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant, size: 24),
-                  title: Text(
-                    spotifyConnected
-                        ? 'Spotify connected'
-                        : spotifyAvailable
-                            ? 'Connect Spotify'
-                            : 'Connect Spotify (app not installed)',
-                    style: AppTypography.body(context),
-                  ),
-                  trailing: spotifyConnected
-                      ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                      : Icon(Icons.link, color: colorScheme.onSurfaceVariant, size: 20),
-                  onTap: () => _onSpotifyTap(connected: spotifyConnected),
-                ),
               ],
             ),
             const SizedBox(height: 8),

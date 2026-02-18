@@ -18,9 +18,6 @@ class Routine {
   /// Overall duration in minutes (only used if timeMode is 'overall')
   final int? overallDurationMinutes;
 
-  /// Spotify playlist ID for overall routine (only used if timeMode is 'overall')
-  final String? overallPlaylistId;
-
   /// Timer type for overall mode: 'regular' | 'rhythmic' (only used if timeMode is 'overall')
   final String? overallTimerType;
 
@@ -51,7 +48,6 @@ class Routine {
     this.todos = const [],
     this.timeMode = 'overall',
     this.overallDurationMinutes,
-    this.overallPlaylistId,
     this.overallTimerType,
     this.occurrenceType = 'daily',
     this.weekdays,
@@ -70,7 +66,6 @@ class Routine {
     List<RoutineTodoItem>? todos,
     String? timeMode,
     int? overallDurationMinutes,
-    String? overallPlaylistId,
     String? overallTimerType,
     String? occurrenceType,
     List<int>? weekdays,
@@ -88,7 +83,6 @@ class Routine {
       todos: todos ?? this.todos,
       timeMode: timeMode ?? this.timeMode,
       overallDurationMinutes: overallDurationMinutes ?? this.overallDurationMinutes,
-      overallPlaylistId: overallPlaylistId ?? this.overallPlaylistId,
       overallTimerType: overallTimerType ?? this.overallTimerType,
       occurrenceType: occurrenceType ?? this.occurrenceType,
       weekdays: weekdays ?? this.weekdays,
@@ -108,7 +102,6 @@ class Routine {
         'todos': todos.map((t) => t.toJson()).toList(),
         'timeMode': timeMode,
         'overallDurationMinutes': overallDurationMinutes,
-        'overallPlaylistId': overallPlaylistId,
         'overallTimerType': overallTimerType,
         'occurrenceType': occurrenceType,
         'weekdays': weekdays,
@@ -145,7 +138,6 @@ class Routine {
       todos: todos,
       timeMode: (json['timeMode'] as String?) ?? 'overall',
       overallDurationMinutes: (json['overallDurationMinutes'] as num?)?.toInt(),
-      overallPlaylistId: json['overallPlaylistId'] as String?,
       overallTimerType: json['overallTimerType'] as String?,
       occurrenceType: (json['occurrenceType'] as String?) ?? 'daily',
       weekdays: weekdays,

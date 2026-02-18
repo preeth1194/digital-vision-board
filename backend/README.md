@@ -1,9 +1,11 @@
-## Digital Vision Board backend (Canva Connect)
+## Digital Vision Board backend
 
 This backend is a minimal service that:
 
-- completes **Canva OAuth (PKCE)** and stores tokens per Canva user
-- stores **synced board packages** (element→habit mappings, plus exported assets later)
+- handles **authentication** (Firebase, guest sessions)
+- stores **user settings** and **board data**
+- serves **templates** and **stock images**
+- generates **wizard recommendations** via Gemini AI
 
 ### Setup
 
@@ -18,11 +20,10 @@ npm install
 
 - `PORT=8787`
 - `BASE_URL=http://localhost:8787`
-- `CANVA_CLIENT_ID=...`
-- `CANVA_CLIENT_SECRET=...`
-- `CANVA_REDIRECT_URI=http://localhost:8787/auth/canva/callback`
-- `CANVA_SCOPES=design:content:read profile:read`
 - `DATABASE_URL=postgres://...` (optional; enables Postgres storage)
+- `FIREBASE_SERVICE_ACCOUNT_JSON=...` (optional; for Firebase auth)
+- `GEMINI_API_KEY=...` (optional; for wizard recommendations)
+- `PEXELS_API_KEY=...` (optional; for stock images)
 
 3) Run:
 
@@ -34,11 +35,10 @@ npm run dev
 ### Notes
 
 - If `DATABASE_URL` is set, data is stored in Postgres. Otherwise data is stored in `backend/data/` (JSON files).
-- For local development, the OAuth callback page will `postMessage` a `dvToken` back to the opener window.
+- See `ENV_SETUP.md` in the project root for the full environment variable reference.
 
 ### Postgres schema
 
 Run the SQL in:
 
 - `backend/sql/001_init.sql`
-

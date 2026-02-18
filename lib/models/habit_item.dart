@@ -7,13 +7,6 @@ final class HabitTimeBoundSpec {
   final int duration;
   /// 'minutes' | 'hours'
   final String unit;
-  /// Timer mode: 'time' for time-based, 'song' for song-based.
-  /// Defaults to 'time' for backward compatibility.
-  final String mode; // 'time' | 'song'
-  /// Spotify playlist ID (optional, for song-based mode)
-  final String? spotifyPlaylistId;
-  /// Selected Spotify track IDs (optional, for song-based mode)
-  final List<String>? spotifyTrackIds;
   /// Per-habit notification sound identifier.
   /// Built-in: 'default', 'chime', 'bell', 'gentle', 'alert', 'none'.
   /// Custom: a file path string.
@@ -25,15 +18,9 @@ final class HabitTimeBoundSpec {
     required this.enabled,
     required this.duration,
     required this.unit,
-    this.mode = 'time',
-    this.spotifyPlaylistId,
-    this.spotifyTrackIds,
     this.notificationSound,
     this.vibrationType,
   });
-
-  bool get isTimeBased => mode == 'time';
-  bool get isSongBased => mode == 'song';
 
   int get durationMinutes {
     final u = unit.trim().toLowerCase();
@@ -46,9 +33,6 @@ final class HabitTimeBoundSpec {
         'enabled': enabled,
         'duration': duration,
         'unit': unit,
-        'mode': mode,
-        'spotifyPlaylistId': spotifyPlaylistId,
-        'spotifyTrackIds': spotifyTrackIds,
         'notificationSound': notificationSound,
         'vibrationType': vibrationType,
       };
@@ -57,20 +41,12 @@ final class HabitTimeBoundSpec {
     final enabled = (json['enabled'] as bool?) ?? false;
     final duration = (json['duration'] as num?)?.toInt() ?? 0;
     final unit = (json['unit'] as String?) ?? 'minutes';
-    final mode = (json['mode'] as String?) ?? 'time';
-    final spotifyPlaylistId = json['spotifyPlaylistId'] as String?;
-    final spotifyTrackIds = (json['spotifyTrackIds'] as List<dynamic>?)
-        ?.map((e) => e.toString())
-        .toList();
     final notificationSound = json['notificationSound'] as String?;
     final vibrationType = json['vibrationType'] as String?;
     return HabitTimeBoundSpec(
       enabled: enabled,
       duration: duration,
       unit: unit,
-      mode: mode,
-      spotifyPlaylistId: spotifyPlaylistId,
-      spotifyTrackIds: spotifyTrackIds,
       notificationSound: notificationSound,
       vibrationType: vibrationType,
     );
@@ -80,9 +56,6 @@ final class HabitTimeBoundSpec {
     bool? enabled,
     int? duration,
     String? unit,
-    String? mode,
-    String? spotifyPlaylistId,
-    List<String>? spotifyTrackIds,
     String? notificationSound,
     String? vibrationType,
   }) {
@@ -90,9 +63,6 @@ final class HabitTimeBoundSpec {
       enabled: enabled ?? this.enabled,
       duration: duration ?? this.duration,
       unit: unit ?? this.unit,
-      mode: mode ?? this.mode,
-      spotifyPlaylistId: spotifyPlaylistId ?? this.spotifyPlaylistId,
-      spotifyTrackIds: spotifyTrackIds ?? this.spotifyTrackIds,
       notificationSound: notificationSound ?? this.notificationSound,
       vibrationType: vibrationType ?? this.vibrationType,
     );

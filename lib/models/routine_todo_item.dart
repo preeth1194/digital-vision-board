@@ -20,9 +20,6 @@ class RoutineTodoItem {
   /// Timer type: 'rhythmic' or 'regular' (only used if routine timeMode is 'per_todo')
   final String? timerType; // 'rhythmic' | 'regular'
 
-  /// Spotify track ID for individual todo (only used if routine timeMode is 'per_todo' and durationMinutes is set)
-  final String? selectedTrackId;
-
   /// Whether to show reminder for this todo
   final bool reminderEnabled;
 
@@ -45,7 +42,6 @@ class RoutineTodoItem {
     required this.order,
     this.durationMinutes,
     this.timerType,
-    this.selectedTrackId,
     this.reminderEnabled = false,
     this.reminderMinutes,
     this.timeOfDay,
@@ -60,7 +56,6 @@ class RoutineTodoItem {
     int? order,
     int? durationMinutes,
     String? timerType,
-    String? selectedTrackId,
     bool? reminderEnabled,
     int? reminderMinutes,
     String? timeOfDay,
@@ -74,7 +69,6 @@ class RoutineTodoItem {
       order: order ?? this.order,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       timerType: timerType ?? this.timerType,
-      selectedTrackId: selectedTrackId ?? this.selectedTrackId,
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       timeOfDay: timeOfDay ?? this.timeOfDay,
@@ -91,7 +85,6 @@ class RoutineTodoItem {
       'order': order,
       'durationMinutes': durationMinutes,
       'timerType': timerType,
-      'selectedTrackId': selectedTrackId,
       'reminderEnabled': reminderEnabled,
       'reminderMinutes': reminderMinutes,
       'timeOfDay': timeOfDay,
@@ -118,7 +111,6 @@ class RoutineTodoItem {
       order: (json['order'] as num?)?.toInt() ?? 0,
       durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
       timerType: json['timerType'] as String?,
-      selectedTrackId: json['selectedTrackId'] as String?,
       reminderEnabled: (json['reminderEnabled'] as bool?) ?? false,
       reminderMinutes: (json['reminderMinutes'] as num?)?.toInt(),
       timeOfDay: json['timeOfDay'] as String?,

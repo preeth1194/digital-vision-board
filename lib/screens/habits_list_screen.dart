@@ -11,7 +11,6 @@ import '../services/sync_service.dart';
 import '../services/habit_geofence_tracking_service.dart';
 import '../services/micro_habit_storage_service.dart';
 import 'habit_timer_screen.dart';
-import 'rhythmic_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
@@ -146,9 +145,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
   /// Helper function to get the appropriate icon for a habit type
   static Widget _getHabitTypeIcon(HabitItem habit) {
-    if (habit.timeBound?.isSongBased == true) {
-      return const Icon(Icons.music_note, size: 24);
-    }
     if (habit.timeBound?.enabled == true) {
       return const Icon(Icons.timer_outlined, size: 24);
     }
@@ -569,10 +565,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                           if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
                                             IconButton(
                                               tooltip: 'Timer',
-                                              icon: Icon(
-                                                habit.timeBound?.isSongBased == true
-                                                    ? Icons.music_note
-                                                    : Icons.timer_outlined,
+                                              icon: const Icon(
+                                                Icons.timer_outlined,
                                                 size: 18,
                                               ),
                                               onPressed: () async {
@@ -585,31 +579,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                     .cast<HabitItem?>()
                                                     .firstWhere((_) => true, orElse: () => null);
                                                 final habitToUse = latestHabit ?? habit;
-                                                final isSongBased = habitToUse.timeBound?.isSongBased ?? false;
 
                                                 await Navigator.of(context).push(
                                                   MaterialPageRoute<void>(
-                                                    builder: (_) => isSongBased
-                                                        ? RhythmicTimerScreen(
-                                                            habit: habitToUse,
-                                                            onMarkCompleted: () async {
-                                                              final cNow = _components
-                                                                  .where((c) => c.id == component.id)
-                                                                  .cast<VisionComponent?>()
-                                                                  .firstWhere((_) => true, orElse: () => null);
-                                                              if (cNow == null) return;
-                                                              final hNow = cNow.habits
-                                                                  .where((h) => h.id == habit.id)
-                                                                  .cast<HabitItem?>()
-                                                                  .firstWhere((_) => true, orElse: () => null);
-                                                              if (hNow == null) return;
-                                                              final now = LogicalDateService.now();
-                                                              if (!hNow.isScheduledOnDate(now)) return;
-                                                              if (hNow.isCompletedForCurrentPeriod(now)) return;
-                                                              await _toggleHabit(cNow, hNow);
-                                                            },
-                                                          )
-                                                        : HabitTimerScreen(
+                                                    builder: (_) => HabitTimerScreen(
                                                             habit: habitToUse,
                                                             onMarkCompleted: () async {
                                                               final cNow = _components

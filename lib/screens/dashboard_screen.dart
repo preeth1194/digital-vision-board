@@ -153,7 +153,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     await HabitStorageService.migrateFromBoardsIfNeeded(prefs: _prefs);
-    await DvAuthService.migrateLegacyTokenIfNeeded(prefs: _prefs);
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
     await LogicalDateService.ensureInitialized(prefs: _prefs);
     await _reload();
@@ -863,7 +862,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     valueListenable: _profileAvatarNotifier,
                     builder: (context, profile, _) {
                       return FutureBuilder<String?>(
-                        future: DvAuthService.getCanvaUserId(prefs: _prefs),
+                        future: DvAuthService.getUserId(prefs: _prefs),
                         builder: (context, snap) {
                           final id = (snap.data ?? '').trim();
                           final label = id.isEmpty ? 'Guest session' : 'Signed in';
@@ -935,7 +934,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               },
             ),
             FutureBuilder<String?>(
-              future: DvAuthService.getCanvaUserId(prefs: _prefs),
+              future: DvAuthService.getUserId(prefs: _prefs),
               builder: (context, snap) {
                 final id = (snap.data ?? '').trim();
                 if (id.isEmpty) return const SizedBox.shrink();

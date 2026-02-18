@@ -14,7 +14,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Storage permissions for local file access -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <!-- Microphone for voice notes in journal -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
@@ -64,33 +63,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="dvb" android:host="puzzle" />
             </intent-filter>
-            <!-- Spotify OAuth callback -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="dvb" android:host="spotify-callback" />
-            </intent-filter>
-            <!-- YouTube Music OAuth callback -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="dvb" android:host="youtube-music-oauth" />
-            </intent-filter>
-        </activity>
-        
-        <!-- Spotify Login Activity -->
-        <activity
-            android:name="com.spotify.sdk.android.auth.LoginActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="dvb" android:host="spotify-callback" />
-            </intent-filter>
         </activity>
 
         <receiver
@@ -130,8 +102,5 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        <!-- Package visibility queries for music apps -->
-        <package android:name="com.spotify.music" />
-        <package android:name="com.google.android.apps.youtube.music" />
     </queries>
 </manifest>

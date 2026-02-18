@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
 Last updated: 2026-02-18
-Updated: Removed references to unused/moved screens and widgets (routine_editor, spotify_selection, wizard steps 3-4, puzzle_widget, vision_board_preview_card, coins_header, lottie_coin_overlay, hotspot files); Updated renamed files (task_item→task_and_checklist_models, habit_tracker_tracker_tab→habit_tracker_tab).
+Updated: Removed references to unused/moved screens and widgets (routine_editor, wizard steps 3-4, puzzle_widget, vision_board_preview_card, coins_header, lottie_coin_overlay, hotspot files); Updated renamed files (task_item→task_and_checklist_models, habit_tracker_tracker_tab→habit_tracker_tab).
 
 This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
 
@@ -58,7 +58,7 @@ Daily loop:
 
 ### Other visible screens (from drawer or navigation)
 - Auth: `AuthGatewayScreen`, `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`
-- Settings: `SettingsScreen`; Music provider → `MusicProviderSettingsScreen`
+- Settings: `SettingsScreen`
 - Templates: `TemplateGalleryScreen`
 - Wizard: `CreateBoardWizardScreen` + step screens in `lib/screens/wizard/`
 - Puzzle: `PuzzleGameScreen` (also deep link from home)
@@ -119,8 +119,7 @@ For tracking UI, `GridGoalViewerScreen` converts a tile into an `ImageComponent`
 - Supports weekly schedule gating (`isScheduledOnDate`)
 - Stores per-day completion feedback (see below)
 - Optional `timeBound: HabitTimeBoundSpec` for timer-based habits
-  - Supports two modes: `'time'` (time-based) or `'song'` (song-based)
-  - For song-based mode, `duration` represents target number of songs
+  - Supports time-based mode: `'time'`; `duration` is target minutes
 
 ### TaskItem + ChecklistItem
 `lib/models/task_and_checklist_models.dart`
@@ -184,61 +183,14 @@ Selection behavior:
 
 ---
 
-## 7) Rhythmic Timer (Time-Based and Song-Based Modes)
+## 7) Habit Timer (Time-Based)
 
-The app supports two timer modes for habits:
+The app supports a time-based timer for habits:
 
-### Time-Based Mode
 - Traditional timer that tracks accumulated time
 - Uses `HabitTimerStateService` for state persistence
-- UI: `lib/screens/habit_timer_screen.dart` (existing)
+- UI: `lib/screens/habit_timer_screen.dart`
 - When target time is reached, automatically marks habit as complete
-
-### Song-Based Mode
-- Tracks songs played via music providers (Spotify/Apple Music) or fallback audio player
-- Uses `RhythmicTimerService` and `RhythmicTimerStateService` for state management
-- Key files:
-  - `lib/services/rhythmic_timer_service.dart` - Main service managing timer modes
-  - `lib/services/rhythmic_timer_state_service.dart` - State persistence (songsRemaining, currentSongTitle)
-  - `lib/services/music_provider_service.dart` - Abstract interface for music providers
-  - `lib/models/rhythmic_timer_config.dart` - Configuration model
-  - `lib/screens/rhythmic_timer_screen.dart` - UI screen supporting both modes
-
-### Music Provider Integration
-- **Spotify**: `SpotifyProvider` in `lib/services/music_provider_service.dart`
-  - OAuth integration via backend API (`/api/spotify/*` endpoints)
-- **YouTube Music**: `YouTubeMusicProvider` (similar to Spotify, uses backend API `/api/youtube-music/*` endpoints)
-- **Local Files**: `LocalFileProvider` (allows users to select audio files from device storage)
-  - Requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` environment variables
-  - Connection verification: `_checkSpotifyConnection()` in `music_provider_settings_screen.dart`
-  - Settings screen: `lib/screens/music_provider_settings_screen.dart` with pull-to-refresh
-  - Error handling: Improved messages for authentication and connection issues
-- **Apple Music**: `AppleMusicProvider` (iOS only, uses system APIs)
-- **Fallback**: `FallbackAudioProvider` using `audioplayers` package with local assets
-- Fallback audio assets: `assets/audio/` directory (created with `.gitkeep`)
-
-### Song-Based Timer Flow
-1. User starts timer with song-based habit
-2. Service initializes music provider (checks for linked Spotify/Apple Music, falls back to local audio)
-3. Listens for track changes via provider SDK or audio player completion events
-4. On each track change, decrements `songsRemaining` and updates `currentSongTitle`
-5. When `songsRemaining == 0`, triggers `onHabitComplete()` callback
-6. Callback marks habit as complete and navigates to Mood Rating screen (CompletionFeedbackSheet)
-
-### Widget Integration
-- Android widget (`HabitProgressAppWidget.kt`): Displays song title and count in RemoteViews
-- iOS widget (`HabitProgressWidget.swift`): Displays song title and count in WidgetKit view
-- Snapshot service includes timer state: `lib/services/habit_progress_widget_snapshot_service.dart`
-
-### Native Platform Code
-- Android: `android/app/src/main/kotlin/com/seerohabitseeding/app/MusicProviderHandler.kt`
-  - **Package name**: Package name: `com.seerohabitseeding.app`
-  - Uses MediaSession API to detect currently playing tracks
-  - Supports polling fallback for devices without notification listener permission
-  - MainActivity: `android/app/src/main/kotlin/com/seerohabitseeding/app/MainActivity.kt`
-- iOS: `ios/Runner/MusicProviderHandler.swift`
-- Method channel: `dvb/music_provider` for track detection
-- Spotify OAuth: Handled via backend API, not native SDK
 
 ---
 
@@ -357,7 +309,7 @@ Code that runs on both web and mobile must not use `dart:io` File directly when 
 - Tracker: `lib/widgets/habit_tracker_sheet.dart`
 - Completion/feedback: `lib/services/habit_completion_applier.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
 - File/image (web-safe): `lib/utils/file_image_provider.dart` (`fileExists`, `fileImageProviderFromPath`)
-- Rhythmic Timer: `lib/services/rhythmic_timer_service.dart`, `lib/screens/rhythmic_timer_screen.dart`
+- Habit Timer: `lib/screens/habit_timer_screen.dart`
 - Wizard (create board with recommended goals): `lib/screens/wizard/create_board_wizard_screen.dart`, `lib/services/wizard_board_builder.dart`
 - Image services: `lib/services/category_images_service.dart`, `lib/services/stock_images_service.dart`
 - Puzzle Game: `lib/services/puzzle_service.dart`, `lib/screens/puzzle_game_screen.dart`
@@ -514,12 +466,10 @@ These are the most common “click paths” and what files implement them.
   - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
   - Home widgets: `lib/screens/vision_board_home_widgets.dart`
 
-### H) Rhythmic Timer: song-based habit completion
-- Timer screen: `lib/screens/rhythmic_timer_screen.dart` (supports both time and song modes)
-- Service: `lib/services/rhythmic_timer_service.dart`
-- When songsRemaining reaches 0, triggers habit completion → mood rating screen
-- Integrated in: `lib/widgets/habits/habit_tracker_tab.dart` (timer button opens appropriate screen)
-- Music provider settings: `lib/screens/music_provider_settings_screen.dart` for OAuth connection
+### H) Habit Timer: time-based habit completion
+- Timer screen: `lib/screens/habit_timer_screen.dart`
+- Integrated in: `lib/widgets/habits/habit_tracker_tab.dart` (timer button opens screen)
+- When target time is reached, triggers habit completion → mood rating screen
 
 ### K) Routines: create and execute timed workflows
 - Main screen: `lib/screens/routine_screen.dart` (tab index 6)
@@ -595,33 +545,13 @@ Theme is configured in `lib/main.dart` with:
 ### Environment Variables
 Backend requires these environment variables (see `ENV_SETUP.md` for full list):
 - **Core**: `PORT`, `BASE_URL`
-- **Spotify OAuth** (required for Spotify integration):
-  - `SPOTIFY_CLIENT_ID` - Spotify app client ID from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-  - `SPOTIFY_CLIENT_SECRET` - Spotify app client secret
-  - `SPOTIFY_REDIRECT_URI` - OAuth callback URL (defaults to `${BASE_URL}/auth/spotify/callback`)
-  - `SPOTIFY_SCOPES` - OAuth scopes (default: `user-read-private user-read-email playlist-read-private playlist-read-collaborative user-library-read`)
 - **Database**: `DATABASE_URL` (optional, uses JSON file storage if not set)
 - **Other**: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` (all optional)
-
-### Spotify Integration Flow
-1. User navigates to Settings → Music Provider Settings
-2. Taps "Connect" button for Spotify
-3. Backend generates OAuth URL with PKCE challenge
-4. User completes OAuth in browser
-5. Backend stores tokens in database (`dv_users.spotify_*` columns)
-6. Settings screen verifies connection via test API call
-7. User can now access playlists and search tracks
-
-### Error Handling
-- **Authentication errors**: Clear messages prompting user to log in or connect Spotify
-- **Connection errors**: Settings screen shows connection status and "Connect" button when needed
-- **API errors**: Proper error messages distinguish between "not logged in" vs "Spotify not connected"
 
 ### Privacy Policy
 - **Backend route**: `GET /privacy-policy` - Serves a standalone HTML privacy policy page
 - **Purpose**: Required by Google Play Console for apps using sensitive permissions (CAMERA, LOCATION, etc.)
 - **Content**: Explains data collection, storage, permissions, and user rights
-- **Canva App Panel**: Links to `/privacy-policy` route instead of anchor link for separate URL
 - **Location**: `backend/src/server.js` - Privacy policy route serves HTML with styling
 
 ---
@@ -632,13 +562,13 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 
 ### Backend overview
 - **Entry**: `backend/src/server.js` (Express app). Vercel serverless: `backend/api/index.js` exports the same app.
-- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`), `requireAdmin()` (requires dvAuth + admin user id in `DV_ADMIN_USER_IDS`).
+- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`).
 - **Base URL (app)**: `DvAuthService.backendBaseUrl()` — from `BACKEND_BASE_URL` (compile-time, default `https://digital-vision-board.onrender.com`).
 
 ### Auth and token
 - **dvToken**: Backend-issued token stored in SharedPreferences (`dv_auth_token_v1`). Used as `Authorization: Bearer <dvToken>` on protected routes.
 - **Guest tokens**: Expire in 10 days; backend returns `expired_auth` when expired; app shows auth gateway on 401.
-- **Obtaining a token**: Guest (`POST /auth/guest`), Firebase exchange (`POST /auth/firebase/exchange`), or Canva OAuth (poll flow). Music OAuth (Spotify/YouTube Music) does not issue dvToken; it links the current user to a music provider.
+- **Obtaining a token**: Guest (`POST /auth/guest`) or Firebase exchange (`POST /auth/firebase/exchange`).
 
 ### API endpoints (current) and app usage
 
@@ -646,7 +576,7 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 |--------|------|------|---------|-----------------|
 | GET | `/` | — | Info text | — |
 | GET | `/health` | — | Health check | — |
-| GET | `/privacy-policy` | — | HTML privacy page | Canva panel / external link |
+| GET | `/privacy-policy` | — | HTML privacy page | External link |
 | GET | `/stock/pexels/search` | — | Pexels search proxy (query, perPage) | `StockImagesService.searchPexelsUrls()` — grid Pexels search |
 | GET | `/stock/category-images` | — | Category images by coreValueId + category (DB cache) | `CategoryImagesService.getCategoryImages()` — wizard default images |
 | GET | `/wizard/defaults` | — | Core values + categories | `WizardDefaultsService` — wizard step 1 defaults (cached) |
@@ -654,22 +584,6 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 | POST | `/wizard/recommendations/generate` | — | Generate recommendations (Gemini) | `WizardRecommendationsService.generate()` / `getOrGenerate()` |
 | POST | `/auth/guest` | — | Create guest session (body: home_timezone, gender) | `DvAuthService.continueAsGuest()` |
 | POST | `/auth/firebase/exchange` | — | Exchange Firebase idToken for dvToken | `DvAuthService.exchangeFirebaseIdTokenForDvToken()` |
-| GET | `/auth/canva/start_poll` | — | Canva OAuth start (returns authUrl, pollToken) | `DvAuthService.connectViaCanvaOAuth()` (poll) |
-| GET | `/auth/canva/poll` | — | Poll for Canva OAuth result (query: pollToken) | Same |
-| GET | `/canva/connect` | — | Alias for Canva OAuth start | — |
-| GET | `/auth/canva/start` | — | Canva OAuth start (redirect flow) | — |
-| GET | `/auth/canva/callback` | — | Canva OAuth callback | — |
-| GET | `/auth/spotify/start` | — | Spotify OAuth start (redirect) | User opens in browser; `MusicProviderSettingsScreen` launches URL |
-| GET | `/auth/spotify/callback` | — | Spotify OAuth callback | — |
-| GET | `/api/spotify/playlists` | dvAuth | List user playlists | `MusicProviderService` (Spotify), connection check in settings |
-| GET | `/api/spotify/search` | dvAuth | Search Spotify (q, type) | `MusicProviderService` |
-| GET | `/api/spotify/playlist/:playlistId/tracks` | dvAuth | Playlist tracks | `MusicProviderService` |
-| GET | `/auth/youtube-music/start` | — | YouTube Music OAuth start | Same pattern as Spotify |
-| GET | `/auth/youtube-music/callback` | — | YouTube Music callback | — |
-| GET | `/api/youtube-music/playlists` | dvAuth | List playlists | `MusicProviderService` (YouTube Music) |
-| GET | `/api/youtube-music/search` | dvAuth | Search | `MusicProviderService` |
-| GET | `/api/youtube-music/playlist/:playlistId/tracks` | dvAuth | Playlist tracks | `MusicProviderService` |
-| GET | `/habits` | dvAuth | Legacy habits list | — |
 | GET | `/templates` | dvAuth | List templates | `TemplatesService.listTemplates()` |
 | GET | `/templates/:id` | dvAuth | Get template by id | `TemplatesService.getTemplate()` |
 | GET | `/template-images/:id` | — | Template image (public) | `TemplatesService` image URL helper |
@@ -681,38 +595,19 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 | PUT | `/api/affirmations/:id` | dvAuth | Update affirmation | `AffirmationService.updateAffirmation()` |
 | DELETE | `/api/affirmations/:id` | dvAuth | Delete affirmation | `AffirmationService.deleteAffirmation()` |
 | PUT | `/api/affirmations/:id/pin` | dvAuth | Pin/unpin affirmation | `AffirmationService.togglePin()` |
-| GET | `/admin/templates` | admin | List templates (admin) | `TemplatesService.listTemplatesAdmin()` |
-| POST | `/admin/template-images` | admin | Upload template image (multipart) | `TemplatesService.uploadTemplateImage()` |
-| POST | `/admin/templates` | admin | Create template | `TemplatesService.createTemplate()` |
-| PUT | `/admin/templates/:id` | admin | Update template | `TemplatesService.updateTemplate()` |
-| DELETE | `/admin/templates/:id` | admin | Delete template | `TemplatesService.deleteTemplate()` |
-| POST | `/admin/wizard/sync-defaults` | admin | Sync wizard defaults (blocking) | `TemplatesService.syncWizardDefaults()` (legacy) |
-| POST | `/admin/wizard/sync-defaults/start` | admin | Start sync job | Admin / dev |
-| GET | `/admin/wizard/sync-defaults/status` | admin | Sync job status | `TemplatesService` poll |
-| POST | `/admin/stock/sync-category-images/start` | admin | Start category images sync | Admin / dev |
-| GET | `/admin/stock/sync-category-images/status` | admin | Sync job status | `TemplatesService` poll |
-| POST | `/admin/canva/import/current-page` | admin | Canva import (admin) | `TemplatesService.importCanvaCurrentPage()` |
-| GET | `/canva/packages` | dvAuth | Canva packages | Canva integration |
-| GET | `/canva/packages/latest` | dvAuth | Latest package | Canva integration |
-| GET | `/canva/packages/:id` | dvAuth | Package by id | Canva integration |
-| POST | `/habits` | dvAuth | Legacy habits | — |
-| POST | `/canva/sync` | dvAuth | Canva sync | Canva integration |
-| POST | `/canva/export` | dvAuth | Canva export | Canva integration |
 
 ### App-side API usage summary
-- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange, Canva OAuth; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
+- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
 - **Sync**: `lib/services/sync_service.dart` — `GET /sync/bootstrap`, `POST /sync/push`; 401 sets `SyncService.authExpired`.
 - **Wizard**: `WizardDefaultsService` → `GET /wizard/defaults`; `WizardRecommendationsService` → `GET /wizard/recommendations`, `POST /wizard/recommendations/generate`.
 - **Stock images**: `StockImagesService` → `GET /stock/pexels/search`; `CategoryImagesService` → `GET /stock/category-images` (no auth).
-- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`; admin: `/admin/templates`, `/admin/template-images`, sync-defaults and sync-category-images start/status.
-- **Music**: `MusicProviderService` + `MusicProviderSettingsScreen` — Spotify/YouTube Music OAuth via `/auth/spotify/start`, `/auth/youtube-music/start`; API calls to `/api/spotify/*`, `/api/youtube-music/*` with Bearer token.
+- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`.
 - **Affirmations**: `AffirmationService` — CRUD and pin via `/api/affirmations*` with Bearer token.
 
 ### Flow notes
 - **Guest**: App calls `POST /auth/guest` (optional body: home_timezone, gender), stores dvToken and expiresAt; subsequent requests use Bearer token until expiry; then app shows auth gateway.
 - **Sync**: On empty local boards, app calls `GET /sync/bootstrap` to seed boards/settings; after local changes, `SyncService` enqueues and calls `POST /sync/push` (best-effort, skipped on web when backend unreachable).
 - **Wizard**: Defaults and recommendations are public (no auth); category images and Pexels are also public; wizard steps use these to build the board locally.
-- **Music OAuth**: User taps Connect in settings; app opens `/auth/spotify/start` or `/auth/youtube-music/start` in browser; backend redirects to provider and stores tokens per user (by dvToken in session/callback); app then uses `/api/spotify/*` or `/api/youtube-music/*` with the same dvToken.
 
 ---
 
@@ -775,7 +670,7 @@ Routines allow users to create sequential multi-step workflows with timers, sche
 - `iconCodePoint`, `tileColorValue` (customization)
 - `todos: List<RoutineTodoItem>` (sequential steps)
 - `timeMode`: `'overall'` (single timer) or `'per_todo'` (individual timers)
-- `overallDurationMinutes`, `overallPlaylistId`, `overallTimerType` (for overall mode)
+- `overallDurationMinutes`, `overallTimerType` (for overall mode)
 - `occurrenceType`: `'daily'` | `'weekdays'` | `'interval'`
 - `weekdays`, `intervalDays`, `startDate` (for scheduling)
 - Helper: `occursOnDate(date)` checks if routine runs on given date
@@ -885,7 +780,7 @@ Multi-step wizard for creating habits with advanced options:
 4. **Advanced Options**: Duration/timer settings, habit anchoring, location triggers
 
 ### Advanced Features
-- **Time-bound habits**: Duration with unit (minutes/songs)
+- **Time-bound habits**: Duration with unit (minutes)
 - **Habit anchoring**: Chain habits together ("After X habit", "Before Y habit")
 - **Location triggers**: Geofencing with arrival/dwell modes, radius selection
 - **CBT enhancements**: Optional cognitive behavioral therapy fields

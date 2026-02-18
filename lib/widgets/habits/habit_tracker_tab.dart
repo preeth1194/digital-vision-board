@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/habit_item.dart';
 import '../../screens/habit_timer_screen.dart';
-import '../../screens/rhythmic_timer_screen.dart';
 import '../../services/habit_timer_state_service.dart';
 import '../../services/logical_date_service.dart';
 
@@ -142,9 +141,6 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
 
   /// Helper function to get the appropriate icon for a habit type
   static Widget _getHabitTypeIcon(HabitItem habit) {
-    if (habit.timeBound?.isSongBased == true) {
-      return const Icon(Icons.music_note, size: 24);
-    }
     if (habit.timeBound?.enabled == true) {
       return const Icon(Icons.timer_outlined, size: 24);
     }
@@ -424,39 +420,22 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                             tooltip: 'Timer',
                             icon: const Icon(Icons.timer_outlined),
                             onPressed: () async {
-                              final isSongBased = habit.timeBound?.isSongBased ?? false;
                               await Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => isSongBased
-                                      ? RhythmicTimerScreen(
-                                          habit: habit,
-                                          onMarkCompleted: () async {
-                                            final now = LogicalDateService.now();
-                                            final current = widget.habits
-                                                .where((h) => h.id == habit.id)
-                                                .cast<HabitItem?>()
-                                                .firstWhere((_) => true, orElse: () => null);
-                                            final h = current ?? habit;
-                                            if (!h.isScheduledOnDate(now)) return;
-                                            if (h.isCompletedForCurrentPeriod(now)) return;
-                                            // Toggle habit completion - this will trigger _maybeAskCompletionFeedback
-                                            widget.onToggleHabit(h);
-                                          },
-                                        )
-                                      : HabitTimerScreen(
-                                          habit: habit,
-                                          onMarkCompleted: () async {
-                                            final now = LogicalDateService.now();
-                                            final current = widget.habits
-                                                .where((h) => h.id == habit.id)
-                                                .cast<HabitItem?>()
-                                                .firstWhere((_) => true, orElse: () => null);
-                                            final h = current ?? habit;
-                                            if (!h.isScheduledOnDate(now)) return;
-                                            if (h.isCompletedForCurrentPeriod(now)) return;
-                                            widget.onToggleHabit(h);
-                                          },
-                                        ),
+                                  builder: (_) => HabitTimerScreen(
+                                    habit: habit,
+                                    onMarkCompleted: () async {
+                                      final now = LogicalDateService.now();
+                                      final current = widget.habits
+                                          .where((h) => h.id == habit.id)
+                                          .cast<HabitItem?>()
+                                          .firstWhere((_) => true, orElse: () => null);
+                                      final h = current ?? habit;
+                                      if (!h.isScheduledOnDate(now)) return;
+                                      if (h.isCompletedForCurrentPeriod(now)) return;
+                                      widget.onToggleHabit(h);
+                                    },
+                                  ),
                                 ),
                               );
                             },

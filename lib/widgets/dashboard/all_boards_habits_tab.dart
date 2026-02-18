@@ -15,7 +15,6 @@ import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
 import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
-import '../../screens/rhythmic_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
 import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
@@ -386,8 +385,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
 
-    final isSongBased = habit.timeBound?.isSongBased ?? false;
-
     Future<void> onMarkCompleted() async {
       final latestHabit = _habits
           .where((h) => h.id == habit.id)
@@ -407,15 +404,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => isSongBased
-            ? RhythmicTimerScreen(
-                habit: habit,
-                onMarkCompleted: onMarkCompleted,
-              )
-            : HabitTimerScreen(
-                habit: habit,
-                onMarkCompleted: onMarkCompleted,
-              ),
+        builder: (_) => HabitTimerScreen(
+          habit: habit,
+          onMarkCompleted: onMarkCompleted,
+        ),
       ),
     );
   }

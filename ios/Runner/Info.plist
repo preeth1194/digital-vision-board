@@ -60,8 +60,6 @@
 	<string>Allow background location access to track location-based habits automatically.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Used to recognize user activity information for location-based habits.</string>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>Allow access to Apple Music to track songs for your rhythmic timer habits.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allow microphone access to record voice notes in your journal.</string>
 	<key>UIBackgroundModes</key>

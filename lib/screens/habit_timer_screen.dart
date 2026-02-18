@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/habit_item.dart';
 import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/music_playback_controller.dart';
 import '../widgets/circular_countdown_timer.dart';
 
 class HabitTimerScreen extends StatefulWidget {
@@ -25,12 +26,21 @@ class HabitTimerScreen extends StatefulWidget {
 class _HabitTimerScreenState extends State<HabitTimerScreen> {
   SharedPreferences? _prefs;
   Timer? _tick;
+  MusicPlaybackController? _musicController;
+  bool _usesExternalApp = false;
 
   int _accMs = 0;
   bool _running = false;
   bool _completionTriggered = false;
 
   int get _targetMs => HabitTimerStateService.targetMsForHabit(widget.habit);
+
+  bool get _hasMusicConfig {
+    final tb = widget.habit.timeBound;
+    return tb != null &&
+        (tb.spotifyPlaylistId != null ||
+            (tb.spotifyTrackIds?.isNotEmpty ?? false));
+  }
 
   @override
   void initState() {
@@ -41,6 +51,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _musicController?.dispose();
     super.dispose();
   }
 
@@ -48,6 +59,16 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
     final p = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() => _prefs = p);
+
+    if (_hasMusicConfig) {
+      final tb = widget.habit.timeBound!;
+      _musicController = MusicPlaybackController(timeBound: tb, prefs: p);
+      await _musicController!.initialize();
+      _usesExternalApp = await _musicController!.usesExternalApp();
+      if (!mounted) return;
+      setState(() {});
+    }
+
     await _refresh();
   }
 
@@ -63,6 +84,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
     // This prevents accidental over-counting past the intended daily goal.
     if (running && target > 0 && acc >= target) {
       await HabitTimerStateService.pause(prefs: p, habitId: widget.habit.id, logicalDate: today);
+      await _musicController?.stop();
       final acc2 =
           await HabitTimerStateService.accumulatedMsNow(prefs: p, habitId: widget.habit.id, logicalDate: today);
       if (!mounted) return;
@@ -134,8 +156,16 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
     try {
       if (wasRunning) {
         await HabitTimerStateService.pause(prefs: p, habitId: widget.habit.id, logicalDate: today);
+        await _musicController?.pause();
       } else {
         await HabitTimerStateService.start(prefs: p, habitId: widget.habit.id, logicalDate: today);
+        if (_musicController != null) {
+          if (_musicController!.isActive) {
+            await _musicController!.resume();
+          } else {
+            await _musicController!.start();
+          }
+        }
       }
       // Refresh to sync with actual state
       await _refresh();
@@ -155,6 +185,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
     if (p == null) return;
     final today = LogicalDateService.today();
     await HabitTimerStateService.resetForDay(prefs: p, habitId: widget.habit.id, logicalDate: today);
+    await _musicController?.stop();
     await _refresh();
   }
 
@@ -176,7 +207,6 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
   Widget build(BuildContext context) {
     final target = _targetMs;
     final acc = _accMs;
-    final progress = (target <= 0) ? null : (acc / target).clamp(0.0, 1.0);
     final remaining = (target <= 0) ? 0 : (target - acc).clamp(0, target);
     
     // Calculate remaining progress for circular timer (1.0 = full, 0.0 = empty)
@@ -236,6 +266,43 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
                 textColor: scheme.onSurface,
               ),
               
+              // Music player indicator (when Play Songs addon is configured)
+              if (_hasMusicConfig) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _running ? Icons.music_note : Icons.music_off,
+                        color: _running ? scheme.primary : scheme.onSurfaceVariant,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _usesExternalApp
+                              ? (_running
+                                  ? 'Playing in Spotify — stop when timer ends'
+                                  : 'Start playback in Spotify when ready')
+                              : (_running
+                                  ? 'Music playing'
+                                  : 'Music will start with timer'),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               // Status chip
               const SizedBox(height: 24),
               Chip(

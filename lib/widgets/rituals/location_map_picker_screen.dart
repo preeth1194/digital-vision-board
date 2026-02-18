@@ -94,22 +94,33 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
   }
 
   Future<void> _searchLocation(String query) async {
-    if (query.trim().isEmpty) return;
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
     _searchFocusNode.unfocus();
     setState(() => _isGeocoding = true);
     try {
-      final locations = await locationFromAddress(query);
+      final locations = await locationFromAddress(trimmed);
       if (locations.isNotEmpty && mounted) {
         final loc = locations.first;
         final target = LatLng(loc.latitude, loc.longitude);
         _mapController.move(target, 15.0);
         setState(() => _center = target);
         await _reverseGeocode(target);
+        return;
       }
     } catch (e) {
       debugPrint('Forward geocode error: $e');
     }
-    if (mounted) setState(() => _isGeocoding = false);
+    if (mounted) {
+      setState(() => _isGeocoding = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No results found for "$trimmed"'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _confirm() {

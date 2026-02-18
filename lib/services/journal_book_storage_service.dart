@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/journal_book.dart';
+import '../utils/app_colors.dart';
 
 /// Service for persisting and retrieving journal books.
 final class JournalBookStorageService {
@@ -146,7 +147,7 @@ final class JournalBookStorageService {
         name: 'Goal Logs',
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
         subtitle: 'habit completions',
-        coverColor: 0xFFAED581, // Light Green
+        coverColor: AppColors.coverLightGreen,
       );
       books = [...books, goalLogsBook];
       changed = true;

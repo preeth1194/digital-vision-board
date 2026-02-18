@@ -136,6 +136,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   bool _remindersAddonAdded = false;
   bool _timerAddonAdded = false;
 
+  // Timer sound & vibration
+  String _notificationSound = 'default';
+  String _vibrationType = 'default';
+
   // Validation errors
   String? _nameError;
   String? _triggerError;
@@ -476,6 +480,12 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _timerAddonAdded = true;
     }
 
+    // Timer sound & vibration
+    if (tb != null) {
+      _notificationSound = tb.notificationSound ?? 'default';
+      _vibrationType = tb.vibrationType ?? 'default';
+    }
+
     // Step 6: Strategy (Stacking)
     final chaining = habit.chaining;
     if (chaining != null && chaining.anchorHabit != null) {
@@ -623,6 +633,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         duration: _timeBoundDurationValue.clamp(1, maxVal),
         unit: _timeBoundDurationUnit,
         mode: 'time',
+        notificationSound: _notificationSound,
+        vibrationType: _vibrationType,
       );
     }
 
@@ -928,37 +940,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           if (_actionStepsError != null) _actionStepsError = null;
                         }),
                       ),
-                      SizedBox(height: kSectionSpacing),
-                      AddonToolsSection(
-                        habitColor: baseColor,
-                        remindersAdded: _remindersAddonAdded,
-                        onRemindersToggle: (added) {
-                          setState(() {
-                            _remindersAddonAdded = added;
-                            if (!added) {
-                              _reminderEnabled = false;
-                              _reminderMinutesBefore = null;
-                              _reminderTime = null;
-                              _selectedTime = null;
-                              _locationEnabled = false;
-                              _locationLat = null;
-                              _locationLng = null;
-                              _locationAddress = null;
-                            }
-                          });
-                        },
-                        timerAdded: _timerAddonAdded,
-                        onTimerToggle: (added) {
-                          setState(() {
-                            _timerAddonAdded = added;
-                            if (!added) {
-                              _timeBoundStartTime = null;
-                              _timeBoundDurationValue = 15;
-                              _timeBoundDurationUnit = 'minutes';
-                            }
-                          });
-                        },
-                      ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[
                         SizedBox(height: kSectionSpacing),
                         Step4Triggers(
@@ -1029,8 +1010,45 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               setState(() => _locationTriggerMode = v),
                           onDwellMinutesChanged: (v) =>
                               setState(() => _locationDwellMinutes = v),
+                          notificationSound: _notificationSound,
+                          onNotificationSoundChanged: (v) =>
+                              setState(() => _notificationSound = v),
+                          vibrationType: _vibrationType,
+                          onVibrationTypeChanged: (v) =>
+                              setState(() => _vibrationType = v),
                         ),
                       ],
+                      SizedBox(height: kSectionSpacing),
+                      AddonToolsSection(
+                        habitColor: baseColor,
+                        remindersAdded: _remindersAddonAdded,
+                        onRemindersToggle: (added) {
+                          setState(() {
+                            _remindersAddonAdded = added;
+                            if (!added) {
+                              _reminderEnabled = false;
+                              _reminderMinutesBefore = null;
+                              _reminderTime = null;
+                              _selectedTime = null;
+                              _locationEnabled = false;
+                              _locationLat = null;
+                              _locationLng = null;
+                              _locationAddress = null;
+                            }
+                          });
+                        },
+                        timerAdded: _timerAddonAdded,
+                        onTimerToggle: (added) {
+                          setState(() {
+                            _timerAddonAdded = added;
+                            if (!added) {
+                              _timeBoundStartTime = null;
+                              _timeBoundDurationValue = 15;
+                              _timeBoundDurationUnit = 'minutes';
+                            }
+                          });
+                        },
+                      ),
                       // Space for fixed bottom bar
                       const SizedBox(height: 24),
                     ],

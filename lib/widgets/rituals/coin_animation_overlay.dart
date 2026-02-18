@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/app_colors.dart';
 
 /// Overlay widget that displays animated coins flying from a source to a target.
 class CoinAnimationOverlay extends StatefulWidget {
@@ -178,9 +179,9 @@ class _CoinPainter extends CustomPainter {
     // Coin gradient
     final gradient = RadialGradient(
       colors: [
-        const Color(0xFFFFE082).withValues(alpha: opacity),
-        const Color(0xFFFFD700).withValues(alpha: opacity),
-        const Color(0xFFFFA000).withValues(alpha: opacity),
+        AppColors.coinGoldHighlight.withValues(alpha: opacity),
+        AppColors.coinGold.withValues(alpha: opacity),
+        AppColors.coinGoldShadow.withValues(alpha: opacity),
       ],
       stops: const [0.0, 0.5, 1.0],
     );
@@ -192,7 +193,7 @@ class _CoinPainter extends CustomPainter {
 
     // Outer shadow
     final shadowPaint = Paint()
-      ..color = const Color(0xFF000000).withValues(alpha: opacity * 0.3)
+      ..color = Colors.black.withValues(alpha: opacity * 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawCircle(center + const Offset(2, 2), radius, shadowPaint);
 
@@ -201,7 +202,7 @@ class _CoinPainter extends CustomPainter {
 
     // Inner circle (coin detail)
     final innerPaint = Paint()
-      ..color = const Color(0xFFFFE082).withValues(alpha: opacity * 0.6)
+      ..color = AppColors.coinGoldHighlight.withValues(alpha: opacity * 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius * 0.7, innerPaint);

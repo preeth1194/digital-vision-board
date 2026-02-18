@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
+import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
@@ -41,7 +42,7 @@ class GoalCanvasViewerScreen extends StatefulWidget {
 class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   bool _loading = true;
   List<VisionComponent> _components = [];
-  Color _backgroundColor = const Color(0xFFF8F9F4);
+  Color _backgroundColor = AppColors.offWhite;
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
   String? _selectedId;

@@ -14,6 +14,12 @@ final class HabitTimeBoundSpec {
   final String? spotifyPlaylistId;
   /// Selected Spotify track IDs (optional, for song-based mode)
   final List<String>? spotifyTrackIds;
+  /// Per-habit notification sound identifier.
+  /// Built-in: 'default', 'chime', 'bell', 'gentle', 'alert', 'none'.
+  /// Custom: a file path string.
+  final String? notificationSound;
+  /// Per-habit vibration type: 'none', 'default', 'short', 'long'.
+  final String? vibrationType;
 
   const HabitTimeBoundSpec({
     required this.enabled,
@@ -22,6 +28,8 @@ final class HabitTimeBoundSpec {
     this.mode = 'time',
     this.spotifyPlaylistId,
     this.spotifyTrackIds,
+    this.notificationSound,
+    this.vibrationType,
   });
 
   bool get isTimeBased => mode == 'time';
@@ -41,6 +49,8 @@ final class HabitTimeBoundSpec {
         'mode': mode,
         'spotifyPlaylistId': spotifyPlaylistId,
         'spotifyTrackIds': spotifyTrackIds,
+        'notificationSound': notificationSound,
+        'vibrationType': vibrationType,
       };
 
   factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
@@ -52,6 +62,8 @@ final class HabitTimeBoundSpec {
     final spotifyTrackIds = (json['spotifyTrackIds'] as List<dynamic>?)
         ?.map((e) => e.toString())
         .toList();
+    final notificationSound = json['notificationSound'] as String?;
+    final vibrationType = json['vibrationType'] as String?;
     return HabitTimeBoundSpec(
       enabled: enabled,
       duration: duration,
@@ -59,6 +71,8 @@ final class HabitTimeBoundSpec {
       mode: mode,
       spotifyPlaylistId: spotifyPlaylistId,
       spotifyTrackIds: spotifyTrackIds,
+      notificationSound: notificationSound,
+      vibrationType: vibrationType,
     );
   }
 
@@ -69,6 +83,8 @@ final class HabitTimeBoundSpec {
     String? mode,
     String? spotifyPlaylistId,
     List<String>? spotifyTrackIds,
+    String? notificationSound,
+    String? vibrationType,
   }) {
     return HabitTimeBoundSpec(
       enabled: enabled ?? this.enabled,
@@ -77,6 +93,8 @@ final class HabitTimeBoundSpec {
       mode: mode ?? this.mode,
       spotifyPlaylistId: spotifyPlaylistId ?? this.spotifyPlaylistId,
       spotifyTrackIds: spotifyTrackIds ?? this.spotifyTrackIds,
+      notificationSound: notificationSound ?? this.notificationSound,
+      vibrationType: vibrationType ?? this.vibrationType,
     );
   }
 }
@@ -671,6 +689,8 @@ final class HabitCreateRequest {
   final int? iconIndex;
   final List<HabitActionStep> actionSteps;
   final int? startTimeMinutes;
+  final String? notificationSound;
+  final String? vibrationType;
 
   const HabitCreateRequest({
     required this.name,
@@ -689,5 +709,7 @@ final class HabitCreateRequest {
     this.iconIndex,
     this.actionSteps = const [],
     this.startTimeMinutes,
+    this.notificationSound,
+    this.vibrationType,
   });
 }

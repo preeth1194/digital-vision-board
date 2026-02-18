@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
 
 enum HandlePosition {
   topLeft,
@@ -59,16 +60,15 @@ class ResizeHandle extends StatefulWidget {
   static const double defaultCornerVisualOutset = 4;
   static const double defaultEdgeVisualOutset = 3;
 
-  static const Color _handleBorderColor = Color(0xFFD1D5DB); // Light grey
+  static const Color _handleBorderColor = AppColors.handleBorderGrey;
   static const Color _handleFillColor = Colors.white;
-  // Active/selected feedback.
-  static const Color _handleActiveFillColor = Color(0xFF7C3AED); // Purple fill
+  static const Color _handleActiveFillColor = AppColors.handleActivePurple;
   static const Color _handleActiveInnerBorderColor = Colors.white;
   static const double _handleBorderWidth = 1.5;
   static final BorderRadius _edgeBorderRadius = BorderRadius.circular(4);
   static const List<BoxShadow> _handleShadow = [
     BoxShadow(
-      color: Color(0x26000000),
+      color: AppColors.shadowSubtle,
       blurRadius: 3,
       offset: Offset(0, 1),
     ),

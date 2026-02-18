@@ -88,7 +88,7 @@ class DailyProgressHeader extends StatelessWidget {
   }
 
   static Widget _buildProgressRing(double progress, bool isDark) {
-    final progressColor = const Color(0xFF3366CC);
+    final progressColor = AppColors.progressBlue;
     final trackColor = isDark
         ? Colors.white.withValues(alpha: 0.12)
         : Colors.grey.withValues(alpha: 0.20);

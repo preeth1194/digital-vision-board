@@ -49,6 +49,23 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
   );
 }
 
+/// Shows a read-only bottom sheet summarising a completed habit's feedback.
+void showCompletedHabitSummary(
+  BuildContext context, {
+  required HabitItem habit,
+  required HabitCompletionFeedback feedback,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => _CompletedHabitSummarySheet(
+      habit: habit,
+      feedback: feedback,
+    ),
+  );
+}
+
 /// Mood option data.
 class _MoodOption {
   final int value;
@@ -69,31 +86,31 @@ const _moods = <_MoodOption>[
     value: 1,
     icon: Icons.sentiment_very_dissatisfied_rounded,
     label: 'Awful',
-    color: Color(0xFFE57373),
+    color: AppColors.moodAwful,
   ),
   _MoodOption(
     value: 2,
     icon: Icons.sentiment_dissatisfied_rounded,
     label: 'Bad',
-    color: Color(0xFFFFB74D),
+    color: AppColors.moodBad,
   ),
   _MoodOption(
     value: 3,
     icon: Icons.sentiment_neutral_rounded,
     label: 'Neutral',
-    color: Color(0xFFFFD54F),
+    color: AppColors.moodNeutral,
   ),
   _MoodOption(
     value: 4,
     icon: Icons.sentiment_satisfied_rounded,
     label: 'Good',
-    color: Color(0xFF81C784),
+    color: AppColors.moodGood,
   ),
   _MoodOption(
     value: 5,
     icon: Icons.sentiment_very_satisfied_rounded,
     label: 'Great',
-    color: Color(0xFF4DB6AC),
+    color: AppColors.moodGreat,
   ),
 ];
 
@@ -713,6 +730,200 @@ class _MediaPreviews extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+// =============================================================================
+// Read-only summary for already-completed habits
+// =============================================================================
+
+class _CompletedHabitSummarySheet extends StatelessWidget {
+  final HabitItem habit;
+  final HabitCompletionFeedback feedback;
+
+  const _CompletedHabitSummarySheet({
+    required this.habit,
+    required this.feedback,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
+    final mood = (feedback.rating >= 1 && feedback.rating <= 5)
+        ? _moods[feedback.rating - 1]
+        : null;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Completed badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.completedOrange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 18,
+                    color: AppColors.completedOrange,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Completed',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.completedOrange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              habit.name,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            // Mood
+            if (mood != null) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: mood.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(mood.icon, size: 28, color: mood.color),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Feeling ${mood.label}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: mood.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Note
+            if (feedback.note != null && feedback.note!.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  feedback.note!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurface,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+            // Coins earned
+            if (feedback.coinsEarned != null && feedback.coinsEarned! > 0) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.monetization_on, size: 20, color: AppColors.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    '+${feedback.coinsEarned} coins earned',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.gold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            // No details recorded
+            if (mood == null &&
+                (feedback.note == null || feedback.note!.trim().isEmpty) &&
+                (feedback.coinsEarned == null || feedback.coinsEarned! <= 0)) ...[
+              const SizedBox(height: 16),
+              Text(
+                'No additional details recorded.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            // Close button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

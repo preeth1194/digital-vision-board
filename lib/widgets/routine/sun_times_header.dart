@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../services/sun_times_service.dart';
+import '../../utils/app_colors.dart';
 
 /// Enhanced header widget showing sunrise/sunset with animated sun/moon arc visualization.
 /// Features:
@@ -158,51 +159,51 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
     if (currentMinutes >= dawnStart && currentMinutes < sunriseMinutes) {
       // Dawn (before sunrise)
       return [
-        const Color(0xFF2C3E50), // Dark blue
-        const Color(0xFFE67E22), // Sunrise orange
-        const Color(0xFF5D6D7E), // Muted blue
+        AppColors.skyDarkBlue,
+        AppColors.sunriseOrange,
+        AppColors.skyMutedBlue,
       ];
     } else if (currentMinutes >= sunriseMinutes && currentMinutes < dawnEnd) {
       // Early morning (just after sunrise)
       return [
-        const Color(0xFF87CEEB), // Sky blue
-        const Color(0xFFFDB462), // Orange
-        const Color(0xFFe8f0e0), // Light green
+        AppColors.skyLightBlue,
+        AppColors.skyPeach,
+        AppColors.skyPaleGreen,
       ];
     } else if (currentMinutes >= dawnEnd && currentMinutes < middayMinutes) {
       // Morning
       return [
-        const Color(0xFF87CEEB), // Sky blue
-        const Color(0xFFFDB462), // Orange
-        const Color(0xFFe8f0e0), // Light green
+        AppColors.skyLightBlue,
+        AppColors.skyPeach,
+        AppColors.skyPaleGreen,
       ];
     } else if (currentMinutes >= middayMinutes && currentMinutes < duskStart) {
       // Afternoon
       return [
-        const Color(0xFF87CEEB), // Sky blue
-        const Color(0xFFFFB347), // Light orange
-        const Color(0xFFe8f0e0), // Light green
+        AppColors.skyLightBlue,
+        AppColors.skyAfternoonOrange,
+        AppColors.skyPaleGreen,
       ];
     } else if (currentMinutes >= duskStart && currentMinutes <= sunsetMinutes) {
       // Evening (approaching sunset)
       return [
-        const Color(0xFF5D6D7E), // Muted blue
-        const Color(0xFFE67E22), // Sunset orange
-        const Color(0xFF2C3E50), // Dark blue
+        AppColors.skyMutedBlue,
+        AppColors.sunriseOrange,
+        AppColors.skyDarkBlue,
       ];
     } else if (currentMinutes > sunsetMinutes && currentMinutes < duskEnd) {
       // Dusk (just after sunset)
       return [
-        const Color(0xFF2C3E50), // Dark blue
-        const Color(0xFFE67E22), // Sunset orange
-        const Color(0xFF34495E), // Darker blue
+        AppColors.skyDarkBlue,
+        AppColors.sunriseOrange,
+        AppColors.skyDuskyBlue,
       ];
     } else {
       // Night
       return [
-        const Color(0xFF0D1B2A), // Deep navy
-        const Color(0xFF1B263B), // Dark blue
-        const Color(0xFF415A77), // Muted blue
+        AppColors.nightDeepNavy,
+        AppColors.nightDarkBlue,
+        AppColors.nightSlate,
       ];
     }
   }
@@ -397,12 +398,12 @@ class _SunMoonArcPainter extends CustomPainter {
     
     // Sun glow
     final glowPaint = Paint()
-      ..color = const Color(0xFFFDB462).withOpacity(0.3)
+      ..color = AppColors.skyPeach.withOpacity(0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
     canvas.drawCircle(center, sunRadius + 8, glowPaint);
 
     // Sun body
-    final sunPaint = Paint()..color = const Color(0xFFFFD700);
+    final sunPaint = Paint()..color = AppColors.coinGold;
     canvas.drawCircle(center, sunRadius, sunPaint);
 
     // Sun rays
@@ -411,7 +412,7 @@ class _SunMoonArcPainter extends CustomPainter {
 
   void _drawSunRays(Canvas canvas, Offset center, double sunRadius) {
     final rayPaint = Paint()
-      ..color = const Color(0xFFFFD700)
+      ..color = AppColors.coinGold
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
 
@@ -419,7 +420,7 @@ class _SunMoonArcPainter extends CustomPainter {
       final angle = (i * 45) * math.pi / 180;
       final opacity = 0.5 + (rayValue * 0.5) * ((i % 2 == 0) ? 1 : (1 - rayValue));
       
-      rayPaint.color = const Color(0xFFFFD700).withOpacity(opacity);
+      rayPaint.color = AppColors.coinGold.withOpacity(opacity);
       
       final innerRadius = sunRadius + 4;
       final outerRadius = sunRadius + 12;
@@ -438,16 +439,16 @@ class _SunMoonArcPainter extends CustomPainter {
     
     // Moon glow
     final glowPaint = Paint()
-      ..color = const Color(0xFFE0E0E0).withOpacity(0.3)
+      ..color = AppColors.moonGlow.withOpacity(0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawCircle(center, moonRadius + 8, glowPaint);
 
     // Moon body
-    final moonPaint = Paint()..color = const Color(0xFFF0F0F0);
+    final moonPaint = Paint()..color = AppColors.moonBody;
     canvas.drawCircle(center, moonRadius, moonPaint);
 
     // Moon craters
-    final craterPaint = Paint()..color = const Color(0xFFD0D0D0);
+    final craterPaint = Paint()..color = AppColors.moonCrater;
     canvas.drawCircle(Offset(center.dx - 4, center.dy - 2), 3, craterPaint);
     canvas.drawCircle(Offset(center.dx + 3, center.dy + 4), 2, craterPaint);
     canvas.drawCircle(Offset(center.dx + 5, center.dy - 3), 1.5, craterPaint);

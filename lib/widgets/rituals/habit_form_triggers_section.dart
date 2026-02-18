@@ -1,9 +1,12 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../services/notifications_service.dart';
+import '../../services/sound_preview_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
 import 'location_map_picker_screen.dart';
@@ -124,6 +127,11 @@ class Step4Triggers extends StatefulWidget {
   final String? slotAvailableInfo;
   final VoidCallback? onSuggestionTap;
 
+  final String notificationSound;
+  final ValueChanged<String> onNotificationSoundChanged;
+  final String vibrationType;
+  final ValueChanged<String> onVibrationTypeChanged;
+
   const Step4Triggers({
     super.key,
     required this.habitColor,
@@ -159,6 +167,10 @@ class Step4Triggers extends StatefulWidget {
     this.suggestedStartTime,
     this.slotAvailableInfo,
     this.onSuggestionTap,
+    required this.notificationSound,
+    required this.onNotificationSoundChanged,
+    required this.vibrationType,
+    required this.onVibrationTypeChanged,
   });
 
   @override
@@ -448,6 +460,151 @@ class _Step4TriggersState extends State<Step4Triggers> {
               fontSize: 11,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSoundPickerSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return _SoundPickerSheetBody(
+          currentSound: widget.notificationSound,
+          isCustom: _isCustomSound,
+          onSoundSelected: (id) {
+            widget.onNotificationSoundChanged(id);
+          },
+          onCustomFilePicked: (path) {
+            widget.onNotificationSoundChanged(path);
+          },
+        );
+      },
+    ).then((_) => SoundPreviewService.dispose());
+  }
+
+  bool get _isCustomSound {
+    final s = widget.notificationSound;
+    return !kNotificationSoundOptions.any((opt) => opt.$1 == s);
+  }
+
+  Widget _buildNotificationSoundRow(ColorScheme colorScheme, ThemeData theme) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showSoundPickerSheet(context),
+        borderRadius: BorderRadius.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                Icons.volume_up_outlined,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Notification sound',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      notificationSoundLabel(widget.notificationSound),
+                      style: AppTypography.body(context).copyWith(
+                        color: widget.habitColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVibrateTypeRow(ColorScheme colorScheme, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.vibration_outlined,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Vibrate',
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoSlidingSegmentedControl<String>(
+              groupValue: widget.vibrationType,
+              backgroundColor: colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5),
+              thumbColor: theme.brightness == Brightness.dark
+                  ? colorScheme.surfaceContainerHigh
+                  : CupertinoColors.white,
+              children: {
+                for (final opt in kVibrateTypeOptions)
+                  opt.$1: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      opt.$2,
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: widget.vibrationType == opt.$1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: widget.vibrationType == opt.$1
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+              },
+              onValueChanged: (v) {
+                if (v != null) {
+                  HapticFeedback.selectionClick();
+                  widget.onVibrationTypeChanged(v);
+                }
+              },
             ),
           ),
         ],
@@ -765,6 +922,10 @@ class _Step4TriggersState extends State<Step4Triggers> {
             ),
           ],
         ),
+        // Notification sound row
+        if (widget.showDurationField) _buildNotificationSoundRow(colorScheme, theme),
+        // Vibrate type row
+        if (widget.showDurationField) _buildVibrateTypeRow(colorScheme, theme),
         // Location row
         if (widget.showReminderFields) Column(
           mainAxisSize: MainAxisSize.min,
@@ -806,6 +967,181 @@ class _Step4TriggersState extends State<Step4Triggers> {
           ],
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sound picker bottom sheet (stateful so selection + preview update inline)
+// ---------------------------------------------------------------------------
+
+class _SoundPickerSheetBody extends StatefulWidget {
+  final String currentSound;
+  final bool isCustom;
+  final ValueChanged<String> onSoundSelected;
+  final ValueChanged<String> onCustomFilePicked;
+
+  const _SoundPickerSheetBody({
+    required this.currentSound,
+    required this.isCustom,
+    required this.onSoundSelected,
+    required this.onCustomFilePicked,
+  });
+
+  @override
+  State<_SoundPickerSheetBody> createState() => _SoundPickerSheetBodyState();
+}
+
+class _SoundPickerSheetBodyState extends State<_SoundPickerSheetBody> {
+  late String _selected;
+  String? _playingId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.currentSound;
+  }
+
+  bool get _isCustomSelected =>
+      !kNotificationSoundOptions.any((opt) => opt.$1 == _selected);
+
+  Future<void> _selectAndPreview(String id) async {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selected = id;
+      _playingId = id;
+    });
+    widget.onSoundSelected(id);
+    await SoundPreviewService.playPreview(id);
+    if (mounted) setState(() => _playingId = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: Text(
+              'Notification Sound',
+              style: AppTypography.body(context).copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Scrollable list of options
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                for (final opt in kNotificationSoundOptions)
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      opt.$3,
+                      color: _selected == opt.$1
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      size: 22,
+                    ),
+                    title: Text(
+                      opt.$2,
+                      style: AppTypography.body(context).copyWith(
+                        fontWeight: _selected == opt.$1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: _selected == opt.$1
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_playingId == opt.$1)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        if (_selected == opt.$1)
+                          Icon(Icons.check_rounded,
+                              color: colorScheme.primary, size: 20),
+                      ],
+                    ),
+                    onTap: () => _selectAndPreview(opt.$1),
+                  ),
+                Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    Icons.folder_open_outlined,
+                    color: _isCustomSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    size: 22,
+                  ),
+                  title: Text(
+                    _isCustomSelected
+                        ? 'Custom (selected)'
+                        : 'Choose from files...',
+                    style: AppTypography.body(context).copyWith(
+                      fontWeight: _isCustomSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      color: _isCustomSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                  trailing: _isCustomSelected
+                      ? Icon(Icons.check_rounded,
+                          color: colorScheme.primary, size: 20)
+                      : null,
+                  onTap: () async {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.audio,
+                    );
+                    if (result != null && result.files.single.path != null) {
+                      final path = result.files.single.path!;
+                      widget.onCustomFilePicked(path);
+                      setState(() => _selected = path);
+                      await SoundPreviewService.playPreview(path);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Done button
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

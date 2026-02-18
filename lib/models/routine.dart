@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../utils/app_colors.dart';
 import 'routine_todo_item.dart';
 
 /// Model representing a routine with sequential todo items.
@@ -140,7 +141,7 @@ class Routine {
       iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
           Icons.list.codePoint,
       tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
-          const Color(0xFFE0F2FE).value,
+          AppColors.pastelBlue.value,
       todos: todos,
       timeMode: (json['timeMode'] as String?) ?? 'overall',
       overallDurationMinutes: (json['overallDurationMinutes'] as num?)?.toInt(),

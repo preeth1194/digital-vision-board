@@ -857,28 +857,8 @@ class _TimelineHabitCard extends StatelessWidget {
     required this.isDark,
   });
 
-  static Color _categoryColor(String? category, bool isDark) {
-    switch (category) {
-      case 'Health':
-        return isDark ? const Color(0xFF2E7D5B) : const Color(0xFFA8D5BA);
-      case 'Fitness':
-        return isDark ? const Color(0xFF33805E) : const Color(0xFFB8E6C8);
-      case 'Mindfulness':
-        return isDark ? const Color(0xFF8D5B3A) : const Color(0xFFF5C6AA);
-      case 'Productivity':
-        return isDark ? const Color(0xFF3565A0) : const Color(0xFFBBDEFB);
-      case 'Learning':
-        return isDark ? const Color(0xFF5E4B8A) : const Color(0xFFD1C4E9);
-      case 'Relationships':
-        return isDark ? const Color(0xFF8A4466) : const Color(0xFFF8BBD0);
-      case 'Finance':
-        return isDark ? const Color(0xFF8A7A30) : const Color(0xFFFFF9C4);
-      case 'Creativity':
-        return isDark ? const Color(0xFF7B4A8A) : const Color(0xFFE1BEE7);
-      default:
-        return isDark ? const Color(0xFF4A635A) : const Color(0xFFD5E8D4);
-    }
-  }
+  static Color _categoryColor(String? category, bool isDark) =>
+      AppColors.categoryBgColor(category, isDark);
 
   String _formatTimeShort(int? minutes) {
     if (minutes == null) return '--:--';

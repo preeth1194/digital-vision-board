@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/habit_item.dart';
+import '../../utils/app_colors.dart';
 import 'habit_form_constants.dart';
 
 /// A clean, modern habit card matching the ritual-timeline design.
@@ -140,30 +141,8 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     super.dispose();
   }
 
-  // Category → pastel background for the icon circle
-  static Color _categoryCircleColor(String? category, Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    switch (category) {
-      case 'Health':
-        return isDark ? const Color(0xFF2E7D5B) : const Color(0xFFA8D5BA);
-      case 'Fitness':
-        return isDark ? const Color(0xFF33805E) : const Color(0xFFB8E6C8);
-      case 'Mindfulness':
-        return isDark ? const Color(0xFF8D5B3A) : const Color(0xFFF5C6AA);
-      case 'Productivity':
-        return isDark ? const Color(0xFF3565A0) : const Color(0xFFBBDEFB);
-      case 'Learning':
-        return isDark ? const Color(0xFF5E4B8A) : const Color(0xFFD1C4E9);
-      case 'Relationships':
-        return isDark ? const Color(0xFF8A4466) : const Color(0xFFF8BBD0);
-      case 'Finance':
-        return isDark ? const Color(0xFF8A7A30) : const Color(0xFFFFF9C4);
-      case 'Creativity':
-        return isDark ? const Color(0xFF7B4A8A) : const Color(0xFFE1BEE7);
-      default:
-        return isDark ? const Color(0xFF4A635A) : const Color(0xFFD5E8D4);
-    }
-  }
+  static Color _categoryCircleColor(String? category, Brightness brightness) =>
+      AppColors.categoryBgColor(category, brightness == Brightness.dark);
 
   // Resolve icon: prefer explicit iconIndex, else first icon for category.
   static IconData _resolveIcon(String? category, int? iconIndex) {
@@ -176,30 +155,8 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     return habitIcons[indices.first].$1;
   }
 
-  // Category → icon color inside the pastel circle
-  static Color _categoryIconColor(String? category, Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    switch (category) {
-      case 'Health':
-        return isDark ? const Color(0xFFB8E6C8) : const Color(0xFF2E5E4A);
-      case 'Fitness':
-        return isDark ? const Color(0xFFC0F0D0) : const Color(0xFF2A5E40);
-      case 'Mindfulness':
-        return isDark ? const Color(0xFFFDD8B8) : const Color(0xFF5E3820);
-      case 'Productivity':
-        return isDark ? const Color(0xFFCCE4FF) : const Color(0xFF1A3A6A);
-      case 'Learning':
-        return isDark ? const Color(0xFFE0D4F0) : const Color(0xFF3A2C60);
-      case 'Relationships':
-        return isDark ? const Color(0xFFFDD0E0) : const Color(0xFF6A2040);
-      case 'Finance':
-        return isDark ? const Color(0xFFFFF5A0) : const Color(0xFF5A4A10);
-      case 'Creativity':
-        return isDark ? const Color(0xFFF0D0F8) : const Color(0xFF5A2A6A);
-      default:
-        return isDark ? const Color(0xFFD0E8D0) : const Color(0xFF3A5040);
-    }
-  }
+  static Color _categoryIconColor(String? category, Brightness brightness) =>
+      AppColors.categoryIconColor(category, brightness == Brightness.dark);
 
   String? _formatDuration() {
     final tb = widget.habit.timeBound;
@@ -221,13 +178,13 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     final iconColor = _categoryIconColor(category, Theme.of(context).brightness);
     final icon = _resolveIcon(category, widget.habit.iconIndex);
 
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final textColor = isDark ? Colors.white : AppColors.nearBlack;
     final subtitleColor = isDark
         ? Colors.white.withValues(alpha: 0.6)
-        : const Color(0xFF6B6B6B);
+        : AppColors.dimGrey;
     final strikeColor = isDark
         ? Colors.white.withValues(alpha: 0.6)
-        : const Color(0xFF1A1A1A).withValues(alpha: 0.5);
+        : AppColors.nearBlack.withValues(alpha: 0.5);
 
     return AnimatedBuilder(
       animation: _entranceCtrl,
@@ -336,7 +293,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      streak > 0 ? 'Streak $streak days' : widget.boardTitle,
+                      streak > 0 ? 'Streak $streak days' : "Ready for day 1?",
                       style: TextStyle(
                         fontSize: 13,
                         color: subtitleColor,

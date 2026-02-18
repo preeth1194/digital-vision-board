@@ -106,7 +106,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               colors: hueSpectrumColors,
               stops: [0, 1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6, 1],
             ),

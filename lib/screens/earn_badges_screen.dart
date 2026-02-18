@@ -43,7 +43,7 @@ const _badges = <_BadgeDef>[
     name: 'First Step',
     description: 'Complete your first habit',
     icon: Icons.flag_rounded,
-    color: Color(0xFF4CAF50),
+    color: AppColors.badgeGreen,
     target: 1,
   ),
   _BadgeDef(
@@ -51,7 +51,7 @@ const _badges = <_BadgeDef>[
     name: 'Week Warrior',
     description: '7-day streak on any habit',
     icon: Icons.local_fire_department_rounded,
-    color: Color(0xFFFF7043),
+    color: AppColors.badgeOrangeRed,
     target: 7,
   ),
   _BadgeDef(
@@ -59,7 +59,7 @@ const _badges = <_BadgeDef>[
     name: 'Consistency King',
     description: '30-day streak on any habit',
     icon: Icons.diamond_rounded,
-    color: Color(0xFF7C4DFF),
+    color: AppColors.badgePurple,
     target: 30,
   ),
   _BadgeDef(
@@ -67,7 +67,7 @@ const _badges = <_BadgeDef>[
     name: 'Century Club',
     description: '100 total habit check-ins',
     icon: Icons.military_tech_rounded,
-    color: Color(0xFFFFB300),
+    color: AppColors.badgeAmber,
     target: 100,
   ),
   _BadgeDef(
@@ -75,7 +75,7 @@ const _badges = <_BadgeDef>[
     name: 'Perfect Day',
     description: 'Complete all habits in a day',
     icon: Icons.wb_sunny_rounded,
-    color: Color(0xFFFDD835),
+    color: AppColors.badgeYellow,
     target: 1,
   ),
   _BadgeDef(
@@ -83,7 +83,7 @@ const _badges = <_BadgeDef>[
     name: 'Coin Collector',
     description: 'Earn 500+ total coins',
     icon: Icons.savings_rounded,
-    color: Color(0xFF26A69A),
+    color: AppColors.badgeTeal,
     target: 500,
   ),
   _BadgeDef(
@@ -91,7 +91,7 @@ const _badges = <_BadgeDef>[
     name: 'Coin Hoarder',
     description: 'Earn 2 000+ total coins',
     icon: Icons.account_balance_rounded,
-    color: Color(0xFFAB47BC),
+    color: AppColors.badgeOrchid,
     target: 2000,
   ),
   _BadgeDef(
@@ -99,7 +99,7 @@ const _badges = <_BadgeDef>[
     name: 'Multi-Tasker',
     description: 'Have 5+ active habits',
     icon: Icons.dashboard_customize_rounded,
-    color: Color(0xFF42A5F5),
+    color: AppColors.badgeSkyBlue,
     target: 5,
   ),
   _BadgeDef(
@@ -107,7 +107,7 @@ const _badges = <_BadgeDef>[
     name: 'Coping Champion',
     description: 'Set a coping plan on a habit',
     icon: Icons.psychology_rounded,
-    color: Color(0xFFEC407A),
+    color: AppColors.badgePink,
     target: 1,
   ),
 ];
@@ -283,8 +283,8 @@ class _SummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-              : [const Color(0xFFFFF8E1), const Color(0xFFFFF3E0)],
+              ? [AppColors.badgeBgDarkStart, AppColors.badgeBgDarkEnd]
+              : [AppColors.badgeBgLightStart, AppColors.badgeBgLightEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -314,14 +314,14 @@ class _SummaryCard extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFD54F), Color(0xFFF9A825)],
+                colors: [AppColors.goldLight, AppColors.goldDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              border: Border.all(color: const Color(0xFFFF8F00), width: 2.5),
+              border: Border.all(color: AppColors.amberBorder, width: 2.5),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF9A825).withValues(alpha: 0.35),
+                  color: AppColors.goldDark.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -445,7 +445,7 @@ class _BadgeCard extends StatelessWidget {
                     height: 20,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                      color: isDark ? AppColors.slateGrey : Colors.grey.shade300,
                     ),
                     child: Icon(
                       Icons.lock_rounded,

@@ -15,6 +15,7 @@ import 'rhythmic_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
+import '../widgets/rituals/habit_completion_sheet.dart';
 /// Habits list UI; reads habits from [components] (component.habits, backward compat)
 /// and writes via [onComponentsUpdated]. Callers must sync to [HabitStorageService].
 class HabitsListScreen extends StatefulWidget {
@@ -228,7 +229,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     }
 
     Future<void>(() async {
-      if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(newHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(newHabit);
@@ -368,7 +369,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     // Best-effort: re-schedule notifications for the updated habit.
     Future<void>(() async {
       await NotificationsService.cancelHabitReminders(updatedHabit);
-      if (!updatedHabit.reminderEnabled || updatedHabit.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(updatedHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(updatedHabit);
@@ -568,11 +569,13 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                           ),
                                           if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
                                             IconButton(
-                                              tooltip: 'Timer',
+                                              tooltip: isCompleted ? 'View completion' : 'Timer',
                                               icon: Icon(
-                                                habit.timeBound?.isSongBased == true
-                                                    ? Icons.music_note
-                                                    : Icons.timer_outlined,
+                                                isCompleted
+                                                    ? Icons.info_outline_rounded
+                                                    : habit.timeBound?.isSongBased == true
+                                                        ? Icons.music_note
+                                                        : Icons.timer_outlined,
                                                 size: 18,
                                               ),
                                               onPressed: () async {
@@ -585,6 +588,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                     .cast<HabitItem?>()
                                                     .firstWhere((_) => true, orElse: () => null);
                                                 final habitToUse = latestHabit ?? habit;
+
+                                                // Show summary if already completed
+                                                final now = LogicalDateService.now();
+                                                if (habitToUse.isCompletedForCurrentPeriod(now)) {
+                                                  final iso = _toIsoDate(now);
+                                                  final fb = habitToUse.feedbackByDate[iso];
+                                                  showCompletedHabitSummary(
+                                                    context,
+                                                    habit: habitToUse,
+                                                    feedback: fb ?? const HabitCompletionFeedback(rating: 0, note: null),
+                                                  );
+                                                  return;
+                                                }
+
                                                 final isSongBased = habitToUse.timeBound?.isSongBased ?? false;
 
                                                 await Navigator.of(context).push(

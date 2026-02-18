@@ -201,40 +201,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 0),
           ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Gender (for recommendations)'),
-            subtitle: Text(_genderLabel(_gender)),
-            onTap: _pickGender,
-          ),
-          const Divider(height: 0),
-          ListTile(
-            leading: const Icon(Icons.alarm),
-            title: const Text('Reminder Sound'),
-            subtitle: Text(_getAlarmSoundDisplayName()),
-            trailing: _customAlarmSoundPath != null
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: _clearAlarmSound,
-                    tooltip: 'Clear custom sound',
-                  )
-                : null,
-            onTap: _pickAlarmSound,
-          ),
-          const Divider(height: 0),
-          ListTile(
-            leading: const Icon(Icons.widgets_outlined),
-            title: const Text('Add home-screen widget'),
-            subtitle: const Text('See step-by-step instructions'),
-            onTap: () {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (context.mounted) {
-                  showHomeScreenWidgetInstructionsSheet(context);
-                }
-              });
-            },
-          ),
-          const Divider(height: 0),
-          ListTile(
             leading: const Icon(Icons.music_note),
             title: const Text('Music Provider Settings'),
             subtitle: const Text('Configure Spotify or Apple Music for rhythmic timers'),

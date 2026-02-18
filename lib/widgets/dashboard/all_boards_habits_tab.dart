@@ -131,7 +131,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     await _loadHabits();
 
     Future<void>(() async {
-      if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(newHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(newHabit);
@@ -149,10 +149,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
     
     if (isCompleted) {
-      await _toggleHabit(
-        habit: habit,
-        wasCompleted: true,
-      );
+      _showCompletionSummary(habit);
+      return;
     } else {
       // Determine coins based on card flip state
       final completionType = isFlipped
@@ -384,6 +382,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
   void _openTimerForHabit(_HabitEntry entry) {
     final habit = entry.habit;
+
+    // If already completed, show summary instead of launching the timer.
+    final now = LogicalDateService.now();
+    if (habit.isCompletedForCurrentPeriod(now)) {
+      _showCompletionSummary(habit);
+      return;
+    }
+
     if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
 
     final isSongBased = habit.timeBound?.isSongBased ?? false;
@@ -420,6 +426,20 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
+  void _showCompletionSummary(HabitItem habit) {
+    final iso = _toIsoDate(LogicalDateService.now());
+    final feedback = habit.feedbackByDate[iso];
+    if (feedback != null) {
+      showCompletedHabitSummary(context, habit: habit, feedback: feedback);
+    } else {
+      showCompletedHabitSummary(
+        context,
+        habit: habit,
+        feedback: const HabitCompletionFeedback(rating: 0, note: null),
+      );
+    }
+  }
+
   Future<void> _editHabit(_HabitEntry entry) async {
     final req = await showAddHabitModal(
       context,
@@ -450,7 +470,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     await HabitStorageService.updateHabit(updatedHabit);
     await _loadHabits();
 
-    if (updatedHabit.reminderEnabled) {
+    if (NotificationsService.shouldSchedule(updatedHabit)) {
       await NotificationsService.scheduleHabitReminders(updatedHabit);
     }
 
@@ -1181,10 +1201,10 @@ class _CopingPlanFace extends StatelessWidget {
         ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
             (cbt.ifThenPlan?.isNotEmpty ?? false));
 
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final textColor = isDark ? Colors.white : AppColors.nearBlack;
     final subtitleColor =
-        isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF6B6B6B);
-    final accentColor = const Color(0xFFE8802A);
+        isDark ? Colors.white.withValues(alpha: 0.6) : AppColors.dimGrey;
+    final accentColor = AppColors.completedOrange;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1376,7 +1396,7 @@ class _TimelineCheckpoint extends StatelessWidget {
   final VoidCallback? onTap;
   const _TimelineCheckpoint({required this.isCompleted, this.onTap});
 
-  static const _completedColor = Color(0xFFE8802A);
+  static const _completedColor = AppColors.completedOrange;
 
   @override
   Widget build(BuildContext context) {

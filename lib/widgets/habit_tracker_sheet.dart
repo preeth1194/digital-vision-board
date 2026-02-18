@@ -247,7 +247,7 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
     final created = _habits.last;
     Future<void>(() async {
-      if (!created.reminderEnabled || created.reminderMinutes == null) return;
+      if (!NotificationsService.shouldSchedule(created)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(created);

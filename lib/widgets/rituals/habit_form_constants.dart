@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/app_colors.dart';
+
 // ============================================================================
 // Data Models & Constants
 // ============================================================================
@@ -112,24 +114,24 @@ const Map<String, List<int>> categoryToIconIndices = {
   ],
 };
 
-const List<Color> hueSpectrumColors = [
-  Color(0xFFFF0000), // red
-  Color(0xFFFFFF00), // yellow
-  Color(0xFF00FF00), // green
-  Color(0xFF00FFFF), // cyan
-  Color(0xFF0000FF), // blue
-  Color(0xFFFF00FF), // magenta
-  Color(0xFFFF0000), // red
+List<Color> hueSpectrumColors = [
+  AppColors.hueRed,
+  AppColors.hueYellow,
+  AppColors.hueGreen,
+  AppColors.hueCyan,
+  AppColors.hueBlue,
+  AppColors.hueMagenta,
+  AppColors.hueRed,
 ];
 
 final List<(String, List<Color>)> habitColors = [
-  ('Red', [const Color(0xFFEF4444), const Color(0xFFB91C1C)]),
-  ('Orange', [const Color(0xFFF97316), const Color(0xFFC2410C)]),
-  ('Yellow', [const Color(0xFFEAB308), const Color(0xFFA16207)]),
-  ('Green', [const Color(0xFF22C55E), const Color(0xFF15803D)]),
-  ('Blue', [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)]),
-  ('Indigo', [const Color(0xFF6366F1), const Color(0xFF4338CA)]),
-  ('Violet', [const Color(0xFF8B5CF6), const Color(0xFF6D28D9)]),
+  ('Red', [AppColors.habitRedLight, AppColors.habitRedDark]),
+  ('Orange', [AppColors.habitOrangeLight, AppColors.habitOrangeDark]),
+  ('Yellow', [AppColors.habitYellowLight, AppColors.habitYellowDark]),
+  ('Green', [AppColors.habitGreenLight, AppColors.habitGreenDark]),
+  ('Blue', [AppColors.habitBlueLight, AppColors.habitBlueDark]),
+  ('Indigo', [AppColors.habitIndigoLight, AppColors.habitIndigoDark]),
+  ('Violet', [AppColors.habitVioletLight, AppColors.habitVioletDark]),
 ];
 
 const double kControlSpacing = 20.0;
@@ -137,6 +139,43 @@ const double kSectionSpacing = 10.0;
 
 /// Alert dropdown options: minutes before start time (5 mins to 1 hour)
 const List<int> kReminderMinutesBeforeOptions = [5, 10, 15, 20, 25, 30, 45, 60];
+
+/// Built-in notification sound presets: (id, display label, icon).
+const List<(String, String, IconData)> kNotificationSoundOptions = [
+  ('default', 'Default', Icons.notifications_active_outlined),
+  ('chime', 'Chime', Icons.music_note_outlined),
+  ('bell', 'Bell', Icons.notifications_outlined),
+  ('gentle', 'Gentle', Icons.waves_outlined),
+  ('alert', 'Alert', Icons.warning_amber_outlined),
+  ('none', 'None', Icons.notifications_off_outlined),
+];
+
+/// Vibration type options: (id, display label).
+const List<(String, String)> kVibrateTypeOptions = [
+  ('none', 'None'),
+  ('default', 'Default'),
+  ('short', 'Short'),
+  ('long', 'Long'),
+];
+
+/// Returns the display label for a notification sound id.
+/// Falls back to 'Custom' for file-path values.
+String notificationSoundLabel(String? id) {
+  if (id == null) return 'Default';
+  for (final opt in kNotificationSoundOptions) {
+    if (opt.$1 == id) return opt.$2;
+  }
+  return 'Custom';
+}
+
+/// Returns the display label for a vibration type id.
+String vibrateTypeLabel(String? id) {
+  if (id == null) return 'Default';
+  for (final opt in kVibrateTypeOptions) {
+    if (opt.$1 == id) return opt.$2;
+  }
+  return 'Default';
+}
 
 /// Milestone preset for the Commitment Goal section.
 class MilestonePreset {
@@ -173,6 +212,6 @@ Color habitSectionSeparatorColor(ColorScheme colorScheme) =>
 
 Color contrastColor(Color background) {
   return background.computeLuminance() > 0.5
-      ? const Color(0xFF1C1B1F)
+      ? AppColors.darkSurface
       : Colors.white;
 }

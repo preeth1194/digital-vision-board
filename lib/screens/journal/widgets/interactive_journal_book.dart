@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import '../../../services/journal_book_storage_service.dart';
+import '../../../utils/app_colors.dart';
 
 /// An interactive 3D journal book that opens on tap to reveal entries.
 class InteractiveJournalBook extends StatefulWidget {
@@ -579,7 +580,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
         decoration: BoxDecoration(
           color: isDark
               ? colorScheme.surfaceContainerHigh
-              : const Color(0xFFFAF8F5),
+              : AppColors.warmIvory,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: widget.coverColor.withOpacity(0.3),

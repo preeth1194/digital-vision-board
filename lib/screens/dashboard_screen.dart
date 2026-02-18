@@ -301,12 +301,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFFD54F), Color(0xFFF9A825)],
+                    colors: [AppColors.goldLight, AppColors.goldDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   border: Border.all(
-                    color: const Color(0xFFFF8F00),
+                    color: AppColors.amberBorder,
                     width: 1.5,
                   ),
                 ),
@@ -844,14 +844,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               onTap: () async {
                 Navigator.of(context).pop();
                 await _openAccount();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.notifications_outlined),
-              title: const Text('Notifications'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _openRemindersSheet();
               },
             ),
             ListTile(

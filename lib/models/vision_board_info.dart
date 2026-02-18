@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../utils/app_colors.dart';
 import 'core_value.dart';
 
 class VisionBoardInfo {
@@ -73,7 +74,7 @@ class VisionBoardInfo {
         iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
             Icons.dashboard_outlined.codePoint,
         tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
-            const Color(0xFFEEF2FF).value,
+            AppColors.pastelIndigo.value,
         layoutType: json['layoutType'] as String? ?? VisionBoardInfo.layoutFreeform,
         templateId: json['templateId'] as String?,
       );

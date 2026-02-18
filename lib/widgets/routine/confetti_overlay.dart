@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/app_colors.dart';
 
 /// A confetti celebration overlay that displays animated particles.
 class ConfettiOverlay extends StatefulWidget {
@@ -31,12 +32,12 @@ class _ConfettiOverlayState extends State<ConfettiOverlay>
   final _random = math.Random();
 
   static const _colors = [
-    Color(0xFFD4A843), // Gold
-    Color(0xFF4A7C59), // Moss Green
-    Color(0xFFA8D5BA), // Mint Green
-    Color(0xFFE91E63), // Pink
-    Color(0xFFFF9800), // Orange
-    Color(0xFF8FBC8F), // Sage Green
+    AppColors.gold,
+    AppColors.mossGreen,
+    AppColors.mintGreen,
+    AppColors.confettiPink,
+    AppColors.confettiOrange,
+    AppColors.sageGreen,
   ];
 
   @override

@@ -13,11 +13,11 @@ import 'services/app_settings_service.dart';
 import 'services/logical_date_service.dart';
 import 'services/habit_progress_widget_snapshot_service.dart';
 import 'services/puzzle_widget_snapshot_service.dart';
+import 'utils/app_colors.dart';
 import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/notifications_service.dart';
 import 'services/wizard_defaults_service.dart';
-import 'utils/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,8 +97,8 @@ class DigitalVisionBoardApp extends StatelessWidget {
                 labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ).apply(
-              bodyColor: const Color(0xFFE8F5E9),
-              displayColor: const Color(0xFFE8F5E9),
+              bodyColor: AppColors.paleGreenTint,
+              displayColor: AppColors.paleGreenTint,
             ),
           ),
           themeMode: mode,

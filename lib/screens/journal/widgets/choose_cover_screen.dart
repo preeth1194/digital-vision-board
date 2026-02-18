@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../models/journal_book.dart';
+import '../../../utils/app_colors.dart';
 import '../../../utils/app_typography.dart';
 import '../../../widgets/grid/image_source_sheet.dart';
 
@@ -57,14 +57,14 @@ class ChooseCoverScreen extends StatefulWidget {
 
 class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
   static const List<BookCoverStyle> _coverStyles = [
-    BookCoverStyle(name: 'Coral', primaryColor: 0xFFE57373),
-    BookCoverStyle(name: 'Sunset', primaryColor: 0xFFFFB74D),
-    BookCoverStyle(name: 'Fiji', primaryColor: 0xFF4A7DFF, secondaryColor: 0xFF2E5BDB, hasPattern: true),
-    BookCoverStyle(name: 'Forest', primaryColor: 0xFF4DB6AC),
-    BookCoverStyle(name: 'Lavender', primaryColor: 0xFF9575CD),
-    BookCoverStyle(name: 'Rose', primaryColor: 0xFFF06292),
-    BookCoverStyle(name: 'Midnight', primaryColor: 0xFF5C6BC0, secondaryColor: 0xFF3949AB, hasPattern: true),
-    BookCoverStyle(name: 'Custom', primaryColor: 0xFF78909C, isCustom: true),
+    BookCoverStyle(name: 'Coral', primaryColor: AppColors.coverCoral),
+    BookCoverStyle(name: 'Sunset', primaryColor: AppColors.coverOrange),
+    BookCoverStyle(name: 'Fiji', primaryColor: AppColors.coverFijiPrimary, secondaryColor: AppColors.coverFijiSecondary, hasPattern: true),
+    BookCoverStyle(name: 'Forest', primaryColor: AppColors.coverTeal),
+    BookCoverStyle(name: 'Lavender', primaryColor: AppColors.coverPurple),
+    BookCoverStyle(name: 'Rose', primaryColor: AppColors.coverPink),
+    BookCoverStyle(name: 'Midnight', primaryColor: AppColors.coverMidnightPrimary, secondaryColor: AppColors.coverMidnightSecondary, hasPattern: true),
+    BookCoverStyle(name: 'Custom', primaryColor: AppColors.coverCustomGrey, isCustom: true),
   ];
 
   int _selectedIndex = 2; // Default to Fiji (like reference)

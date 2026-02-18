@@ -196,6 +196,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       timeBound: req.timeBound,
       locationBound: req.locationBound,
       iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
       completedDates: const [],
     );
 
@@ -337,6 +339,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       timeBound: req.timeBound,
       locationBound: req.locationBound,
       iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
 
     final nextComponents = _components.map((c) {

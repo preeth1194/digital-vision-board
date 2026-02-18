@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
+import '../../../services/journal_book_storage_service.dart';
 import 'book_action_bar.dart';
 import 'interactive_journal_book.dart';
 
@@ -154,6 +155,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   }
 
   void _confirmDeleteBook(JournalBook book) {
+    if (book.id == JournalBookStorageService.goalLogsBookId) return;
     final entryCount = widget.entryCounts[book.id] ?? 0;
     showDialog(
       context: context,

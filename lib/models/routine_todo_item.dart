@@ -35,6 +35,9 @@ class RoutineTodoItem {
   /// List of dates when this todo was completed
   final List<DateTime> completedDates;
 
+  /// Optional linked habit ID (when this step is backed by an existing habit)
+  final String? linkedHabitId;
+
   const RoutineTodoItem({
     required this.id,
     required this.title,
@@ -47,6 +50,7 @@ class RoutineTodoItem {
     this.reminderMinutes,
     this.timeOfDay,
     this.completedDates = const [],
+    this.linkedHabitId,
   });
 
   RoutineTodoItem copyWith({
@@ -61,6 +65,7 @@ class RoutineTodoItem {
     int? reminderMinutes,
     String? timeOfDay,
     List<DateTime>? completedDates,
+    String? linkedHabitId,
   }) {
     return RoutineTodoItem(
       id: id ?? this.id,
@@ -74,6 +79,7 @@ class RoutineTodoItem {
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       timeOfDay: timeOfDay ?? this.timeOfDay,
       completedDates: completedDates ?? this.completedDates,
+      linkedHabitId: linkedHabitId ?? this.linkedHabitId,
     );
   }
 
@@ -92,6 +98,7 @@ class RoutineTodoItem {
       'completedDates': completedDates
           .map((date) => date.toIso8601String().split('T')[0])
           .toList(), // Store as ISO-8601 date strings (YYYY-MM-DD)
+      'linkedHabitId': linkedHabitId,
     };
   }
 
@@ -116,6 +123,7 @@ class RoutineTodoItem {
       reminderMinutes: (json['reminderMinutes'] as num?)?.toInt(),
       timeOfDay: json['timeOfDay'] as String?,
       completedDates: dates,
+      linkedHabitId: json['linkedHabitId'] as String?,
     );
   }
 

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/core_value.dart';
-import '../../models/wizard/wizard_core_value.dart';
+import '../../models/wizard/wizard_core_value_catalog.dart';
 import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_defaults_service.dart';
 import '../../utils/app_typography.dart';

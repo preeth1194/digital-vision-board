@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'habit_item.dart';
-import 'task_item.dart';
+import 'task_and_checklist_models.dart';
 import 'vision_component.dart';
 
 final class TextComponent extends VisionComponent {

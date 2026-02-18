@@ -12,13 +12,9 @@ class DashboardTab extends StatelessWidget {
   final String? activeRoutineId;
   final SharedPreferences? prefs;
   final VoidCallback onCreateBoard;
-  final VoidCallback onCreateRoutine;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
-  final ValueChanged<Routine> onOpenRoutine;
-  final ValueChanged<Routine> onEditRoutine;
-  final ValueChanged<Routine> onDeleteRoutine;
 
   const DashboardTab({
     super.key,
@@ -28,13 +24,9 @@ class DashboardTab extends StatelessWidget {
     required this.activeRoutineId,
     this.prefs,
     required this.onCreateBoard,
-    required this.onCreateRoutine,
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
-    required this.onOpenRoutine,
-    required this.onEditRoutine,
-    required this.onDeleteRoutine,
   });
 
   @override

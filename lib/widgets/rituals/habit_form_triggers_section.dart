@@ -114,6 +114,11 @@ class Step4Triggers extends StatefulWidget {
   final ValueChanged<String> onTriggerModeChanged;
   final ValueChanged<int> onDwellMinutesChanged;
 
+  final String? timeConflictError;
+  final TimeOfDay? suggestedStartTime;
+  final String? slotAvailableInfo;
+  final VoidCallback? onSuggestionTap;
+
   const Step4Triggers({
     super.key,
     required this.habitColor,
@@ -143,6 +148,10 @@ class Step4Triggers extends StatefulWidget {
     required this.onRadiusChanged,
     required this.onTriggerModeChanged,
     required this.onDwellMinutesChanged,
+    this.timeConflictError,
+    this.suggestedStartTime,
+    this.slotAvailableInfo,
+    this.onSuggestionTap,
   });
 
   @override
@@ -284,25 +293,77 @@ class _Step4TriggersState extends State<Step4Triggers> {
                         color: colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "Start time",
-                            style: AppTypography.bodySmall(context).copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "Start time",
+                              style: AppTypography.bodySmall(context).copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                          Text(
-                            displayStart.format(context),
-                            style: AppTypography.body(context).copyWith(
-                              color: widget.habitColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                            Text(
+                              displayStart.format(context),
+                              style: AppTypography.body(context).copyWith(
+                                color: widget.timeConflictError != null
+                                    ? colorScheme.error
+                                    : widget.habitColor,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                            if (widget.timeConflictError != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                widget.timeConflictError!,
+                                style: TextStyle(color: colorScheme.error, fontSize: 12),
+                              ),
+                              if (widget.suggestedStartTime != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: GestureDetector(
+                                    onTap: widget.onSuggestionTap,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Try ${widget.suggestedStartTime!.format(context)}',
+                                        style: TextStyle(
+                                          color: colorScheme.primary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ] else if (widget.slotAvailableInfo != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_outline_rounded, size: 14, color: colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      widget.slotAvailableInfo!,
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

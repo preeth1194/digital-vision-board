@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
+import '../../services/icon_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
 
-// --- STEP 6: HABIT STACKING ---
+// --- STEP 6: ACTION STEPS + HABIT STACKING ---
 class Step6Strategy extends StatefulWidget {
   final Color habitColor;
   final bool habitStackingEnabled;
@@ -19,6 +21,9 @@ class Step6Strategy extends StatefulWidget {
   final ValueChanged<String> onAnchorTextChanged;
   final ValueChanged<String> onRelationshipChanged;
   final String? anchorHabitError;
+
+  final List<HabitActionStep> actionSteps;
+  final ValueChanged<List<HabitActionStep>> onActionStepsChanged;
 
   const Step6Strategy({
     super.key,
@@ -34,6 +39,8 @@ class Step6Strategy extends StatefulWidget {
     required this.onRelationshipChanged,
     this.isEditing = false,
     this.anchorHabitError,
+    required this.actionSteps,
+    required this.onActionStepsChanged,
   });
 
   @override
@@ -130,166 +137,278 @@ class _Step6StrategyState extends State<Step6Strategy> {
     setState(() {});
   }
 
+  void _addStep() {
+    final steps = List<HabitActionStep>.from(widget.actionSteps);
+    steps.add(HabitActionStep(
+      id: 'step_${DateTime.now().millisecondsSinceEpoch}',
+      title: '',
+      iconCodePoint: Icons.check_circle_outline.codePoint,
+      order: steps.length,
+    ));
+    widget.onActionStepsChanged(steps);
+  }
+
+  void _deleteStep(int index) {
+    final steps = List<HabitActionStep>.from(widget.actionSteps);
+    steps.removeAt(index);
+    for (int i = 0; i < steps.length; i++) {
+      steps[i] = steps[i].copyWith(order: i);
+    }
+    widget.onActionStepsChanged(steps);
+  }
+
+  void _updateStepTitle(int index, String title) {
+    final steps = List<HabitActionStep>.from(widget.actionSteps);
+    final newIcon = title.trim().isNotEmpty
+        ? IconService.getIconCodePointForTitle(title.trim())
+        : steps[index].iconCodePoint;
+    steps[index] = steps[index].copyWith(title: title, iconCodePoint: newIcon);
+    widget.onActionStepsChanged(steps);
+  }
+
+  void _reorderSteps(int oldIndex, int newIndex) {
+    final steps = List<HabitActionStep>.from(widget.actionSteps);
+    if (newIndex > oldIndex) newIndex--;
+    final item = steps.removeAt(oldIndex);
+    steps.insert(newIndex, item);
+    for (int i = 0; i < steps.length; i++) {
+      steps[i] = steps[i].copyWith(order: i);
+    }
+    widget.onActionStepsChanged(steps);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return CupertinoListSection.insetGrouped(
-      header: Text(
-        "Habit Stacking",
-        style: AppTypography.caption(context).copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
-      ),
-      margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
-      decoration: habitSectionDecoration(colorScheme),
-      separatorColor: habitSectionSeparatorColor(colorScheme),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CupertinoListTile.notched(
-              leading: Icon(
-                Icons.link,
-                color: colorScheme.onSurfaceVariant,
-                size: 28,
-              ),
-              title: Text(
-                "Anchor to an existing habit",
-                style: AppTypography.body(context).copyWith(
+        // ACTION STEPS section
+        CupertinoListSection.insetGrouped(
+          header: Row(
+            children: [
+              Text(
+                "Action Steps",
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
+                  fontSize: 14,
                 ),
               ),
-              trailing: CupertinoSwitch(
-                value: widget.habitStackingEnabled,
-                onChanged: widget.onHabitStackingToggle,
-                activeTrackColor: widget.habitColor,
-              ),
-              onTap: null,
-            ),
-            if (widget.habitStackingEnabled)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Relationship picker (Before / After)
-                    Builder(builder: (context) {
-                      const options = ['Before', 'After'];
-                      final safeValue = options.contains(widget.relationship)
-                          ? widget.relationship
-                          : 'Before';
-                      return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButton<String>(
-                        dropdownColor:
-                            colorScheme.surfaceContainerHighest,
-                        value: safeValue,
-                        isExpanded: true,
-                        style: AppTypography.body(context),
-                        underline: const SizedBox(),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        items: ['Before', 'After']
-                            .map((e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(e),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            widget.onRelationshipChanged(v!),
-                      ),
-                    );
-                    }),
-                    SizedBox(height: kControlSpacing),
-
-                    // Searchable habit picker
-                    TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      style: AppTypography.body(context),
-                      onChanged: (v) {
-                        widget.onAnchorTextChanged(v);
-                        // Clear the linked habit ID when user starts typing
-                        if (widget.afterHabitId != null) {
-                          widget.onAfterHabitIdChanged(null);
-                        }
-                        setState(() => _showSuggestions = true);
-                      },
-                      decoration: InputDecoration(
-                        hintText: "Search or type a habit...",
-                        hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.5),
-                        ),
-                        errorText: widget.anchorHabitError,
-                        errorStyle: AppTypography.caption(context).copyWith(
-                          color: colorScheme.error,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: widget.anchorHabitError != null
-                              ? colorScheme.error
-                              : colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.6),
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(
-                                  Icons.clear,
-                                  size: 18,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                onPressed: _clearSelection,
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHigh,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: widget.anchorHabitError != null
-                              ? BorderSide(color: colorScheme.error)
-                              : BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: widget.anchorHabitError != null
-                              ? BorderSide(color: colorScheme.error)
-                              : BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: widget.anchorHabitError != null
-                                ? colorScheme.error
-                                : colorScheme.primary,
+              const Spacer(),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: _addStep,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded, color: colorScheme.onPrimary, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Add',
+                          style: TextStyle(
+                            color: colorScheme.onPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                           ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
+                      ],
                     ),
-
-                    // Suggestion list
-                    if (_showSuggestions) _buildSuggestionList(colorScheme),
-                  ],
+                  ),
                 ),
               ),
+            ],
+          ),
+          margin: EdgeInsets.zero,
+          backgroundColor: colorScheme.surface,
+          decoration: habitSectionDecoration(colorScheme),
+          separatorColor: habitSectionSeparatorColor(colorScheme),
+          children: [
+            if (widget.actionSteps.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                child: Text(
+                  'Break your habit into small steps',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall(context).copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+              )
+            else
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: widget.actionSteps.length,
+                onReorder: _reorderSteps,
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (context, child) => Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(12),
+                      child: child,
+                    ),
+                    child: child,
+                  );
+                },
+                itemBuilder: (context, index) {
+                  final step = widget.actionSteps[index];
+                  return _ActionStepTile(
+                    key: ValueKey(step.id),
+                    step: step,
+                    stepNumber: index + 1,
+                    colorScheme: colorScheme,
+                    onTitleChanged: (title) => _updateStepTitle(index, title),
+                    onDelete: () => _deleteStep(index),
+                    reorderIndex: index,
+                  );
+                },
+              ),
+          ],
+        ),
+        SizedBox(height: kSectionSpacing),
+        // HABIT STACKING section (anchor habit)
+        CupertinoListSection.insetGrouped(
+          header: Text(
+            "Habit Stacking",
+            style: AppTypography.caption(context).copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+          margin: EdgeInsets.zero,
+          backgroundColor: colorScheme.surface,
+          decoration: habitSectionDecoration(colorScheme),
+          separatorColor: habitSectionSeparatorColor(colorScheme),
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CupertinoListTile.notched(
+                  leading: Icon(
+                    Icons.link,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 28,
+                  ),
+                  title: Text(
+                    "Anchor to an existing habit",
+                    style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  trailing: CupertinoSwitch(
+                    value: widget.habitStackingEnabled,
+                    onChanged: widget.onHabitStackingToggle,
+                    activeTrackColor: widget.habitColor,
+                  ),
+                  onTap: null,
+                ),
+                if (widget.habitStackingEnabled)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Builder(builder: (context) {
+                          const options = ['Before', 'After'];
+                          final safeValue = options.contains(widget.relationship)
+                              ? widget.relationship
+                              : 'Before';
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: DropdownButton<String>(
+                              dropdownColor: colorScheme.surfaceContainerHighest,
+                              value: safeValue,
+                              isExpanded: true,
+                              style: AppTypography.body(context),
+                              underline: const SizedBox(),
+                              icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurfaceVariant),
+                              items: ['Before', 'After']
+                                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                                  .toList(),
+                              onChanged: (v) => widget.onRelationshipChanged(v!),
+                            ),
+                          );
+                        }),
+                        SizedBox(height: kControlSpacing),
+                        TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          style: AppTypography.body(context),
+                          onChanged: (v) {
+                            widget.onAnchorTextChanged(v);
+                            if (widget.afterHabitId != null) {
+                              widget.onAfterHabitIdChanged(null);
+                            }
+                            setState(() => _showSuggestions = true);
+                          },
+                          decoration: InputDecoration(
+                            hintText: "Search or type a habit...",
+                            hintStyle: AppTypography.body(context).copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            ),
+                            errorText: widget.anchorHabitError,
+                            errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: widget.anchorHabitError != null
+                                  ? colorScheme.error
+                                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            ),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear, size: 18, color: colorScheme.onSurfaceVariant),
+                                    onPressed: _clearSelection,
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHigh,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: widget.anchorHabitError != null
+                                  ? BorderSide(color: colorScheme.error)
+                                  : BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: widget.anchorHabitError != null
+                                  ? BorderSide(color: colorScheme.error)
+                                  : BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: widget.anchorHabitError != null
+                                    ? colorScheme.error
+                                    : colorScheme.primary,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                        ),
+                        if (_showSuggestions) _buildSuggestionList(colorScheme),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ],
@@ -480,6 +599,125 @@ class SuggestionTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Inline editable tile for a single action step inside the Action Steps section.
+class _ActionStepTile extends StatefulWidget {
+  final HabitActionStep step;
+  final int stepNumber;
+  final ColorScheme colorScheme;
+  final ValueChanged<String> onTitleChanged;
+  final VoidCallback onDelete;
+  final int reorderIndex;
+
+  const _ActionStepTile({
+    super.key,
+    required this.step,
+    required this.stepNumber,
+    required this.colorScheme,
+    required this.onTitleChanged,
+    required this.onDelete,
+    required this.reorderIndex,
+  });
+
+  @override
+  State<_ActionStepTile> createState() => _ActionStepTileState();
+}
+
+class _ActionStepTileState extends State<_ActionStepTile> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.step.title);
+  }
+
+  @override
+  void didUpdateWidget(_ActionStepTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.step.id != widget.step.id) {
+      _controller.text = widget.step.title;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final icon = IconService.iconFromCodePoint(widget.step.iconCodePoint);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          ReorderableDragStartListener(
+            index: widget.reorderIndex,
+            child: Icon(Icons.drag_handle_rounded, size: 20, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: cs.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(child: Icon(icon, size: 16, color: cs.onPrimaryContainer)),
+                Positioned(
+                  top: -4,
+                  left: -4,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: cs.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cs.surface, width: 1.5),
+                    ),
+                    child: Text(
+                      '${widget.stepNumber}',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: cs.onPrimary, height: 1),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: 'Step title...',
+                hintStyle: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              ),
+              style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500, fontSize: 14),
+              onChanged: widget.onTitleChanged,
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, size: 18, color: cs.error.withValues(alpha: 0.7)),
+            onPressed: widget.onDelete,
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Remove',
+          ),
+        ],
       ),
     );
   }

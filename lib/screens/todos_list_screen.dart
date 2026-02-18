@@ -90,6 +90,8 @@ class _TodosListScreenState extends State<TodosListScreen> {
       timeBound: req.timeBound,
       locationBound: req.locationBound,
       iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
   }
 

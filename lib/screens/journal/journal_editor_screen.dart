@@ -914,25 +914,27 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Page header with date
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                EditorSpacing.contentPadding,
-                                EditorSpacing.elementGap + 4,
-                                EditorSpacing.contentPadding,
-                                0,
-                              ),
-                              child: Text(
-                                _formatEntryDate(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme.primary.withOpacity(0.7),
-                                  letterSpacing: 0.5,
+                            // Page header with date (hidden for Goal Logs entries)
+                            if (widget.existingEntry?.id.startsWith('goal_log_') != true) ...[
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  EditorSpacing.contentPadding,
+                                  EditorSpacing.elementGap + 4,
+                                  EditorSpacing.contentPadding,
+                                  0,
+                                ),
+                                child: Text(
+                                  _formatEntryDate(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: colorScheme.primary.withOpacity(0.7),
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: EditorSpacing.smallGap),
+                              SizedBox(height: EditorSpacing.smallGap),
+                            ],
                             // Large title field
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: EditorSpacing.contentPadding),

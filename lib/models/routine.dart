@@ -35,6 +35,12 @@ class Routine {
   /// Start date for the routine (used for interval calculation)
   final DateTime? startDate;
 
+  /// IDs of habits linked to this routine
+  final List<String> linkedHabitIds;
+
+  /// Start time in minutes since midnight (e.g. 8:51 PM = 20*60+51 = 1251)
+  final int? startTimeMinutes;
+
   const Routine({
     required this.id,
     required this.title,
@@ -50,6 +56,8 @@ class Routine {
     this.weekdays,
     this.intervalDays,
     this.startDate,
+    this.linkedHabitIds = const [],
+    this.startTimeMinutes,
   });
 
   Routine copyWith({
@@ -67,6 +75,8 @@ class Routine {
     List<int>? weekdays,
     int? intervalDays,
     DateTime? startDate,
+    List<String>? linkedHabitIds,
+    int? startTimeMinutes,
   }) {
     return Routine(
       id: id ?? this.id,
@@ -83,6 +93,8 @@ class Routine {
       weekdays: weekdays ?? this.weekdays,
       intervalDays: intervalDays ?? this.intervalDays,
       startDate: startDate ?? this.startDate,
+      linkedHabitIds: linkedHabitIds ?? this.linkedHabitIds,
+      startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
     );
   }
 
@@ -101,6 +113,8 @@ class Routine {
         'weekdays': weekdays,
         'intervalDays': intervalDays,
         'startDate': startDate?.toIso8601String(),
+        'linkedHabitIds': linkedHabitIds,
+        'startTimeMinutes': startTimeMinutes,
       };
 
   factory Routine.fromJson(Map<String, dynamic> json) {
@@ -114,6 +128,9 @@ class Routine {
 
     final String? startDateStr = json['startDate'] as String?;
     final DateTime? startDate = startDateStr != null ? DateTime.tryParse(startDateStr) : null;
+
+    final List<dynamic>? linkedHabitIdsJson = json['linkedHabitIds'] as List<dynamic>?;
+    final List<String> linkedHabitIds = linkedHabitIdsJson?.map((e) => e as String).toList() ?? [];
 
     return Routine(
       id: json['id'] as String,
@@ -133,6 +150,8 @@ class Routine {
       weekdays: weekdays,
       intervalDays: (json['intervalDays'] as num?)?.toInt(),
       startDate: startDate,
+      linkedHabitIds: linkedHabitIds,
+      startTimeMinutes: (json['startTimeMinutes'] as num?)?.toInt(),
     );
   }
 
@@ -178,10 +197,10 @@ class Routine {
     }
   }
 
-  /// Get the start time of this routine based on the first todo's scheduled time
+  /// Get the start time of this routine in minutes since midnight
   int? getStartTimeMinutes() {
-    if (todos.isEmpty) return null;
-    // Find the first todo with a scheduled time
+    if (startTimeMinutes != null) return startTimeMinutes;
+    // Fallback: check the first todo with a scheduled time
     for (final todo in todos) {
       if (todo.reminderMinutes != null) {
         return todo.reminderMinutes;

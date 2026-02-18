@@ -17,6 +17,8 @@ class AnimatedHabitCard extends StatefulWidget {
   final int coinsOnComplete;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onDurationTap;
+  final VoidCallback? onIconTap;
   final int index;
 
   const AnimatedHabitCard({
@@ -28,6 +30,8 @@ class AnimatedHabitCard extends StatefulWidget {
     required this.coinsOnComplete,
     required this.onTap,
     this.onLongPress,
+    this.onDurationTap,
+    this.onIconTap,
     this.index = 0,
   });
 
@@ -266,15 +270,19 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
           ),
           child: Row(
             children: [
-              // Category icon circle
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: iconCircleColor,
-                  shape: BoxShape.circle,
+              // Category icon circle — tappable to flip the card
+              GestureDetector(
+                onTap: widget.onIconTap,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: iconCircleColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
               ),
               const SizedBox(width: 14),
               // Name + streak
@@ -340,7 +348,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                   ],
                 ),
               ),
-              // Duration badge (if applicable)
+              // Duration badge (if applicable) — tappable to open timer
               if (durationLabel != null) ...[
                 Container(
                   width: 1,
@@ -350,12 +358,27 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                       ? Colors.white.withValues(alpha: 0.12)
                       : Colors.black.withValues(alpha: 0.08),
                 ),
-                Text(
-                  durationLabel,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: subtitleColor,
+                GestureDetector(
+                  onTap: widget.onDurationTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 16,
+                        color: subtitleColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        durationLabel,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: subtitleColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

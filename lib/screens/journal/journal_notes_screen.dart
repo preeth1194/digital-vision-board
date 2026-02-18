@@ -16,7 +16,7 @@ import 'journal_editor_screen.dart';
 import 'models/journal_editor_models.dart';
 import 'widgets/choose_cover_screen.dart';
 import 'widgets/journal_browse.dart';
-import 'widgets/journal_landing.dart';
+import 'widgets/journal_hero_section.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
   final bool embedded;

@@ -1,3 +1,5 @@
+import 'dart:math' show pi;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,28 +12,34 @@ import '../../services/notifications_service.dart';
 import '../../services/logical_date_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/coins_service.dart';
+import '../../services/journal_book_storage_service.dart';
+import '../../services/journal_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../../screens/rhythmic_timer_screen.dart';
 import '../../services/habit_geofence_tracking_service.dart';
 import '../rituals/add_habit_modal.dart';
-import '../rituals/coins_header.dart';
+import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
 import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
-import '../rituals/lottie_coin_overlay.dart';
+import '../routine/confetti_overlay.dart';
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
   final Map<String, List<VisionComponent>> componentsByBoardId;
   final Future<void> Function(String boardId, List<VisionComponent> updated) onSaveBoardComponents;
+  final ValueNotifier<int>? coinNotifier;
+  final GlobalKey? coinTargetKey;
 
   const AllBoardsHabitsTab({
     super.key,
     required this.boards,
     required this.componentsByBoardId,
     required this.onSaveBoardComponents,
+    this.coinNotifier,
+    this.coinTargetKey,
   });
 
   @override
@@ -39,18 +47,18 @@ class AllBoardsHabitsTab extends StatefulWidget {
 }
 
 class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
-  int _totalCoins = 0;
-  final GlobalKey _coinTargetKey = GlobalKey();
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
+  bool _isSaving = false;
+  final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
+  Offset? _confettiOrigin;
 
   @override
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
-    _loadCoins();
     _scrollController.addListener(_onScroll);
   }
   
@@ -64,6 +72,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   void didUpdateWidget(AllBoardsHabitsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.componentsByBoardId != oldWidget.componentsByBoardId) {
+      if (_isSaving) return;
       _localComponents = Map.from(widget.componentsByBoardId);
     }
   }
@@ -73,11 +82,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadCoins() async {
-    final coins = await CoinsService.getTotalCoins();
-    if (mounted) setState(() => _totalCoins = coins);
   }
 
   static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
@@ -180,6 +184,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       locationBound: req.locationBound,
       iconIndex: req.iconIndex,
       completedDates: const [],
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
 
     final nextComponents = components.map((c) {
@@ -218,6 +224,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     required VisionComponent component,
     required HabitItem habit,
     required GlobalKey cardKey,
+    required bool isFlipped,
   }) async {
     final now = LogicalDateService.now();
     if (!habit.isScheduledOnDate(now)) return;
@@ -235,49 +242,68 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         wasCompleted: true,
       );
     } else {
-      // Show completion sheet
-      final result = await showHabitCompletionSheet(context, habit: habit);
+      // Determine coins based on card flip state
+      final completionType = isFlipped
+          ? CompletionType.copingPlan
+          : CompletionType.habit;
+      final coins = CoinsService.getCoinsForCompletionType(completionType);
+
+      // Show completion sheet with pre-determined coins
+      final result = await showHabitCompletionSheet(
+        context,
+        habit: habit,
+        coinsEarned: coins,
+      );
       if (result == null) return;
       
-      // Get card position for coin flying animation (after Lottie)
+      // Get card position for confetti and coin flying animation
       final RenderBox? cardBox = cardKey.currentContext?.findRenderObject() as RenderBox?;
-      final RenderBox? targetBox = _coinTargetKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? targetBox = widget.coinTargetKey?.currentContext?.findRenderObject() as RenderBox?;
       
       Offset? cardPosition;
       Offset? targetPosition;
-      
-      if (cardBox != null && targetBox != null) {
+
+      if (cardBox != null) {
         cardPosition = cardBox.localToGlobal(
           Offset(cardBox.size.width / 2, cardBox.size.height / 2),
         );
+      }
+      if (targetBox != null) {
         targetPosition = targetBox.localToGlobal(
           Offset(targetBox.size.width / 2, targetBox.size.height / 2),
         );
       }
       
-      // Show fullscreen Lottie animation (covers app bar and bottom nav)
       if (!mounted) return;
-      await showLottieCoinOverlay(
-        // ignore: use_build_context_synchronously
-        context,
-        coinsEarned: result.coinsEarned,
-        totalCoins: _totalCoins + result.coinsEarned,
-        onComplete: () {
-          // Add flying coin animation after Lottie completes
-          if (cardPosition != null && targetPosition != null) {
-            setState(() {
-              _pendingAnimations.add(_PendingCoinAnimation(
-                source: cardPosition!,
-                target: targetPosition!,
-                coins: result.coinsEarned,
-              ));
-            });
-          }
-        },
-      );
-      
-      // Complete the habit after overlay is dismissed
-      if (!mounted) return;
+
+      // Convert coin target (app bar) position to local coordinates relative
+      // to the Stack so the confetti overlay bursts at the coin badge.
+      Offset? localConfettiOrigin = targetPosition;
+      if (targetPosition != null) {
+        final RenderBox? stackBox = context.findRenderObject() as RenderBox?;
+        if (stackBox != null) {
+          localConfettiOrigin = stackBox.globalToLocal(targetPosition);
+        }
+      }
+
+      // Show confetti celebration anchored to the coin badge in the app bar
+      setState(() => _confettiOrigin = localConfettiOrigin);
+
+      // Queue flying coin animation
+      if (cardPosition != null && targetPosition != null) {
+        _pendingAnimations.add(_PendingCoinAnimation(
+          source: cardPosition,
+          target: targetPosition,
+          coins: coins,
+        ));
+      }
+
+      final feedback =
+          (result.mood != null || (result.note?.isNotEmpty ?? false))
+              ? HabitCompletionFeedback(
+                  rating: result.mood ?? 0, note: result.note)
+              : null;
+
       await _toggleHabit(
         boardId: boardId,
         boardTitle: boardTitle,
@@ -285,8 +311,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         component: component,
         habit: habit,
         wasCompleted: false,
-        completionType: result.completionType,
-        coinsEarned: result.coinsEarned,
+        completionType: completionType,
+        coinsEarned: coins,
+        feedback: feedback,
       );
     }
   }
@@ -300,16 +327,52 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     required bool wasCompleted,
     CompletionType? completionType,
     int? coinsEarned,
+    HabitCompletionFeedback? feedback,
   }) async {
     final now = LogicalDateService.now();
-    final toggled = habit.toggleForDate(now);
+    var toggled = habit.toggleForDate(now);
+
+    // Save mood/note feedback when completing (not uncompleting)
+    if (!wasCompleted && feedback != null) {
+      final iso = _toIsoDate(now);
+      final updatedFeedback =
+          Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
+      updatedFeedback[iso] = feedback;
+      toggled = toggled.copyWith(feedbackByDate: updatedFeedback);
+
+      // Append a daily page to the habit's Goal Logs chapter
+      final moodLabels = ['', 'Awful', 'Bad', 'Okay', 'Good', 'Great'];
+      final moodText = feedback.rating > 0 && feedback.rating <= 5
+          ? 'Mood: ${moodLabels[feedback.rating]} (${feedback.rating}/5)'
+          : '';
+      final noteText = (feedback.note ?? '').trim();
+      final dayLog = [moodText, noteText].where((s) => s.isNotEmpty).join('\n');
+      if (dayLog.isNotEmpty) {
+        JournalStorageService.appendOrCreateGoalLog(
+          habitId: habit.id,
+          habitName: habit.name,
+          dayLog: dayLog,
+          bookId: JournalBookStorageService.goalLogsBookId,
+        );
+      }
+    }
+
     final updatedHabits = component.habits.map((h) => h.id == habit.id ? toggled : h).toList();
     final updatedComponent = component.copyWithCommon(habits: updatedHabits);
     final updatedComponents = components.map((c) => c.id == component.id ? updatedComponent : c).toList();
     
-    await widget.onSaveBoardComponents(boardId, updatedComponents);
+    // Optimistic local update before save to avoid stale-data flash
     setState(() {
       _localComponents[boardId] = updatedComponents;
+    });
+
+    _isSaving = true;
+    await widget.onSaveBoardComponents(boardId, updatedComponents);
+    // Clear after rebuild cycle settles (parent FutureBuilder re-loads across 2 frames)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _isSaving = false;
+      });
     });
 
     // Sync
@@ -335,7 +398,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
       
       if (mounted) {
-        setState(() => _totalCoins = streakBonus ?? newTotal);
+        widget.coinNotifier?.value = streakBonus ?? newTotal;
         
         HapticFeedback.heavyImpact();
         
@@ -361,10 +424,60 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       final newTotal = await CoinsService.addCoins(-coinsToDeduct);
       
       if (mounted) {
-        setState(() => _totalCoins = newTotal < 0 ? 0 : newTotal);
+        final clamped = newTotal < 0 ? 0 : newTotal;
+        widget.coinNotifier?.value = clamped;
         HapticFeedback.lightImpact();
       }
     }
+  }
+
+  void _openTimerForHabit(_HabitEntry entry) {
+    final habit = entry.habit;
+    if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
+
+    final isSongBased = habit.timeBound?.isSongBased ?? false;
+
+    Future<void> onMarkCompleted() async {
+      final latestComponents =
+          _localComponents[entry.boardId] ?? const <VisionComponent>[];
+      final latestComponent = latestComponents
+          .where((c) => c.id == entry.component.id)
+          .cast<VisionComponent?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (latestComponent == null) return;
+      final latestHabit = latestComponent.habits
+          .where((h) => h.id == habit.id)
+          .cast<HabitItem?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (latestHabit == null) return;
+      final now2 = LogicalDateService.now();
+      if (!latestHabit.isScheduledOnDate(now2)) return;
+      if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
+      await _toggleHabit(
+        boardId: entry.boardId,
+        boardTitle: entry.boardTitle,
+        components: latestComponents,
+        component: latestComponent,
+        habit: latestHabit,
+        wasCompleted: false,
+        completionType: CompletionType.habit,
+        coinsEarned: CoinsService.habitCompletionCoins,
+      );
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => isSongBased
+            ? RhythmicTimerScreen(
+                habit: habit,
+                onMarkCompleted: onMarkCompleted,
+              )
+            : HabitTimerScreen(
+                habit: habit,
+                onMarkCompleted: onMarkCompleted,
+              ),
+      ),
+    );
   }
 
   Future<void> _editHabit(_HabitEntry entry) async {
@@ -398,6 +511,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
       iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
     );
 
     final updatedHabits = entry.component.habits
@@ -477,7 +592,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         _pendingAnimations.removeAt(index);
       }
     });
-    _loadCoins(); // Refresh coin count after animation
+    // Refresh coin count in the AppBar after animation
+    CoinsService.getTotalCoins().then((coins) {
+      if (mounted) widget.coinNotifier?.value = coins;
+    });
   }
 
   @override
@@ -507,6 +625,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final completedToday = scheduledToday.where((e) => e.habit.isCompletedForCurrentPeriod(now)).length;
     final totalScheduledToday = scheduledToday.length;
 
+    // Best current streak across all habits
+    int bestStreak = 0;
+    for (final e in allHabits) {
+      final s = e.habit.currentStreak;
+      if (s > bestStreak) bestStreak = s;
+    }
+
     return Stack(
       children: [
         // Main content
@@ -516,13 +641,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
-            // Coins header with progress
+            // Progress header
             SliverToBoxAdapter(
-              child: CoinsHeader(
-                totalCoins: _totalCoins,
-                coinTargetKey: _coinTargetKey,
+              child: DailyProgressHeader(
                 completedCount: completedToday,
                 totalCount: totalScheduledToday,
+                bestStreak: bestStreak,
               ),
             ),
             // Empty state
@@ -573,7 +697,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       final scheduledToday = entry.habit.isScheduledOnDate(now);
                       final isCompleted = scheduledToday && 
                           entry.habit.isCompletedForCurrentPeriod(now);
-                      final cardKey = GlobalKey();
+                      final swipeKey = _swipeKeys.putIfAbsent(
+                        entry.habit.id,
+                        () => GlobalKey<_SwipeableHabitCardState>(),
+                      );
                       final isFirst = index == 0;
                       final isLast = index == allHabits.length - 1;
                       
@@ -597,7 +724,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                             ? const SizedBox()
                                             : const _TimelineDash(),
                                       ),
-                                      // Checkpoint circle (tappable)
+                                      // Checkpoint circle — opens completion sheet
                                       _TimelineCheckpoint(
                                         isCompleted: isCompleted,
                                         onTap: () => _handleHabitTap(
@@ -606,7 +733,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                           components: entry.components,
                                           component: entry.component,
                                           habit: entry.habit,
-                                          cardKey: cardKey,
+                                          cardKey: swipeKey,
+                                          isFlipped: swipeKey.currentState?.isFlipped ?? false,
                                         ),
                                       ),
                                       // Bottom dashed line
@@ -622,6 +750,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                 // Card
                                 Expanded(
                                   child: _SwipeableHabitCard(
+                                    key: swipeKey,
                                     entry: entry,
                                     onEdit: () => _editHabit(entry),
                                     onDelete: () => _deleteHabit(entry),
@@ -633,88 +762,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                       isScheduledToday: scheduledToday,
                                       coinsOnComplete: CoinsService.habitCompletionCoins,
                                       index: index,
-                                      onTap: () => _handleHabitTap(
-                                        boardId: entry.boardId,
-                                        boardTitle: entry.boardTitle,
-                                        components: entry.components,
-                                        component: entry.component,
-                                        habit: entry.habit,
-                                        cardKey: cardKey,
-                                      ),
-                                      onLongPress: () {
-                                        final habit = entry.habit;
-                                        if (habit.timeBound?.enabled == true || 
-                                            habit.locationBound?.enabled == true) {
-                                          final isSongBased = habit.timeBound?.isSongBased ?? false;
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute<void>(
-                                              builder: (_) => isSongBased
-                                                  ? RhythmicTimerScreen(
-                                                      habit: habit,
-                                                      onMarkCompleted: () async {
-                                                        final latestComponents = 
-                                                            _localComponents[entry.boardId] ?? 
-                                                            const <VisionComponent>[];
-                                                        final latestComponent = latestComponents
-                                                            .where((c) => c.id == entry.component.id)
-                                                            .cast<VisionComponent?>()
-                                                            .firstWhere((_) => true, orElse: () => null);
-                                                        if (latestComponent == null) return;
-                                                        final latestHabit = latestComponent.habits
-                                                            .where((h) => h.id == habit.id)
-                                                            .cast<HabitItem?>()
-                                                            .firstWhere((_) => true, orElse: () => null);
-                                                        if (latestHabit == null) return;
-                                                        final now2 = LogicalDateService.now();
-                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
-                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                                        await _toggleHabit(
-                                                          boardId: entry.boardId,
-                                                          boardTitle: entry.boardTitle,
-                                                          components: latestComponents,
-                                                          component: latestComponent,
-                                                          habit: latestHabit,
-                                                          wasCompleted: false,
-                                                          completionType: CompletionType.habit,
-                                                          coinsEarned: CoinsService.habitCompletionCoins,
-                                                        );
-                                                      },
-                                                    )
-                                                  : HabitTimerScreen(
-                                                      habit: habit,
-                                                      onMarkCompleted: () async {
-                                                        final latestComponents = 
-                                                            _localComponents[entry.boardId] ?? 
-                                                            const <VisionComponent>[];
-                                                        final latestComponent = latestComponents
-                                                            .where((c) => c.id == entry.component.id)
-                                                            .cast<VisionComponent?>()
-                                                            .firstWhere((_) => true, orElse: () => null);
-                                                        if (latestComponent == null) return;
-                                                        final latestHabit = latestComponent.habits
-                                                            .where((h) => h.id == habit.id)
-                                                            .cast<HabitItem?>()
-                                                            .firstWhere((_) => true, orElse: () => null);
-                                                        if (latestHabit == null) return;
-                                                        final now2 = LogicalDateService.now();
-                                                        if (!latestHabit.isScheduledOnDate(now2)) return;
-                                                        if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-                                                        await _toggleHabit(
-                                                          boardId: entry.boardId,
-                                                          boardTitle: entry.boardTitle,
-                                                          components: latestComponents,
-                                                          component: latestComponent,
-                                                          habit: latestHabit,
-                                                          wasCompleted: false,
-                                                          completionType: CompletionType.habit,
-                                                          coinsEarned: CoinsService.habitCompletionCoins,
-                                                        );
-                                                      },
-                                                    ),
-                                            ),
-                                          );
-                                        }
-                                      },
+                                      onTap: () => swipeKey.currentState?.toggleFlip(),
+                                      onIconTap: () => swipeKey.currentState?.toggleFlip(),
+                                      onLongPress: () => _openTimerForHabit(entry),
+                                      onDurationTap: () => _openTimerForHabit(entry),
                                     ),
                                   ),
                                 ),
@@ -730,6 +781,20 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
               ),
           ],
         ),
+        // Simple confetti burst anchored to the completed card
+        if (_confettiOrigin != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ConfettiOverlay(
+                origin: _confettiOrigin,
+                particleCount: 12,
+                duration: const Duration(milliseconds: 900),
+                onComplete: () {
+                  if (mounted) setState(() => _confettiOrigin = null);
+                },
+              ),
+            ),
+          ),
         // Coin animations (flying coins to header)
         ..._pendingAnimations.asMap().entries.map((entry) {
           final index = entry.key;
@@ -889,7 +954,13 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   }
 }
 
-/// Swipeable wrapper for habit cards — swipe left to reveal edit & delete action icons.
+/// Tracks which gesture the user initiated during a drag.
+enum _DragMode { reveal, flip }
+
+/// Swipeable wrapper for habit cards:
+/// - Swipe left from main face → reveal edit & delete action icons
+/// - Swipe right from main face → 3D card-flip to coping plan
+/// - Swipe left from coping plan face → flip back to main
 class _SwipeableHabitCard extends StatefulWidget {
   final _HabitEntry entry;
   final VoidCallback onEdit;
@@ -897,6 +968,7 @@ class _SwipeableHabitCard extends StatefulWidget {
   final Widget child;
 
   const _SwipeableHabitCard({
+    super.key,
     required this.entry,
     required this.onEdit,
     required this.onDelete,
@@ -908,11 +980,31 @@ class _SwipeableHabitCard extends StatefulWidget {
 }
 
 class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+    with TickerProviderStateMixin {
+  // --- Reveal (swipe-left) animation ---
+  late AnimationController _revealController;
+  late Animation<double> _revealAnimation;
   double _dragExtent = 0;
-  bool _isOpen = false;
+  bool _isRevealOpen = false;
+
+  // --- Flip animation ---
+  late AnimationController _flipController;
+  bool _isFlipped = false;
+
+  /// Whether the card is currently showing the coping plan (back) face.
+  bool get isFlipped => _isFlipped;
+
+  /// Toggle the card flip from outside (e.g. icon tap).
+  void toggleFlip() {
+    if (_isFlipped) {
+      _flipToFront();
+    } else {
+      _flipToBack();
+    }
+  }
+
+  // --- Gesture routing ---
+  _DragMode? _dragMode;
 
   static const double _revealWidth = 120.0;
   static const double _snapThreshold = 50.0;
@@ -920,64 +1012,130 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _revealController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _animation = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    _revealAnimation = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _revealController, curve: Curves.easeOutCubic),
+    );
+    _flipController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _revealController.dispose();
+    _flipController.dispose();
     super.dispose();
   }
 
-  void _animateTo(double target) {
-    _animation = Tween<double>(begin: _dragExtent, end: target).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+  // ---- Reveal helpers ----
+
+  void _animateRevealTo(double target) {
+    _revealAnimation = Tween<double>(begin: _dragExtent, end: target).animate(
+      CurvedAnimation(parent: _revealController, curve: Curves.easeOutCubic),
     );
-    _controller.forward(from: 0).then((_) {
+    _revealController.forward(from: 0).then((_) {
       if (mounted) {
         setState(() {
           _dragExtent = target;
-          _isOpen = target != 0;
+          _isRevealOpen = target != 0;
         });
       }
     });
   }
 
-  void _close() {
-    if (_dragExtent != 0) _animateTo(0);
+  void _closeReveal() {
+    if (_dragExtent != 0) _animateRevealTo(0);
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    setState(() {
-      _dragExtent += details.delta.dx;
-      _dragExtent = _dragExtent.clamp(-_revealWidth, 0);
+  // ---- Flip helpers ----
+
+  void _flipToBack() {
+    HapticFeedback.selectionClick();
+    _flipController.forward().then((_) {
+      if (mounted) setState(() => _isFlipped = true);
     });
+  }
+
+  void _flipToFront() {
+    HapticFeedback.selectionClick();
+    _flipController.reverse().then((_) {
+      if (mounted) setState(() => _isFlipped = false);
+    });
+  }
+
+  // ---- Unified drag handling ----
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    final dx = details.delta.dx;
+
+    if (_dragMode == null) {
+      if (_isFlipped) {
+        if (dx < 0) _dragMode = _DragMode.flip;
+      } else if (_isRevealOpen) {
+        _dragMode = _DragMode.reveal;
+      } else {
+        if (dx > 0) {
+          _dragMode = _DragMode.flip;
+        } else if (dx < 0) {
+          _dragMode = _DragMode.reveal;
+        }
+      }
+    }
+
+    if (_dragMode == _DragMode.reveal && !_isFlipped) {
+      setState(() {
+        _dragExtent += dx;
+        _dragExtent = _dragExtent.clamp(-_revealWidth, 0);
+      });
+    } else if (_dragMode == _DragMode.flip) {
+      final flipDelta = dx / 200.0;
+      final newVal = (_flipController.value + flipDelta).clamp(0.0, 1.0);
+      _flipController.value = newVal;
+    }
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    if (velocity < -300 || _dragExtent.abs() > _snapThreshold) {
-      _animateTo(-_revealWidth);
-    } else {
-      _animateTo(0);
+
+    if (_dragMode == _DragMode.reveal && !_isFlipped) {
+      if (velocity < -300 || _dragExtent.abs() > _snapThreshold) {
+        _animateRevealTo(-_revealWidth);
+      } else {
+        _animateRevealTo(0);
+      }
+    } else if (_dragMode == _DragMode.flip) {
+      if (_isFlipped) {
+        if (velocity < -300 || _flipController.value < 0.5) {
+          _flipToFront();
+        } else {
+          _flipToBack();
+        }
+      } else {
+        if (velocity > 300 || _flipController.value > 0.5) {
+          _flipToBack();
+        } else {
+          _flipToFront();
+        }
+      }
     }
+
+    _dragMode = null;
   }
 
   void _onEditTap() {
     HapticFeedback.mediumImpact();
-    _close();
+    _closeReveal();
     widget.onEdit();
   }
 
   void _onDeleteTap() {
     HapticFeedback.mediumImpact();
-    _close();
+    _closeReveal();
     widget.onDelete();
   }
 
@@ -987,94 +1145,328 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedBuilder(
-      animation: _controller,
+      animation: Listenable.merge([_revealController, _flipController]),
       builder: (context, _) {
-        final offset = _controller.isAnimating ? _animation.value : _dragExtent;
-        final revealProgress = (offset.abs() / _revealWidth).clamp(0.0, 1.0);
+        final revealOffset = _revealController.isAnimating
+            ? _revealAnimation.value
+            : _dragExtent;
+        final revealProgress =
+            (revealOffset.abs() / _revealWidth).clamp(0.0, 1.0);
+        final flipValue = _flipController.value;
+        final showBack = flipValue >= 0.5;
+
+        // 3D Y-axis rotation
+        final angle = flipValue * pi;
+        final flipTransform = Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateY(angle);
+
+        // Mirror-correct the back face so text isn't reversed
+        if (showBack) {
+          flipTransform.rotateY(pi);
+        }
 
         return Stack(
           children: [
-            // Action buttons revealed on the right
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    // Action buttons container
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(24),
-                        bottomRight: Radius.circular(24),
-                      ),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 100),
-                        opacity: revealProgress.clamp(0.0, 1.0),
-                        child: SizedBox(
-                          width: _revealWidth,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Edit button
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: _onEditTap,
-                                  child: Container(
-                                    color: isDark
-                                        ? Colors.blueGrey.shade700
-                                        : colorScheme.primary.withValues(alpha: 0.85),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.edit_outlined,
-                                      color: Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Delete button
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: _onDeleteTap,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade600,
-                                      borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(24),
-                                        bottomRight: Radius.circular(24),
+            // Action buttons revealed on the right (only visible on front face)
+            if (!showBack)
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(24),
+                          bottomRight: Radius.circular(24),
+                        ),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 100),
+                          opacity: revealProgress.clamp(0.0, 1.0),
+                          child: SizedBox(
+                            width: _revealWidth,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Edit button
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _onEditTap,
+                                    child: Container(
+                                      color: isDark
+                                          ? Colors.blueGrey.shade700
+                                          : colorScheme.primary
+                                              .withValues(alpha: 0.85),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.edit_outlined,
+                                        color: Colors.white,
+                                        size: 22,
                                       ),
                                     ),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: Colors.white,
-                                      size: 22,
+                                  ),
+                                ),
+                                // Delete button
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _onDeleteTap,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade600,
+                                        borderRadius: const BorderRadius.only(
+                                          topRight: Radius.circular(24),
+                                          bottomRight: Radius.circular(24),
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // Draggable card
+            // Flippable card with optional reveal translate
             GestureDetector(
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
               onHorizontalDragEnd: _onHorizontalDragEnd,
-              onTap: _isOpen ? _close : null,
+              onTap: _isRevealOpen
+                  ? _closeReveal
+                  : (_isFlipped ? _flipToFront : null),
               child: Transform.translate(
-                offset: Offset(offset, 0),
-                child: widget.child,
+                offset: Offset(showBack ? 0 : revealOffset, 0),
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: flipTransform,
+                  child: showBack
+                      ? _CopingPlanFace(
+                          habit: widget.entry.habit,
+                          isCompleted: widget.entry.habit.isCompletedForCurrentPeriod(
+                            LogicalDateService.now(),
+                          ),
+                        )
+                      : widget.child,
+                ),
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+// =============================================================================
+// Coping plan back face
+// =============================================================================
+
+/// Back face of the flippable habit card showing the IF/THEN coping plan.
+class _CopingPlanFace extends StatelessWidget {
+  final HabitItem habit;
+  final bool isCompleted;
+
+  const _CopingPlanFace({required this.habit, this.isCompleted = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cbt = habit.cbtEnhancements;
+    final hasContent = cbt != null &&
+        ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
+            (cbt.ifThenPlan?.isNotEmpty ?? false));
+
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final subtitleColor =
+        isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF6B6B6B);
+    final accentColor = const Color(0xFFE8802A);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: hasContent
+          ? Row(
+              children: [
+                // Coping plan icon
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.psychology_rounded,
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // IF trigger
+                      if (cbt.predictedObstacle?.isNotEmpty ?? false) ...[
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'IF',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.red.shade400,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                cbt.predictedObstacle!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: isCompleted
+                                      ? textColor.withValues(alpha: 0.5)
+                                      : textColor,
+                                  decoration: isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: isCompleted
+                                      ? textColor.withValues(alpha: 0.5)
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      // THEN action
+                      if (cbt.ifThenPlan?.isNotEmpty ?? false)
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'THEN',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.green.shade400,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                cbt.ifThenPlan!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: isCompleted
+                                      ? textColor.withValues(alpha: 0.5)
+                                      : textColor,
+                                  decoration: isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: isCompleted
+                                      ? textColor.withValues(alpha: 0.5)
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                // Micro version / reward chips
+                if (cbt.microVersion?.isNotEmpty ?? false) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Micro',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          : Row(
+              children: [
+                Icon(
+                  Icons.psychology_outlined,
+                  color: subtitleColor,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'No coping plan set',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: subtitleColor,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'goal_metadata.dart';
 import 'habit_item.dart';
-import 'task_item.dart';
+import 'task_and_checklist_models.dart';
 
 /// Data model for a tile in a structured (staggered) grid vision board.
 ///

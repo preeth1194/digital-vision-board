@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/core_value.dart';
-import '../models/wizard/wizard_core_value.dart';
+import '../models/wizard/wizard_core_value_catalog.dart';
 import 'dv_auth_service.dart';
 
 final class WizardDefaultsPayload {

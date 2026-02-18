@@ -25,15 +25,13 @@ class DashboardBody extends StatelessWidget {
   final String? activeRoutineId;
   final SharedPreferences? prefs;
   final ValueNotifier<int> boardDataVersion;
+  final ValueNotifier<int>? coinNotifier;
+  final GlobalKey? coinTargetKey;
 
   final VoidCallback onCreateBoard;
-  final VoidCallback onCreateRoutine;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
-  final ValueChanged<Routine> onOpenRoutine;
-  final ValueChanged<Routine> onEditRoutine;
-  final ValueChanged<Routine> onDeleteRoutine;
 
   const DashboardBody({
     super.key,
@@ -44,14 +42,12 @@ class DashboardBody extends StatelessWidget {
     required this.activeRoutineId,
     required this.prefs,
     required this.boardDataVersion,
+    this.coinNotifier,
+    this.coinTargetKey,
     required this.onCreateBoard,
-    required this.onCreateRoutine,
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
-    required this.onOpenRoutine,
-    required this.onEditRoutine,
-    required this.onDeleteRoutine,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -132,13 +128,9 @@ class DashboardBody extends StatelessWidget {
           activeRoutineId: activeRoutineId,
           prefs: prefs,
           onCreateBoard: onCreateBoard,
-          onCreateRoutine: onCreateRoutine,
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
-          onOpenRoutine: onOpenRoutine,
-          onEditRoutine: onEditRoutine,
-          onDeleteRoutine: onDeleteRoutine,
         ),
       6 => const RoutineScreen(),
       7 => FutureBuilder<Map<String, List<VisionComponent>>>(
@@ -153,6 +145,8 @@ class DashboardBody extends StatelessWidget {
                 if (b == null) return;
                 await _saveBoardComponents(b, updated);
               },
+              coinNotifier: coinNotifier,
+              coinTargetKey: coinTargetKey,
             );
           },
         ),

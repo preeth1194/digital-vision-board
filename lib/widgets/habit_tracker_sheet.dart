@@ -7,7 +7,7 @@ import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import 'habits/habit_tracker_header.dart';
-import 'habits/habit_tracker_tracker_tab.dart';
+import 'habits/habit_tracker_tab.dart';
 import 'dialogs/add_habit_dialog.dart';
 import 'dialogs/completion_feedback_sheet.dart';
 import 'todos/goal_todo_tab.dart';
@@ -172,6 +172,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         timeBound: req.timeBound,
         locationBound: req.locationBound,
         iconIndex: req.iconIndex,
+        actionSteps: req.actionSteps,
+        startTimeMinutes: req.startTimeMinutes,
       );
       _updateComponent();
     });
@@ -213,6 +215,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           timeBound: req.timeBound,
           locationBound: req.locationBound,
           iconIndex: req.iconIndex,
+          actionSteps: req.actionSteps,
+          startTimeMinutes: req.startTimeMinutes,
           completedDates: const [],
         ),
       );

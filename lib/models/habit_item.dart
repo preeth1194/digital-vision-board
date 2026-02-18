@@ -1,4 +1,5 @@
 import 'cbt_enhancements.dart';
+import 'habit_action_step.dart';
 
 final class HabitTimeBoundSpec {
   final bool enabled;
@@ -189,6 +190,12 @@ class HabitItem {
   /// List of dates when this habit was completed (stored as date-only, no time)
   final List<DateTime> completedDates;
 
+  /// Ordered action steps for this habit (simplified routine steps).
+  final List<HabitActionStep> actionSteps;
+
+  /// Start time in minutes since midnight for timeline placement.
+  final int? startTimeMinutes;
+
   const HabitItem({
     required this.id,
     required this.name,
@@ -207,6 +214,8 @@ class HabitItem {
     this.locationBound,
     this.iconIndex,
     this.completedDates = const [],
+    this.actionSteps = const [],
+    this.startTimeMinutes,
   });
 
   Map<String, int> get stats => {
@@ -233,6 +242,8 @@ class HabitItem {
     HabitLocationBoundSpec? locationBound,
     int? iconIndex,
     List<DateTime>? completedDates,
+    List<HabitActionStep>? actionSteps,
+    int? startTimeMinutes,
   }) {
     return HabitItem(
       id: id ?? this.id,
@@ -252,6 +263,8 @@ class HabitItem {
       locationBound: locationBound ?? this.locationBound,
       iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
+      actionSteps: actionSteps ?? this.actionSteps,
+      startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
     );
   }
 
@@ -277,7 +290,9 @@ class HabitItem {
       'stats': stats,
       'completedDates': completedDates
           .map((date) => date.toIso8601String().split('T')[0])
-          .toList(), // Store as ISO-8601 date strings (YYYY-MM-DD)
+          .toList(),
+      'actionSteps': actionSteps.map((s) => s.toJson()).toList(),
+      'startTimeMinutes': startTimeMinutes,
     };
   }
 
@@ -346,6 +361,17 @@ class HabitItem {
         (json['location_bound'] as Map<String, dynamic>?);
     final iconIndex = (json['iconIndex'] as num?)?.toInt() ??
         (json['icon_index'] as num?)?.toInt();
+
+    final actionStepsRaw = json['actionSteps'] as List<dynamic>? ??
+        json['action_steps'] as List<dynamic>? ??
+        const [];
+    final actionSteps = actionStepsRaw
+        .whereType<Map<String, dynamic>>()
+        .map((e) => HabitActionStep.fromJson(e))
+        .toList();
+
+    final startTimeMinutes = (json['startTimeMinutes'] as num?)?.toInt() ??
+        (json['start_time_minutes'] as num?)?.toInt();
     
     return HabitItem(
       id: json['id'] as String,
@@ -371,6 +397,8 @@ class HabitItem {
       locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
       iconIndex: iconIndex,
       completedDates: dates,
+      actionSteps: actionSteps,
+      startTimeMinutes: startTimeMinutes,
     );
   }
 
@@ -588,6 +616,8 @@ final class HabitCreateRequest {
   final HabitTimeBoundSpec? timeBound;
   final HabitLocationBoundSpec? locationBound;
   final int? iconIndex;
+  final List<HabitActionStep> actionSteps;
+  final int? startTimeMinutes;
 
   const HabitCreateRequest({
     required this.name,
@@ -604,5 +634,7 @@ final class HabitCreateRequest {
     required this.timeBound,
     required this.locationBound,
     this.iconIndex,
+    this.actionSteps = const [],
+    this.startTimeMinutes,
   });
 }

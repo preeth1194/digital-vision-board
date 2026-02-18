@@ -26,6 +26,7 @@ final class DvAuthService {
   static const _userWeightKey = 'dv_user_weight_kg_v1';
   static const _userHeightKey = 'dv_user_height_cm_v1';
   static const _userDobKey = 'dv_user_dob_v1';
+  static const _userProfilePicKey = 'dv_user_profile_pic_v1';
 
   // Legacy key used by Canva OAuth flow.
   static const _legacyCanvaDvTokenKey = 'dv_canva_token_v1';
@@ -114,6 +115,22 @@ final class DvAuthService {
     final p = prefs ?? await SharedPreferences.getInstance();
     final v = (p.getString(_userDobKey) ?? '').trim();
     return v.isEmpty ? null : v;
+  }
+
+  static Future<String?> getProfilePicPath({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_userProfilePicKey) ?? '').trim();
+    return v.isEmpty ? null : v;
+  }
+
+  static Future<void> setProfilePicPath(String? path, {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (path ?? '').trim();
+    if (v.isEmpty) {
+      await p.remove(_userProfilePicKey);
+    } else {
+      await p.setString(_userProfilePicKey, v);
+    }
   }
 
   static Future<void> setProfileInfo({
@@ -371,6 +388,7 @@ final class DvAuthService {
     await p.remove(_userWeightKey);
     await p.remove(_userHeightKey);
     await p.remove(_userDobKey);
+    await p.remove(_userProfilePicKey);
   }
 
   /// Sign out: clear Firebase/Google sessions and app auth state.

@@ -5,8 +5,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
+import '../../services/image_service.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/measurement_utils.dart';
+import '../../widgets/grid/image_source_sheet.dart';
+import '../../widgets/profile_avatar.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 import 'login_screen.dart';
 import 'profile_completion_screen.dart';
@@ -151,6 +154,16 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     if (ok == true && mounted) setState(() {});
   }
 
+  Future<void> _changeProfilePhoto() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null || !mounted) return;
+    final path = await ImageService.pickAndCropProfileImage(context, source: source);
+    if (path != null && mounted) {
+      await DvAuthService.setProfilePicPath(path);
+      if (mounted) setState(() {});
+    }
+  }
+
   Widget _buildSignedInView(BuildContext context, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return FutureBuilder<Map<String, dynamic>>(
@@ -161,6 +174,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
         final height = await DvAuthService.getHeightCm();
         final gender = await DvAuthService.getGender();
         final dob = await DvAuthService.getDateOfBirth();
+        final profilePicPath = await DvAuthService.getProfilePicPath();
         return {
           'identifier': identifier,
           'displayName': displayName,
@@ -168,6 +182,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           'height': height,
           'gender': gender,
           'dob': dob,
+          'profilePicPath': profilePicPath,
         };
       }(),
       builder: (context, snap) {
@@ -179,6 +194,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
         final height = data['height'] as double?;
         final gender = data['gender'] as String? ?? 'prefer_not_to_say';
         final dob = data['dob'] as String?;
+        final profilePicPath = data['profilePicPath'] as String?;
         final label = (displayName != null && displayName.isNotEmpty)
             ? displayName
             : (identifier != null && identifier.isNotEmpty)
@@ -213,15 +229,11 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      ProfileAvatar(
+                        initial: initial,
+                        imagePath: profilePicPath,
                         radius: 28,
-                        backgroundColor: colorScheme.primaryContainer,
-                        child: Text(
-                          initial,
-                          style: AppTypography.heading2(context).copyWith(
-                            color: colorScheme.onPrimaryContainer,
-                          ),
-                        ),
+                        onTap: _changeProfilePhoto,
                       ),
                       const SizedBox(width: 16),
                       Expanded(

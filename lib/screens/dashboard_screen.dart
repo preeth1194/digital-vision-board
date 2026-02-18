@@ -42,6 +42,7 @@ import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
+import '../widgets/profile_avatar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -73,6 +74,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   final ValueNotifier<int> _coinNotifier = ValueNotifier<int>(0);
   final GlobalKey _coinTargetKey = GlobalKey();
 
+  // Profile avatar for app bar and drawer (refreshed when returning from Account)
+  final ValueNotifier<({String? picPath, String initial})> _profileAvatarNotifier =
+      ValueNotifier((picPath: null, initial: '?'));
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +86,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _loadCoins();
     _startAutoRefreshReminders();
     _checkPuzzleDeepLink();
+  }
+
+  Future<void> _loadProfileAvatar() async {
+    final displayName = await DvAuthService.getDisplayName(prefs: _prefs);
+    final identifier = await DvAuthService.getUserDisplayIdentifier(prefs: _prefs);
+    final picPath = await DvAuthService.getProfilePicPath(prefs: _prefs);
+    final initial = (displayName != null && displayName.isNotEmpty)
+        ? displayName[0].toUpperCase()
+        : (identifier != null && identifier.isNotEmpty)
+            ? identifier[0].toUpperCase()
+            : '?';
+    if (mounted) {
+      _profileAvatarNotifier.value = (picPath: picPath, initial: initial);
+    }
   }
 
   Future<void> _loadCoins() async {
@@ -108,6 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
     _boardDataVersion.dispose();
     _coinNotifier.dispose();
+    _profileAvatarNotifier.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -143,6 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _refreshReminders();
     await _maybeShowAuthGatewayIfGuestExpired();
     await _maybeShowAuthGatewayIfMandatoryAfterTenDays();
+    await _loadProfileAvatar();
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -545,6 +566,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         fullscreenDialog: true,
       ),
     );
+    await _loadProfileAvatar();
     if (res == true) {
       // Token refreshed (guest) or user logged in. Attempt bootstrap/sync/prune.
       await SyncService.bootstrapIfNeeded(prefs: _prefs);
@@ -836,15 +858,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     'Digital Vision Board',
                     style: AppTypography.heading3(context),
                   ),
-                  const SizedBox(height: 8),
-                  FutureBuilder<String?>(
-                    future: DvAuthService.getCanvaUserId(prefs: _prefs),
-                    builder: (context, snap) {
-                      final id = (snap.data ?? '').trim();
-                      final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                      return Text(
-                        label,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<({String? picPath, String initial})>(
+                    valueListenable: _profileAvatarNotifier,
+                    builder: (context, profile, _) {
+                      return FutureBuilder<String?>(
+                        future: DvAuthService.getCanvaUserId(prefs: _prefs),
+                        builder: (context, snap) {
+                          final id = (snap.data ?? '').trim();
+                          final label = id.isEmpty ? 'Guest session' : 'Signed in';
+                          return Row(
+                            children: [
+                              ProfileAvatar(
+                                initial: profile.initial,
+                                imagePath: profile.picPath,
+                                radius: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -927,23 +968,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               Builder(
                 builder: (scaffoldContext) => GestureDetector(
                   onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).colorScheme.primary,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.person,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 24,
-                      ),
+                  child: ValueListenableBuilder<({String? picPath, String initial})>(
+                    valueListenable: _profileAvatarNotifier,
+                    builder: (context, profile, _) => ProfileAvatar(
+                      initial: profile.initial,
+                      imagePath: profile.picPath,
+                      radius: 24,
                     ),
                   ),
                 ),

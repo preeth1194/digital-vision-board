@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
+import '../../services/image_service.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/measurement_utils.dart';
+import '../../widgets/grid/image_source_sheet.dart';
+import '../../widgets/profile_avatar.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 
 /// Shown after phone sign-in when profile is incomplete. User must fill name and other details.
@@ -26,6 +29,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   DateTime? _dob;
   String? _nameError;
   bool _loading = false;
+  String? _profilePicPath;
 
   @override
   void initState() {
@@ -49,9 +53,11 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final heightCm = await DvAuthService.getHeightCm();
     final gender = await DvAuthService.getGender();
     final dobStr = await DvAuthService.getDateOfBirth();
+    final profilePicPath = await DvAuthService.getProfilePicPath();
     final unit = AppSettingsService.getMeasurementUnit();
     if (!mounted) return;
     setState(() {
+      _profilePicPath = profilePicPath;
       _nameController.text = name ?? '';
       if (unit == MeasurementUnit.metric) {
         _weightController.text = weightKg != null ? weightKg.toStringAsFixed(1) : '';
@@ -120,6 +126,16 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     });
   }
 
+  Future<void> _changeProfilePhoto() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null || !mounted) return;
+    final path = await ImageService.pickAndCropProfileImage(context, source: source);
+    if (path != null && mounted) {
+      await DvAuthService.setProfilePicPath(path);
+      if (mounted) setState(() => _profilePicPath = path);
+    }
+  }
+
   String _genderLabel(String v) {
     switch (v) {
       case 'male':
@@ -131,97 +147,6 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       default:
         return 'Prefer not to say';
     }
-  }
-
-  Future<void> _pickGender() async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Text('Gender', style: AppTypography.heading3(context)),
-            const SizedBox(height: 8),
-            for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
-              RadioListTile<String>(
-                value: v,
-                groupValue: _gender,
-                title: Text(_genderLabel(v)),
-                onChanged: (x) => Navigator.of(ctx).pop(x),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected == null) return;
-    setState(() => _gender = selected);
-  }
-
-  Future<void> _pickDob() async {
-    final initial = _dob ?? DateTime(1990, 1, 1);
-    DateTime selected = initial;
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    await showCupertinoModalPopup<void>(
-      context: context,
-      builder: (ctx) => Container(
-        height: 280,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
-                        setState(() => _dob = selected);
-                        Navigator.of(ctx).pop();
-                      },
-                      child: const Text('Done'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: CupertinoTheme(
-                data: CupertinoThemeData(
-                  brightness: isDark ? Brightness.dark : Brightness.light,
-                ),
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
-                  initialDateTime: initial,
-                  maximumDate: DateTime.now(),
-                  onDateTimeChanged: (v) => selected = v,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _save() async {
@@ -277,6 +202,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete your profile'),
@@ -295,49 +222,6 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
           ValueListenableBuilder<MeasurementUnit>(
             valueListenable: AppSettingsService.measurementUnit,
             builder: (context, unit, _) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Units',
-                          style: AppTypography.caption(context).copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        SegmentedButton<MeasurementUnit>(
-                          segments: const [
-                            ButtonSegment(
-                              value: MeasurementUnit.metric,
-                              label: Text('Metric'),
-                            ),
-                            ButtonSegment(
-                              value: MeasurementUnit.imperial,
-                              label: Text('Imperial'),
-                            ),
-                          ],
-                          selected: {unit},
-                          onSelectionChanged: (selected) {
-                            _onUnitChanged(selected.first);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<MeasurementUnit>(
-            valueListenable: AppSettingsService.measurementUnit,
-            builder: (context, unit, _) {
               return CupertinoListSection.insetGrouped(
                 header: Text(
                   'Profile',
@@ -353,197 +237,264 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                 separatorColor: habitSectionSeparatorColor(colorScheme),
                 children: [
                   Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: TextField(
-                  controller: _nameController,
-                  style: AppTypography.body(context),
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: 'Name',
-                    hintText: 'Your name',
-                    hintStyle: AppTypography.body(context).copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.zero,
                     ),
-                    errorText: _nameError,
-                    errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    border: UnderlineInputBorder(
-                      borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                    ),
-                    contentPadding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
-                  ),
-                  onChanged: (_) => setState(() => _nameError = null),
-                ),
-              ),
-              CupertinoListTile.notched(
-                leading: Icon(Icons.monitor_weight_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                title: Text(
-                  unit == MeasurementUnit.metric
-                      ? (_weightController.text.isEmpty ? 'Weight (kg)' : '${_weightController.text} kg')
-                      : (_weightController.text.isEmpty ? 'Weight (lb)' : '${_weightController.text} lb'),
-                  style: AppTypography.body(context),
-                ),
-                trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
-                onTap: () async {
-                  final result = await showDialog<String>(
-                    context: context,
-                    builder: (ctx) {
-                      final c = TextEditingController(text: _weightController.text);
-                      return AlertDialog(
-                        title: Text(unit == MeasurementUnit.metric ? 'Weight (kg)' : 'Weight (lb)'),
-                        content: TextField(
-                          controller: c,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            hintText: unit == MeasurementUnit.metric ? 'e.g. 70' : 'e.g. 154',
-                          ),
-                          autofocus: true,
+                    child: Row(
+                      children: [
+                        ProfileAvatar(
+                          initial: _nameController.text.isNotEmpty
+                              ? _nameController.text[0].toUpperCase()
+                              : '?',
+                          imagePath: _profilePicPath,
+                          radius: 32,
+                          onTap: _changeProfilePhoto,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel'),
+                        const SizedBox(width: 16),
+                        TextButton(
+                          onPressed: _changeProfilePhoto,
+                          child: Text(
+                            'Change photo',
+                            style: AppTypography.body(context),
                           ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
-                            child: const Text('Done'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.zero,
+                    ),
+                    child: TextField(
+                      controller: _nameController,
+                      style: AppTypography.body(context),
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        hintText: 'Your name',
+                        hintStyle: AppTypography.body(context).copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        ),
+                        errorText: _nameError,
+                        errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: UnderlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        ),
+                        contentPadding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                      ),
+                      onChanged: (_) => setState(() => _nameError = null),
+                    ),
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.monitor_weight_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(
+                      unit == MeasurementUnit.metric
+                          ? (_weightController.text.isEmpty ? 'Weight' : '${_weightController.text} kg')
+                          : (_weightController.text.isEmpty ? 'Weight' : '${_weightController.text} lb'),
+                      style: AppTypography.body(context),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _weightController,
+                              style: AppTypography.body(context),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                hintText: unit == MeasurementUnit.metric ? 'e.g. 70' : 'e.g. 154',
+                                hintStyle: AppTypography.body(context).copyWith(
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surfaceContainerHighest,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: unit == MeasurementUnit.metric ? 'kg' : 'lb',
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: colorScheme.surfaceContainerHighest,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'kg', child: Text('kg')),
+                                DropdownMenuItem(value: 'lb', child: Text('lb')),
+                              ],
+                              onChanged: (v) {
+                                if (v == 'kg') {
+                                  _onUnitChanged(MeasurementUnit.metric);
+                                } else if (v == 'lb') {
+                                  _onUnitChanged(MeasurementUnit.imperial);
+                                }
+                              },
+                            ),
                           ),
                         ],
-                      );
-                    },
-                  );
-                  if (result != null && mounted) {
-                    setState(() => _weightController.text = result);
-                  }
-                },
-              ),
-              if (unit == MeasurementUnit.metric)
-                CupertinoListTile.notched(
-                  leading: Icon(Icons.height_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                  title: Text(
-                    _heightController.text.isEmpty ? 'Height (cm)' : '${_heightController.text} cm',
-                    style: AppTypography.body(context),
+                      ),
+                    ],
                   ),
-                  trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
-                  onTap: () async {
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) {
-                        final c = TextEditingController(text: _heightController.text);
-                        return AlertDialog(
-                          title: const Text('Height (cm)'),
-                          content: TextField(
-                            controller: c,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(hintText: 'e.g. 170'),
-                            autofocus: true,
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('Cancel'),
+                  ExpansionTile(
+                    leading: Icon(Icons.height_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(
+                      unit == MeasurementUnit.metric
+                          ? (_heightController.text.isEmpty ? 'Height' : '${_heightController.text} cm')
+                          : (_heightFeetController.text.isEmpty && _heightInchesController.text.isEmpty
+                              ? 'Height'
+                              : '${_heightFeetController.text} ft ${_heightInchesController.text} in'),
+                      style: AppTypography.body(context),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      if (unit == MeasurementUnit.metric)
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: _heightController,
+                                style: AppTypography.body(context),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: InputDecoration(
+                                  hintText: 'e.g. 170',
+                                  hintStyle: AppTypography.body(context).copyWith(
+                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                  ),
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
                             ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
-                              child: const Text('Done'),
-                            ),
+                            const SizedBox(width: 12),
+                            Text('cm', style: AppTypography.body(context)),
                           ],
-                        );
-                      },
-                    );
-                    if (result != null && mounted) {
-                      setState(() => _heightController.text = result);
-                    }
-                  },
-                ),
-              if (unit == MeasurementUnit.imperial)
-                CupertinoListTile.notched(
-                  leading: Icon(Icons.height_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                  title: Text(
-                    _heightFeetController.text.isEmpty && _heightInchesController.text.isEmpty
-                        ? 'Height (ft & in)'
-                        : '${_heightFeetController.text} ft ${_heightInchesController.text} in',
-                    style: AppTypography.body(context),
-                  ),
-                  trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
-                  onTap: () async {
-                    final result = await showDialog<(String, String)>(
-                      context: context,
-                      builder: (ctx) {
-                        final feetC = TextEditingController(text: _heightFeetController.text);
-                        final inchesC = TextEditingController(text: _heightInchesController.text);
-                        return AlertDialog(
-                          title: const Text('Height (ft & in)'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextField(
-                                controller: feetC,
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _heightFeetController,
+                                style: AppTypography.body(context),
                                 keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Feet',
                                   hintText: 'e.g. 5',
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 ),
-                                autofocus: true,
+                                onChanged: (_) => setState(() {}),
                               ),
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: inchesC,
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text('ft', style: AppTypography.body(context)),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _heightInchesController,
+                                style: AppTypography.body(context),
                                 keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Inches',
                                   hintText: 'e.g. 10',
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 ),
+                                onChanged: (_) => setState(() {}),
                               ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('Cancel'),
                             ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(ctx).pop((feetC.text.trim(), inchesC.text.trim())),
-                              child: const Text('Done'),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Text('in', style: AppTypography.body(context)),
                             ),
                           ],
-                        );
-                      },
-                    );
-                    if (result != null && mounted) {
-                      setState(() {
-                        _heightFeetController.text = result.$1;
-                        _heightInchesController.text = result.$2;
-                      });
-                    }
-                  },
-                ),
-              CupertinoListTile.notched(
-                leading: Icon(Icons.wc_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                title: Text(_genderLabel(_gender), style: AppTypography.body(context)),
-                trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
-                onTap: _pickGender,
-              ),
-              CupertinoListTile.notched(
-                leading: Icon(Icons.cake_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                title: Text(
-                  _dob != null
-                      ? '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}'
-                      : 'Date of birth',
-                  style: AppTypography.body(context),
-                ),
-                trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
-                onTap: _pickDob,
-              ),
-            ],
-          );
-        },
-      ),
+                        ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.wc_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(_genderLabel(_gender), style: AppTypography.body(context)),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
+                        RadioListTile<String>(
+                          value: v,
+                          groupValue: _gender,
+                          title: Text(_genderLabel(v), style: AppTypography.body(context)),
+                          onChanged: (x) {
+                            if (x != null) setState(() => _gender = x);
+                          },
+                        ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.cake_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(
+                      _dob != null
+                          ? '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}'
+                          : 'Date of birth',
+                      style: AppTypography.body(context),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                    children: [
+                      SizedBox(
+                        height: 200,
+                        child: CupertinoTheme(
+                          data: CupertinoThemeData(
+                            brightness: isDark ? Brightness.dark : Brightness.light,
+                          ),
+                          child: CupertinoDatePicker(
+                            mode: CupertinoDatePickerMode.date,
+                            initialDateTime: _dob ?? DateTime(1990, 1, 1),
+                            maximumDate: DateTime.now(),
+                            onDateTimeChanged: (v) => setState(() => _dob = v),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _loading ? null : _save,

@@ -258,14 +258,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     }).toList();
   }
 
-  /// Habits without a specific time slot — shown in the compact section.
-  List<HabitItem> get _untimedHabitsForDate {
-    return _habitsForSelectedDate.where((h) {
-      final tb = h.timeBound;
-      return h.startTimeMinutes == null || tb == null || !tb.enabled || tb.durationMinutes <= 0;
-    }).toList();
-  }
-
   void _computeHourLayout(List<HabitItem> habits) {
     final perHour = List.filled(24, 0);
     for (final h in habits) {
@@ -350,7 +342,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
             previewTime: _timelinePreviewTime,
             onRefreshLocation: _refreshLocation,
           ),
-        _buildUntimedHabitsSection(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -367,111 +358,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
             },
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildUntimedHabitsSection() {
-    final habits = _untimedHabitsForDate;
-    if (habits.isEmpty) return const SizedBox.shrink();
-
-    final colorScheme = Theme.of(context).colorScheme;
-    final completedCount =
-        habits.where((h) => h.isCompletedForCurrentPeriod(_selectedDate)).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-          child: Row(
-            children: [
-              Text(
-                'Anytime',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '$completedCount / ${habits.length}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: habits.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final habit = habits[index];
-              final isCompleted =
-                  habit.isCompletedForCurrentPeriod(_selectedDate);
-              final iconData =
-                  habit.iconIndex != null && habit.iconIndex! < habitIcons.length
-                      ? habitIcons[habit.iconIndex!].$1
-                      : Icons.self_improvement;
-
-              return GestureDetector(
-                onTap: () => _openHabitTimer(habit),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? AppColors.mossGreen.withOpacity(0.15)
-                        : colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isCompleted
-                          ? AppColors.mossGreen.withOpacity(0.3)
-                          : colorScheme.outlineVariant.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(iconData, size: 14,
-                          color: isCompleted
-                              ? AppColors.mossGreen
-                              : colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(
-                        habit.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isCompleted
-                              ? AppColors.mossGreen
-                              : colorScheme.onSurface,
-                          decoration:
-                              isCompleted ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                      if (isCompleted) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.check_circle_rounded, size: 14,
-                            color: AppColors.mossGreen),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
       ],
     );
   }
@@ -506,7 +392,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               else
                 _buildDateAnchorLine(isDark),
               ...habitCards,
-              if (habitsForDate.isEmpty && _untimedHabitsForDate.isEmpty)
+              if (habitsForDate.isEmpty)
                 Positioned(
                   top: _hourYOffsets[7],
                   left: 56,

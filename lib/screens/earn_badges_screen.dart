@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/habit_item.dart';
-import '../services/coins_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/ad_free_service.dart';
 import '../utils/app_colors.dart';
 
 /// Definition of a single badge / achievement.
@@ -117,11 +118,13 @@ const _badges = <_BadgeDef>[
 class EarnBadgesScreen extends StatefulWidget {
   final List<HabitItem> allHabits;
   final int totalCoins;
+  final ValueNotifier<int>? coinNotifier;
 
   const EarnBadgesScreen({
     super.key,
     required this.allHabits,
     required this.totalCoins,
+    this.coinNotifier,
   });
 
   @override
@@ -130,11 +133,56 @@ class EarnBadgesScreen extends StatefulWidget {
 
 class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
   late List<_BadgeProgress> _progress;
+  bool _isAdFreeToday = false;
+  int _currentCoins = 0;
 
   @override
   void initState() {
     super.initState();
+    _currentCoins = widget.totalCoins;
     _progress = _computeProgress();
+    _loadAdFreeStatus();
+  }
+
+  Future<void> _loadAdFreeStatus() async {
+    final adFree = await AdFreeService.isAdFreeToday();
+    if (mounted) setState(() => _isAdFreeToday = adFree);
+  }
+
+  Future<void> _redeemAdFree() async {
+    final newTotal = await AdFreeService.goAdFreeWithCoins();
+    if (newTotal == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Not enough coins! You need 20 coins.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    if (mounted) {
+      widget.coinNotifier?.value = newTotal;
+      setState(() {
+        _isAdFreeToday = true;
+        _currentCoins = newTotal;
+      });
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Ad-free for today!'),
+            ],
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   List<_BadgeProgress> _computeProgress() {
@@ -218,9 +266,17 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
           // Summary card
           SliverToBoxAdapter(
             child: _SummaryCard(
-              totalCoins: widget.totalCoins,
+              totalCoins: _currentCoins,
               unlockedCount: unlockedCount,
               totalCount: _progress.length,
+            ),
+          ),
+          // Go Ad-Free card
+          SliverToBoxAdapter(
+            child: _GoAdFreeCard(
+              currentCoins: _currentCoins,
+              isActiveToday: _isAdFreeToday,
+              onRedeem: _redeemAdFree,
             ),
           ),
           // Section title
@@ -518,6 +574,158 @@ class _BadgeCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: badge.color,
                 ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Go Ad-Free card (daily reset) ──────────────────────────────────────────
+
+class _GoAdFreeCard extends StatelessWidget {
+  final int currentCoins;
+  final bool isActiveToday;
+  final VoidCallback onRedeem;
+
+  const _GoAdFreeCard({
+    required this.currentCoins,
+    required this.isActiveToday,
+    required this.onRedeem,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final canAfford = currentCoins >= AdFreeService.adFreeCoinCost;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isActiveToday
+              ? [
+                  (isDark ? Colors.green.shade900 : Colors.green.shade50),
+                  (isDark ? Colors.green.shade800 : Colors.green.shade100),
+                ]
+              : [
+                  (isDark ? const Color(0xFF2A1F3D) : const Color(0xFFFFF8E1)),
+                  (isDark ? const Color(0xFF1A1428) : const Color(0xFFFFF3CD)),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActiveToday
+              ? Colors.green.withValues(alpha: 0.4)
+              : AppColors.coinGold.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isActiveToday ? Colors.green : AppColors.coinGold)
+                .withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActiveToday
+                  ? Colors.green.withValues(alpha: 0.2)
+                  : AppColors.coinGold.withValues(alpha: 0.2),
+            ),
+            child: Icon(
+              isActiveToday
+                  ? Icons.check_circle_rounded
+                  : Icons.monetization_on_rounded,
+              size: 28,
+              color: isActiveToday ? Colors.green : AppColors.coinGold,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isActiveToday
+                      ? 'Ad-Free Active Today'
+                      : 'Go Ad-Free Today!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.nearBlack,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isActiveToday
+                      ? 'Enjoy your ad-free experience'
+                      : 'Use ${AdFreeService.adFreeCoinCost} coins to remove ads for today',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.6)
+                        : AppColors.dimGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (isActiveToday)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.green,
+                size: 24,
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: canAfford ? onRedeem : null,
+              icon: Icon(
+                Icons.monetization_on_rounded,
+                size: 18,
+                color: canAfford
+                    ? Colors.white
+                    : colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+              label: Text(
+                '${AdFreeService.adFreeCoinCost}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: canAfford
+                      ? Colors.white
+                      : colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canAfford
+                    ? AppColors.coinGold
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                elevation: canAfford ? 2 : 0,
               ),
             ),
         ],

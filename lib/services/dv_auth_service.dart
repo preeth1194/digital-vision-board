@@ -277,6 +277,8 @@ final class DvAuthService {
     double? weightKg,
     double? heightCm,
     String? dateOfBirth,
+    String? subscriptionPlanId,
+    bool? subscriptionActive,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -289,6 +291,8 @@ final class DvAuthService {
     if (weightKg != null) body['weight_kg'] = weightKg;
     if (heightCm != null) body['height_cm'] = heightCm;
     if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
+    if (subscriptionPlanId != null) body['subscription_plan_id'] = subscriptionPlanId;
+    if (subscriptionActive != null) body['subscription_active'] = subscriptionActive;
     if (body.isEmpty) return;
     try {
       final res = await http.put(

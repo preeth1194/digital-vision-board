@@ -43,7 +43,6 @@ Daily loop:
 **Drawer (hamburger):**
 - User profile → `AuthGatewayScreen`
 - Notifications → Reminders sheet (from `ReminderSummaryService`)
-- Settings → `SettingsScreen`
 - Puzzle Game → `PuzzleGameScreen`
 - Widget Guide → `WidgetGuideScreen`
 
@@ -58,7 +57,6 @@ Daily loop:
 
 ### Other visible screens (from drawer or navigation)
 - Auth: `AuthGatewayScreen`, `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`
-- Settings: `SettingsScreen`
 - Templates: `TemplateGalleryScreen`
 - Wizard: `CreateBoardWizardScreen` + step screens in `lib/screens/wizard/`
 - Puzzle: `PuzzleGameScreen` (also deep link from home)

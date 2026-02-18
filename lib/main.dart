@@ -19,6 +19,8 @@ import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/notifications_service.dart';
 import 'services/wizard_defaults_service.dart';
+import 'services/ad_service.dart';
+import 'services/subscription_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +44,9 @@ Future<void> main() async {
   await NotificationsService.ensureInitialized();
   // Lazy start geofence tracking from local storage (best-effort).
   unawaited(HabitGeofenceTrackingService.instance.bootstrapFromStorage(prefs: prefs));
+  // Initialize ads and subscriptions (best-effort, non-blocking).
+  unawaited(AdService.initialize());
+  unawaited(SubscriptionService.initialize(prefs: prefs));
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

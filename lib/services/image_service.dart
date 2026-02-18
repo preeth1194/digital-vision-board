@@ -148,6 +148,91 @@ class ImageService {
     }
   }
 
+  /// Picks an image from gallery, crops to square (1:1), and persists.
+  /// Intended for puzzle image uploads where a square source is required.
+  static Future<String?> pickAndCropPuzzleImage(
+    BuildContext context, {
+    required ImageSource source,
+  }) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      if (kIsWeb) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image picking/cropping is not supported on web yet.'),
+            ),
+          );
+        }
+        return null;
+      }
+
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+      if (picked == null) return null;
+
+      return _cropToSquareAndPersist(context, picked.path);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Opens the square-locked cropper on an existing file and persists the result.
+  /// Used when the user selects an existing goal image for the puzzle.
+  static Future<String?> cropExistingImageToSquare(
+    BuildContext context, {
+    required String sourcePath,
+  }) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      if (kIsWeb) return null;
+      return _cropToSquareAndPersist(context, sourcePath);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  static Future<String?> _cropToSquareAndPersist(
+    BuildContext context,
+    String sourcePath,
+  ) async {
+    final CroppedFile? cropped = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      compressQuality: 90,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop for Puzzle',
+          toolbarColor: Theme.of(context).colorScheme.primary,
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: Theme.of(context).colorScheme.primary,
+          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop for Puzzle',
+          aspectRatioLockEnabled: true,
+          aspectRatioPickerButtonHidden: true,
+        ),
+      ],
+    );
+    if (cropped == null || cropped.path.isEmpty) return null;
+
+    try {
+      final persisted = await persistImageToAppStorage(cropped.path);
+      if (persisted != null && persisted.isNotEmpty) return persisted;
+    } catch (_) {}
+
+    return cropped.path;
+  }
+
   /// Downloads an image from [url], resizes so the max side is [maxSidePx],
   /// encodes as JPEG ([jpegQuality]), and persists into app-owned storage.
   ///

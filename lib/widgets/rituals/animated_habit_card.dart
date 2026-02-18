@@ -22,6 +22,11 @@ class AnimatedHabitCard extends StatefulWidget {
   final VoidCallback? onIconTap;
   final int index;
 
+  /// When non-null, shows ad watch progress (e.g. "3/5") in the duration badge
+  /// area instead of the timer duration.
+  final int? adWatchedCount;
+  final int? adTotalRequired;
+
   const AnimatedHabitCard({
     super.key,
     required this.habit,
@@ -34,6 +39,8 @@ class AnimatedHabitCard extends StatefulWidget {
     this.onDurationTap,
     this.onIconTap,
     this.index = 0,
+    this.adWatchedCount,
+    this.adTotalRequired,
   });
 
   @override
@@ -305,8 +312,38 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                   ],
                 ),
               ),
+              // Ad progress badge (when user has pending ads to watch)
+              if (widget.adWatchedCount != null && widget.adTotalRequired != null) ...[
+                Container(
+                  width: 1,
+                  height: 32,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.08),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.videocam_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${widget.adWatchedCount}/${widget.adTotalRequired}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ]
               // Duration badge (if applicable) — tappable to open timer
-              if (durationLabel != null) ...[
+              else if (durationLabel != null) ...[
                 Container(
                   width: 1,
                   height: 32,

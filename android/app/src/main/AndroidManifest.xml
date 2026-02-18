@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <!-- Microphone for voice notes in journal -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="com.android.vending.BILLING"/>
     <application
         android:label="digital_vision_board"
         android:name="${applicationName}"
@@ -86,6 +87,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/puzzle_widget_info" />
         </receiver>
+        <!-- AdMob App ID (replace with your real App ID for production) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

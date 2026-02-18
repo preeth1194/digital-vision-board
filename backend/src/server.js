@@ -716,8 +716,10 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   const weightKgVal = typeof weightKg === "number" && !Number.isNaN(weightKg) ? weightKg : null;
   const heightCmVal = typeof heightCm === "number" && !Number.isNaN(heightCm) ? heightCm : null;
   const dateOfBirth = typeof req.body?.date_of_birth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date_of_birth) ? req.body.date_of_birth : null;
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth });
-  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth });
+  const subscriptionPlanId = typeof req.body?.subscription_plan_id === "string" ? req.body.subscription_plan_id.trim() || null : null;
+  const subscriptionActive = req.body?.subscription_active != null ? Boolean(req.body.subscription_active) : null;
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive });
+  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive });
 });
 
 app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
@@ -742,6 +744,8 @@ app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
     weight_kg: settings?.weightKg ?? null,
     height_cm: settings?.heightCm ?? null,
     date_of_birth: settings?.dateOfBirth ?? null,
+    subscription_plan_id: settings?.subscriptionPlanId ?? null,
+    subscription_active: settings?.subscriptionActive ?? false,
     boards,
     habit_completions: habitCompletions,
     checklist_events: checklistEvents,

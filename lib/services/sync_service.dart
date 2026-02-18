@@ -14,6 +14,7 @@ import 'dv_auth_service.dart';
 import 'grid_tiles_storage_service.dart';
 import 'habit_progress_widget_snapshot_service.dart';
 import 'logical_date_service.dart';
+import 'subscription_service.dart';
 import 'vision_board_components_storage_service.dart';
 
 /// Best-effort sync layer:
@@ -75,6 +76,16 @@ final class SyncService {
         weightKg: weightKg is num ? weightKg.toDouble() : null,
         heightCm: heightCm is num ? heightCm.toDouble() : null,
         dateOfBirth: dateOfBirth?.trim().isNotEmpty == true ? dateOfBirth!.trim() : null,
+        prefs: p,
+      );
+    }
+
+    final subActive = decoded['subscription_active'];
+    final subPlanId = decoded['subscription_plan_id'] as String?;
+    if (subActive == true || (subPlanId != null && subPlanId.isNotEmpty)) {
+      await SubscriptionService.applyBootstrapData(
+        subscriptionActive: subActive == true,
+        subscriptionPlanId: subPlanId,
         prefs: p,
       );
     }
@@ -253,6 +264,8 @@ final class SyncService {
     final weightKg = await DvAuthService.getWeightKg(prefs: p);
     final heightCm = await DvAuthService.getHeightCm(prefs: p);
     final dateOfBirth = await DvAuthService.getDateOfBirth(prefs: p);
+    final subscribed = SubscriptionService.isSubscribed.value;
+    final activePlan = SubscriptionService.activePlanId.value;
     final body = <String, dynamic>{
       if (boards.isNotEmpty) 'boards': boards,
       if (habitCompletions.isNotEmpty) 'habitCompletions': habitCompletions,
@@ -263,6 +276,8 @@ final class SyncService {
         if (weightKg != null) 'weightKg': weightKg,
         if (heightCm != null) 'heightCm': heightCm,
         if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'dateOfBirth': dateOfBirth,
+        'subscriptionActive': subscribed,
+        if (activePlan != null && activePlan.isNotEmpty) 'subscriptionPlanId': activePlan,
       },
     };
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -8,6 +9,8 @@ import '../utils/file_image_provider.dart';
 import '../services/puzzle_service.dart';
 import '../services/puzzle_state_service.dart';
 import '../services/puzzle_widget_snapshot_service.dart';
+import '../services/coins_service.dart';
+import '../services/subscription_service.dart';
 import '../widgets/dialogs/puzzle_image_selector_sheet.dart';
 import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
@@ -27,12 +30,12 @@ class PuzzleGameScreen extends StatefulWidget {
 }
 
 class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
-  static const int gridSize = 4;
-  static const int totalPieces = gridSize * gridSize;
+  int _gridSize = 6;
+  int get _totalPieces => _gridSize * _gridSize;
 
   List<Uint8List>? _puzzlePieces;
-  List<int?> _piecePositions = List.filled(totalPieces, null); // Index in _puzzlePieces -> position (0-15)
-  List<int?> _positionPieces = List.filled(totalPieces, null); // Position (0-15) -> index in _puzzlePieces
+  List<int?> _piecePositions = [];
+  List<int?> _positionPieces = [];
   bool _loading = true;
   bool _showReference = false;
   bool _isCompleted = false;
@@ -41,12 +44,67 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   DateTime? _startTime;
   List<VisionBoardInfo>? _boards;
 
+  bool _onCooldown = false;
+  Duration _cooldownRemaining = Duration.zero;
+  Timer? _cooldownTimer;
+
   @override
   void initState() {
     super.initState();
+    _initCooldownState();
     _loadPuzzle();
     _loadBoards();
   }
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _isSubscribed => SubscriptionService.isSubscribed.value;
+
+  Future<void> _initCooldownState() async {
+    if (_isSubscribed) return;
+    final remaining = await PuzzleService.getPuzzleCooldownRemaining(
+      prefs: widget.prefs,
+    );
+    if (!mounted) return;
+    setState(() {
+      _cooldownRemaining = remaining;
+      _onCooldown = remaining > Duration.zero;
+    });
+    if (_onCooldown) _startCooldownTimer();
+  }
+
+  void _startCooldownTimer() {
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      final remaining = await PuzzleService.getPuzzleCooldownRemaining(
+        prefs: widget.prefs,
+      );
+      if (!mounted) {
+        _cooldownTimer?.cancel();
+        return;
+      }
+      setState(() {
+        _cooldownRemaining = remaining;
+        _onCooldown = remaining > Duration.zero;
+      });
+      if (!_onCooldown) _cooldownTimer?.cancel();
+    });
+  }
+
+  String _formatCooldown(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${s}s';
+    return '${s}s';
+  }
+
+  bool get _actionsLocked => !_isSubscribed && _onCooldown;
 
   Future<void> _loadBoards() async {
     final prefs = widget.prefs ?? await SharedPreferences.getInstance();
@@ -61,12 +119,13 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
       _isCompleted = false;
       _showingCompletionTile = false;
       _goalTitle = null;
+      _piecePositions = List.filled(_totalPieces, null);
+      _positionPieces = List.filled(_totalPieces, null);
     });
 
     try {
       final prefs = widget.prefs ?? await SharedPreferences.getInstance();
-      
-      // Try to load saved state
+
       final savedState = await PuzzleStateService.loadPuzzleState(
         imagePath: widget.imagePath,
         prefs: prefs,
@@ -74,13 +133,14 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
 
       final pieces = await PuzzleImageSplitter.splitImage(
         widget.imagePath,
-        gridSize,
+        _gridSize,
       );
 
       if (!mounted) return;
 
-      if (savedState != null && savedState.imagePath == widget.imagePath) {
-        // Load saved state
+      if (savedState != null &&
+          savedState.imagePath == widget.imagePath &&
+          savedState.piecePositions.length == _totalPieces) {
         setState(() {
           _puzzlePieces = pieces;
           _piecePositions = savedState.piecePositions;
@@ -89,26 +149,22 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           _loading = false;
         });
 
-        // If completed, show completion tile
         if (_isCompleted) {
           await _loadGoalTitle();
           if (mounted) {
-            setState(() {
-              _showingCompletionTile = true;
-            });
+            setState(() => _showingCompletionTile = true);
           }
         }
       } else {
-        // Initialize shuffled state
-        final shuffledIndices = PuzzleImageSplitter.shufflePieces(pieces.length);
-        final positions = List<int?>.filled(totalPieces, null);
-        final positionPieces = List<int?>.filled(totalPieces, null);
+        final shuffledIndices =
+            PuzzleImageSplitter.shufflePieces(pieces.length);
+        final positions = List<int?>.filled(_totalPieces, null);
+        final positionPieces = List<int?>.filled(_totalPieces, null);
 
-        // Place pieces in shuffled positions
         for (int i = 0; i < shuffledIndices.length; i++) {
           final pieceIndex = shuffledIndices[i];
-          positions[pieceIndex] = i; // Piece at index pieceIndex is at position i
-          positionPieces[i] = pieceIndex; // Position i has piece at index pieceIndex
+          positions[pieceIndex] = i;
+          positionPieces[i] = pieceIndex;
         }
 
         setState(() {
@@ -119,14 +175,11 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           _startTime = DateTime.now();
         });
 
-        // Save initial state
         await _saveState();
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load puzzle: ${e.toString()}')),
@@ -137,19 +190,13 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
 
   Future<void> _loadGoalTitle() async {
     final prefs = widget.prefs ?? await SharedPreferences.getInstance();
-    if (_boards == null) {
-      _boards = await BoardsStorageService.loadBoards(prefs: prefs);
-    }
+    _boards ??= await BoardsStorageService.loadBoards(prefs: prefs);
     final goal = await PuzzleService.getGoalForImagePath(
       imagePath: widget.imagePath,
       boards: _boards,
       prefs: prefs,
     );
-    if (mounted) {
-      setState(() {
-        _goalTitle = goal?.title;
-      });
-    }
+    if (mounted) setState(() => _goalTitle = goal?.title);
   }
 
   Future<void> _saveState() async {
@@ -161,18 +208,17 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
       isCompleted: _isCompleted,
       prefs: prefs,
     );
-    // Refresh widget snapshot
     await PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs);
   }
 
   Future<void> _shufflePuzzle() async {
-    if (_puzzlePieces == null) return;
+    if (_puzzlePieces == null || _actionsLocked) return;
 
-    final random = Random();
-    final shuffledIndices = List.generate(totalPieces, (i) => i)..shuffle();
+    final shuffledIndices =
+        List.generate(_totalPieces, (i) => i)..shuffle();
 
-    final positions = List<int?>.filled(totalPieces, null);
-    final positionPieces = List<int?>.filled(totalPieces, null);
+    final positions = List<int?>.filled(_totalPieces, null);
+    final positionPieces = List<int?>.filled(_totalPieces, null);
 
     for (int i = 0; i < shuffledIndices.length; i++) {
       final pieceIndex = shuffledIndices[i];
@@ -191,30 +237,31 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     await _saveState();
   }
 
+  void _changeGridSize(int newSize) {
+    if (newSize == _gridSize || _actionsLocked) return;
+    setState(() => _gridSize = newSize);
+    // Clear old state so it re-shuffles with the new grid
+    PuzzleStateService.clearPuzzleState(
+      imagePath: widget.imagePath,
+      prefs: widget.prefs,
+    );
+    _loadPuzzle();
+  }
+
   Future<void> _movePiece(int pieceIndex, int targetPosition) async {
-    if (_piecePositions[pieceIndex] == targetPosition) return; // Already in place
+    if (_piecePositions[pieceIndex] == targetPosition) return;
 
     final oldPosition = _piecePositions[pieceIndex];
     final oldPieceAtTarget = _positionPieces[targetPosition];
 
-    // Swap pieces
     _piecePositions[pieceIndex] = targetPosition;
     _positionPieces[targetPosition] = pieceIndex;
 
-    if (oldPosition != null) {
-      _positionPieces[oldPosition] = oldPieceAtTarget;
-    }
+    if (oldPosition != null) _positionPieces[oldPosition] = oldPieceAtTarget;
+    if (oldPieceAtTarget != null) _piecePositions[oldPieceAtTarget] = oldPosition;
 
-    if (oldPieceAtTarget != null) {
-      _piecePositions[oldPieceAtTarget] = oldPosition;
-    }
-
-    setState(() {
-      // Check if puzzle is completed
-      _checkCompletion();
-    });
-
-    // Save state after move
+    setState(() {});
+    await _checkCompletion();
     await _saveState();
   }
 
@@ -222,7 +269,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     if (_puzzlePieces == null) return;
 
     bool completed = true;
-    for (int i = 0; i < totalPieces; i++) {
+    for (int i = 0; i < _totalPieces; i++) {
       if (_piecePositions[i] != i) {
         completed = false;
         break;
@@ -235,18 +282,22 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           ? DateTime.now().difference(_startTime!)
           : Duration.zero;
 
-      // Save completed state
       await _saveState();
-
-      // Load goal title
       await _loadGoalTitle();
 
-      // Show completion dialog
-      await _showCompletionDialog(duration);
+      final earnedCoins = CoinsService.coinsForPuzzleGrid(_gridSize);
+      await CoinsService.awardPuzzleCompletion(_gridSize, prefs: widget.prefs);
+
+      if (!_isSubscribed) {
+        await PuzzleService.setPuzzleCooldown(prefs: widget.prefs);
+        await _initCooldownState();
+      }
+
+      await _showCompletionDialog(duration, earnedCoins);
     }
   }
 
-  Future<void> _showCompletionDialog(Duration duration) async {
+  Future<void> _showCompletionDialog(Duration duration, int earnedCoins) async {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     final goalMessage = _goalTitle != null && _goalTitle!.isNotEmpty
@@ -256,7 +307,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
             Icon(Icons.celebration, color: Colors.amber),
@@ -271,28 +322,51 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             Text(
               'Congratulations! You solved the puzzle in ${minutes}m ${seconds}s.',
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
+                const SizedBox(width: 6),
+                Text(
+                  '+$earnedCoins coins earned!',
+                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                        color: Colors.amber.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Text(
               goalMessage,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(ctx).colorScheme.primary,
                   ),
             ),
+            if (_actionsLocked) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(ctx).colorScheme.error,
+                    ),
+              ),
+            ],
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _shufflePuzzle();
-            },
-            child: const Text('Play Again'),
-          ),
+          if (!_actionsLocked)
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _shufflePuzzle();
+              },
+              child: const Text('Play Again'),
+            ),
           FilledButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              // Animate tiles flipping back and show completion tile
+              Navigator.of(ctx).pop();
               _showCompletionTile();
             },
             child: const Text('Done'),
@@ -303,16 +377,15 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   }
 
   void _showCompletionTile() {
-    setState(() {
-      _showingCompletionTile = true;
-    });
+    setState(() => _showingCompletionTile = true);
   }
 
   Future<void> _selectNewImage() async {
-    if (_boards == null) {
-      final prefs = widget.prefs ?? await SharedPreferences.getInstance();
-      _boards = await BoardsStorageService.loadBoards(prefs: prefs);
-    }
+    if (_actionsLocked) return;
+
+    _boards ??= await BoardsStorageService.loadBoards(
+      prefs: widget.prefs ?? await SharedPreferences.getInstance(),
+    );
 
     final selected = await showPuzzleImageSelectorSheet(
       context,
@@ -321,13 +394,11 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     );
 
     if (selected != null && selected != widget.imagePath) {
-      // Clear old puzzle state
       final prefs = widget.prefs ?? await SharedPreferences.getInstance();
       await PuzzleStateService.clearPuzzleState(
         imagePath: widget.imagePath,
         prefs: prefs,
       );
-      
       await PuzzleService.setPuzzleImage(selected, prefs: widget.prefs);
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -342,66 +413,116 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Puzzle Game'),
         actions: [
           IconButton(
-            icon: Icon(_showReference ? Icons.visibility_off : Icons.visibility),
+            icon: Icon(
+                _showReference ? Icons.visibility_off : Icons.visibility),
             tooltip: _showReference ? 'Hide reference' : 'Show reference',
-            onPressed: () => setState(() => _showReference = !_showReference),
+            onPressed: () =>
+                setState(() => _showReference = !_showReference),
           ),
           IconButton(
             icon: const Icon(Icons.shuffle),
-            tooltip: 'Shuffle',
-            onPressed: _shufflePuzzle,
+            tooltip: _actionsLocked
+                ? 'Available in ${_formatCooldown(_cooldownRemaining)}'
+                : 'Shuffle',
+            onPressed: _actionsLocked ? null : _shufflePuzzle,
           ),
           IconButton(
             icon: const Icon(Icons.image_outlined),
-            tooltip: 'Select image',
-            onPressed: _selectNewImage,
+            tooltip: _actionsLocked ? 'Locked during cooldown' : 'Select image',
+            onPressed: _actionsLocked ? null : _selectNewImage,
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _puzzlePieces == null
-              ? const Center(child: Text('Failed to load puzzle'))
-              : _showingCompletionTile
-                  ? _buildCompletionTile()
-                  : _buildPuzzleGrid(),
+      body: Column(
+        children: [
+          _buildGridSizeSelector(scheme),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _puzzlePieces == null
+                    ? const Center(child: Text('Failed to load puzzle'))
+                    : _showingCompletionTile
+                        ? _buildCompletionTile()
+                        : _buildPuzzleGrid(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridSizeSelector(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: SegmentedButton<int>(
+              segments: [
+                ButtonSegment(
+                  value: 6,
+                  label: Text('6x6  (${CoinsService.puzzle6x6Coins} pts)'),
+                ),
+                ButtonSegment(
+                  value: 12,
+                  label: Text('12x12  (${CoinsService.puzzle12x12Coins} pts)'),
+                ),
+              ],
+              selected: {_gridSize},
+              onSelectionChanged: _actionsLocked
+                  ? null
+                  : (s) => _changeGridSize(s.first),
+            ),
+          ),
+          if (_actionsLocked) ...[
+            const SizedBox(width: 12),
+            Tooltip(
+              message: 'Cooldown active',
+              child: Chip(
+                avatar: Icon(Icons.timer, size: 16, color: scheme.error),
+                label: Text(
+                  _formatCooldown(_cooldownRemaining),
+                  style: TextStyle(color: scheme.error, fontSize: 12),
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _buildPuzzleGrid() {
     return Stack(
       children: [
-        // Reference image (optional)
         if (_showReference)
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.3,
-              child: _buildReferenceImage(),
-            ),
+            child: Opacity(opacity: 0.3, child: _buildReferenceImage()),
           ),
-        // Puzzle grid
         Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
             padding: const EdgeInsets.all(16),
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: gridSize,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _gridSize,
                 crossAxisSpacing: 2,
                 mainAxisSpacing: 2,
               ),
-              itemCount: totalPieces,
-              itemBuilder: (context, position) {
-                return _buildPuzzleSlot(position);
-              },
+              itemCount: _totalPieces,
+              itemBuilder: (context, position) => _buildPuzzleSlot(position),
             ),
           ),
         ),
@@ -411,13 +532,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
 
   Widget _buildReferenceImage() {
     final provider = fileImageProviderFromPath(widget.imagePath);
-    if (provider == null) {
-      return Container();
-    }
-    return Image(
-      image: provider,
-      fit: BoxFit.contain,
-    );
+    if (provider == null) return Container();
+    return Image(image: provider, fit: BoxFit.contain);
   }
 
   Widget _buildPuzzleSlot(int position) {
@@ -425,9 +541,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     final isCorrectPosition = pieceIndex == position;
 
     return DragTarget<int>(
-      onAccept: (draggedPieceIndex) {
-        _movePiece(draggedPieceIndex, position);
-      },
+      onAccept: (draggedPieceIndex) => _movePiece(draggedPieceIndex, position),
       builder: (context, candidateData, rejectedData) {
         final isTargeted = candidateData.isNotEmpty;
         return Container(
@@ -450,7 +564,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                   child: Icon(
                     Icons.image_outlined,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    size: 32,
+                    size: _gridSize > 6 ? 16 : 32,
                   ),
                 ),
         );
@@ -461,24 +575,22 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   Widget _buildPuzzlePiece(int pieceIndex, int currentPosition) {
     final pieceBytes = _puzzlePieces![pieceIndex];
     final isCorrectPosition = pieceIndex == currentPosition;
+    final feedbackSize = _gridSize > 6 ? 50.0 : 80.0;
 
     return Draggable<int>(
       data: pieceIndex,
       feedback: Material(
         color: Colors.transparent,
         child: Container(
-          width: 80,
-          height: 80,
+          width: feedbackSize,
+          height: feedbackSize,
           decoration: BoxDecoration(
             border: Border.all(
               color: Theme.of(context).colorScheme.primary,
               width: 2,
             ),
           ),
-          child: Image.memory(
-            pieceBytes,
-            fit: BoxFit.cover,
-          ),
+          child: Image.memory(pieceBytes, fit: BoxFit.cover),
         ),
       ),
       childWhenDragging: Container(
@@ -497,10 +609,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                 )
               : null,
         ),
-        child: Image.memory(
-          pieceBytes,
-          fit: BoxFit.cover,
-        ),
+        child: Image.memory(pieceBytes, fit: BoxFit.cover),
       ),
     );
   }
@@ -516,14 +625,12 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated completion tile
             TweenAnimationBuilder<double>(
               key: const ValueKey('completion_tile_animation'),
               duration: const Duration(milliseconds: 800),
               tween: Tween(begin: 0.0, end: 1.0),
               curve: Curves.easeOutBack,
               builder: (context, value, child) {
-                // Clamp values to valid range since easeOutBack can overshoot
                 final clampedValue = value.clamp(0.0, 1.0);
                 return Transform.scale(
                   scale: clampedValue,
@@ -536,7 +643,10 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.3),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -547,9 +657,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            // Background image
                             _buildReferenceImage(),
-                            // Overlay with message
                             Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
@@ -565,18 +673,19 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
                                     children: [
-                                      Icon(
-                                        Icons.celebration,
-                                        color: Colors.amber,
-                                        size: 64,
-                                      ),
+                                      const Icon(Icons.celebration,
+                                          color: Colors.amber, size: 64),
                                       const SizedBox(height: 16),
                                       Text(
                                         goalMessage,
                                         textAlign: TextAlign.center,
-                                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineSmall
+                                            ?.copyWith(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -595,16 +704,22 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               },
             ),
             const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: () {
-                setState(() {
-                  _showingCompletionTile = false;
-                });
-                _shufflePuzzle();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Play Again'),
-            ),
+            if (!_actionsLocked)
+              FilledButton.icon(
+                onPressed: () {
+                  setState(() => _showingCompletionTile = false);
+                  _shufflePuzzle();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Play Again'),
+              )
+            else
+              Text(
+                'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+              ),
           ],
         ),
       ),

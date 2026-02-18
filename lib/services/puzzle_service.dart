@@ -15,7 +15,9 @@ class PuzzleService {
 
   static const String _puzzleImagePathKey = 'puzzle_image_path';
   static const String _puzzleLastRotationKey = 'puzzle_last_rotation_ms';
+  static const String _puzzleCooldownEndKey = 'puzzle_cooldown_end_ms';
   static const Duration _rotationInterval = Duration(hours: 4);
+  static const Duration cooldownDuration = Duration(hours: 2);
 
   /// Get the current puzzle image path.
   /// Automatically rotates to a new random image if 4 hours have passed.
@@ -26,10 +28,14 @@ class PuzzleService {
     final p = prefs ?? await SharedPreferences.getInstance();
     final boardsList = boards ?? await BoardsStorageService.loadBoards(prefs: p);
 
-    final lastRotationMs = p.getInt(_puzzleLastRotationKey);
+    final cooldownEnd = p.getInt(_puzzleCooldownEndKey) ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final shouldRotate = lastRotationMs == null ||
-        (now - lastRotationMs) >= _rotationInterval.inMilliseconds;
+    final onCooldown = cooldownEnd > now;
+
+    final lastRotationMs = p.getInt(_puzzleLastRotationKey);
+    final shouldRotate = !onCooldown &&
+        (lastRotationMs == null ||
+            (now - lastRotationMs) >= _rotationInterval.inMilliseconds);
 
     if (shouldRotate) {
       // Auto-rotate to a new random image
@@ -131,6 +137,28 @@ class PuzzleService {
 
     if (remaining <= 0) return Duration.zero;
     return Duration(milliseconds: remaining);
+  }
+
+  /// Start a 2-hour cooldown after puzzle completion.
+  static Future<void> setPuzzleCooldown({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final endMs = DateTime.now().add(cooldownDuration).millisecondsSinceEpoch;
+    await p.setInt(_puzzleCooldownEndKey, endMs);
+  }
+
+  /// Returns remaining cooldown duration, or [Duration.zero] if expired.
+  static Future<Duration> getPuzzleCooldownRemaining({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final endMs = p.getInt(_puzzleCooldownEndKey);
+    if (endMs == null) return Duration.zero;
+    final remaining = endMs - DateTime.now().millisecondsSinceEpoch;
+    return remaining > 0 ? Duration(milliseconds: remaining) : Duration.zero;
+  }
+
+  /// Whether the puzzle cooldown is currently active.
+  static Future<bool> isOnCooldown({SharedPreferences? prefs}) async {
+    final remaining = await getPuzzleCooldownRemaining(prefs: prefs);
+    return remaining > Duration.zero;
   }
 
   /// Find goal metadata associated with an image path.

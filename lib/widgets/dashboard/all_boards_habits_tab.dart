@@ -13,6 +13,8 @@ import '../../services/sync_service.dart';
 import '../../services/coins_service.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
+import '../../services/ad_service.dart';
+import '../../services/ad_free_service.dart';
 import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
@@ -21,6 +23,8 @@ import '../rituals/coin_animation_overlay.dart';
 import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
+import '../ads/reward_ad_card.dart';
+import '../ads/banner_ad_widget.dart';
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
@@ -52,12 +56,36 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   double _scrollOffset = 0;
   Offset? _confettiOrigin;
 
+  // Ad-related state
+  static const int _freeHabitLimit = 3;
+  String? _activeAdSession;
+  int _adWatchedCount = 0;
+  bool _showBannerAd = false;
+  bool _shouldShowAds = true;
+
   @override
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
     _scrollController.addListener(_onScroll);
     _loadHabits();
+    _loadAdState();
+  }
+
+  Future<void> _loadAdState() async {
+    final showAds = await AdFreeService.shouldShowAds();
+    final session = await AdService.getActiveSession();
+    int watched = 0;
+    if (session != null) {
+      watched = await AdService.getWatchedCount(session);
+    }
+    if (mounted) {
+      setState(() {
+        _shouldShowAds = showAds;
+        _activeAdSession = session;
+        _adWatchedCount = watched;
+      });
+    }
   }
 
   Future<void> _loadHabits() async {
@@ -99,6 +127,41 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _addHabitGlobal() async {
+    // Gate: if user has 3+ habits and is not ad-free, require 5 reward ads
+    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
+      if (_activeAdSession == null) {
+        // Start a new ad session for this unlock
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setActiveSession(sessionKey);
+        if (!mounted) return;
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Watch 5 ads to unlock a new habit slot!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      // Session exists but not complete
+      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    await _proceedToAddHabit();
+  }
+
+  Future<void> _proceedToAddHabit() async {
     final req = await showAddHabitModal(
       context,
       existingHabits: _habits,
@@ -129,12 +192,34 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     await HabitStorageService.addHabit(newHabit);
     await _loadHabits();
 
+    // Clear the completed ad session
+    if (_activeAdSession != null) {
+      await AdService.clearSession(_activeAdSession!);
+      await AdService.setActiveSession(null);
+      setState(() {
+        _activeAdSession = null;
+        _adWatchedCount = 0;
+      });
+    }
+
     Future<void>(() async {
       if (!NotificationsService.shouldSchedule(newHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(newHabit);
     });
+  }
+
+  Future<void> _onRewardAdWatched() async {
+    if (_activeAdSession == null) return;
+    final newCount = await AdService.incrementWatchedCount(_activeAdSession!);
+    if (mounted) {
+      setState(() => _adWatchedCount = newCount);
+    }
+  }
+
+  void _onAllAdsWatched() {
+    _proceedToAddHabit();
   }
 
   Future<void> _handleHabitTap({
@@ -230,6 +315,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         audioPath: result.audioPath,
         capturedImagePaths: result.imagePaths,
       );
+
+      // Show banner ad after completion if user should see ads
+      if (_shouldShowAds && mounted) {
+        setState(() => _showBannerAd = true);
+        Future.delayed(const Duration(seconds: 6), () {
+          if (mounted) setState(() => _showBannerAd = false);
+        });
+      }
     }
   }
 
@@ -579,6 +672,20 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
+            // Reward ad card (shown when user needs to watch ads for new habit)
+            if (_activeAdSession != null && _shouldShowAds)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16)
+                      .copyWith(top: 8),
+                  child: RewardAdCard(
+                    sessionKey: _activeAdSession!,
+                    watchedCount: _adWatchedCount,
+                    onAdWatched: _onRewardAdWatched,
+                    onAllAdsWatched: _onAllAdsWatched,
+                  ),
+                ),
+              ),
             // Habits list with timeline
             if (allHabits.isNotEmpty)
               SliverPadding(
@@ -656,6 +763,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                       onIconTap: () => swipeKey.currentState?.toggleFlip(),
                                       onLongPress: () => _openTimerForHabit(entry),
                                       onDurationTap: () => _openTimerForHabit(entry),
+                                      adWatchedCount: (_activeAdSession != null && _shouldShowAds)
+                                          ? _adWatchedCount
+                                          : null,
+                                      adTotalRequired: (_activeAdSession != null && _shouldShowAds)
+                                          ? AdService.requiredAdsPerHabit
+                                          : null,
                                     ),
                                   ),
                                 ),
@@ -697,6 +810,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onComplete: () => _onAnimationComplete(index),
           );
         }),
+        // Banner ad overlay after habit completion
+        if (_showBannerAd)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 80 + MediaQuery.of(context).viewPadding.bottom,
+            child: const Center(
+              child: BannerAdWidget(
+                autoDismissDuration: Duration(seconds: 5),
+              ),
+            ),
+          ),
         // FAB
         Positioned(
           right: 16,

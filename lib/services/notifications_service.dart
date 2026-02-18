@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/habit_item.dart';
 import 'app_settings_service.dart';
+import 'notification_routing_service.dart';
 
 class NotificationsService {
   NotificationsService._();
@@ -20,15 +22,46 @@ class NotificationsService {
     if (kIsWeb) return;
 
     tz.initializeTimeZones();
-    // Use device local timezone as default.
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     const initSettings = InitializationSettings(android: android, iOS: ios);
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
     _initialized = true;
+
+    // Handle cold-start: app was killed, user tapped a notification to launch.
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails != null &&
+        launchDetails.didNotificationLaunchApp &&
+        launchDetails.notificationResponse != null) {
+      // Delay slightly so the navigator is mounted before we try to show a sheet.
+      Future.delayed(const Duration(milliseconds: 600), () {
+        _onNotificationTap(launchDetails.notificationResponse!);
+      });
+    }
+  }
+
+  static void _onNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final type = data['type'] as String?;
+      if (type == 'geofence_completion') {
+        NotificationRoutingService.handleGeofenceCompletionTap(
+          boardId: data['boardId'] as String,
+          componentId: data['componentId'] as String,
+          habitId: data['habitId'] as String,
+        );
+      }
+    } catch (e) {
+      debugPrint('Notification tap payload error: $e');
+    }
   }
 
   static Future<bool> requestPermissionsIfNeeded() async {
@@ -215,6 +248,54 @@ class NotificationsService {
       when,
       platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Geofence auto-completion notifications
+  // ---------------------------------------------------------------------------
+
+  static NotificationDetails _geofenceCompletionDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'geofence_completions',
+        'Location completions',
+        channelDescription: 'Notifications when a habit is auto-completed by location',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
+  static Future<void> showGeofenceCompletionNotification({
+    required String habitId,
+    required String habitName,
+    required String boardId,
+    required String componentId,
+  }) async {
+    if (kIsWeb) return;
+    await ensureInitialized();
+
+    final payload = jsonEncode({
+      'type': 'geofence_completion',
+      'habitId': habitId,
+      'boardId': boardId,
+      'componentId': componentId,
+    });
+
+    await _plugin.show(
+      _stableId('geofence:$habitId'),
+      'You completed "$habitName"!',
+      'Tell us how it went.',
+      _geofenceCompletionDetails(),
+      payload: payload,
     );
   }
 }

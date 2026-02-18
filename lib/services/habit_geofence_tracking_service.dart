@@ -10,6 +10,7 @@ import 'grid_tiles_storage_service.dart';
 import 'habit_completion_applier.dart';
 import 'habit_timer_state_service.dart';
 import 'logical_date_service.dart';
+import 'notifications_service.dart';
 import 'vision_board_components_storage_service.dart';
 
 /// App-level geofence tracker for location-bound habits.
@@ -197,15 +198,34 @@ final class HabitGeofenceTrackingService {
           nowMs: eventMs,
         );
         final iso = LogicalDateService.isoToday();
-        await HabitCompletionApplier.markCompleted(
+        final didComplete = await HabitCompletionApplier.markCompleted(
           boardId: boardId,
           componentId: componentId,
           habitId: habitId,
           logicalDateIso: iso,
           prefs: prefs,
         );
+        if (didComplete) {
+          final habitName = _lookupHabitName(boardId, componentId, habitId);
+          await NotificationsService.showGeofenceCompletionNotification(
+            habitId: habitId,
+            habitName: habitName ?? 'your habit',
+            boardId: boardId,
+            componentId: componentId,
+          );
+        }
       }
     }
+  }
+
+  String? _lookupHabitName(String boardId, String componentId, String habitId) {
+    final key = '$boardId::$componentId';
+    final targets = _targetsByComponentKey[key];
+    if (targets == null) return null;
+    for (final t in targets) {
+      if (t.habit.id == habitId) return t.habit.name;
+    }
+    return null;
   }
 
   void _onError(dynamic error) {

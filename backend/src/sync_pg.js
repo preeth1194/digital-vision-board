@@ -8,25 +8,39 @@ export function isLogicalDate(v) {
 
 export async function getUserSettingsPg(canvaUserId) {
   return await withClient(async (c) => {
-    const r = await c.query("select home_timezone, gender from dv_user_settings where canva_user_id = $1", [canvaUserId]);
-    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say" };
+    const r = await c.query(
+      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth from dv_user_settings where canva_user_id = $1",
+      [canvaUserId]
+    );
+    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null };
+    const row = r.rows[0];
+    const dob = row.date_of_birth;
     return {
-      homeTimezone: r.rows[0].home_timezone ?? null,
-      gender: r.rows[0].gender ?? "prefer_not_to_say",
+      homeTimezone: row.home_timezone ?? null,
+      gender: row.gender ?? "prefer_not_to_say",
+      displayName: row.display_name ?? null,
+      weightKg: row.weight_kg != null ? Number(row.weight_kg) : null,
+      heightCm: row.height_cm != null ? Number(row.height_cm) : null,
+      dateOfBirth: dob != null ? (typeof dob === "string" ? dob : dob.toISOString?.().slice(0, 10)) : null,
     };
   });
 }
 
-export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender }) {
+export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth }) {
   return await withClient(async (c) => {
+    const dobVal = dateOfBirth && typeof dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? dateOfBirth : null;
     await c.query(
-      `insert into dv_user_settings (canva_user_id, home_timezone, gender)
-       values ($1, $2, $3)
+      `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth)
+       values ($1, $2, $3, $4, $5, $6, $7::date)
        on conflict (canva_user_id) do update set
-         home_timezone = excluded.home_timezone,
-         gender = excluded.gender,
+         home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
+         gender = coalesce(excluded.gender, dv_user_settings.gender),
+         display_name = coalesce(excluded.display_name, dv_user_settings.display_name),
+         weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
+         height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
+         date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
          updated_at = now()`,
-      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say"],
+      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null],
     );
   });
 }
@@ -113,14 +127,22 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           typeof userSettings.gender === "string" && userSettings.gender.trim()
             ? userSettings.gender.trim()
             : "prefer_not_to_say";
+        const displayName = typeof userSettings.displayName === "string" ? userSettings.displayName : null;
+        const weightKg = typeof userSettings.weightKg === "number" ? userSettings.weightKg : null;
+        const heightCm = typeof userSettings.heightCm === "number" ? userSettings.heightCm : null;
+        const dob = userSettings.dateOfBirth && typeof userSettings.dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(userSettings.dateOfBirth) ? userSettings.dateOfBirth : null;
         await c.query(
-          `insert into dv_user_settings (canva_user_id, home_timezone, gender)
-           values ($1, $2, $3)
+          `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth)
+           values ($1, $2, $3, $4, $5, $6, $7::date)
            on conflict (canva_user_id) do update set
-             home_timezone = excluded.home_timezone,
-             gender = excluded.gender,
+             home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
+             gender = coalesce(excluded.gender, dv_user_settings.gender),
+             display_name = coalesce(excluded.display_name, dv_user_settings.display_name),
+             weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
+             height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
+             date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
              updated_at = now()`,
-          [canvaUserId, tz, gender],
+          [canvaUserId, tz, gender, displayName, weightKg, heightCm, dob],
         );
       }
 

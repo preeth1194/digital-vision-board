@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../utils/app_typography.dart';
+import '../../utils/measurement_utils.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 import 'login_screen.dart';
+import 'profile_completion_screen.dart';
 import 'signup_screen.dart';
 import 'phone_auth_screen.dart';
 
@@ -27,24 +30,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     final token = await DvAuthService.getDvToken();
     final userId = await DvAuthService.getCanvaUserId();
     return (token != null && token.isNotEmpty) && (userId != null && userId.isNotEmpty);
-  }
-
-  Future<void> _signOut() async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await DvAuthService.signOut();
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   Future<void> _continueWithGoogle() async {
@@ -139,23 +124,77 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     );
   }
 
+  static int? _ageFromDob(String? dob) {
+    if (dob == null || dob.isEmpty) return null;
+    final d = DateTime.tryParse(dob);
+    if (d == null) return null;
+    return DateTime.now().difference(d).inDays ~/ 365;
+  }
+
+  String _genderLabel(String v) {
+    switch (v) {
+      case 'male':
+        return 'Male';
+      case 'female':
+        return 'Female';
+      case 'non_binary':
+        return 'Non-binary';
+      default:
+        return 'Prefer not to say';
+    }
+  }
+
+  Future<void> _openProfileEdit() async {
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+    );
+    if (ok == true && mounted) setState(() {});
+  }
+
   Widget _buildSignedInView(BuildContext context, ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    return FutureBuilder<String?>(
-      future: DvAuthService.getUserDisplayIdentifier(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: () async {
+        final identifier = (await DvAuthService.getUserDisplayIdentifier())?.trim();
+        final displayName = await DvAuthService.getDisplayName();
+        final weight = await DvAuthService.getWeightKg();
+        final height = await DvAuthService.getHeightCm();
+        final gender = await DvAuthService.getGender();
+        final dob = await DvAuthService.getDateOfBirth();
+        return {
+          'identifier': identifier,
+          'displayName': displayName,
+          'weight': weight,
+          'height': height,
+          'gender': gender,
+          'dob': dob,
+        };
+      }(),
       builder: (context, snap) {
-        final identifier = snap.data?.trim();
-        final label = (identifier != null && identifier.isNotEmpty)
-            ? 'Signed in as $identifier'
-            : 'Signed in';
+        final data = snap.data;
+        if (data == null) return const Center(child: CircularProgressIndicator());
+        final identifier = data['identifier'] as String?;
+        final displayName = data['displayName'] as String?;
+        final weight = data['weight'] as double?;
+        final height = data['height'] as double?;
+        final gender = data['gender'] as String? ?? 'prefer_not_to_say';
+        final dob = data['dob'] as String?;
+        final label = (displayName != null && displayName.isNotEmpty)
+            ? displayName
+            : (identifier != null && identifier.isNotEmpty)
+                ? 'Signed in as $identifier'
+                : 'Signed in';
         final signInMethod = (identifier != null && identifier.contains('@'))
             ? 'Google'
             : (identifier != null && identifier.isNotEmpty)
                 ? 'Phone'
                 : 'Account';
-        final initial = (identifier != null && identifier.isNotEmpty)
-            ? identifier[0].toUpperCase()
-            : '?';
+        final initial = (displayName != null && displayName.isNotEmpty)
+            ? displayName[0].toUpperCase()
+            : (identifier != null && identifier.isNotEmpty)
+                ? identifier[0].toUpperCase()
+                : '?';
+        final age = _ageFromDob(dob);
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -210,9 +249,92 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            CupertinoListSection.insetGrouped(
+              header: Text(
+                'Profile',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+              margin: EdgeInsets.zero,
+              backgroundColor: colorScheme.surface,
+              decoration: habitSectionDecoration(colorScheme),
+              separatorColor: habitSectionSeparatorColor(colorScheme),
+              children: [
+                CupertinoListTile.notched(
+                  leading: Icon(Icons.person_outline, color: colorScheme.onSurfaceVariant, size: 24),
+                  title: Text(
+                    displayName ?? 'Name',
+                    style: AppTypography.body(context),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                  onTap: _openProfileEdit,
+                ),
+                ValueListenableBuilder<MeasurementUnit>(
+                  valueListenable: AppSettingsService.measurementUnit,
+                  builder: (context, unit, _) {
+                    final weightStr = weight != null
+                        ? (unit == MeasurementUnit.metric
+                            ? '${weight.toStringAsFixed(1)} kg'
+                            : '${MeasurementUtils.kgToLb(weight).toStringAsFixed(1)} lb')
+                        : 'Weight';
+                    return CupertinoListTile.notched(
+                      leading: Icon(Icons.monitor_weight_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                      title: Text(weightStr, style: AppTypography.body(context)),
+                      trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                      onTap: _openProfileEdit,
+                    );
+                  },
+                ),
+                ValueListenableBuilder<MeasurementUnit>(
+                  valueListenable: AppSettingsService.measurementUnit,
+                  builder: (context, unit, _) {
+                    final heightStr = height != null
+                        ? (unit == MeasurementUnit.metric
+                            ? '${height.toStringAsFixed(0)} cm'
+                            : () {
+                                final (ft, inVal) = MeasurementUtils.cmToFtIn(height);
+                                return '$ft ft $inVal in';
+                              }())
+                        : 'Height';
+                    return CupertinoListTile.notched(
+                      leading: Icon(Icons.height_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                      title: Text(heightStr, style: AppTypography.body(context)),
+                      trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                      onTap: _openProfileEdit,
+                    );
+                  },
+                ),
+                CupertinoListTile.notched(
+                  leading: Icon(Icons.wc_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                  title: Text(_genderLabel(gender), style: AppTypography.body(context)),
+                  trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                  onTap: _openProfileEdit,
+                ),
+                CupertinoListTile.notched(
+                  leading: Icon(Icons.cake_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                  title: Text(
+                    dob ?? 'Date of birth',
+                    style: AppTypography.body(context),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                  onTap: _openProfileEdit,
+                ),
+                if (age != null)
+                  CupertinoListTile.notched(
+                    leading: Icon(Icons.calendar_today_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text('$age years old', style: AppTypography.body(context)),
+                    trailing: Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                    onTap: _openProfileEdit,
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             Text(
-              'Your account is connected. Sign out to use a different account or continue as guest.',
+              'Sign out from the menu to use a different account or continue as guest.',
               style: AppTypography.bodySmall(context).copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -231,18 +353,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: _loading ? null : _signOut,
-              icon: _loading
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.logout),
-              label: Text(_loading ? 'Signing out…' : 'Sign out'),
-            ),
           ],
         );
       },

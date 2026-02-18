@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/dv_auth_service.dart';
+import 'profile_completion_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -53,7 +54,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
             if ((idToken ?? '').trim().isEmpty) return;
             await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
             if (!mounted) return;
-            Navigator.of(context).pop(true);
+            if (!await DvAuthService.isProfileComplete()) {
+              final ok = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+              );
+              if (ok == true && mounted) Navigator.of(context).pop(true);
+            } else {
+              Navigator.of(context).pop(true);
+            }
           } catch (_) {
             // ignore; user can still enter SMS manually
           }
@@ -109,7 +117,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       }
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      if (!await DvAuthService.isProfileComplete()) {
+        final ok = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+        );
+        if (ok == true && mounted) Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());

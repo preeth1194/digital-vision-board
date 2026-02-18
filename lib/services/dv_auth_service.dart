@@ -22,6 +22,10 @@ final class DvAuthService {
   static const _canvaUserIdKey = 'dv_canva_user_id_v1';
   static const _userPhoneKey = 'dv_user_phone_v1';
   static const _userEmailKey = 'dv_user_email_v1';
+  static const _userDisplayNameKey = 'dv_user_display_name_v1';
+  static const _userWeightKey = 'dv_user_weight_kg_v1';
+  static const _userHeightKey = 'dv_user_height_cm_v1';
+  static const _userDobKey = 'dv_user_dob_v1';
 
   // Legacy key used by Canva OAuth flow.
   static const _legacyCanvaDvTokenKey = 'dv_canva_token_v1';
@@ -82,6 +86,64 @@ final class DvAuthService {
     if (phone.isNotEmpty) return phone;
     if (email.isNotEmpty) return email;
     return null;
+  }
+
+  static Future<String?> getDisplayName({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_userDisplayNameKey) ?? '').trim();
+    return v.isEmpty ? null : v;
+  }
+
+  static Future<double?> getWeightKg({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = p.getString(_userWeightKey);
+    if (v == null || v.isEmpty) return null;
+    final n = double.tryParse(v);
+    return n;
+  }
+
+  static Future<double?> getHeightCm({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = p.getString(_userHeightKey);
+    if (v == null || v.isEmpty) return null;
+    final n = double.tryParse(v);
+    return n;
+  }
+
+  static Future<String?> getDateOfBirth({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_userDobKey) ?? '').trim();
+    return v.isEmpty ? null : v;
+  }
+
+  static Future<void> setProfileInfo({
+    String? displayName,
+    double? weightKg,
+    double? heightCm,
+    String? dateOfBirth,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final dn = (displayName ?? '').trim();
+    if (dn.isNotEmpty) await p.setString(_userDisplayNameKey, dn);
+    else await p.remove(_userDisplayNameKey);
+    if (weightKg != null) await p.setString(_userWeightKey, weightKg.toString());
+    else await p.remove(_userWeightKey);
+    if (heightCm != null) await p.setString(_userHeightKey, heightCm.toString());
+    else await p.remove(_userHeightKey);
+    final dob = (dateOfBirth ?? '').trim();
+    if (dob.isNotEmpty) await p.setString(_userDobKey, dob);
+    else await p.remove(_userDobKey);
+  }
+
+  /// For phone users: profile is complete if displayName is set. For Google: always true.
+  static Future<bool> isProfileComplete({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final identifier = await getUserDisplayIdentifier(prefs: p);
+    if (identifier == null || identifier.isEmpty) return true;
+    if (identifier.contains('@')) return true;
+    final name = await getDisplayName(prefs: p);
+    return name != null && name.isNotEmpty;
   }
 
   static Future<void> _setDvToken(
@@ -264,6 +326,10 @@ final class DvAuthService {
   static Future<void> putUserSettings({
     String? homeTimezone,
     String? gender,
+    String? displayName,
+    double? weightKg,
+    double? heightCm,
+    String? dateOfBirth,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -272,6 +338,10 @@ final class DvAuthService {
     final body = <String, dynamic>{};
     if (homeTimezone != null) body['home_timezone'] = homeTimezone;
     if (gender != null) body['gender'] = gender;
+    if (displayName != null) body['display_name'] = displayName;
+    if (weightKg != null) body['weight_kg'] = weightKg;
+    if (heightCm != null) body['height_cm'] = heightCm;
+    if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
     if (body.isEmpty) return;
     try {
       final res = await http.put(
@@ -297,6 +367,10 @@ final class DvAuthService {
     await p.remove(_genderKey);
     await p.remove(_userPhoneKey);
     await p.remove(_userEmailKey);
+    await p.remove(_userDisplayNameKey);
+    await p.remove(_userWeightKey);
+    await p.remove(_userHeightKey);
+    await p.remove(_userDobKey);
   }
 
   /// Sign out: clear Firebase/Google sessions and app auth state.

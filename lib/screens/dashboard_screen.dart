@@ -555,6 +555,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
+  Future<void> _signOut() async {
+    await DvAuthService.signOut();
+    try {
+      await DvAuthService.continueAsGuest(prefs: _prefs);
+    } catch (_) {}
+    if (!mounted) return;
+    await SyncService.bootstrapIfNeeded(prefs: _prefs);
+    await LogicalDateService.reloadHomeTimezone(prefs: _prefs);
+    await SyncService.pruneLocalFeedback(prefs: _prefs);
+    await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
+    await _reload();
+  }
+
   void _openSettings() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
@@ -877,6 +890,21 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
+                );
+              },
+            ),
+            FutureBuilder<String?>(
+              future: DvAuthService.getCanvaUserId(prefs: _prefs),
+              builder: (context, snap) {
+                final id = (snap.data ?? '').trim();
+                if (id.isEmpty) return const SizedBox.shrink();
+                return ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Sign out'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _signOut();
+                  },
                 );
               },
             ),

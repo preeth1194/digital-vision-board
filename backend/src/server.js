@@ -2274,8 +2274,14 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
   const gender = typeof req.body?.gender === "string" ? req.body.gender.trim() : "prefer_not_to_say";
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say" });
-  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say" });
+  const displayName = typeof req.body?.display_name === "string" ? req.body.display_name.trim() || null : null;
+  const weightKg = typeof req.body?.weight_kg === "number" && !Number.isNaN(req.body.weight_kg) ? req.body.weight_kg : (typeof req.body?.weight_kg === "string" ? parseFloat(req.body.weight_kg) : null);
+  const heightCm = typeof req.body?.height_cm === "number" && !Number.isNaN(req.body.height_cm) ? req.body.height_cm : (typeof req.body?.height_cm === "string" ? parseFloat(req.body.height_cm) : null);
+  const weightKgVal = typeof weightKg === "number" && !Number.isNaN(weightKg) ? weightKg : null;
+  const heightCmVal = typeof heightCm === "number" && !Number.isNaN(heightCm) ? heightCm : null;
+  const dateOfBirth = typeof req.body?.date_of_birth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date_of_birth) ? req.body.date_of_birth : null;
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth });
+  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth });
 });
 
 app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
@@ -2296,6 +2302,10 @@ app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
     ok: true,
     home_timezone: settings?.homeTimezone ?? null,
     gender: settings?.gender ?? "prefer_not_to_say",
+    display_name: settings?.displayName ?? null,
+    weight_kg: settings?.weightKg ?? null,
+    height_cm: settings?.heightCm ?? null,
+    date_of_birth: settings?.dateOfBirth ?? null,
     boards,
     habit_completions: habitCompletions,
     checklist_events: checklistEvents,

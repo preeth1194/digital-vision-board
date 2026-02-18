@@ -32,6 +32,7 @@ import {
 } from "./youtube-music.js";
 import {
   deletePkceState,
+  findUserByDvToken,
   getOauthPollToken,
   getPkceState,
   getUserRecord,

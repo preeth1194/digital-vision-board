@@ -82,7 +82,7 @@ final class TemplatesService {
         pathOrUrl.startsWith('/storage/') ||
         pathOrUrl.startsWith('/var/') ||
         pathOrUrl.startsWith('/private/') ||
-        pathOrUrl.contains('/com.example.digital_vision_board/') ||
+        pathOrUrl.contains('/com.seerohabitseeding.app/') ||
         pathOrUrl.contains('/vision_images/')) {
       // This is a local file path, not a server path
       return pathOrUrl;

@@ -1,4 +1,4 @@
-package com.digitalvisionboard.app
+package com.seerohabitseeding.app
 
 import android.content.Context
 import android.content.pm.PackageManager

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'firebase_options.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
@@ -30,10 +31,8 @@ Future<void> main() async {
   unawaited(PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs));
   await WidgetDeepLinkService.start();
   HabitProgressWidgetActionQueueService.instance.start();
-  // Firebase is optional at runtime until platform config files are added.
-  // (google-services.json / GoogleService-Info.plist via FlutterFire.)
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (_) {
     // Non-fatal: app can still run without Firebase configured.
   }

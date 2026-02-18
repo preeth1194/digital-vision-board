@@ -149,8 +149,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
     
     if (isCompleted) {
-      _showCompletionSummary(habit);
-      return;
+      await _toggleHabit(
+        habit: habit,
+        wasCompleted: true,
+      );
     } else {
       // Determine coins based on card flip state
       final completionType = isFlipped
@@ -382,14 +384,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
   void _openTimerForHabit(_HabitEntry entry) {
     final habit = entry.habit;
-
-    // If already completed, show summary instead of launching the timer.
-    final now = LogicalDateService.now();
-    if (habit.isCompletedForCurrentPeriod(now)) {
-      _showCompletionSummary(habit);
-      return;
-    }
-
     if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
 
     final isSongBased = habit.timeBound?.isSongBased ?? false;
@@ -424,20 +418,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
               ),
       ),
     );
-  }
-
-  void _showCompletionSummary(HabitItem habit) {
-    final iso = _toIsoDate(LogicalDateService.now());
-    final feedback = habit.feedbackByDate[iso];
-    if (feedback != null) {
-      showCompletedHabitSummary(context, habit: habit, feedback: feedback);
-    } else {
-      showCompletedHabitSummary(
-        context,
-        habit: habit,
-        feedback: const HabitCompletionFeedback(rating: 0, note: null),
-      );
-    }
   }
 
   Future<void> _editHabit(_HabitEntry entry) async {

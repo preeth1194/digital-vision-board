@@ -300,11 +300,32 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   }
 
   void _openHabitTimer(HabitItem habit) {
+    final isCompleted = habit.isCompletedForCurrentPeriod(_selectedDate);
+    if (isCompleted) {
+      _showCompletionDetails(habit);
+      return;
+    }
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => RoutineTimerScreen(habit: habit, onComplete: () => _loadHabits()),
       ),
     ).then((_) => _loadHabits());
+  }
+
+  void _showCompletionDetails(HabitItem habit) {
+    final iso =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    final feedback = habit.feedbackByDate[iso];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _CompletionDetailsSheet(
+        habit: habit,
+        feedback: feedback,
+      ),
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -1054,5 +1075,305 @@ class _TimelineHabitCard extends StatelessWidget {
   Color _getContrastColor(Color color) {
     final luminance = color.computeLuminance();
     return luminance > 0.5 ? AppColors.darkest : AppColors.lightest;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Completion details bottom sheet
+// ---------------------------------------------------------------------------
+
+class _CompletionDetailsSheet extends StatelessWidget {
+  final HabitItem habit;
+  final HabitCompletionFeedback? feedback;
+
+  const _CompletionDetailsSheet({
+    required this.habit,
+    required this.feedback,
+  });
+
+  static const _moodData = <int, (IconData, String, Color)>{
+    1: (Icons.sentiment_very_dissatisfied_rounded, 'Awful', AppColors.moodAwful),
+    2: (Icons.sentiment_dissatisfied_rounded, 'Bad', AppColors.moodBad),
+    3: (Icons.sentiment_neutral_rounded, 'Neutral', AppColors.moodNeutral),
+    4: (Icons.sentiment_satisfied_rounded, 'Good', AppColors.moodGood),
+    5: (Icons.sentiment_very_satisfied_rounded, 'Great', AppColors.moodGreat),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final iconData =
+        habit.iconIndex != null && habit.iconIndex! < habitIcons.length
+            ? habitIcons[habit.iconIndex!].$1
+            : Icons.self_improvement;
+
+    final mood = feedback?.rating;
+    final note = feedback?.note;
+    final coins = feedback?.coinsEarned;
+    final hasDetails = feedback != null &&
+        ((mood != null && mood > 0 && _moodData.containsKey(mood)) ||
+            (note != null && note.isNotEmpty) ||
+            (coins != null && coins > 0));
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Header: icon + name + status in a compact row
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.mossGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(iconData, size: 24, color: AppColors.mossGreen),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        habit.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              size: 14, color: AppColors.mossGreen),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Completed',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.mossGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (coins != null && coins > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.monetization_on,
+                            size: 16, color: AppColors.gold),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+$coins',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+
+            // Detail rows inside a container
+            if (hasDetails) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    if (mood != null &&
+                        mood > 0 &&
+                        _moodData.containsKey(mood))
+                      _buildDetailRow(
+                        icon: _moodData[mood]!.$1,
+                        iconColor: _moodData[mood]!.$3,
+                        label: 'Mood',
+                        value: _moodData[mood]!.$2,
+                        valueColor: _moodData[mood]!.$3,
+                        colorScheme: colorScheme,
+                        isFirst: true,
+                        isLast: (note == null || note.isEmpty),
+                      ),
+                    if (note != null && note.isNotEmpty)
+                      _buildNoteRow(
+                        note: note,
+                        colorScheme: colorScheme,
+                        isFirst:
+                            mood == null || mood <= 0 || !_moodData.containsKey(mood),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+
+            if (!hasDetails) ...[
+              const SizedBox(height: 24),
+              Text(
+                'No additional details recorded.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required Color valueColor,
+    required ColorScheme colorScheme,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: isFirst ? 14 : 0,
+        bottom: isLast ? 14 : 0,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: iconColor),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: valueColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: valueColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoteRow({
+    required String note,
+    required ColorScheme colorScheme,
+    required bool isFirst,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: isFirst ? 14 : 6,
+        bottom: 14,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.notes_rounded,
+                size: 22, color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              note,
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurface,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

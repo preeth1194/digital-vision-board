@@ -45,6 +45,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
           // Auto-resolve on Android sometimes.
           try {
             final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+            final phone = cred.user?.phoneNumber;
+            if (phone != null && phone.isNotEmpty) {
+              await DvAuthService.setUserDisplayInfo(phoneNumber: phone);
+            }
             final idToken = await cred.user?.getIdToken();
             if ((idToken ?? '').trim().isEmpty) return;
             await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
@@ -95,6 +99,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     try {
       final credential = PhoneAuthProvider.credential(verificationId: vid!, smsCode: code);
       final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final phone = cred.user?.phoneNumber;
+      if (phone != null && phone.isNotEmpty) {
+        await DvAuthService.setUserDisplayInfo(phoneNumber: phone);
+      }
       final idToken = await cred.user?.getIdToken();
       if ((idToken ?? '').trim().isEmpty) {
         throw Exception('Could not get Firebase idToken.');

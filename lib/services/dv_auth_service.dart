@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +20,8 @@ final class DvAuthService {
   static const _homeTimezoneKey = 'dv_home_timezone_v1';
   static const _genderKey = 'dv_gender_v1';
   static const _canvaUserIdKey = 'dv_canva_user_id_v1';
+  static const _userPhoneKey = 'dv_user_phone_v1';
+  static const _userEmailKey = 'dv_user_email_v1';
 
   // Legacy key used by Canva OAuth flow.
   static const _legacyCanvaDvTokenKey = 'dv_canva_token_v1';
@@ -53,6 +57,31 @@ final class DvAuthService {
     final p = prefs ?? await SharedPreferences.getInstance();
     final v = p.getString(_canvaUserIdKey);
     return (v != null && v.trim().isNotEmpty) ? v.trim() : null;
+  }
+
+  /// Persist phone/email for display in user profile (e.g. after Firebase sign-in).
+  static Future<void> setUserDisplayInfo({
+    String? phoneNumber,
+    String? email,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final phone = (phoneNumber ?? '').trim();
+    final em = (email ?? '').trim();
+    if (phone.isNotEmpty) await p.setString(_userPhoneKey, phone);
+    else await p.remove(_userPhoneKey);
+    if (em.isNotEmpty) await p.setString(_userEmailKey, em);
+    else await p.remove(_userEmailKey);
+  }
+
+  /// Returns phone or email for display (whichever is set). Null if neither.
+  static Future<String?> getUserDisplayIdentifier({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final phone = (p.getString(_userPhoneKey) ?? '').trim();
+    final email = (p.getString(_userEmailKey) ?? '').trim();
+    if (phone.isNotEmpty) return phone;
+    if (email.isNotEmpty) return email;
+    return null;
   }
 
   static Future<void> _setDvToken(
@@ -266,6 +295,19 @@ final class DvAuthService {
     await p.remove(_expiresAtMsKey);
     await p.remove(_canvaUserIdKey);
     await p.remove(_genderKey);
+    await p.remove(_userPhoneKey);
+    await p.remove(_userEmailKey);
+  }
+
+  /// Sign out: clear Firebase/Google sessions and app auth state.
+  static Future<void> signOut({SharedPreferences? prefs}) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
+    await clear(prefs: prefs);
   }
 
   static Future<GuestAuthResult> continueAsGuest({

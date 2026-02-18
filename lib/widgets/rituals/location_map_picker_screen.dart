@@ -172,7 +172,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
                     : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.example.digital_vision_board',
+                userAgentPackageName: 'com.seerohabitseeding.app',
               ),
             ],
           ),

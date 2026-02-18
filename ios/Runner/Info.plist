@@ -78,6 +78,15 @@
 				<string>dvb</string>
 			</array>
 		</dict>
+		<!-- Google Sign-In: reversed client ID from GoogleService-Info.plist -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.250088132481-9gvmteoc6gmksljefvmurv25ard5vm71</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

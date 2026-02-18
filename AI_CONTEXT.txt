@@ -231,11 +231,11 @@ The app supports two timer modes for habits:
 - Snapshot service includes timer state: `lib/services/habit_progress_widget_snapshot_service.dart`
 
 ### Native Platform Code
-- Android: `android/app/src/main/kotlin/com/digitalvisionboard/app/MusicProviderHandler.kt`
-  - **Package name**: Migrated from `com.example.digital_vision_board` to `com.digitalvisionboard.app`
+- Android: `android/app/src/main/kotlin/com/seerohabitseeding/app/MusicProviderHandler.kt`
+  - **Package name**: Package name: `com.seerohabitseeding.app`
   - Uses MediaSession API to detect currently playing tracks
   - Supports polling fallback for devices without notification listener permission
-  - MainActivity: `android/app/src/main/kotlin/com/digitalvisionboard/app/MainActivity.kt`
+  - MainActivity: `android/app/src/main/kotlin/com/seerohabitseeding/app/MainActivity.kt`
 - iOS: `ios/Runner/MusicProviderHandler.swift`
 - Method channel: `dvb/music_provider` for track detection
 - Spotify OAuth: Handled via backend API, not native SDK

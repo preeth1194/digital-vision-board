@@ -10,7 +10,7 @@ final class PuzzleWidgetNativeBridge {
 
   static const MethodChannel _ch = MethodChannel('dvb/puzzle_widget');
 
-  static const String defaultIosAppGroupId = 'group.digital_vision_board';
+  static const String defaultIosAppGroupId = 'group.seerohabitseeding';
 
   static Future<void> writeSnapshotToAppGroupBestEffort(
     String snapshotJson, {

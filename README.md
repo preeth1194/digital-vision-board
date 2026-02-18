@@ -1,6 +1,16 @@
 # digital-vision-board
 A gamified digital vision board app built with Flutter.
 
+## Firebase / FlutterFire Setup
+
+The app uses Firebase Auth (Google Sign-In, phone auth). To configure Firebase locally:
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Add Android (package: `com.seerohabitseeding.app`) and iOS (bundle: `com.seerohabitseeding.app`) apps
+3. Run `flutterfire configure` from the project root
+
+See **[FLUTTER_FIRE_SETUP.md](FLUTTER_FIRE_SETUP.md)** for detailed steps.
+
 ## CI/CD Workflows
 
 ### Testing and Staging Builds

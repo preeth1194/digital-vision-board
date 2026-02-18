@@ -46,7 +46,7 @@ import MediaPlayer
             result(nil)
             return
           }
-          let groupId = (args["iosAppGroupId"] as? String) ?? "group.digital_vision_board"
+          let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
           let ud = UserDefaults(suiteName: groupId)
           ud?.set(snapshot, forKey: self.snapshotKey)
           ud?.synchronize()
@@ -61,7 +61,7 @@ import MediaPlayer
           if let args = call.arguments as? [String: Any], let g = args["iosAppGroupId"] as? String {
             groupId = g
           } else {
-            groupId = "group.digital_vision_board"
+            groupId = "group.seerohabitseeding"
           }
           let ud = UserDefaults(suiteName: groupId)
           let raw = ud?.array(forKey: self.actionQueueKey) as? [[String: Any]] ?? []
@@ -103,7 +103,7 @@ import MediaPlayer
             result(nil)
             return
           }
-          let groupId = (args["iosAppGroupId"] as? String) ?? "group.digital_vision_board"
+          let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
           let ud = UserDefaults(suiteName: groupId)
           ud?.set(snapshot, forKey: self.puzzleSnapshotKey)
           ud?.synchronize()

@@ -1,4 +1,4 @@
-package com.digitalvisionboard.app
+package com.seerohabitseeding.app
 
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity

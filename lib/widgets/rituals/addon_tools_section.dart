@@ -11,6 +11,11 @@ class AddonToolsSection extends StatelessWidget {
   final ValueChanged<bool> onRemindersToggle;
   final bool timerAdded;
   final ValueChanged<bool> onTimerToggle;
+  final bool playSongsAdded;
+  final ValueChanged<bool> onPlaySongsToggle;
+  final int durationMinutes;
+  /// Called when user taps to configure Play Songs. Receives sheet context to pop it first.
+  final void Function(BuildContext sheetContext)? onConfigurePlaySongs;
 
   const AddonToolsSection({
     super.key,
@@ -19,9 +24,14 @@ class AddonToolsSection extends StatelessWidget {
     required this.onRemindersToggle,
     required this.timerAdded,
     required this.onTimerToggle,
+    required this.playSongsAdded,
+    required this.onPlaySongsToggle,
+    required this.durationMinutes,
+    this.onConfigurePlaySongs,
   });
 
-  int get _activeCount => (remindersAdded ? 1 : 0) + (timerAdded ? 1 : 0);
+  int get _activeCount =>
+      (remindersAdded ? 1 : 0) + (timerAdded ? 1 : 0) + (playSongsAdded ? 1 : 0);
 
   void _showAddonSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -31,6 +41,8 @@ class AddonToolsSection extends StatelessWidget {
         final colorScheme = Theme.of(ctx).colorScheme;
         var localReminders = remindersAdded;
         var localTimer = timerAdded;
+        var localPlaySongs = playSongsAdded;
+        final canEnablePlaySongs = timerAdded && durationMinutes > 10;
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             return Container(
@@ -98,6 +110,38 @@ class AddonToolsSection extends StatelessWidget {
                         onTimerToggle(v);
                       },
                     ),
+                    Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                    _AddonToggleRow(
+                      icon: Icons.music_note_outlined,
+                      activeIcon: Icons.music_note_rounded,
+                      title: 'Play Songs',
+                      subtitle: 'Playlist or number of songs',
+                      isActive: localPlaySongs,
+                      accentColor: habitColor,
+                      onChanged: (v) {
+                        if (v && !canEnablePlaySongs) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Play Songs requires Timer to be enabled and duration greater than 10 minutes.',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+                        setSheetState(() => localPlaySongs = v);
+                        onPlaySongsToggle(v);
+                      },
+                      onRowTap: localPlaySongs && onConfigurePlaySongs != null
+                          ? () => onConfigurePlaySongs!(ctx)
+                          : null,
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -160,6 +204,7 @@ class _AddonToggleRow extends StatelessWidget {
   final bool isActive;
   final Color accentColor;
   final ValueChanged<bool> onChanged;
+  final VoidCallback? onRowTap;
 
   const _AddonToggleRow({
     required this.icon,
@@ -169,41 +214,62 @@ class _AddonToggleRow extends StatelessWidget {
     required this.isActive,
     required this.accentColor,
     required this.onChanged,
+    this.onRowTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    final labelPart = Row(
+      children: [
+        Icon(
+          isActive ? activeIcon : icon,
+          size: 24,
+          color: isActive ? accentColor : colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.body(context).copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
         children: [
-          Icon(
-            isActive ? activeIcon : icon,
-            size: 24,
-            color: isActive ? accentColor : colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppTypography.caption(context).copyWith(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
+            child: onRowTap != null
+                ? Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onRowTap,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: labelPart,
+                      ),
+                    ),
+                  )
+                : labelPart,
           ),
           CupertinoSwitch(
             value: isActive,

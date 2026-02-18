@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/cbt_enhancements.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
+import '../../screens/music_selection_screen.dart';
 import '../../services/boards_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
@@ -135,6 +136,11 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   // Addon tools
   bool _remindersAddonAdded = false;
   bool _timerAddonAdded = false;
+  bool _playSongsAddonAdded = false;
+  String? _playSongsPlaylistId;
+  String? _playSongsPlaylistName;
+  List<String>? _playSongsTrackIds;
+  int? _playSongsSongCount;
 
   // Timer sound & vibration
   String _notificationSound = 'default';
@@ -486,6 +492,22 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _vibrationType = tb.vibrationType ?? 'default';
     }
 
+    // Play Songs addon (requires timer + duration > 10 min)
+    if (tb != null &&
+        (tb.spotifyPlaylistId != null ||
+            (tb.spotifyTrackIds?.isNotEmpty ?? false))) {
+      _playSongsAddonAdded = true;
+      _playSongsPlaylistId = tb.spotifyPlaylistId;
+      _playSongsPlaylistName = null; // Not stored in model
+      _playSongsTrackIds = tb.spotifyTrackIds != null
+          ? List<String>.from(tb.spotifyTrackIds!)
+          : null;
+      _playSongsSongCount =
+          tb.spotifyTrackIds?.isNotEmpty == true
+              ? tb.spotifyTrackIds!.length
+              : null;
+    }
+
     // Step 6: Strategy (Stacking)
     final chaining = habit.chaining;
     if (chaining != null && chaining.anchorHabit != null) {
@@ -562,6 +584,27 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     });
   }
 
+  Future<void> _openMusicSelection() async {
+    final result = await Navigator.of(context).push<MusicSelectionResult>(
+      MaterialPageRoute(
+        builder: (_) => MusicSelectionScreen(
+          selectedPlaylistId: _playSongsPlaylistId,
+          selectedPlaylistName: _playSongsPlaylistName,
+          selectedTrackIds: _playSongsTrackIds,
+          selectedSongCount: _playSongsSongCount,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _playSongsPlaylistId = result.playlistId;
+        _playSongsPlaylistName = result.playlistName;
+        _playSongsTrackIds = result.trackIds;
+        _playSongsSongCount = result.songCount;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _habitNameController.removeListener(_clearNameError);
@@ -633,6 +676,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         duration: _timeBoundDurationValue.clamp(1, maxVal),
         unit: _timeBoundDurationUnit,
         mode: 'time',
+        spotifyPlaylistId: _playSongsAddonAdded && _timeBoundDurationMinutes > 10
+            ? _playSongsPlaylistId
+            : null,
+        spotifyTrackIds: _playSongsAddonAdded &&
+                _timeBoundDurationMinutes > 10 &&
+                _playSongsTrackIds?.isNotEmpty == true
+            ? _playSongsTrackIds
+            : null,
         notificationSound: _notificationSound,
         vibrationType: _vibrationType,
       );
@@ -963,6 +1014,16 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             setState(() {
                               _timeBoundDurationValue = value;
                               _timeBoundDurationUnit = unit;
+                              final newDurationMinutes =
+                                  unit == 'hours' ? value * 60 : value;
+                              if (_playSongsAddonAdded &&
+                                  newDurationMinutes <= 10) {
+                                _playSongsAddonAdded = false;
+                                _playSongsPlaylistId = null;
+                                _playSongsPlaylistName = null;
+                                _playSongsTrackIds = null;
+                                _playSongsSongCount = null;
+                              }
                             });
                             _checkTimeConflict();
                           },
@@ -1045,9 +1106,33 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               _timeBoundStartTime = null;
                               _timeBoundDurationValue = 15;
                               _timeBoundDurationUnit = 'minutes';
+                              _playSongsAddonAdded = false;
+                              _playSongsPlaylistId = null;
+                              _playSongsPlaylistName = null;
+                              _playSongsTrackIds = null;
+                              _playSongsSongCount = null;
                             }
                           });
                         },
+                        playSongsAdded: _playSongsAddonAdded,
+                        onPlaySongsToggle: (added) {
+                          setState(() {
+                            _playSongsAddonAdded = added;
+                            if (!added) {
+                              _playSongsPlaylistId = null;
+                              _playSongsPlaylistName = null;
+                              _playSongsTrackIds = null;
+                              _playSongsSongCount = null;
+                            }
+                          });
+                        },
+                        durationMinutes: _timeBoundDurationMinutes,
+                        onConfigurePlaySongs: _playSongsAddonAdded
+                            ? (sheetContext) {
+                                Navigator.pop(sheetContext);
+                                _openMusicSelection();
+                              }
+                            : null,
                       ),
                       // Space for fixed bottom bar
                       const SizedBox(height: 24),

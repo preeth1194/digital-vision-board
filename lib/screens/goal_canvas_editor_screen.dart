@@ -24,7 +24,8 @@ import '../widgets/vision_board_builder.dart';
 ///
 /// - User adds a goal by picking an image -> cropper -> saved as a layer.
 /// - User can drag/resize layers.
-/// - Habits are tracked per goal (image) layer.
+/// - Habits are tracked per goal (image) layer (edited in viewer / HabitTrackerSheet).
+/// - This screen does not write habits; habit data is read from components for display only (backward compat via component.habits).
 /// - Text is allowed for decoration (not for tracking).
 class GoalCanvasEditorScreen extends StatefulWidget {
   final String boardId;

@@ -21,8 +21,10 @@ class GridTileModel {
   final int index;
   /// Optional goal metadata (category/deadline/CBT/action plan) for this tile-goal.
   final GoalMetadata? goal;
-  /// Habits associated with this tile-goal.
+  /// Habits associated with this tile-goal (legacy, kept for backward compat).
   final List<HabitItem> habits;
+  /// Habit IDs referencing habits in HabitStorageService.
+  final List<String> habitIds;
   /// Tasks associated with this tile-goal.
   final List<TaskItem> tasks;
 
@@ -36,6 +38,7 @@ class GridTileModel {
     required this.index,
     this.goal,
     this.habits = const [],
+    this.habitIds = const [],
     this.tasks = const [],
   });
 
@@ -58,6 +61,7 @@ class GridTileModel {
     int? index,
     GoalMetadata? goal,
     List<HabitItem>? habits,
+    List<String>? habitIds,
     List<TaskItem>? tasks,
   }) {
     return GridTileModel(
@@ -70,6 +74,7 @@ class GridTileModel {
       index: index ?? this.index,
       goal: goal ?? this.goal,
       habits: habits ?? this.habits,
+      habitIds: habitIds ?? this.habitIds,
       tasks: tasks ?? this.tasks,
     );
   }
@@ -84,9 +89,18 @@ class GridTileModel {
         'index': index,
         'goal': goal?.toJson(),
         'habits': habits.map((h) => h.toJson()).toList(),
+        'habitIds': habitIds,
       };
 
   factory GridTileModel.fromJson(Map<String, dynamic> json) {
+    final habits = (json['habits'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(HabitItem.fromJson)
+        .toList();
+    final habitIdsRaw = json['habitIds'] as List<dynamic>?;
+    final habitIds = habitIdsRaw != null
+        ? habitIdsRaw.whereType<String>().toList()
+        : habits.map((h) => h.id).toList();
     return GridTileModel(
       id: json['id'] as String,
       type: json['type'] as String? ?? 'empty',
@@ -98,10 +112,8 @@ class GridTileModel {
       goal: (json['goal'] is Map<String, dynamic>)
           ? GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>)
           : null,
-      habits: (json['habits'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .map(HabitItem.fromJson)
-          .toList(),
+      habits: habits,
+      habitIds: habitIds,
       tasks: (json['tasks'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .map(TaskItem.fromJson)

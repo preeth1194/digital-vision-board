@@ -16,6 +16,8 @@ abstract class VisionComponent {
   final double scale;
   final int zIndex;
   final List<HabitItem> habits;
+  /// Habit IDs referencing habits in HabitStorageService.
+  final List<String> habitIds;
   final List<TaskItem> tasks;
   /// When true, this layer is completed/disabled (kept, but visually muted).
   final bool isDisabled;
@@ -28,6 +30,7 @@ abstract class VisionComponent {
     this.scale = 1.0,
     this.zIndex = 0,
     this.habits = const [],
+    this.habitIds = const [],
     this.tasks = const [],
     this.isDisabled = false,
   });
@@ -40,6 +43,7 @@ abstract class VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<String>? habitIds,
     List<TaskItem>? tasks,
     bool? isDisabled,
   });
@@ -79,6 +83,16 @@ abstract class VisionComponent {
   static List<HabitItem> habitsFromJson(dynamic json) {
     final list = (json as List<dynamic>? ?? const []);
     return list.map((e) => HabitItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static List<String> habitIdsFromJson(dynamic json, {List<HabitItem>? fallbackHabits}) {
+    if (json is List) {
+      return json.whereType<String>().toList();
+    }
+    if (fallbackHabits != null && fallbackHabits.isNotEmpty) {
+      return fallbackHabits.map((h) => h.id).toList();
+    }
+    return const [];
   }
 
   static List<Map<String, dynamic>> habitsToJson(List<HabitItem> habits) =>

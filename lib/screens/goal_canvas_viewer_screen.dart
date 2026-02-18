@@ -12,6 +12,7 @@ import '../services/boards_storage_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
 import '../services/vision_board_components_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../widgets/editor/layers_sheet.dart';
 import '../widgets/habit_tracker_sheet.dart';
 import '../widgets/vision_board_builder.dart';
@@ -87,6 +88,18 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
 
   Future<void> _saveComponents(List<VisionComponent> updated) async {
     final prefs = await SharedPreferences.getInstance();
+    // Sync habits to HabitStorageService when writing components.
+    final previousHabitIds = <String, Set<String>>{};
+    for (final c in _components) {
+      final ids = <String>{...c.habits.map((h) => h.id), ...c.habitIds};
+      if (ids.isNotEmpty) previousHabitIds[c.id] = ids;
+    }
+    await HabitStorageService.syncComponentsHabits(
+      widget.boardId,
+      updated,
+      previousHabitIds,
+      prefs: prefs,
+    );
     await VisionBoardComponentsStorageService.saveComponents(widget.boardId, updated, prefs: prefs);
     if (!mounted) return;
     setState(() => _components = updated);

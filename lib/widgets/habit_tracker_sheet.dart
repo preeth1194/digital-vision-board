@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
+import '../services/habit_storage_service.dart';
 import '../services/habit_geofence_tracking_service.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
@@ -43,13 +44,13 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
   @override
   void initState() {
     super.initState();
+    // Use component.habits as immediate fallback; overwrite with service data
     _habits = List<HabitItem>.from(widget.component.habits);
     final meta = _goalMetadataOrNull(widget.component);
     _todos = List<GoalTodoItem>.from(meta?.todoItems ?? const []);
-    // Tasks are removed across the app; ensure any legacy todo links are cleared.
     _todos = _todos.map((t) => t.copyWith(taskId: null)).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptMissedReschedule());
-    // Start/refresh geofence tracking for any location-bound habits in this component.
+    _loadHabitsFromService();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future<void>(() async {
         final boardId = widget.boardId;
@@ -61,6 +62,15 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         );
       });
     });
+  }
+
+  Future<void> _loadHabitsFromService() async {
+    final fromService = await HabitStorageService.getHabitsForComponent(
+      widget.component.id,
+    );
+    if (fromService.isNotEmpty && mounted) {
+      setState(() => _habits = fromService);
+    }
   }
 
   @override
@@ -102,6 +112,17 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   void _updateComponent() {
     _emitComponent(widget.component);
+    // Sync habits to standalone storage (source of truth)
+    Future<void>(() async {
+      final all = await HabitStorageService.loadAll();
+      final compId = widget.component.id;
+      final existing = all.where((h) => h.componentId != compId).toList();
+      final updated = _habits.map((h) => h.copyWith(
+        boardId: widget.boardId ?? h.boardId,
+        componentId: compId,
+      )).toList();
+      await HabitStorageService.saveAll([...existing, ...updated]);
+    });
     // Keep geofence tracking in sync with the latest habit list.
     Future<void>(() async {
       final boardId = widget.boardId;

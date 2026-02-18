@@ -9,6 +9,7 @@ import '../models/core_value.dart';
 import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dashboard/expandable_fab.dart';
@@ -131,6 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
+    await HabitStorageService.migrateFromBoardsIfNeeded(prefs: _prefs);
     await DvAuthService.migrateLegacyTokenIfNeeded(prefs: _prefs);
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
     await LogicalDateService.ensureInitialized(prefs: _prefs);

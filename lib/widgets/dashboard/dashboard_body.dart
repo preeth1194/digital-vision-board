@@ -7,6 +7,7 @@ import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../../services/habit_storage_service.dart';
 import '../../screens/journal/journal_notes_screen.dart';
 import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
@@ -69,6 +70,7 @@ class DashboardBody extends StatelessWidget {
           imagePath: (t.type == 'image') ? (t.content ?? '') : '',
           goal: t.goal,
           habits: t.habits,
+          habitIds: t.habitIds,
         ),
       );
     }
@@ -86,6 +88,18 @@ class DashboardBody extends StatelessWidget {
   Future<void> _saveBoardComponents(VisionBoardInfo board, List<VisionComponent> updated) async {
     if (board.layoutType == VisionBoardInfo.layoutGrid) {
       final existingTiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      // Sync habits to HabitStorageService when writing to tiles.
+      final previousHabitIds = <String, Set<String>>{};
+      for (final t in existingTiles) {
+        final ids = <String>{...t.habits.map((h) => h.id), ...t.habitIds};
+        if (ids.isNotEmpty) previousHabitIds[t.id] = ids;
+      }
+      await HabitStorageService.syncComponentsHabits(
+        board.id,
+        updated,
+        previousHabitIds,
+        prefs: prefs,
+      );
       final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
       final nextTiles = existingTiles.map((t) {
         final c = byId[t.id];
@@ -132,7 +146,7 @@ class DashboardBody extends StatelessWidget {
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
         ),
-      6 => const RoutineScreen(),
+      6 => RoutineScreen(dataVersion: boardDataVersion),
       7 => FutureBuilder<Map<String, List<VisionComponent>>>(
           future: _loadAllBoardsComponents(),
           builder: (context, snap) {

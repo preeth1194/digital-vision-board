@@ -90,6 +90,8 @@ final class HabitLocationBoundSpec {
   final String triggerMode;
   /// Used when triggerMode is 'dwell' or 'both'
   final int? dwellMinutes;
+  /// Human-readable address resolved via geocoding.
+  final String? address;
 
   const HabitLocationBoundSpec({
     required this.enabled,
@@ -98,6 +100,7 @@ final class HabitLocationBoundSpec {
     required this.radiusMeters,
     required this.triggerMode,
     required this.dwellMinutes,
+    this.address,
   });
 
   Map<String, dynamic> toJson() => {
@@ -107,6 +110,7 @@ final class HabitLocationBoundSpec {
         'radiusMeters': radiusMeters,
         'triggerMode': triggerMode,
         'dwellMinutes': dwellMinutes,
+        'address': address,
       };
 
   factory HabitLocationBoundSpec.fromJson(Map<String, dynamic> json) {
@@ -118,6 +122,7 @@ final class HabitLocationBoundSpec {
         150;
     final triggerMode = (json['triggerMode'] as String?) ?? (json['trigger_mode'] as String?) ?? 'arrival';
     final dwellMinutes = (json['dwellMinutes'] as num?)?.toInt() ?? (json['dwell_minutes'] as num?)?.toInt();
+    final address = json['address'] as String?;
     return HabitLocationBoundSpec(
       enabled: enabled,
       lat: lat,
@@ -125,6 +130,28 @@ final class HabitLocationBoundSpec {
       radiusMeters: radiusMeters,
       triggerMode: triggerMode,
       dwellMinutes: dwellMinutes,
+      address: address,
+    );
+  }
+
+  HabitLocationBoundSpec copyWith({
+    bool? enabled,
+    double? lat,
+    double? lng,
+    int? radiusMeters,
+    String? triggerMode,
+    int? dwellMinutes,
+    String? address,
+    bool clearAddress = false,
+  }) {
+    return HabitLocationBoundSpec(
+      enabled: enabled ?? this.enabled,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      radiusMeters: radiusMeters ?? this.radiusMeters,
+      triggerMode: triggerMode ?? this.triggerMode,
+      dwellMinutes: dwellMinutes ?? this.dwellMinutes,
+      address: clearAddress ? null : (address ?? this.address),
     );
   }
 }
@@ -196,6 +223,12 @@ class HabitItem {
   /// Start time in minutes since midnight for timeline placement.
   final int? startTimeMinutes;
 
+  /// Board this habit belongs to (null for standalone habits).
+  final String? boardId;
+
+  /// Component/tile this habit belongs to (null for standalone habits).
+  final String? componentId;
+
   const HabitItem({
     required this.id,
     required this.name,
@@ -216,6 +249,8 @@ class HabitItem {
     this.completedDates = const [],
     this.actionSteps = const [],
     this.startTimeMinutes,
+    this.boardId,
+    this.componentId,
   });
 
   Map<String, int> get stats => {
@@ -223,7 +258,10 @@ class HabitItem {
         'total_completions': completedDates.length,
       };
 
-  /// Creates a copy of this habit with optional field overrides
+  /// Creates a copy of this habit with optional field overrides.
+  ///
+  /// Use the `clearX` flags to explicitly set nullable fields to null
+  /// (since passing null normally means "keep existing value").
   HabitItem copyWith({
     String? id,
     String? name,
@@ -239,11 +277,15 @@ class HabitItem {
     HabitChaining? chaining,
     CbtEnhancements? cbtEnhancements,
     HabitTimeBoundSpec? timeBound,
+    bool clearTimeBound = false,
     HabitLocationBoundSpec? locationBound,
     int? iconIndex,
     List<DateTime>? completedDates,
     List<HabitActionStep>? actionSteps,
     int? startTimeMinutes,
+    bool clearStartTimeMinutes = false,
+    String? boardId,
+    String? componentId,
   }) {
     return HabitItem(
       id: id ?? this.id,
@@ -259,12 +301,14 @@ class HabitItem {
       feedbackByDate: feedbackByDate ?? this.feedbackByDate,
       chaining: chaining ?? this.chaining,
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
-      timeBound: timeBound ?? this.timeBound,
+      timeBound: clearTimeBound ? null : (timeBound ?? this.timeBound),
       locationBound: locationBound ?? this.locationBound,
       iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
       actionSteps: actionSteps ?? this.actionSteps,
-      startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
+      startTimeMinutes: clearStartTimeMinutes ? null : (startTimeMinutes ?? this.startTimeMinutes),
+      boardId: boardId ?? this.boardId,
+      componentId: componentId ?? this.componentId,
     );
   }
 
@@ -293,6 +337,8 @@ class HabitItem {
           .toList(),
       'actionSteps': actionSteps.map((s) => s.toJson()).toList(),
       'startTimeMinutes': startTimeMinutes,
+      'boardId': boardId,
+      'componentId': componentId,
     };
   }
 
@@ -399,6 +445,8 @@ class HabitItem {
       completedDates: dates,
       actionSteps: actionSteps,
       startTimeMinutes: startTimeMinutes,
+      boardId: json['boardId'] as String?,
+      componentId: json['componentId'] as String?,
     );
   }
 
@@ -570,16 +618,21 @@ class HabitItem {
 final class HabitCompletionFeedback {
   final int rating; // 1..5
   final String? note;
-  const HabitCompletionFeedback({required this.rating, required this.note});
+  /// Total coins awarded for this completion (base + step bonus + media bonus).
+  /// Stored so we can deduct the exact amount on uncheck.
+  final int? coinsEarned;
+  const HabitCompletionFeedback({required this.rating, required this.note, this.coinsEarned});
 
   Map<String, dynamic> toJson() => {
         'rating': rating,
         'note': note,
+        if (coinsEarned != null) 'coinsEarned': coinsEarned,
       };
 
   factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) => HabitCompletionFeedback(
         rating: (json['rating'] as num?)?.toInt() ?? 0,
         note: json['note'] as String?,
+        coinsEarned: (json['coinsEarned'] as num?)?.toInt(),
       );
 }
 

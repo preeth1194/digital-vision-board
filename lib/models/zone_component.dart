@@ -19,6 +19,7 @@ final class ZoneComponent extends VisionComponent {
     super.scale,
     super.zIndex,
     super.habits,
+    super.habitIds,
     super.tasks,
     super.isDisabled,
     this.link,
@@ -36,6 +37,7 @@ final class ZoneComponent extends VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<String>? habitIds,
     List<TaskItem>? tasks,
     bool? isDisabled,
   }) {
@@ -47,6 +49,7 @@ final class ZoneComponent extends VisionComponent {
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
       habits: habits ?? this.habits,
+      habitIds: habitIds ?? this.habitIds,
       tasks: tasks ?? this.tasks,
       isDisabled: isDisabled ?? this.isDisabled,
       link: link,
@@ -61,6 +64,7 @@ final class ZoneComponent extends VisionComponent {
         scale: scale,
         zIndex: zIndex,
         habits: habits,
+        habitIds: habitIds,
         tasks: tasks,
         isDisabled: isDisabled ?? this.isDisabled,
         link: link ?? this.link,
@@ -76,23 +80,28 @@ final class ZoneComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
+        'habitIds': habitIds,
         'isDisabled': isDisabled,
         'link': link,
       };
 
-  factory ZoneComponent.fromJson(Map<String, dynamic> json) => ZoneComponent(
-        id: json['id'] as String,
-        position: VisionComponent.offsetFromJson(
-          json['position'] as Map<String, dynamic>,
-        ),
-        size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
-        rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
-        scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
-        zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
-        habits: VisionComponent.habitsFromJson(json['habits']),
-        tasks: VisionComponent.tasksFromJson(json['tasks']),
-        isDisabled: json['isDisabled'] as bool? ?? false,
-        link: json['link'] as String?,
-      );
+  factory ZoneComponent.fromJson(Map<String, dynamic> json) {
+    final habits = VisionComponent.habitsFromJson(json['habits']);
+    return ZoneComponent(
+      id: json['id'] as String,
+      position: VisionComponent.offsetFromJson(
+        json['position'] as Map<String, dynamic>,
+      ),
+      size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
+      zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
+      habits: habits,
+      habitIds: VisionComponent.habitIdsFromJson(json['habitIds'], fallbackHabits: habits),
+      tasks: VisionComponent.tasksFromJson(json['tasks']),
+      isDisabled: json['isDisabled'] as bool? ?? false,
+      link: json['link'] as String?,
+    );
+  }
 }
 

@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
+import 'location_map_picker_screen.dart';
 
 /// Shows an iOS-style time picker with scroll wheels (hours, minutes, AM/PM).
 Future<TimeOfDay?> showCupertinoTimePicker(
@@ -108,6 +110,8 @@ class Step4Triggers extends StatefulWidget {
   final ValueChanged<TimeOfDay?> onTimeChanged;
   final ValueChanged<bool> onReminderToggle;
   final ValueChanged<TimeOfDay?> onReminderTimeChanged;
+  final String? locationAddress;
+  final ValueChanged<String?> onAddressChanged;
   final ValueChanged<bool> onLocationToggle;
   final void Function(double, double) onLocationSelected;
   final ValueChanged<int> onRadiusChanged;
@@ -140,6 +144,8 @@ class Step4Triggers extends StatefulWidget {
     required this.radius,
     required this.triggerMode,
     required this.dwellMinutes,
+    this.locationAddress,
+    required this.onAddressChanged,
     required this.onTimeChanged,
     required this.onReminderToggle,
     required this.onReminderTimeChanged,
@@ -161,10 +167,14 @@ class Step4Triggers extends StatefulWidget {
 class _Step4TriggersState extends State<Step4Triggers> {
   bool _startTimePickerExpanded = false;
   bool _durationExpanded = false;
-  bool _alertExpanded = false;
   late DateTime _pendingStartDateTime;
   late TextEditingController _durationController;
   late FocusNode _durationFocusNode;
+
+  // Location picker state
+  /// 'current' or 'custom'
+  String _locationPickerType = 'current';
+  bool _isGeocodingLoading = false;
 
   void _syncPendingFromStartTime() {
     final st = widget.scheduleStartTime ?? TimeOfDay.now();
@@ -204,9 +214,6 @@ class _Step4TriggersState extends State<Step4Triggers> {
         !_startTimePickerExpanded) {
       _syncPendingFromStartTime();
     }
-    if (oldWidget.reminderEnabled && !widget.reminderEnabled) {
-      _alertExpanded = false;
-    }
   }
 
   @override
@@ -228,8 +235,222 @@ class _Step4TriggersState extends State<Step4Triggers> {
     setState(() => _startTimePickerExpanded = false);
   }
 
-  static String _formatMinutesBefore(int mins) =>
-      mins == 60 ? '1 hour before' : '$mins mins before';
+  Future<void> _grabCurrentLocation() async {
+    setState(() => _isGeocodingLoading = true);
+    try {
+      LocationPermission p = await Geolocator.checkPermission();
+      if (p == LocationPermission.denied) {
+        p = await Geolocator.requestPermission();
+      }
+      if (p == LocationPermission.whileInUse || p == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition();
+        widget.onLocationSelected(pos.latitude, pos.longitude);
+        widget.onLocationToggle(true);
+        await _reverseGeocode(pos.latitude, pos.longitude);
+      }
+    } catch (e) {
+      debugPrint('Location error: $e');
+    }
+    if (mounted) setState(() => _isGeocodingLoading = false);
+  }
+
+  Future<void> _reverseGeocode(double lat, double lng) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty && mounted) {
+        final p = placemarks.first;
+        final parts = <String>[
+          if (p.street != null && p.street!.isNotEmpty) p.street!,
+          [
+            if (p.locality != null && p.locality!.isNotEmpty) p.locality!,
+            if (p.administrativeArea != null && p.administrativeArea!.isNotEmpty) p.administrativeArea!,
+          ].join(', '),
+          [
+            if (p.postalCode != null && p.postalCode!.isNotEmpty) p.postalCode!,
+            if (p.country != null && p.country!.isNotEmpty) p.country!,
+          ].join(' '),
+        ].where((s) => s.trim().isNotEmpty).toList();
+        widget.onAddressChanged(parts.join('\n'));
+      }
+    } catch (e) {
+      debugPrint('Reverse geocode error: $e');
+    }
+  }
+
+  Widget _buildLocationExpanded(ColorScheme colorScheme, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+          const SizedBox(height: 12),
+          // Type selector row
+          Row(
+            children: [
+              _buildLocationTypeButton(
+                colorScheme: colorScheme,
+                icon: Icons.near_me_rounded,
+                label: 'Current',
+                type: 'current',
+              ),
+              const SizedBox(width: 12),
+              _buildLocationTypeButton(
+                colorScheme: colorScheme,
+                icon: Icons.search_rounded,
+                label: 'Custom',
+                type: 'custom',
+              ),
+            ],
+          ),
+          // Loading indicator
+          if (_isGeocodingLoading) ...[
+            const SizedBox(height: 12),
+            const Center(child: CupertinoActivityIndicator()),
+          ],
+          // Address display
+          if (!_isGeocodingLoading && widget.locationAddress != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.place_rounded,
+                  size: 18,
+                  color: colorScheme.primary.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.locationAddress!,
+                    style: AppTypography.bodySmall(context).copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          // Arriving / Leaving segmented control
+          if (widget.lat != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoSlidingSegmentedControl<String>(
+                groupValue: widget.triggerMode,
+                backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                thumbColor: theme.brightness == Brightness.dark
+                    ? colorScheme.surfaceContainerHigh
+                    : CupertinoColors.white,
+                children: {
+                  'arrival': Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Text(
+                      'Arriving',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: widget.triggerMode == 'arrival' ? FontWeight.w600 : FontWeight.normal,
+                        color: widget.triggerMode == 'arrival'
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  'departure': Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Text(
+                      'Leaving',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: widget.triggerMode == 'departure' ? FontWeight.w600 : FontWeight.normal,
+                        color: widget.triggerMode == 'departure'
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                },
+                onValueChanged: (v) {
+                  if (v != null) widget.onTriggerModeChanged(v);
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openMapPicker() async {
+    final result = await Navigator.of(context).push<LocationMapPickerResult>(
+      MaterialPageRoute(
+        builder: (_) => LocationMapPickerScreen(
+          initialLat: widget.lat,
+          initialLng: widget.lng,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      widget.onLocationSelected(result.lat, result.lng);
+      widget.onLocationToggle(true);
+      widget.onAddressChanged(result.address);
+      setState(() => _locationPickerType = 'custom');
+    }
+  }
+
+  Widget _buildLocationTypeButton({
+    required ColorScheme colorScheme,
+    required IconData icon,
+    required String label,
+    required String type,
+  }) {
+    final selected = _locationPickerType == type;
+    return GestureDetector(
+      onTap: () {
+        if (type == 'current') {
+          setState(() => _locationPickerType = type);
+          _grabCurrentLocation();
+        } else if (type == 'custom') {
+          _openMapPicker();
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: selected
+                  ? colorScheme.primary.withValues(alpha: 0.15)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              border: Border.all(
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.outlineVariant.withValues(alpha: 0.4),
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 22,
+              color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTypography.caption(context).copyWith(
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,11 +461,11 @@ class _Step4TriggersState extends State<Step4Triggers> {
 
     final String sectionTitle;
     if (widget.showReminderFields && widget.showDurationField) {
-      sectionTitle = "Reminders & Timer";
+      sectionTitle = "Timer & Location";
     } else if (widget.showDurationField) {
       sectionTitle = "Timer";
     } else {
-      sectionTitle = "Reminders";
+      sectionTitle = "Location";
     }
 
     return CupertinoListSection.insetGrouped(
@@ -261,8 +482,8 @@ class _Step4TriggersState extends State<Step4Triggers> {
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
-        // Start time row
-        if (widget.showReminderFields) Column(
+        // Start time row (part of Timer addon)
+        if (widget.showDurationField) Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -278,7 +499,6 @@ class _Step4TriggersState extends State<Step4Triggers> {
                       _syncPendingFromStartTime();
                       _startTimePickerExpanded = true;
                       _durationExpanded = false;
-                      _alertExpanded = false;
                     }
                   });
                 },
@@ -422,10 +642,12 @@ class _Step4TriggersState extends State<Step4Triggers> {
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
+                  if (_startTimePickerExpanded) {
+                    _confirmStartTime();
+                  }
                   setState(() {
                     _durationExpanded = true;
                     _startTimePickerExpanded = false;
-                    _alertExpanded = false;
                   });
                 },
                 borderRadius: BorderRadius.zero,
@@ -540,172 +762,44 @@ class _Step4TriggersState extends State<Step4Triggers> {
             ),
           ],
         ),
-        // Alert row (collapsible when reminder enabled)
+        // Location row
         if (widget.showReminderFields) Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Material(
               color: Colors.transparent,
-              child: InkWell(
-                onTap: widget.reminderEnabled
-                    ? () {
-                        setState(() {
-                          _alertExpanded = !_alertExpanded;
-                          _startTimePickerExpanded = false;
-                          _durationExpanded = false;
-                        });
-                      }
-                    : null,
-                borderRadius: BorderRadius.zero,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.notifications_outlined,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Alert",
-                              style: AppTypography.bodySmall(context).copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            Text(
-                              widget.reminderEnabled
-                                  ? _formatMinutesBefore(
-                                      widget.reminderMinutesBefore ??
-                                          kReminderMinutesBeforeOptions.first,
-                                    )
-                                  : "Off",
-                              style: AppTypography.body(context).copyWith(
-                                color: widget.reminderEnabled
-                                    ? widget.habitColor
-                                    : colorScheme.onSurfaceVariant,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      CupertinoSwitch(
-                        value: widget.reminderEnabled,
-                        onChanged: widget.onReminderToggle,
-                        activeTrackColor: widget.habitColor,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (_alertExpanded && widget.reminderEnabled)
-              Material(
-                color: Colors.transparent,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
                   children: [
-                    Divider(
-                      height: 1,
-                      color: colorScheme.outlineVariant.withValues(
-                        alpha: 0.3,
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Location",
+                        style: AppTypography.body(context),
                       ),
                     ),
-                    ...kReminderMinutesBeforeOptions.map((mins) {
-                      final isSelected =
-                          (widget.reminderMinutesBefore ?? 15) == mins;
-                      return InkWell(
-                        onTap: () {
-                          widget.onReminderMinutesBeforeChanged(mins);
-                          setState(() => _alertExpanded = false);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _formatMinutesBefore(mins),
-                                  style: AppTypography.body(context),
-                                ),
-                              ),
-                              if (isSelected)
-                                Icon(
-                                  Icons.check,
-                                  color: widget.habitColor,
-                                  size: 22,
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
+                    CupertinoSwitch(
+                      value: widget.locationEnabled,
+                      onChanged: (v) {
+                        widget.onLocationToggle(v);
+                        if (!v) {
+                          widget.onAddressChanged(null);
+                        }
+                      },
+                      activeTrackColor: widget.habitColor,
+                    ),
                   ],
                 ),
               ),
-          ],
-        ),
-        // Location row
-        if (widget.showReminderFields) Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CupertinoListTile.notched(
-              leading: Icon(
-                Icons.location_on_outlined,
-                color: colorScheme.onSurfaceVariant,
-                size: 28,
-              ),
-              title: Text(
-                "Location",
-                style: AppTypography.body(context),
-              ),
-              additionalInfo: widget.lat != null
-                  ? Text(
-                      "Location set",
-                      style: AppTypography.body(context).copyWith(
-                        color: widget.habitColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
-              trailing: CupertinoSwitch(
-                value: widget.locationEnabled,
-                onChanged: widget.onLocationToggle,
-                activeTrackColor: widget.habitColor,
-              ),
-              onTap: () async {
-                if (widget.locationEnabled) return;
-                try {
-                  LocationPermission p =
-                      await Geolocator.checkPermission();
-                  if (p == LocationPermission.denied) {
-                    p = await Geolocator.requestPermission();
-                  }
-                  if (p == LocationPermission.whileInUse ||
-                      p == LocationPermission.always) {
-                    final pos =
-                        await Geolocator.getCurrentPosition();
-                    widget.onLocationSelected(
-                        pos.latitude, pos.longitude);
-                    widget.onLocationToggle(true);
-                  }
-                } catch (e) {
-                  debugPrint('Location error: $e');
-                }
-              },
             ),
+            if (widget.locationEnabled) _buildLocationExpanded(colorScheme, theme),
           ],
         ),
       ],

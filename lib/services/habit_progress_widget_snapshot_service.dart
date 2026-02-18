@@ -4,12 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
-import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_progress_widget_native_bridge.dart';
+import '../services/habit_storage_service.dart';
 import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/rhythmic_timer_state_service.dart' show RhythmicTimerStateService;
-import '../services/vision_board_components_storage_service.dart';
 
 /// Builds and stores a compact JSON snapshot for the native home-screen widgets.
 ///
@@ -71,37 +70,19 @@ final class HabitProgressWidgetSnapshotService {
     final pending = <Map<String, dynamic>>[];
     int eligibleTotal = 0;
 
-    if (board.layoutType == VisionBoardInfo.layoutGrid) {
-      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
-      for (final t in tiles) {
-        for (final h in t.habits) {
-          if (!h.isScheduledOnDate(now)) continue;
-          if (HabitTimerStateService.targetMsForHabit(h) > 0) continue;
-          eligibleTotal++;
-          if (!h.isCompletedForCurrentPeriod(now)) {
-            pending.add({
-              'componentId': t.id,
-              'habitId': h.id,
-              'name': h.name,
-            });
-          }
-        }
-      }
-    } else {
-      final comps = await VisionBoardComponentsStorageService.loadComponents(board.id, prefs: prefs);
-      for (final c in comps) {
-        for (final h in c.habits) {
-          if (!h.isScheduledOnDate(now)) continue;
-          if (HabitTimerStateService.targetMsForHabit(h) > 0) continue;
-          eligibleTotal++;
-          if (!h.isCompletedForCurrentPeriod(now)) {
-            pending.add({
-              'componentId': c.id,
-              'habitId': h.id,
-              'name': h.name,
-            });
-          }
-        }
+    final allHabits = await HabitStorageService.loadAll(prefs: prefs);
+    final boardHabits = allHabits.where((h) => h.boardId == board.id).toList();
+
+    for (final h in boardHabits) {
+      if (!h.isScheduledOnDate(now)) continue;
+      if (HabitTimerStateService.targetMsForHabit(h) > 0) continue;
+      eligibleTotal++;
+      if (!h.isCompletedForCurrentPeriod(now)) {
+        pending.add({
+          'componentId': h.componentId,
+          'habitId': h.id,
+          'name': h.name,
+        });
       }
     }
 

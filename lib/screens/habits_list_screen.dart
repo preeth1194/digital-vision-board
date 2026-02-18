@@ -15,6 +15,8 @@ import 'rhythmic_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
+/// Habits list UI; reads habits from [components] (component.habits, backward compat)
+/// and writes via [onComponentsUpdated]. Callers must sync to [HabitStorageService].
 class HabitsListScreen extends StatefulWidget {
   final String? boardId;
   final List<VisionComponent> components;

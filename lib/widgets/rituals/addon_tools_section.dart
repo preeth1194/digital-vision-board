@@ -72,7 +72,7 @@ class AddonToolsSection extends StatelessWidget {
                       icon: Icons.notifications_outlined,
                       activeIcon: Icons.notifications_active_rounded,
                       title: 'Reminders',
-                      subtitle: 'Start time, alerts & location',
+                      subtitle: 'Location triggers',
                       isActive: localReminders,
                       accentColor: habitColor,
                       onChanged: (v) {
@@ -90,7 +90,7 @@ class AddonToolsSection extends StatelessWidget {
                       icon: Icons.timer_outlined,
                       activeIcon: Icons.timer_rounded,
                       title: 'Timer',
-                      subtitle: 'Duration for each session',
+                      subtitle: 'Start time & duration',
                       isActive: localTimer,
                       accentColor: habitColor,
                       onChanged: (v) {

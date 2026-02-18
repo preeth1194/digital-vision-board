@@ -198,6 +198,8 @@ final class JournalStorageService {
     required String habitName,
     required String dayLog,
     required String bookId,
+    List<String>? audioPaths,
+    List<String>? imagePaths,
     SharedPreferences? prefs,
   }) async {
     final log = dayLog.trim();
@@ -221,6 +223,18 @@ final class JournalStorageService {
       updatedText = _trimToMaxPages(updatedText, 7);
 
       final delta = _textToDelta(updatedText);
+      _appendMediaEmbeds(delta, audioPaths, imagePaths);
+      // Re-append old media embeds that were in the previous delta
+      _reappendOldMediaEmbeds(delta, old.delta);
+
+      final mergedAudio = [
+        ...?audioPaths,
+        ...old.audioPaths,
+      ];
+      final mergedImages = [
+        ...?imagePaths,
+        ...old.imagePaths,
+      ];
       final updated = JournalEntry(
         id: old.id,
         createdAtMs: old.createdAtMs,
@@ -229,10 +243,10 @@ final class JournalStorageService {
         delta: delta,
         goalTitle: old.goalTitle,
         tags: old.tags,
-        imagePaths: old.imagePaths,
+        imagePaths: mergedImages,
         selectedFont: old.selectedFont,
         imagePositions: old.imagePositions,
-        audioPaths: old.audioPaths,
+        audioPaths: mergedAudio,
         bookId: old.bookId,
       );
       final updatedEntries = List<JournalEntry>.from(existing);
@@ -241,6 +255,8 @@ final class JournalStorageService {
       return updated;
     } else {
       final delta = _textToDelta(newPage);
+      _appendMediaEmbeds(delta, audioPaths, imagePaths);
+
       final entry = JournalEntry(
         id: entryId,
         createdAtMs: now.millisecondsSinceEpoch,
@@ -249,12 +265,60 @@ final class JournalStorageService {
         delta: delta,
         goalTitle: null,
         tags: [habitName],
-        imagePaths: const [],
-        audioPaths: const [],
+        imagePaths: imagePaths ?? const [],
+        audioPaths: audioPaths ?? const [],
         bookId: bookId,
       );
       await saveEntries([entry, ...existing], prefs: p);
       return entry;
+    }
+  }
+
+  /// Append audio and image embed ops to a delta ops list so the Quill editor
+  /// renders them as playable/viewable inline elements.
+  static void _appendMediaEmbeds(
+    List<Map<String, dynamic>> ops,
+    List<String>? audioPaths,
+    List<String>? imagePaths,
+  ) {
+    if ((audioPaths == null || audioPaths.isEmpty) &&
+        (imagePaths == null || imagePaths.isEmpty)) return;
+
+    // Spacer line before media
+    ops.add(<String, dynamic>{'insert': '\n'});
+
+    for (final path in audioPaths ?? const <String>[]) {
+      ops.add(<String, dynamic>{
+        'insert': <String, dynamic>{'audio': path},
+      });
+      ops.add(<String, dynamic>{'insert': '\n'});
+    }
+
+    for (final path in imagePaths ?? const <String>[]) {
+      final imageData = jsonEncode({'path': path, 'width': 300.0});
+      ops.add(<String, dynamic>{
+        'insert': <String, dynamic>{'image': imageData},
+      });
+      ops.add(<String, dynamic>{'insert': '\n'});
+    }
+  }
+
+  /// Re-append media embeds (audio/image) from a previous delta so they aren't
+  /// lost when the text portion is regenerated.
+  static void _reappendOldMediaEmbeds(
+    List<Map<String, dynamic>> ops,
+    List<dynamic>? oldDelta,
+  ) {
+    if (oldDelta == null) return;
+    for (final op in oldDelta) {
+      if (op is! Map<String, dynamic>) continue;
+      final insert = op['insert'];
+      if (insert is Map) {
+        if (insert.containsKey('audio') || insert.containsKey('image')) {
+          ops.add(Map<String, dynamic>.from(op));
+          ops.add(<String, dynamic>{'insert': '\n'});
+        }
+      }
     }
   }
 

@@ -3,22 +3,19 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../models/core_value.dart';
 import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
-import '../../services/boards_storage_service.dart';
+import '../../services/habit_storage_service.dart';
 import '../../services/notifications_service.dart';
 import '../../services/logical_date_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/coins_service.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
-import '../../services/vision_board_components_storage_service.dart';
 import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../../screens/rhythmic_timer_screen.dart';
-import '../../services/habit_geofence_tracking_service.dart';
 import '../rituals/add_habit_modal.dart';
 import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
@@ -49,6 +46,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
 class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
+  List<HabitItem> _habits = [];
   bool _isSaving = false;
   final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
@@ -60,6 +58,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
     _scrollController.addListener(_onScroll);
+    _loadHabits();
+  }
+
+  Future<void> _loadHabits() async {
+    final habits = await HabitStorageService.loadAll();
+    if (mounted) setState(() => _habits = habits);
   }
   
   void _onScroll() {
@@ -74,6 +78,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     if (widget.componentsByBoardId != oldWidget.componentsByBoardId) {
       if (_isSaving) return;
       _localComponents = Map.from(widget.componentsByBoardId);
+      _loadHabits();
     }
   }
   
@@ -86,86 +91,20 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
   static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
 
-  Future<VisionBoardInfo?> _pickBoard() async {
-    if (widget.boards.isEmpty) return null;
-    return showModalBottomSheet<VisionBoardInfo?>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: ListView.separated(
-          shrinkWrap: true,
-          itemCount: widget.boards.length,
-          separatorBuilder: (c, i) => const Divider(height: 1),
-          itemBuilder: (context, i) {
-            final b = widget.boards[i];
-            return ListTile(
-              title: Text(b.title),
-              onTap: () => Navigator.of(ctx).pop(b),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<({VisionBoardInfo board, List<VisionComponent> components})> _ensureBoardAndComponent() async {
-    VisionBoardInfo board;
-    List<VisionComponent> components;
-
-    if (widget.boards.isNotEmpty) {
-      final picked = widget.boards.length == 1
-          ? widget.boards.first
-          : await _pickBoard();
-      if (picked == null) return (board: widget.boards.first, components: const <VisionComponent>[]);
-      board = picked;
-      components = _localComponents[board.id] ?? const <VisionComponent>[];
-    } else {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      board = VisionBoardInfo(
-        id: 'board_$now',
-        title: 'My Board',
-        createdAtMs: now,
-        coreValueId: CoreValues.growthMindset,
-        iconCodePoint: Icons.self_improvement_outlined.codePoint,
-        tileColorValue: const Color(0xFFECFDF5).value,
-        layoutType: VisionBoardInfo.layoutFreeform,
-      );
-      final existingBoards = await BoardsStorageService.loadBoards();
-      await BoardsStorageService.saveBoards([...existingBoards, board]);
-      components = const <VisionComponent>[];
-    }
-
-    if (components.isEmpty) {
-      final placeholder = TextComponent(
-        id: 'habits_holder_${DateTime.now().millisecondsSinceEpoch}',
-        position: Offset.zero,
-        size: const Size(100, 50),
-        text: '',
-        style: const TextStyle(),
-      );
-      components = [placeholder];
-      await VisionBoardComponentsStorageService.saveComponents(board.id, components);
-      setState(() => _localComponents[board.id] = components);
-    }
-
-    return (board: board, components: components);
+  String _boardTitle(String? boardId) {
+    if (boardId == null) return '';
+    return widget.boards
+        .cast<VisionBoardInfo?>()
+        .firstWhere((b) => b?.id == boardId, orElse: () => null)
+        ?.title ?? '';
   }
 
   Future<void> _addHabitGlobal() async {
-    final result = await _ensureBoardAndComponent();
-    final board = result.board;
-    final components = result.components;
-    if (components.isEmpty || !mounted) return;
-
-    final target = components.first;
-
-    final allHabits = components.expand((c) => c.habits).toList();
     final req = await showAddHabitModal(
-      // ignore: use_build_context_synchronously
       context,
-      existingHabits: allHabits,
+      existingHabits: _habits,
     );
-    if (req == null) return;
+    if (req == null || !mounted) return;
 
     final newHabit = HabitItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -188,26 +127,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       startTimeMinutes: req.startTimeMinutes,
     );
 
-    final nextComponents = components.map((c) {
-      if (c.id != target.id) return c;
-      return c.copyWithCommon(habits: [...c.habits, newHabit]);
-    }).toList();
-
-    final boardKnownToParent = widget.boards.any((b) => b.id == board.id);
-    if (boardKnownToParent) {
-      await widget.onSaveBoardComponents(board.id, nextComponents);
-    } else {
-      await VisionBoardComponentsStorageService.saveComponents(board.id, nextComponents);
-    }
-    setState(() => _localComponents[board.id] = nextComponents);
-
-    Future<void>(() async {
-      await HabitGeofenceTrackingService.instance.configureForComponent(
-        boardId: board.id,
-        componentId: target.id,
-        habits: nextComponents.where((c) => c.id == target.id).first.habits,
-      );
-    });
+    await HabitStorageService.addHabit(newHabit);
+    await _loadHabits();
 
     Future<void>(() async {
       if (!newHabit.reminderEnabled || newHabit.reminderMinutes == null) return;
@@ -218,10 +139,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _handleHabitTap({
-    required String boardId,
-    required String boardTitle,
-    required List<VisionComponent> components,
-    required VisionComponent component,
     required HabitItem habit,
     required GlobalKey cardKey,
     required bool isFlipped,
@@ -232,12 +149,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
     
     if (isCompleted) {
-      // Uncomplete the habit
       await _toggleHabit(
-        boardId: boardId,
-        boardTitle: boardTitle,
-        components: components,
-        component: component,
         habit: habit,
         wasCompleted: true,
       );
@@ -248,13 +160,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           : CompletionType.habit;
       final coins = CoinsService.getCoinsForCompletionType(completionType);
 
-      // Show completion sheet with pre-determined coins
+      final isFullHabit = completionType == CompletionType.habit;
+
+      // Show completion sheet with base coins (bonuses computed inside)
       final result = await showHabitCompletionSheet(
         context,
         habit: habit,
-        coinsEarned: coins,
+        baseCoins: coins,
+        isFullHabit: isFullHabit,
       );
       if (result == null) return;
+
+      final earnedCoins = result.coinsEarned;
       
       // Get card position for confetti and coin flying animation
       final RenderBox? cardBox = cardKey.currentContext?.findRenderObject() as RenderBox?;
@@ -294,45 +211,42 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         _pendingAnimations.add(_PendingCoinAnimation(
           source: cardPosition,
           target: targetPosition,
-          coins: coins,
+          coins: earnedCoins,
         ));
       }
 
-      final feedback =
-          (result.mood != null || (result.note?.isNotEmpty ?? false))
-              ? HabitCompletionFeedback(
-                  rating: result.mood ?? 0, note: result.note)
-              : null;
+      final feedback = HabitCompletionFeedback(
+        rating: result.mood ?? 0,
+        note: result.note,
+        coinsEarned: earnedCoins,
+      );
 
       await _toggleHabit(
-        boardId: boardId,
-        boardTitle: boardTitle,
-        components: components,
-        component: component,
         habit: habit,
         wasCompleted: false,
         completionType: completionType,
-        coinsEarned: coins,
+        coinsEarned: earnedCoins,
         feedback: feedback,
+        completedStepIds: result.completedStepIds,
+        audioPath: result.audioPath,
+        capturedImagePaths: result.imagePaths,
       );
     }
   }
 
   Future<void> _toggleHabit({
-    required String boardId,
-    required String boardTitle,
-    required List<VisionComponent> components,
-    required VisionComponent component,
     required HabitItem habit,
     required bool wasCompleted,
     CompletionType? completionType,
     int? coinsEarned,
     HabitCompletionFeedback? feedback,
+    List<String> completedStepIds = const [],
+    String? audioPath,
+    List<String> capturedImagePaths = const [],
   }) async {
     final now = LogicalDateService.now();
     var toggled = habit.toggleForDate(now);
 
-    // Save mood/note feedback when completing (not uncompleting)
     if (!wasCompleted && feedback != null) {
       final iso = _toIsoDate(now);
       final updatedFeedback =
@@ -340,47 +254,83 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       updatedFeedback[iso] = feedback;
       toggled = toggled.copyWith(feedbackByDate: updatedFeedback);
 
-      // Append a daily page to the habit's Goal Logs chapter
       final moodLabels = ['', 'Awful', 'Bad', 'Okay', 'Good', 'Great'];
       final moodText = feedback.rating > 0 && feedback.rating <= 5
           ? 'Mood: ${moodLabels[feedback.rating]} (${feedback.rating}/5)'
           : '';
+
+      // Build step completion summary with count
+      String stepsText = '';
+      if (completedStepIds.isNotEmpty && habit.actionSteps.isNotEmpty) {
+        final total = habit.actionSteps.length;
+        final done = completedStepIds.length;
+        final stepNames = completedStepIds
+            .map((id) => habit.actionSteps
+                .where((s) => s.id == id)
+                .map((s) => s.title)
+                .firstOrNull)
+            .whereType<String>()
+            .toList();
+        stepsText = 'Steps: $done/$total completed';
+        if (stepNames.isNotEmpty) {
+          stepsText += ' — ${stepNames.join(', ')}';
+        }
+      }
+
       final noteText = (feedback.note ?? '').trim();
-      final dayLog = [moodText, noteText].where((s) => s.isNotEmpty).join('\n');
-      if (dayLog.isNotEmpty) {
+      final dayLog = [moodText, stepsText, noteText]
+          .where((s) => s.isNotEmpty)
+          .join('\n');
+      final hasMedia = audioPath != null || capturedImagePaths.isNotEmpty;
+      if (dayLog.isNotEmpty || hasMedia) {
         JournalStorageService.appendOrCreateGoalLog(
           habitId: habit.id,
           habitName: habit.name,
-          dayLog: dayLog,
+          dayLog: dayLog.isEmpty ? 'Completed' : dayLog,
           bookId: JournalBookStorageService.goalLogsBookId,
+          audioPaths: audioPath != null ? [audioPath] : null,
+          imagePaths: capturedImagePaths.isNotEmpty ? capturedImagePaths : null,
         );
       }
     }
 
-    final updatedHabits = component.habits.map((h) => h.id == habit.id ? toggled : h).toList();
-    final updatedComponent = component.copyWithCommon(habits: updatedHabits);
-    final updatedComponents = components.map((c) => c.id == component.id ? updatedComponent : c).toList();
-    
-    // Optimistic local update before save to avoid stale-data flash
+    // Save to HabitStorageService (source of truth)
+    await HabitStorageService.updateHabit(toggled);
+
+    // Optimistic local update
     setState(() {
-      _localComponents[boardId] = updatedComponents;
+      final idx = _habits.indexWhere((h) => h.id == habit.id);
+      if (idx != -1) _habits[idx] = toggled;
     });
 
-    _isSaving = true;
-    await widget.onSaveBoardComponents(boardId, updatedComponents);
-    // Clear after rebuild cycle settles (parent FutureBuilder re-loads across 2 frames)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _isSaving = false;
-      });
-    });
+    // Backward compat: update component storage if habit belongs to a board
+    if (habit.boardId != null && habit.boardId!.isNotEmpty) {
+      final components = _localComponents[habit.boardId!] ?? const <VisionComponent>[];
+      if (components.isNotEmpty && habit.componentId != null) {
+        final comp = components.cast<VisionComponent?>().firstWhere(
+          (c) => c?.id == habit.componentId, orElse: () => null);
+        if (comp != null) {
+          final updatedHabits = comp.habits.map((h) => h.id == habit.id ? toggled : h).toList();
+          final updatedComponent = comp.copyWithCommon(habits: updatedHabits);
+          final updatedComponents = components.map((c) => c.id == comp.id ? updatedComponent : c).toList();
+          _isSaving = true;
+          await widget.onSaveBoardComponents(habit.boardId!, updatedComponents);
+          _localComponents[habit.boardId!] = updatedComponents;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _isSaving = false;
+            });
+          });
+        }
+      }
+    }
 
     // Sync
     final iso = _toIsoDate(now);
     Future<void>(() async {
       await SyncService.enqueueHabitCompletion(
-        boardId: boardId,
-        componentId: component.id,
+        boardId: habit.boardId ?? '',
+        componentId: habit.componentId ?? '',
         habitId: habit.id,
         logicalDate: iso,
         deleted: wasCompleted,
@@ -391,7 +341,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     if (!wasCompleted && coinsEarned != null && coinsEarned > 0) {
       final newTotal = await CoinsService.addCoins(coinsEarned);
       
-      // Check for streak bonus
       final streakBonus = await CoinsService.checkAndAwardStreakBonus(
         habit.id,
         toggled.currentStreak,
@@ -419,8 +368,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         }
       }
     } else if (wasCompleted) {
-      // Deduct coins when unchecking a habit
-      final coinsToDeduct = CoinsService.habitCompletionCoins;
+      // Deduct the exact coins that were earned for this completion
+      final iso = _toIsoDate(now);
+      final savedFeedback = habit.feedbackByDate[iso];
+      final coinsToDeduct = savedFeedback?.coinsEarned ?? CoinsService.habitCompletionCoins;
       final newTotal = await CoinsService.addCoins(-coinsToDeduct);
       
       if (mounted) {
@@ -438,14 +389,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isSongBased = habit.timeBound?.isSongBased ?? false;
 
     Future<void> onMarkCompleted() async {
-      final latestComponents =
-          _localComponents[entry.boardId] ?? const <VisionComponent>[];
-      final latestComponent = latestComponents
-          .where((c) => c.id == entry.component.id)
-          .cast<VisionComponent?>()
-          .firstWhere((_) => true, orElse: () => null);
-      if (latestComponent == null) return;
-      final latestHabit = latestComponent.habits
+      final latestHabit = _habits
           .where((h) => h.id == habit.id)
           .cast<HabitItem?>()
           .firstWhere((_) => true, orElse: () => null);
@@ -454,10 +398,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       if (!latestHabit.isScheduledOnDate(now2)) return;
       if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
       await _toggleHabit(
-        boardId: entry.boardId,
-        boardTitle: entry.boardTitle,
-        components: latestComponents,
-        component: latestComponent,
         habit: latestHabit,
         wasCompleted: false,
         completionType: CompletionType.habit,
@@ -481,17 +421,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _editHabit(_HabitEntry entry) async {
-    // Collect all existing habits for duplicate check
-    final allHabits = <HabitItem>[];
-    for (final components in _localComponents.values) {
-      for (final comp in components) {
-        allHabits.addAll(comp.habits);
-      }
-    }
-
     final req = await showAddHabitModal(
       context,
-      existingHabits: allHabits,
+      existingHabits: _habits,
       initialHabit: entry.habit,
     );
     if (req == null || !mounted) return;
@@ -515,20 +447,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       startTimeMinutes: req.startTimeMinutes,
     );
 
-    final updatedHabits = entry.component.habits
-        .map((h) => h.id == entry.habit.id ? updatedHabit : h)
-        .toList();
-    final updatedComponent = entry.component.copyWithCommon(habits: updatedHabits);
-    final updatedComponents = entry.components
-        .map((c) => c.id == entry.component.id ? updatedComponent : c)
-        .toList();
+    await HabitStorageService.updateHabit(updatedHabit);
+    await _loadHabits();
 
-    await widget.onSaveBoardComponents(entry.boardId, updatedComponents);
-    setState(() {
-      _localComponents[entry.boardId] = updatedComponents;
-    });
-
-    // Update notifications if needed
     if (updatedHabit.reminderEnabled) {
       await NotificationsService.scheduleHabitReminders(updatedHabit);
     }
@@ -558,20 +479,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
     if (confirmed != true || !mounted) return;
 
-    final updatedHabits = entry.component.habits
-        .where((h) => h.id != entry.habit.id)
-        .toList();
-    final updatedComponent = entry.component.copyWithCommon(habits: updatedHabits);
-    final updatedComponents = entry.components
-        .map((c) => c.id == entry.component.id ? updatedComponent : c)
-        .toList();
+    await HabitStorageService.deleteHabit(entry.habit.id);
+    await _loadHabits();
 
-    await widget.onSaveBoardComponents(entry.boardId, updatedComponents);
-    setState(() {
-      _localComponents[entry.boardId] = updatedComponents;
-    });
-
-    // Cancel any scheduled notifications for this habit
     await NotificationsService.cancelHabitReminders(entry.habit);
 
     HapticFeedback.mediumImpact();
@@ -603,22 +513,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final colorScheme = Theme.of(context).colorScheme;
     final now = LogicalDateService.now();
     
-    // Gather all habits across all boards
-    final List<_HabitEntry> allHabits = [];
-    for (final board in widget.boards) {
-      final components = _localComponents[board.id] ?? const <VisionComponent>[];
-      for (final component in components) {
-        for (final habit in component.habits) {
-          allHabits.add(_HabitEntry(
-            boardId: board.id,
-            boardTitle: board.title,
-            components: components,
-            component: component,
-            habit: habit,
-          ));
-        }
-      }
-    }
+    // Gather all habits from standalone storage
+    final List<_HabitEntry> allHabits = _habits.map((habit) {
+      return _HabitEntry(
+        boardId: habit.boardId ?? '',
+        boardTitle: _boardTitle(habit.boardId),
+        habit: habit,
+      );
+    }).toList();
 
     // Calculate progress stats for today
     final scheduledToday = allHabits.where((e) => e.habit.isScheduledOnDate(now)).toList();
@@ -728,10 +630,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                       _TimelineCheckpoint(
                                         isCompleted: isCompleted,
                                         onTap: () => _handleHabitTap(
-                                          boardId: entry.boardId,
-                                          boardTitle: entry.boardTitle,
-                                          components: entry.components,
-                                          component: entry.component,
                                           habit: entry.habit,
                                           cardKey: swipeKey,
                                           isFlipped: swipeKey.currentState?.isFlipped ?? false,
@@ -825,15 +723,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 class _HabitEntry {
   final String boardId;
   final String boardTitle;
-  final List<VisionComponent> components;
-  final VisionComponent component;
   final HabitItem habit;
 
   _HabitEntry({
     required this.boardId,
     required this.boardTitle,
-    required this.components,
-    required this.component,
     required this.habit,
   });
 }

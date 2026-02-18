@@ -7,10 +7,12 @@ class CoinsService {
   static const String _lastStreakBonusKey = 'last_streak_bonus_date';
 
   // Coin award amounts
-  static const int copingPlanCoins = 5;
-  static const int habitCompletionCoins = 10;
-  static const int streakBonusCoins = 25;
+  static const int copingPlanCoins = 1;
+  static const int habitCompletionCoins = 2;
+  static const int streakBonusCoins = 5;
   static const int streakBonusThreshold = 7; // Every 7 days
+  static const int maxStepBonus = 5;
+  static const int mediaBonusCoins = 2;
 
   /// Get the total coins accumulated by the user.
   static Future<int> getTotalCoins({SharedPreferences? prefs}) async {
@@ -68,6 +70,18 @@ class CoinsService {
       case CompletionType.habit:
         return habitCompletionCoins;
     }
+  }
+
+  /// Scaled bonus based on what fraction of action steps were completed.
+  /// Returns 0 when there are no steps or none were completed.
+  static int calculateStepBonus(int completedSteps, int totalSteps) {
+    if (totalSteps <= 0 || completedSteps <= 0) return 0;
+    return (completedSteps / totalSteps * maxStepBonus).round();
+  }
+
+  /// Flat bonus awarded when the user attaches any media (voice or photo).
+  static int calculateMediaBonus(bool hasMedia) {
+    return hasMedia ? mediaBonusCoins : 0;
   }
 }
 

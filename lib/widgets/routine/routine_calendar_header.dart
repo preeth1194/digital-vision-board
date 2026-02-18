@@ -7,7 +7,7 @@ import '../../utils/app_colors.dart';
 /// Displays:
 /// - Month/year with calendar icon and "Today" button
 /// - Horizontal week day selector with completion indicators
-class RoutineCalendarHeader extends StatelessWidget {
+class RoutineCalendarHeader extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
   final List<Routine> routines;
@@ -20,6 +20,34 @@ class RoutineCalendarHeader extends StatelessWidget {
   });
 
   @override
+  State<RoutineCalendarHeader> createState() => _RoutineCalendarHeaderState();
+}
+
+class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
+  late DateTime _displayedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedMonth = widget.selectedDate;
+  }
+
+  @override
+  void didUpdateWidget(RoutineCalendarHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedDate != oldWidget.selectedDate) {
+      setState(() => _displayedMonth = widget.selectedDate);
+    }
+  }
+
+  void _onVisibleWeekChanged(DateTime weekMidDate) {
+    if (weekMidDate.month != _displayedMonth.month ||
+        weekMidDate.year != _displayedMonth.year) {
+      setState(() => _displayedMonth = weekMidDate);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).colorScheme.surface,
@@ -29,15 +57,13 @@ class RoutineCalendarHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            // Calendar row
             _buildCalendarRow(context),
             const SizedBox(height: 8),
-            // Week selector (5 days centered on selected date)
             _WeekDaySelector(
-              selectedDate: selectedDate,
-              onDateSelected: onDateSelected,
-              routines: routines,
-              daysToShow: 7,
+              selectedDate: widget.selectedDate,
+              onDateSelected: widget.onDateSelected,
+              onVisibleWeekChanged: _onVisibleWeekChanged,
+              routines: widget.routines,
             ),
           ],
         ),
@@ -55,7 +81,6 @@ class RoutineCalendarHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // Calendar icon + Month/Year
           GestureDetector(
             onTap: () => _showMonthPicker(context),
             child: Container(
@@ -73,12 +98,16 @@ class RoutineCalendarHeader extends StatelessWidget {
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    monthYearFormat.format(selectedDate),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      monthYearFormat.format(_displayedMonth),
+                      key: ValueKey('${_displayedMonth.year}-${_displayedMonth.month}'),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ),
                 ],
@@ -86,9 +115,8 @@ class RoutineCalendarHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // Today button - always enabled to allow resetting to current date
           ElevatedButton(
-            onPressed: () => onDateSelected(today),
+            onPressed: () => widget.onDateSelected(today),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.medium,
               foregroundColor: Colors.white,
@@ -115,14 +143,14 @@ class RoutineCalendarHeader extends StatelessWidget {
   void _showMonthPicker(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
+      initialDate: widget.selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       initialDatePickerMode: DatePickerMode.day,
     );
     
     if (picked != null) {
-      onDateSelected(picked);
+      widget.onDateSelected(picked);
     }
   }
 }
@@ -131,14 +159,14 @@ class RoutineCalendarHeader extends StatelessWidget {
 class _WeekDaySelector extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
+  final ValueChanged<DateTime>? onVisibleWeekChanged;
   final List<Routine> routines;
-  final int daysToShow;
 
   const _WeekDaySelector({
     required this.selectedDate,
     required this.onDateSelected,
+    this.onVisibleWeekChanged,
     required this.routines,
-    this.daysToShow = 7,
   });
 
   @override
@@ -147,31 +175,39 @@ class _WeekDaySelector extends StatefulWidget {
 
 class _WeekDaySelectorState extends State<_WeekDaySelector> {
   late PageController _pageController;
-  late DateTime _currentRangeStart;
-
-  int get _daysToShow => widget.daysToShow;
+  late DateTime _anchorWeekStart;
+  static const int _centerPage = 500;
 
   @override
   void initState() {
     super.initState();
-    _currentRangeStart = _getRangeStart(widget.selectedDate);
-    _pageController = PageController(initialPage: 500);
+    _anchorWeekStart = _getWeekStart(widget.selectedDate);
+    _pageController = PageController(initialPage: _centerPage);
   }
 
   @override
   void didUpdateWidget(_WeekDaySelector oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If selected date changed to a different range, scroll to that range
-    final newRangeStart = _getRangeStart(widget.selectedDate);
-    if (!_isSameDay(newRangeStart, _currentRangeStart)) {
-      final rangeDiff = newRangeStart.difference(_currentRangeStart).inDays ~/ _daysToShow;
-      final currentPage = _pageController.page?.round() ?? 500;
-      _pageController.animateToPage(
-        currentPage + rangeDiff,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-      _currentRangeStart = newRangeStart;
+    if (!_isSameDay(widget.selectedDate, oldWidget.selectedDate)) {
+      final targetWeekStart = _getWeekStart(widget.selectedDate);
+      final weeksDiff = targetWeekStart.difference(_anchorWeekStart).inDays ~/ 7;
+      final targetPage = _centerPage + weeksDiff;
+      final currentPage = _pageController.page?.round() ?? _centerPage;
+      if (currentPage != targetPage) {
+        // Defer page change to avoid setState-during-build from onPageChanged
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if ((currentPage - targetPage).abs() > 3) {
+            _pageController.jumpToPage(targetPage);
+          } else {
+            _pageController.animateToPage(
+              targetPage,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
     }
   }
 
@@ -181,15 +217,14 @@ class _WeekDaySelectorState extends State<_WeekDaySelector> {
     super.dispose();
   }
 
-  DateTime _getRangeStart(DateTime date) {
-    // Center the selected date in the range
-    final offset = _daysToShow ~/ 2;
-    return DateTime(date.year, date.month, date.day - offset);
+  /// Returns the Sunday that starts the calendar week containing [date].
+  DateTime _getWeekStart(DateTime date) {
+    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
+    return DateTime(date.year, date.month, date.day - weekday);
   }
 
   DateTime _getRangeForPage(int page) {
-    final rangeOffset = page - 500;
-    return _currentRangeStart.add(Duration(days: rangeOffset * _daysToShow));
+    return _anchorWeekStart.add(Duration(days: (page - _centerPage) * 7));
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
@@ -203,9 +238,9 @@ class _WeekDaySelectorState extends State<_WeekDaySelector> {
       child: PageView.builder(
         controller: _pageController,
         onPageChanged: (page) {
-          setState(() {
-            _currentRangeStart = _getRangeForPage(page);
-          });
+          final weekStart = _getRangeForPage(page);
+          // Report the Wednesday (mid-week) to determine the displayed month
+          widget.onVisibleWeekChanged?.call(weekStart.add(const Duration(days: 3)));
         },
         itemBuilder: (context, page) {
           final rangeStart = _getRangeForPage(page);
@@ -216,7 +251,7 @@ class _WeekDaySelectorState extends State<_WeekDaySelector> {
   }
 
   Widget _buildDaysView(BuildContext context, DateTime rangeStart) {
-    final days = List.generate(_daysToShow, (i) => rangeStart.add(Duration(days: i)));
+    final days = List.generate(7, (i) => rangeStart.add(Duration(days: i)));
     final today = DateTime.now();
     final normalizedToday = DateTime(today.year, today.month, today.day);
 

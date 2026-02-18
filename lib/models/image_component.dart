@@ -18,6 +18,7 @@ final class ImageComponent extends VisionComponent {
     super.scale,
     super.zIndex,
     super.habits,
+    super.habitIds,
     super.tasks,
     super.isDisabled,
     required this.imagePath,
@@ -36,6 +37,7 @@ final class ImageComponent extends VisionComponent {
     double? scale,
     int? zIndex,
     List<HabitItem>? habits,
+    List<String>? habitIds,
     List<TaskItem>? tasks,
     bool? isDisabled,
     GoalMetadata? goal,
@@ -48,6 +50,7 @@ final class ImageComponent extends VisionComponent {
       scale: scale ?? this.scale,
       zIndex: zIndex ?? this.zIndex,
       habits: habits ?? this.habits,
+      habitIds: habitIds ?? this.habitIds,
       tasks: tasks ?? this.tasks,
       isDisabled: isDisabled ?? this.isDisabled,
       imagePath: imagePath,
@@ -63,6 +66,7 @@ final class ImageComponent extends VisionComponent {
         scale: scale,
         zIndex: zIndex,
         habits: habits,
+        habitIds: habitIds,
         tasks: tasks,
         isDisabled: isDisabled ?? this.isDisabled,
         imagePath: imagePath ?? this.imagePath,
@@ -79,27 +83,32 @@ final class ImageComponent extends VisionComponent {
         'scale': scale,
         'zIndex': zIndex,
         'habits': VisionComponent.habitsToJson(habits),
+        'habitIds': habitIds,
         'isDisabled': isDisabled,
         'imagePath': imagePath,
         'goal': goal?.toJson(),
       };
 
-  factory ImageComponent.fromJson(Map<String, dynamic> json) => ImageComponent(
-        id: json['id'] as String,
-        position: VisionComponent.offsetFromJson(
-          json['position'] as Map<String, dynamic>,
-        ),
-        size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
-        rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
-        scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
-        zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
-        habits: VisionComponent.habitsFromJson(json['habits']),
-        tasks: VisionComponent.tasksFromJson(json['tasks']),
-        isDisabled: json['isDisabled'] as bool? ?? false,
-        imagePath: json['imagePath'] as String,
-        goal: (json['goal'] is Map<String, dynamic>)
-            ? GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>)
-            : null,
-      );
+  factory ImageComponent.fromJson(Map<String, dynamic> json) {
+    final habits = VisionComponent.habitsFromJson(json['habits']);
+    return ImageComponent(
+      id: json['id'] as String,
+      position: VisionComponent.offsetFromJson(
+        json['position'] as Map<String, dynamic>,
+      ),
+      size: VisionComponent.sizeFromJson(json['size'] as Map<String, dynamic>),
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
+      zIndex: (json['zIndex'] as num?)?.toInt() ?? 0,
+      habits: habits,
+      habitIds: VisionComponent.habitIdsFromJson(json['habitIds'], fallbackHabits: habits),
+      tasks: VisionComponent.tasksFromJson(json['tasks']),
+      isDisabled: json['isDisabled'] as bool? ?? false,
+      imagePath: json['imagePath'] as String,
+      goal: (json['goal'] is Map<String, dynamic>)
+          ? GoalMetadata.fromJson(json['goal'] as Map<String, dynamic>)
+          : null,
+    );
+  }
 }
 

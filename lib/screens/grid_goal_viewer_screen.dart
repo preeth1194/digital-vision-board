@@ -6,6 +6,7 @@ import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
+import '../services/habit_storage_service.dart';
 import '../widgets/habit_tracker_sheet.dart';
 
 /// Full-screen viewer for a single grid tile treated as a goal.
@@ -78,6 +79,7 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
       // Important: don't synthesize a fake goal title like "tile_0".
       goal: tile.goal,
       habits: tile.habits,
+      habitIds: tile.habitIds,
       tasks: tile.tasks,
     );
   }
@@ -104,13 +106,24 @@ class _GridGoalViewerScreenState extends State<GridGoalViewerScreen> {
               boardId: widget.boardId,
               component: _componentFromTile(tile),
               fullScreen: true,
-              onComponentUpdated: (updated) {
+              onComponentUpdated: (updated) async {
                 final img = updated is ImageComponent ? updated : null;
                 final nextTile = tile.copyWith(
                   goal: img?.goal ?? tile.goal,
                   habits: updated.habits,
                   tasks: updated.tasks,
                 );
+                // Sync habits to HabitStorageService when writing to tile.
+                final previousIds = <String, Set<String>>{
+                  tile.id: {...tile.habits.map((h) => h.id), ...tile.habitIds},
+                };
+                await HabitStorageService.syncComponentsHabits(
+                  widget.boardId,
+                  [updated],
+                  previousIds,
+                  prefs: _prefs,
+                );
+                if (!mounted) return;
                 _saveTile(nextTile);
               },
             ),

@@ -141,6 +141,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   String? _triggerError;
   String? _actionError;
   String? _anchorHabitError;
+  String? _actionStepsError;
 
   // Triggers (Time & Location)
   TimeOfDay? _selectedTime;
@@ -154,6 +155,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   int _locationRadius = 150;
   String _locationTriggerMode = 'arrival';
   int _locationDwellMinutes = 5;
+  String? _locationAddress;
 
   // Pacing - start time + duration (value + unit)
   TimeOfDay? _timeBoundStartTime;
@@ -166,6 +168,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   }
 
   // Action Steps
+  bool _actionStepsEnabled = false;
   List<HabitActionStep> _actionSteps = [];
 
   // Strategy (Stacking & CBT)
@@ -431,12 +434,16 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _locationRadius = loc.radiusMeters;
       _locationTriggerMode = loc.triggerMode;
       _locationDwellMinutes = loc.dwellMinutes ?? 5;
+      _locationAddress = loc.address;
     }
 
     // Pacing (Duration)
     final tb = habit.timeBound;
     if (tb != null && tb.enabled) {
-      _timeBoundStartTime = const TimeOfDay(hour: 8, minute: 0);
+      final stm = habit.startTimeMinutes;
+      _timeBoundStartTime = stm != null
+          ? TimeOfDay(hour: stm ~/ 60, minute: stm % 60)
+          : const TimeOfDay(hour: 8, minute: 0);
       final d = tb.durationMinutes <= 0 ? 15 : tb.durationMinutes;
       if (d >= 60 && d % 60 == 0) {
         _timeBoundDurationValue = d ~/ 60;
@@ -490,6 +497,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     // Action Steps
     if (habit.actionSteps.isNotEmpty) {
+      _actionStepsEnabled = true;
       _actionSteps = List<HabitActionStep>.from(habit.actionSteps);
     }
 
@@ -579,6 +587,15 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _anchorHabitError = 'Please select or enter a habit';
       hasError = true;
     }
+    if (_actionStepsEnabled) {
+      final nonEmpty = _actionSteps.where((s) => s.title.trim().isNotEmpty).toList();
+      if (nonEmpty.isEmpty) {
+        _actionStepsError = 'Add at least one step with a title';
+        hasError = true;
+      } else {
+        _actionStepsError = null;
+      }
+    }
 
     if (hasError) {
       setState(() {});
@@ -632,6 +649,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         dwellMinutes: _locationTriggerMode == 'dwell'
             ? _locationDwellMinutes
             : null,
+        address: _locationAddress,
       );
     }
 
@@ -745,6 +763,49 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          12,
+          20,
+          bottomPadding > 0 ? bottomPadding : 12,
+        ),
+        child: Row(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: _handleCommit,
+              icon: const Icon(Icons.check_rounded, size: 20),
+              label: Text(
+                widget.initialHabit != null ? 'Save Habit' : 'Create Habit',
+                style: AppTypography.button(context)
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       body: Container(
         color: colorScheme.surface,
         child: Column(
@@ -821,21 +882,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             setState(() => _milestoneExpanded = false),
                       ),
                       SizedBox(height: kSectionSpacing),
-                      Step5Pacing(
-                        habitColor: baseColor,
-                        weekdays: _weekdays,
-                        onWeekdayToggled: (day) => setState(() {
-                          if (_weekdays.contains(day)) {
-                            _weekdays.remove(day);
-                          } else {
-                            _weekdays.add(day);
-                          }
-                        }),
-                      ),
+                      _buildScheduleSection(colorScheme, baseColor),
                       SizedBox(height: kSectionSpacing),
                       _buildCopingPlanSection(colorScheme),
-                      SizedBox(height: kSectionSpacing),
-                      _buildCommitmentSection(colorScheme),
                       SizedBox(height: kSectionSpacing),
                       Step6Strategy(
                         habitColor: baseColor,
@@ -864,8 +913,20 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
                         anchorHabitError: _anchorHabitError,
+                        actionStepsEnabled: _actionStepsEnabled,
+                        onActionStepsToggle: (v) {
+                          setState(() {
+                            _actionStepsEnabled = v;
+                            _actionStepsError = null;
+                            if (!v) _actionSteps = [];
+                          });
+                        },
+                        actionStepsError: _actionStepsError,
                         actionSteps: _actionSteps,
-                        onActionStepsChanged: (steps) => setState(() => _actionSteps = steps),
+                        onActionStepsChanged: (steps) => setState(() {
+                          _actionSteps = steps;
+                          if (_actionStepsError != null) _actionStepsError = null;
+                        }),
                       ),
                       SizedBox(height: kSectionSpacing),
                       AddonToolsSection(
@@ -882,6 +943,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               _locationEnabled = false;
                               _locationLat = null;
                               _locationLng = null;
+                              _locationAddress = null;
                             }
                           });
                         },
@@ -936,6 +998,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           radius: _locationRadius,
                           triggerMode: _locationTriggerMode,
                           dwellMinutes: _locationDwellMinutes,
+                          locationAddress: _locationAddress,
+                          onAddressChanged: (v) =>
+                              setState(() => _locationAddress = v),
                           onTimeChanged: (t) =>
                               setState(() => _selectedTime = t),
                           onReminderToggle: (v) {
@@ -948,8 +1013,12 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           },
                           onReminderTimeChanged: (t) =>
                               setState(() => _reminderTime = t),
-                          onLocationToggle: (v) =>
-                              setState(() => _locationEnabled = v),
+                          onLocationToggle: (v) {
+                            setState(() {
+                              _locationEnabled = v;
+                              if (!v) _locationAddress = null;
+                            });
+                          },
                           onLocationSelected: (lat, lng) => setState(() {
                             _locationLat = lat;
                             _locationLng = lng;
@@ -962,42 +1031,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               setState(() => _locationDwellMinutes = v),
                         ),
                       ],
-                      SizedBox(height: kSectionSpacing),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(null),
-                              child: const Text('Cancel'),
-                            ),
-                            const Spacer(),
-                            FilledButton.icon(
-                              onPressed: _handleCommit,
-                              icon: const Icon(Icons.check_rounded, size: 20),
-                              label: Text(
-                                widget.initialHabit != null
-                                    ? 'Save Habit'
-                                    : 'Create Habit',
-                                style: AppTypography.button(context).copyWith(fontWeight: FontWeight.w600),
-                              ),
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: bottomPadding > 0 ? bottomPadding : 24),
+                      // Space for fixed bottom bar
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -1253,16 +1288,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     );
   }
 
-  Widget _buildCommitmentSection(
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildScheduleSection(ColorScheme colorScheme, Color baseColor) {
     final customDateLabel = _customDeadlineDate != null
         ? _toIsoDate(_customDeadlineDate!)
         : null;
 
     return CupertinoListSection.insetGrouped(
       header: Text(
-        'Mastery Milestone',
+        'Schedule',
         style: AppTypography.caption(context).copyWith(
           color: colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w500,
@@ -1274,7 +1307,30 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
-        // Collapsed tile - always visible
+        // Weekdays row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+              final selected = _weekdays.contains(index);
+              return AnimatedDayChip(
+                label: days[index],
+                isSelected: selected,
+                accentColor: baseColor,
+                onTap: () => setState(() {
+                  if (_weekdays.contains(index)) {
+                    _weekdays.remove(index);
+                  } else {
+                    _weekdays.add(index);
+                  }
+                }),
+              );
+            }),
+          ),
+        ),
+        // Milestone - collapsed tile
         CupertinoListTile.notched(
           leading: Icon(
             Icons.timer_outlined,
@@ -1298,7 +1354,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
             }
           }),
         ),
-        // Expanded content - list items
+        // Milestone expanded content
         if (_milestoneExpanded)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

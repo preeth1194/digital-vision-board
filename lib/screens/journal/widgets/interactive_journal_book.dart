@@ -411,6 +411,17 @@ class _BookCover extends StatelessWidget {
                                     ),
                                   ),
                           ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Written by you',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.6),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           // Page count
                           Row(

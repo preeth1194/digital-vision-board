@@ -280,6 +280,7 @@ class NotificationsService {
     required String boardId,
     required String componentId,
   }) async {
+    debugPrint('[Notification] showGeofenceCompletionNotification: habitName=$habitName');
     if (kIsWeb) return;
     await ensureInitialized();
 

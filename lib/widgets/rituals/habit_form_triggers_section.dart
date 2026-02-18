@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../services/notifications_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
 import 'location_map_picker_screen.dart';
@@ -247,6 +248,8 @@ class _Step4TriggersState extends State<Step4Triggers> {
         widget.onLocationSelected(pos.latitude, pos.longitude);
         widget.onLocationToggle(true);
         await _reverseGeocode(pos.latitude, pos.longitude);
+        // Ensure notification permission so geofence completion alerts can show.
+        NotificationsService.requestPermissionsIfNeeded();
       }
     } catch (e) {
       debugPrint('Location error: $e');

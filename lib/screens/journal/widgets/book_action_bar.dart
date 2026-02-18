@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Bottom action bar for the journal book with circular buttons.
 class BookActionBar extends StatelessWidget {
-  final VoidCallback onMore;
+  final VoidCallback onColor;
   final VoidCallback onDelete;
   final VoidCallback onAdd;
   final bool isVisible;
 
   const BookActionBar({
     super.key,
-    required this.onMore,
+    required this.onColor,
     required this.onDelete,
     required this.onAdd,
     this.isVisible = true,
@@ -28,9 +28,9 @@ class BookActionBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _ActionButton(
-              icon: Icons.more_horiz_rounded,
-              onTap: onMore,
-              tooltip: 'More options',
+              icon: Icons.palette_outlined,
+              onTap: onColor,
+              tooltip: 'Change cover color',
             ),
             const SizedBox(width: 12),
             _ActionButton(

@@ -12,7 +12,6 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../models/grid_tile_model.dart';
-import '../../services/notifications_service.dart';
 import '../../utils/app_typography.dart';
 import 'addon_tools_section.dart';
 import 'habit_form_constants.dart';
@@ -1032,35 +1031,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               setState(() => _locationDwellMinutes = v),
                         ),
                       ],
-                      // DEBUG: test geofence completion notification
-                      if (_locationEnabled && _locationLat != null)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              color: CupertinoColors.destructiveRed.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                              onPressed: () async {
-                                await NotificationsService.requestPermissionsIfNeeded();
-                                await NotificationsService.showGeofenceCompletionNotification(
-                                  habitId: 'debug-test',
-                                  habitName: 'Test Habit',
-                                  boardId: 'debug-board',
-                                  componentId: 'debug-component',
-                                );
-                              },
-                              child: Text(
-                                'DEBUG: Test Notification',
-                                style: AppTypography.bodySmall(context).copyWith(
-                                  color: CupertinoColors.destructiveRed,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       // Space for fixed bottom bar
                       const SizedBox(height: 24),
                     ],

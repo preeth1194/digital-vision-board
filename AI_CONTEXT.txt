@@ -552,7 +552,6 @@ Backend requires these environment variables (see `ENV_SETUP.md` for full list):
 - **Backend route**: `GET /privacy-policy` - Serves a standalone HTML privacy policy page
 - **Purpose**: Required by Google Play Console for apps using sensitive permissions (CAMERA, LOCATION, etc.)
 - **Content**: Explains data collection, storage, permissions, and user rights
-- **Canva App Panel**: Links to `/privacy-policy` route instead of anchor link for separate URL
 - **Location**: `backend/src/server.js` - Privacy policy route serves HTML with styling
 
 ---
@@ -563,13 +562,13 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 
 ### Backend overview
 - **Entry**: `backend/src/server.js` (Express app). Vercel serverless: `backend/api/index.js` exports the same app.
-- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`), `requireAdmin()` (requires dvAuth + admin user id in `DV_ADMIN_USER_IDS`).
+- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`).
 - **Base URL (app)**: `DvAuthService.backendBaseUrl()` — from `BACKEND_BASE_URL` (compile-time, default `https://digital-vision-board.onrender.com`).
 
 ### Auth and token
 - **dvToken**: Backend-issued token stored in SharedPreferences (`dv_auth_token_v1`). Used as `Authorization: Bearer <dvToken>` on protected routes.
 - **Guest tokens**: Expire in 10 days; backend returns `expired_auth` when expired; app shows auth gateway on 401.
-- **Obtaining a token**: Guest (`POST /auth/guest`), Firebase exchange (`POST /auth/firebase/exchange`), or Canva OAuth (poll flow).
+- **Obtaining a token**: Guest (`POST /auth/guest`) or Firebase exchange (`POST /auth/firebase/exchange`).
 
 ### API endpoints (current) and app usage
 
@@ -577,7 +576,7 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 |--------|------|------|---------|-----------------|
 | GET | `/` | — | Info text | — |
 | GET | `/health` | — | Health check | — |
-| GET | `/privacy-policy` | — | HTML privacy page | Canva panel / external link |
+| GET | `/privacy-policy` | — | HTML privacy page | External link |
 | GET | `/stock/pexels/search` | — | Pexels search proxy (query, perPage) | `StockImagesService.searchPexelsUrls()` — grid Pexels search |
 | GET | `/stock/category-images` | — | Category images by coreValueId + category (DB cache) | `CategoryImagesService.getCategoryImages()` — wizard default images |
 | GET | `/wizard/defaults` | — | Core values + categories | `WizardDefaultsService` — wizard step 1 defaults (cached) |
@@ -585,12 +584,6 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 | POST | `/wizard/recommendations/generate` | — | Generate recommendations (Gemini) | `WizardRecommendationsService.generate()` / `getOrGenerate()` |
 | POST | `/auth/guest` | — | Create guest session (body: home_timezone, gender) | `DvAuthService.continueAsGuest()` |
 | POST | `/auth/firebase/exchange` | — | Exchange Firebase idToken for dvToken | `DvAuthService.exchangeFirebaseIdTokenForDvToken()` |
-| GET | `/auth/canva/start_poll` | — | Canva OAuth start (returns authUrl, pollToken) | `DvAuthService.connectViaCanvaOAuth()` (poll) |
-| GET | `/auth/canva/poll` | — | Poll for Canva OAuth result (query: pollToken) | Same |
-| GET | `/canva/connect` | — | Alias for Canva OAuth start | — |
-| GET | `/auth/canva/start` | — | Canva OAuth start (redirect flow) | — |
-| GET | `/auth/canva/callback` | — | Canva OAuth callback | — |
-| GET | `/habits` | dvAuth | Legacy habits list | — |
 | GET | `/templates` | dvAuth | List templates | `TemplatesService.listTemplates()` |
 | GET | `/templates/:id` | dvAuth | Get template by id | `TemplatesService.getTemplate()` |
 | GET | `/template-images/:id` | — | Template image (public) | `TemplatesService` image URL helper |
@@ -602,30 +595,13 @@ The Flutter app talks to a Node/Express backend. Base URL and auth are provided 
 | PUT | `/api/affirmations/:id` | dvAuth | Update affirmation | `AffirmationService.updateAffirmation()` |
 | DELETE | `/api/affirmations/:id` | dvAuth | Delete affirmation | `AffirmationService.deleteAffirmation()` |
 | PUT | `/api/affirmations/:id/pin` | dvAuth | Pin/unpin affirmation | `AffirmationService.togglePin()` |
-| GET | `/admin/templates` | admin | List templates (admin) | `TemplatesService.listTemplatesAdmin()` |
-| POST | `/admin/template-images` | admin | Upload template image (multipart) | `TemplatesService.uploadTemplateImage()` |
-| POST | `/admin/templates` | admin | Create template | `TemplatesService.createTemplate()` |
-| PUT | `/admin/templates/:id` | admin | Update template | `TemplatesService.updateTemplate()` |
-| DELETE | `/admin/templates/:id` | admin | Delete template | `TemplatesService.deleteTemplate()` |
-| POST | `/admin/wizard/sync-defaults` | admin | Sync wizard defaults (blocking) | `TemplatesService.syncWizardDefaults()` (legacy) |
-| POST | `/admin/wizard/sync-defaults/start` | admin | Start sync job | Admin / dev |
-| GET | `/admin/wizard/sync-defaults/status` | admin | Sync job status | `TemplatesService` poll |
-| POST | `/admin/stock/sync-category-images/start` | admin | Start category images sync | Admin / dev |
-| GET | `/admin/stock/sync-category-images/status` | admin | Sync job status | `TemplatesService` poll |
-| POST | `/admin/canva/import/current-page` | admin | Canva import (admin) | `TemplatesService.importCanvaCurrentPage()` |
-| GET | `/canva/packages` | dvAuth | Canva packages | Canva integration |
-| GET | `/canva/packages/latest` | dvAuth | Latest package | Canva integration |
-| GET | `/canva/packages/:id` | dvAuth | Package by id | Canva integration |
-| POST | `/habits` | dvAuth | Legacy habits | — |
-| POST | `/canva/sync` | dvAuth | Canva sync | Canva integration |
-| POST | `/canva/export` | dvAuth | Canva export | Canva integration |
 
 ### App-side API usage summary
-- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange, Canva OAuth; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
+- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
 - **Sync**: `lib/services/sync_service.dart` — `GET /sync/bootstrap`, `POST /sync/push`; 401 sets `SyncService.authExpired`.
 - **Wizard**: `WizardDefaultsService` → `GET /wizard/defaults`; `WizardRecommendationsService` → `GET /wizard/recommendations`, `POST /wizard/recommendations/generate`.
 - **Stock images**: `StockImagesService` → `GET /stock/pexels/search`; `CategoryImagesService` → `GET /stock/category-images` (no auth).
-- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`; admin: `/admin/templates`, `/admin/template-images`, sync-defaults and sync-category-images start/status.
+- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`.
 - **Affirmations**: `AffirmationService` — CRUD and pin via `/api/affirmations*` with Bearer token.
 
 ### Flow notes

@@ -31,7 +31,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
 
   Future<bool> _isSignedIn() async {
     final token = await DvAuthService.getDvToken();
-    final userId = await DvAuthService.getCanvaUserId();
+    final userId = await DvAuthService.getUserId();
     return (token != null && token.isNotEmpty) && (userId != null && userId.isNotEmpty);
   }
 

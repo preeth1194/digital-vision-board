@@ -38,6 +38,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
+import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
 import 'subscription_screen.dart';
 import '../services/subscription_service.dart';
@@ -1039,6 +1040,18 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('App Tour'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const OnboardingScreen(replayMode: true),
+                  ),
                 );
               },
             ),

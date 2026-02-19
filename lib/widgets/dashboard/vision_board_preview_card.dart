@@ -51,7 +51,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Preview content with reduced opacity
           Opacity(
             opacity: 0.65,
             child: FutureBuilder<Widget>(
@@ -67,7 +66,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
               },
             ),
           ),
-          // Tap area - positioned first so buttons can be on top
           Positioned.fill(
             child: Material(
               color: Colors.transparent,
@@ -77,7 +75,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
               ),
             ),
           ),
-          // Board name overlay at bottom - on top of tap area
           Positioned(
             left: 0,
             right: 0,
@@ -124,7 +121,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Action buttons - on top of everything, fully interactive
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -177,7 +173,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
       return _buildPlaceholder(context, tileColor, iconData);
     }
 
-    // Filter to only image tiles and limit to 9 max
     final imageTiles = tiles
         .where((t) => t.type == 'image' && (t.content ?? '').trim().isNotEmpty)
         .take(9)
@@ -189,10 +184,9 @@ class VisionBoardPreviewCard extends StatelessWidget {
       return _buildPlaceholder(context, tileColor, iconData);
     }
 
-    // Use 3x3 grid for compact preview
     const crossAxisCount = 3;
     const spacing = 2.0;
-    const height = 150.0; // Reduced from 200 to 150
+    const height = 150.0;
 
     return SizedBox(
       height: height,
@@ -237,7 +231,6 @@ class VisionBoardPreviewCard extends StatelessWidget {
       prefs: prefs,
     );
 
-    // Find first image component
     final imageComponents = components
         .whereType<ImageComponent>()
         .where((c) => (c.imagePath ?? '').trim().isNotEmpty)
@@ -254,7 +247,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
     final provider = fileImageProviderFromPath(imagePath);
 
     return SizedBox(
-      height: 150, // Reduced from 200 to 150
+      height: 150,
       child: provider != null
           ? Image(
               image: provider,
@@ -283,12 +276,12 @@ class VisionBoardPreviewCard extends StatelessWidget {
         : Colors.black87;
 
     return Container(
-      height: 150, // Reduced from 200 to 150
+      height: 150,
       color: tileColor,
       child: Center(
         child: Icon(
           iconData,
-          size: 48, // Reduced from 64 to 48
+          size: 48,
           color: iconColor.withOpacity(0.6),
         ),
       ),
@@ -297,7 +290,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
 
   Widget _buildLoadingPlaceholder(BuildContext context, Color tileColor) {
     return Container(
-      height: 150, // Reduced from 200 to 150
+      height: 150,
       color: tileColor.withOpacity(0.3),
       child: Center(
         child: CircularProgressIndicator(

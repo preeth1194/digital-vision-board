@@ -4,13 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/wizard/wizard_state.dart';
 import '../../services/wizard_board_builder.dart';
 import 'wizard_step1_board_setup.dart';
-import 'wizard_step_goals_for_core_value.dart';
 import '../grid_editor.dart';
 import '../../models/grid_template.dart';
 
 /// Wizard shell that hosts the multi-step create-board flow.
 ///
-/// This is intentionally additive (new route) so existing flows keep working.
+/// Steps: 0 = combined setup + goals, 1 = grid editor, 2 = done.
 class CreateBoardWizardScreen extends StatefulWidget {
   const CreateBoardWizardScreen({super.key});
 
@@ -21,10 +20,9 @@ class CreateBoardWizardScreen extends StatefulWidget {
 class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
   int _stepIndex = 0;
   CreateBoardWizardState _state = CreateBoardWizardState.initial();
-  int _coreValueGoalsIndex = 0;
   bool _openingEditor = false;
 
-  int get _totalSteps => 4; // step1 + goals + editor + done (goals step expands internally)
+  int get _totalSteps => 3;
 
   void _showCongratsSnack({required String message}) {
     final remaining = (_totalSteps - 1 - _stepIndex).clamp(0, _totalSteps);
@@ -40,13 +38,13 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
     );
   }
 
-  void _nextFromStep1(CreateBoardWizardState next) {
+  Future<void> _nextFromCombinedStep(CreateBoardWizardState next) async {
     setState(() {
       _state = next;
       _stepIndex = 1;
-      _coreValueGoalsIndex = 0;
     });
-    _showCongratsSnack(message: 'Nice! Your board has a clear focus.');
+    _showCongratsSnack(message: 'Amazing — your goals are taking shape.');
+    await _createAndOpenEditorFor(next);
   }
 
   Future<void> _createAndOpenEditorFor(CreateBoardWizardState next) async {
@@ -73,14 +71,10 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
       );
       if (!mounted) return;
       if (pressed == true) {
-        setState(() => _stepIndex = 3);
+        setState(() => _stepIndex = 2);
         _showCongratsSnack(message: 'Boom — your vision board is ready!');
       } else {
-        // User pressed back in editor, go back to goals step
-        setState(() {
-          _stepIndex = 1;
-          _coreValueGoalsIndex = (_state.coreValues.length - 1).clamp(0, 999);
-        });
+        setState(() => _stepIndex = 0);
       }
     } catch (e) {
       if (!mounted) return;
@@ -92,47 +86,16 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
     }
   }
 
-  void _nextGoalsStep(CreateBoardWizardState next) async {
-    final total = _state.coreValues.length.clamp(1, 9999);
-    final nextIndex = (_coreValueGoalsIndex + 1).clamp(0, total);
-    if (nextIndex >= total) {
-      setState(() {
-        _state = next;
-        _stepIndex = 2; // editor
-      });
-      _showCongratsSnack(message: 'Amazing — your goals are taking shape.');
-      await _createAndOpenEditorFor(next);
-      return;
-    }
-    setState(() {
-      _state = next;
-      _stepIndex = 1;
-      _coreValueGoalsIndex = nextIndex;
-    });
-    _showCongratsSnack(message: 'Great progress!');
-  }
-
   void _handleBackNavigation() {
     if (_stepIndex == 0) {
-      // Allow normal pop on first step (exit wizard)
       Navigator.of(context).pop();
       return;
     }
-    
-    // Handle back navigation between steps
     setState(() {
       if (_stepIndex == 1) {
-        // Go back from goals step to step 1 (board setup)
         _stepIndex = 0;
-        _coreValueGoalsIndex = 0;
       } else if (_stepIndex == 2) {
-        // Go back from editor step to goals step
-        // Reset to last core value goals index
         _stepIndex = 1;
-        _coreValueGoalsIndex = (_state.coreValues.length - 1).clamp(0, 999);
-      } else if (_stepIndex == 3) {
-        // Go back from done step - this shouldn't happen normally, but handle it
-        _stepIndex = 2;
       }
     });
   }
@@ -153,76 +116,71 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
           title: const Text('Create your vision board'),
         ),
         body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LinearProgressIndicator(value: progress),
-                const SizedBox(height: 8),
-                Text('Step ${_stepIndex + 1} of $_totalSteps'),
-              ],
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LinearProgressIndicator(value: progress),
+                  const SizedBox(height: 8),
+                  Text('Step ${_stepIndex + 1} of $_totalSteps'),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: switch (_stepIndex) {
-              0 => WizardStep1BoardSetup(
-                  initial: _state,
-                  onNext: _nextFromStep1,
-                ),
-              1 => WizardStepGoalsForCoreValue(
-                  state: _state,
-                  coreValueIndex: _coreValueGoalsIndex,
-                  onNext: _nextGoalsStep,
-                ),
-              2 => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
+            const Divider(height: 1),
+            Expanded(
+              child: switch (_stepIndex) {
+                0 => WizardStep1BoardSetup(
+                    initial: _state,
+                    onNext: _nextFromCombinedStep,
+                  ),
+                1 => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_openingEditor) const CircularProgressIndicator(),
+                          const SizedBox(height: 12),
+                          Text(
+                            _openingEditor ? 'Opening your grid editor…' : 'Opening editor…',
+                            style: Theme.of(context).textTheme.titleMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'You can change images, text, and layout inside the grid.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                _ => Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (_openingEditor) const CircularProgressIndicator(),
+                        const Icon(Icons.celebration_outlined, size: 64),
                         const SizedBox(height: 12),
                         Text(
-                          _openingEditor ? 'Opening your grid editor…' : 'Opening editor…',
+                          'Congratulations!\nYou created your dream vision board.',
                           style: Theme.of(context).textTheme.titleMedium,
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'You can change images, text, and layout inside the grid.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          textAlign: TextAlign.center,
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Back to dashboard'),
                         ),
                       ],
                     ),
                   ),
-                ),
-              _ => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.celebration_outlined, size: 64),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Congratulations!\nYou created your dream vision board.',
-                        style: Theme.of(context).textTheme.titleMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Back to dashboard'),
-                      ),
-                    ],
-                  ),
-                ),
-            },
-          ),
-        ],
-      ),
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -267,4 +225,3 @@ class _AnimatedSnackTextState extends State<_AnimatedSnackText>
     );
   }
 }
-

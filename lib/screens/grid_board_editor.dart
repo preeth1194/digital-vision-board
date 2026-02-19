@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
 import '../models/goal_metadata.dart';
-import '../models/vision_components.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_storage_service.dart';
@@ -23,10 +22,7 @@ import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
-import 'global_insights_screen.dart';
-import 'habits_list_screen.dart';
 import 'grid_goal_viewer_screen.dart';
-import 'todos_list_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -61,7 +57,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   late bool _isEditing;
   bool _loading = true;
-  int _viewTabIndex = 0; // 0: Grid, 1: Habits, 2: Todo, 3: Insights (view mode only)
   int? _selectedIndex;
   double _resizeAccumDx = 0;
   double _resizeAccumDy = 0;
@@ -550,65 +545,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   void _toggleEditMode() {
     setState(() {
       _isEditing = !_isEditing;
-      // When switching back to view mode, default to grid view and clear selection.
       if (!_isEditing) {
-        _viewTabIndex = 0;
         _selectedIndex = null;
         _selectedResizeHandle = null;
       }
     });
-  }
-
-  List<VisionComponent> _componentsFromTiles() {
-    final comps = <VisionComponent>[];
-    for (final t in _tiles) {
-      if (t.type == 'empty') continue;
-      comps.add(
-        ImageComponent(
-          id: t.id, // stable key for persistence
-          position: Offset.zero,
-          size: const Size(1, 1),
-          rotation: 0,
-          scale: 1,
-          zIndex: t.index,
-          imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-          // Important: don't synthesize a fake goal title like "tile_0".
-          // If there's no goal metadata, keep it null so labels can fall back cleanly.
-          goal: t.goal,
-          habits: t.habits,
-          habitIds: t.habitIds,
-          tasks: t.tasks,
-        ),
-      );
-    }
-    return comps;
-  }
-
-  Future<void> _applyComponentUpdates(List<VisionComponent> updated) async {
-    final byId = <String, VisionComponent>{for (final c in updated) c.id: c};
-    final next = _tiles.map((t) {
-      final c = byId[t.id];
-      if (c == null) return t;
-      final img = c is ImageComponent ? c : null;
-      return t.copyWith(
-        goal: img?.goal ?? t.goal,
-        habits: c.habits,
-        tasks: c.tasks,
-      );
-    }).toList();
-    // Sync habits to HabitStorageService (source of truth) when writing to tiles.
-    final previousHabitIds = <String, Set<String>>{};
-    for (final t in _tiles) {
-      final ids = <String>{...t.habits.map((h) => h.id), ...t.habitIds};
-      if (ids.isNotEmpty) previousHabitIds[t.id] = ids;
-    }
-    await HabitStorageService.syncComponentsHabits(
-      widget.boardId,
-      updated,
-      previousHabitIds,
-      prefs: _prefs,
-    );
-    await _saveTiles(next);
   }
 
   Widget _tileChild(GridTileModel tile) {
@@ -694,17 +635,25 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           ),
         ),
         alignment: Alignment.center,
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add, color: colorScheme.onSurfaceVariant),
-            const SizedBox(height: 6),
-            Text(
-              'Tap twice to add',
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-          ],
+        clipBehavior: Clip.hardEdge,
+        padding: const EdgeInsets.all(4),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add, color: colorScheme.onSurfaceVariant),
+              const SizedBox(height: 4),
+              Text(
+                'Tap twice\nto add',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -773,13 +722,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     // Slight spacing improves readability and makes the grid feel intentional.
     const spacing = 10.0;
     final selected = _selectedTile();
-    final viewTitle = _viewTabIndex == 0
-        ? widget.title
-        : _viewTabIndex == 1
-            ? 'Habits'
-            : _viewTabIndex == 2
-                ? 'Todo'
-                : 'Insights';
+    final viewTitle = widget.title;
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit: ${widget.title}' : viewTitle),
@@ -790,13 +733,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(widget.wizardNextLabel),
             ),
-          if (_isEditing && _viewTabIndex == 0)
+          if (_isEditing)
             IconButton(
               tooltip: 'Shuffle layout',
               icon: const Icon(Icons.shuffle),
               onPressed: _shuffleGrid,
             ),
-          if (_viewTabIndex == 0 || _isEditing)
             IconButton(
               tooltip: _isEditing ? 'Complete' : 'Edit',
               icon: Icon(_isEditing ? Icons.check_circle : Icons.edit),
@@ -806,23 +748,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : (!_isEditing && _viewTabIndex == 1)
-              ? HabitsListScreen(
-                  components: _componentsFromTiles(),
-                  onComponentsUpdated: _applyComponentUpdates,
-                  showAppBar: false,
-                )
-              : (!_isEditing && _viewTabIndex == 2)
-                  ? TodosListScreen(
-                      components: _componentsFromTiles(),
-                      onComponentsUpdated: _applyComponentUpdates,
-                      onOpenComponent: (_) async {},
-                      showAppBar: false,
-                      allowManageTodos: true,
-                    )
-                  : (!_isEditing && _viewTabIndex == 3)
-                      ? GlobalInsightsScreen(components: _componentsFromTiles())
-                  : LayoutBuilder(
+          : LayoutBuilder(
                       builder: (context, constraints) {
                 // Grid is rendered inside a 16px padding on both sides.
                 final gridMaxWidth = (constraints.maxWidth - 32).clamp(0.0, double.infinity);
@@ -1101,17 +1027,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 ),
               ),
             )
-          : BottomNavigationBar(
-              currentIndex: _viewTabIndex,
-              onTap: (i) => setState(() => _viewTabIndex = i),
-              type: BottomNavigationBarType.fixed,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Grid'),
-                BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Habits'),
-                BottomNavigationBarItem(icon: Icon(Icons.playlist_add_check), label: 'Todo'),
-                BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Insights'),
-              ],
-            ),
+          : null,
     );
   }
 }

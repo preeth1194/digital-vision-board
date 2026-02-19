@@ -43,7 +43,6 @@ class _SectionCarouselState extends State<SectionCarousel> {
     }
 
     if (widget.items.length == 1) {
-      // Single item - no carousel needed
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -63,7 +62,6 @@ class _SectionCarouselState extends State<SectionCarousel> {
       );
     }
 
-    // Multiple items - show carousel
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -79,7 +77,7 @@ class _SectionCarouselState extends State<SectionCarousel> {
           ),
         ],
         SizedBox(
-          height: widget.height ?? 250, // Default height if not specified
+          height: widget.height ?? 250,
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {
@@ -96,7 +94,6 @@ class _SectionCarouselState extends State<SectionCarousel> {
             },
           ),
         ),
-        // Page indicators
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12.0),
           child: Row(

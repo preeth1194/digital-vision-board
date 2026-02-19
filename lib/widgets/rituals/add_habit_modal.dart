@@ -35,6 +35,7 @@ Future<HabitCreateRequest?> showAddHabitModal(
   String? initialName,
   TimeOfDay? initialStartTime,
   int? initialDurationMinutes,
+  bool initialTimerEnabled = false,
 }) {
   return Navigator.of(context).push<HabitCreateRequest?>(
     PageRouteBuilder<HabitCreateRequest?>(
@@ -47,6 +48,7 @@ Future<HabitCreateRequest?> showAddHabitModal(
           initialName: initialName,
           initialStartTime: initialStartTime,
           initialDurationMinutes: initialDurationMinutes,
+          initialTimerEnabled: initialTimerEnabled,
         );
       },
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -79,6 +81,7 @@ class _CreateHabitPage extends StatefulWidget {
   final String? initialName;
   final TimeOfDay? initialStartTime;
   final int? initialDurationMinutes;
+  final bool initialTimerEnabled;
 
   const _CreateHabitPage({
     required this.existingHabits,
@@ -86,6 +89,7 @@ class _CreateHabitPage extends StatefulWidget {
     this.initialName,
     this.initialStartTime,
     this.initialDurationMinutes,
+    this.initialTimerEnabled = false,
   });
 
   @override
@@ -228,6 +232,12 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         _timeBoundDurationValue = dur;
         _timeBoundDurationUnit = 'minutes';
       }
+    }
+    // Enable timer add-on by default for "New Routine" flow
+    if (widget.initialHabit == null &&
+        widget.initialStartTime == null &&
+        widget.initialTimerEnabled) {
+      _timerAddonAdded = true;
     }
     // Default start time when creating new habit
     if (_timeBoundStartTime == null) {

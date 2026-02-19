@@ -707,7 +707,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No rituals yet',
+                        'No habits yet',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -716,14 +716,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Add habits to start building\nyour daily rituals',
+                        'Tap + to create your first habit\nand build your daily routine',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                       ),
-                      const SizedBox(height: 80), // Space for FAB
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -862,16 +862,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onComplete: () => _onAnimationComplete(index),
           );
         }),
-        // FAB
-        Positioned(
-          right: 16,
-          bottom: 16 + MediaQuery.of(context).viewPadding.bottom,
-          child: FloatingActionButton(
-            onPressed: _addHabitGlobal,
-            tooltip: 'Add habit',
-            child: const Icon(Icons.add),
-          ),
-        ),
       ],
     );
   }

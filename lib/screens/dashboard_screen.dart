@@ -49,6 +49,7 @@ import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/rituals/add_habit_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -720,6 +721,41 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  Future<void> _addHabitFromPanel({bool timerEnabled = false}) async {
+    _hideCreatePanel();
+    final habits = await HabitStorageService.loadAll(prefs: _prefs);
+    if (!mounted) return;
+    final req = await showAddHabitModal(
+      context,
+      existingHabits: habits,
+      initialTimerEnabled: timerEnabled,
+    );
+    if (req == null || !mounted) return;
+    final newHabit = HabitItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: req.name,
+      category: req.category,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
+      iconIndex: req.iconIndex,
+      completedDates: const [],
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
+    );
+    await HabitStorageService.addHabit(newHabit, prefs: _prefs);
+    _boardDataVersion.value++;
+  }
+
   Future<void> _onTemplatePicked(String layoutType) async {
     _hideCreatePanel();
     final boardsBefore = _boards.length;
@@ -1166,9 +1202,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           label: 'Home',
         ),
         AnimatedNavItem(
-          icon: Icons.self_improvement_outlined,
-          activeIcon: Icons.self_improvement,
-          label: 'Rituals',
+          icon: Icons.repeat_rounded,
+          activeIcon: Icons.repeat_rounded,
+          label: 'Habits',
         ),
         AnimatedNavItem(
           icon: Icons.schedule_outlined,
@@ -1202,7 +1238,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     const barHeight = 64.0;
     const circleOverflow = 20.0;
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
-    const panelContentHeight = 180.0;
+    const panelContentHeight = 240.0;
     final colorScheme = Theme.of(context).colorScheme;
 
     return AnimatedBuilder(
@@ -1251,33 +1287,44 @@ class _DashboardScreenState extends State<DashboardScreen>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              ListTile(
-                                title: Text(
-                                  'Choose a template',
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                                child: Text(
+                                  'Create New',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                     color: colorScheme.onSurface,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Create your vision board',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
                               Card(
                                 child: ListTile(
                                   leading: Icon(
-                                    Icons.dashboard_customize_outlined,
+                                    Icons.self_improvement_outlined,
                                     color: colorScheme.primary,
                                   ),
-                                  title: const Text('Create Vision Board'),
+                                  title: const Text('New Habit'),
                                   subtitle: const Text(
-                                    'Pick a layout and fill it with your goals',
+                                    'Build a daily practice',
                                   ),
                                   trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => _onTemplatePicked('create_wizard'),
+                                  onTap: () => _addHabitFromPanel(),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Card(
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.schedule_outlined,
+                                    color: colorScheme.primary,
+                                  ),
+                                  title: const Text('New Routine'),
+                                  subtitle: const Text(
+                                    'Habit with timer enabled',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _addHabitFromPanel(timerEnabled: true),
                                 ),
                               ),
                             ],

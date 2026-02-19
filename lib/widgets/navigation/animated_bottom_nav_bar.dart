@@ -216,33 +216,47 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
                               child: GestureDetector(
                                 onTap: () => widget.onTap(tabIndex),
                                 behavior: HitTestBehavior.opaque,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (showIcon)
-                                      Icon(
-                                        item.icon,
-                                        color: colorScheme.outlineVariant,
-                                        size: 24,
-                                      )
-                                    else
-                                      const SizedBox(height: 24),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item.label,
-                                      style: TextStyle(
-                                        color: colorScheme.outlineVariant,
-                                        fontSize: 10,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
-                                        decoration: TextDecoration.none,
+                                child: SizedBox(
+                                  height: _barHeight,
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        top: 12,
+                                        left: 0,
+                                        right: 0,
+                                        child: AnimatedOpacity(
+                                          duration: const Duration(milliseconds: 200),
+                                          opacity: showIcon ? 1.0 : 0.0,
+                                          child: Icon(
+                                            item.icon,
+                                            color: colorScheme.outlineVariant,
+                                            size: 24,
+                                          ),
+                                        ),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                                      AnimatedPositioned(
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeOutCubic,
+                                        top: showIcon ? 38.0 : 46.0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Text(
+                                          item.label,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: colorScheme.outlineVariant,
+                                            fontSize: 11,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -258,6 +272,7 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
                           child: _AnimatedCenterButton(
                             onTap: widget.onCenterTap!,
                             colorScheme: colorScheme,
+                            isExpanded: widget.suppressHighlight,
                           ),
                         ),
 
@@ -378,10 +393,12 @@ class _NotchedBarPainter extends CustomPainter {
 class _AnimatedCenterButton extends StatefulWidget {
   final VoidCallback onTap;
   final ColorScheme colorScheme;
+  final bool isExpanded;
 
   const _AnimatedCenterButton({
     required this.onTap,
     required this.colorScheme,
+    this.isExpanded = false,
   });
 
   @override
@@ -392,9 +409,10 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _tapController;
+  late AnimationController _expandController;
   late Animation<double> _pulseScale;
   late Animation<double> _tapScale;
-  late Animation<double> _tapRotation;
+  late Animation<double> _expandRotation;
 
   static const double _innerSize = 52.0;
   static const double _border = 4.0;
@@ -428,25 +446,50 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
       ),
     ]).animate(_tapController);
 
-    _tapRotation = Tween<double>(begin: 0.0, end: math.pi / 2).animate(
-      CurvedAnimation(parent: _tapController, curve: Curves.easeOutBack),
+    _expandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: widget.isExpanded ? 1.0 : 0.0,
     );
+
+    _expandRotation = Tween<double>(begin: 0.0, end: math.pi / 4).animate(
+      CurvedAnimation(parent: _expandController, curve: Curves.easeOutBack),
+    );
+
+    if (widget.isExpanded) {
+      _pulseController.stop();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedCenterButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isExpanded != oldWidget.isExpanded) {
+      if (widget.isExpanded) {
+        _pulseController.stop();
+        _expandController.forward();
+      } else {
+        _expandController.reverse().then((_) {
+          if (mounted) _pulseController.repeat(reverse: true);
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _tapController.dispose();
+    _expandController.dispose();
     super.dispose();
   }
 
   Future<void> _handleTap() async {
-    _pulseController.stop();
-    widget.onTap();
-    await _tapController.forward(from: 0.0);
-    if (mounted) {
-      _pulseController.repeat(reverse: true);
+    if (!widget.isExpanded) {
+      _pulseController.stop();
     }
+    await _tapController.forward(from: 0.0);
+    widget.onTap();
   }
 
   @override
@@ -454,13 +497,18 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
     final cs = widget.colorScheme;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_pulseController, _tapController]),
+      animation: Listenable.merge([
+        _pulseController,
+        _tapController,
+        _expandController,
+      ]),
       builder: (context, child) {
         final isTapping = _tapController.isAnimating;
-        final scale = isTapping ? _tapScale.value : _pulseScale.value;
-        final rotation = isTapping ? _tapRotation.value : 0.0;
-        final glowOpacity =
-            isTapping ? 0.5 : 0.25 + (_pulseScale.value - 1.0) * 2.5;
+        final scale = isTapping ? _tapScale.value : (widget.isExpanded ? 1.0 : _pulseScale.value);
+        final rotation = _expandRotation.value;
+        final glowOpacity = widget.isExpanded
+            ? 0.35
+            : (isTapping ? 0.5 : 0.25 + (_pulseScale.value - 1.0) * 2.5);
 
         return GestureDetector(
           onTap: _handleTap,

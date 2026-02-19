@@ -11,6 +11,7 @@ class AffirmationCard extends StatefulWidget {
   final VoidCallback? onSettings;
   final Color? cardColor;
   final bool showPinIndicator;
+  final bool showCategory;
 
   const AffirmationCard({
     super.key,
@@ -20,6 +21,7 @@ class AffirmationCard extends StatefulWidget {
     this.onSettings,
     this.cardColor,
     this.showPinIndicator = true,
+    this.showCategory = true,
   });
 
   @override
@@ -180,7 +182,7 @@ class _AffirmationCardState extends State<AffirmationCard>
                           ),
                         ),
                       ),
-                      if (affirmation.category != null) ...[
+                      if (widget.showCategory && affirmation.category != null) ...[
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

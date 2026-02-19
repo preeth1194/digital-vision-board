@@ -157,40 +157,25 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                         ),
                       )
                     else if (_imagePath != null) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: Image(
-                            image: fileImageProviderFromPath(_imagePath!) ??
-                                const AssetImage('assets/placeholder.png')
-                                    as ImageProvider,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stack) => Icon(
-                              Icons.extension_rounded,
-                              size: 36,
-                              color: colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.5),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image(
+                              image: fileImageProviderFromPath(_imagePath!) ??
+                                  const AssetImage('assets/placeholder.png')
+                                      as ImageProvider,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (context, error, stack) => Icon(
+                                Icons.extension_rounded,
+                                size: 36,
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.5),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isCompleted ? 'Completed' : 'In Progress',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      Text(
-                        'Tap to play',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7),
                         ),
                       ),
                     ] else ...[

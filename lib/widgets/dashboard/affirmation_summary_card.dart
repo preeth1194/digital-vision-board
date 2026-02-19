@@ -177,6 +177,7 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
       onSettings: _openManagement,
       cardColor: colorScheme.primaryContainer,
       showPinIndicator: true,
+      showCategory: false,
     );
   }
 }

@@ -32,6 +32,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
   final Future<void> Function(String boardId, List<VisionComponent> updated) onSaveBoardComponents;
   final ValueNotifier<int>? coinNotifier;
   final GlobalKey? coinTargetKey;
+  final VoidCallback? onSwitchToRoutine;
 
   const AllBoardsHabitsTab({
     super.key,
@@ -40,6 +41,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
     required this.onSaveBoardComponents,
     this.coinNotifier,
     this.coinTargetKey,
+    this.onSwitchToRoutine,
   });
 
   @override
@@ -127,10 +129,27 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _addHabitGlobal() async {
-    // Gate: if user has 3+ habits and is not ad-free, require 5 reward ads
+    // Gate: redirect non-subscribed users with 3+ habits to Routine screen
     if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
+      if (widget.onSwitchToRoutine != null) {
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setActiveSession(sessionKey);
+        if (!mounted) return;
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        widget.onSwitchToRoutine!();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pick a time slot on the Routine screen to add your habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      // Fallback: if no callback, keep existing behavior
       if (_activeAdSession == null) {
-        // Start a new ad session for this unlock
         final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
         await AdService.setActiveSession(sessionKey);
         if (!mounted) return;
@@ -146,7 +165,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         );
         return;
       }
-      // Session exists but not complete
       if (_adWatchedCount < AdService.requiredAdsPerHabit) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -555,7 +573,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -1206,13 +1224,13 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     onTap: _onEditTap,
                                     child: Container(
                                       color: isDark
-                                          ? Colors.blueGrey.shade700
+                                          ? colorScheme.onSurfaceVariant
                                           : colorScheme.primary
                                               .withValues(alpha: 0.85),
                                       alignment: Alignment.center,
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.edit_outlined,
-                                        color: Colors.white,
+                                        color: colorScheme.onPrimary,
                                         size: 22,
                                       ),
                                     ),
@@ -1224,16 +1242,16 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     onTap: _onDeleteTap,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.red.shade600,
+                                        color: colorScheme.error,
                                         borderRadius: const BorderRadius.only(
                                           topRight: Radius.circular(24),
                                           bottomRight: Radius.circular(24),
                                         ),
                                       ),
                                       alignment: Alignment.center,
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.delete_outline_rounded,
-                                        color: Colors.white,
+                                        color: colorScheme.onPrimary,
                                         size: 22,
                                       ),
                                     ),
@@ -1298,16 +1316,16 @@ class _CopingPlanFace extends StatelessWidget {
         ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
             (cbt.ifThenPlan?.isNotEmpty ?? false));
 
-    final textColor = isDark ? Colors.white : AppColors.nearBlack;
+    final textColor = colorScheme.onSurface;
     final subtitleColor =
-        isDark ? Colors.white.withValues(alpha: 0.6) : AppColors.dimGrey;
+        isDark ? colorScheme.onSurface.withValues(alpha: 0.6) : colorScheme.onSurfaceVariant;
     final accentColor = AppColors.completedOrange;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: accentColor.withValues(alpha: 0.3),
@@ -1315,7 +1333,7 @@ class _CopingPlanFace extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: colorScheme.shadow.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -1352,7 +1370,7 @@ class _CopingPlanFace extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.12),
+                                color: colorScheme.error.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1360,7 +1378,7 @@ class _CopingPlanFace extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.red.shade400,
+                                  color: colorScheme.error,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -1398,7 +1416,7 @@ class _CopingPlanFace extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
+                                color: colorScheme.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1406,7 +1424,7 @@ class _CopingPlanFace extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.green.shade400,
+                                  color: colorScheme.primary,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -1497,10 +1515,11 @@ class _TimelineCheckpoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.3)
-        : Colors.grey.shade400;
+        ? colorScheme.onSurface.withValues(alpha: 0.3)
+        : colorScheme.outline;
 
     return GestureDetector(
       onTap: onTap,
@@ -1518,7 +1537,7 @@ class _TimelineCheckpoint extends StatelessWidget {
           ),
         ),
         child: isCompleted
-            ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+            ? Icon(Icons.check_rounded, color: colorScheme.onPrimary, size: 16)
             : null,
       ),
     );
@@ -1531,10 +1550,11 @@ class _TimelineDash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.grey.shade300;
+        ? colorScheme.onSurface.withValues(alpha: 0.15)
+        : colorScheme.outline;
 
     return SizedBox(
       width: 2,

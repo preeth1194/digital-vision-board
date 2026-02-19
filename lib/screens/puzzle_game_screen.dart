@@ -307,72 +307,75 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.celebration, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('Puzzle Completed!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Congratulations! You solved the puzzle in ${minutes}m ${seconds}s.',
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
-                const SizedBox(width: 6),
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.celebration, color: colorScheme.tertiary),
+              const SizedBox(width: 8),
+              const Text('Puzzle Completed!'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Congratulations! You solved the puzzle in ${minutes}m ${seconds}s.',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.monetization_on, color: colorScheme.tertiary, size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    '+$earnedCoins coins earned!',
+                    style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                          color: colorScheme.tertiary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                goalMessage,
+                style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+              ),
+              if (_actionsLocked) ...[
+                const SizedBox(height: 12),
                 Text(
-                  '+$earnedCoins coins earned!',
-                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                        color: Colors.amber.shade700,
-                        fontWeight: FontWeight.bold,
+                  'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
                       ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              goalMessage,
-              style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(ctx).colorScheme.primary,
-                  ),
-            ),
-            if (_actionsLocked) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.error,
-                    ),
-              ),
             ],
-          ],
-        ),
-        actions: [
-          if (!_actionsLocked)
-            TextButton(
+          ),
+          actions: [
+            if (!_actionsLocked)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _shufflePuzzle();
+                },
+                child: const Text('Play Again'),
+              ),
+            FilledButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                _shufflePuzzle();
+                _showCompletionTile();
               },
-              child: const Text('Play Again'),
+              child: const Text('Done'),
             ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _showCompletionTile();
-            },
-            child: const Text('Done'),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -664,8 +667,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.black.withOpacity(0.7),
-                                    Colors.black.withOpacity(0.9),
+                                    Theme.of(context).colorScheme.shadow.withOpacity(0.7),
+                                    Theme.of(context).colorScheme.shadow.withOpacity(0.9),
                                   ],
                                 ),
                               ),
@@ -676,8 +679,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.celebration,
-                                          color: Colors.amber, size: 64),
+                                      Icon(Icons.celebration,
+                                          color: Theme.of(context).colorScheme.tertiary, size: 64),
                                       const SizedBox(height: 16),
                                       Text(
                                         goalMessage,
@@ -686,7 +689,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                                             .textTheme
                                             .headlineSmall
                                             ?.copyWith(
-                                              color: Colors.white,
+                                              color: Theme.of(context).colorScheme.surface,
                                               fontWeight: FontWeight.bold,
                                             ),
                                       ),

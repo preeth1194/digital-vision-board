@@ -76,6 +76,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
   Future<bool> _maybeConfirmDiscard() async {
     if (!widget.confirmDiscardIfDirty) return true;
     if (!_dirty) return true;
+    final colorScheme = Theme.of(context).colorScheme;
     final res = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -87,7 +88,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
             child: const Text('Keep editing'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: colorScheme.error),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Discard'),
           ),
@@ -112,6 +113,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final insetBottom = MediaQuery.viewInsetsOf(context).bottom;
 
     return WillPopScope(
@@ -130,7 +132,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Text(
                   widget.subtitle!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ),
             TextField(

@@ -11,9 +11,10 @@ Future<void> showBackgroundOptionsSheet(
     context: context,
     showDragHandle: true,
     builder: (context) {
+      final colorScheme = Theme.of(context).colorScheme;
       final colors = <Color>[
         AppColors.editorBgMist,
-        Colors.white,
+        colorScheme.surface,
         AppColors.editorBgDarkNavy,
         AppColors.editorBgCyan,
         AppColors.editorBgEmerald,
@@ -56,7 +57,9 @@ Future<void> showBackgroundOptionsSheet(
                           decoration: BoxDecoration(
                             color: c,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.black12),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            ),
                           ),
                         ),
                       ),

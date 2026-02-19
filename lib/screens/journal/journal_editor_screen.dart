@@ -10,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/journal_entry.dart';
 import '../../services/journal_storage_service.dart';
 import '../../services/journal_image_storage_service.dart';
-import '../../utils/app_colors.dart';
 import 'models/journal_editor_models.dart';
 import 'widgets/editor_spacing.dart';
 import 'widgets/font_picker.dart';
@@ -835,10 +834,10 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
     // Background and paper colors — cream paper on offWhite background
     final bgColor = isDark
         ? colorScheme.surfaceContainerLowest
-        : AppColors.offWhite;
+        : colorScheme.surfaceContainerLowest;
     final paperColor = isDark
         ? colorScheme.surfaceContainerHigh
-        : AppColors.cream;
+        : colorScheme.surface;
 
     return PopScope(
       canPop: !_hasUnsavedChanges,
@@ -898,7 +897,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                          color: colorScheme.onSurface.withOpacity(isDark ? 0.25 : 0.04),
                           offset: const Offset(0, 2),
                           blurRadius: 6,
                         ),
@@ -1222,7 +1221,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                   color: isDark ? cs.surfaceContainerHigh : cs.surface,
                   borderRadius: BorderRadius.circular(16),
                   elevation: 8,
-                  shadowColor: Colors.black.withOpacity(0.3),
+                  shadowColor: cs.onSurface.withOpacity(0.3),
                   child: Container(
                     width: 100,
                     constraints: const BoxConstraints(maxHeight: 220),

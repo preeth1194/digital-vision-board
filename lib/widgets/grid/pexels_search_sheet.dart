@@ -86,6 +86,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return SafeArea(
       child: Padding(
@@ -120,7 +121,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
             else if ((_error ?? '').trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                child: Text(_error!, style: TextStyle(color: colorScheme.error)),
               )
             else if (_urls.isEmpty && _qC.text.trim().isNotEmpty)
               const Padding(
@@ -144,7 +145,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: DecoratedBox(
-                          decoration: BoxDecoration(border: Border.all(color: Colors.black12)),
+                          decoration: BoxDecoration(border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
                           child: Image.network(url, fit: BoxFit.cover),
                         ),
                       ),

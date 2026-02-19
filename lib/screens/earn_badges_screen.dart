@@ -246,7 +246,6 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final unlockedCount = _progress.where((p) => p.isUnlocked).length;
 
@@ -288,7 +287,7 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : AppColors.darkest,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
@@ -332,6 +331,7 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -347,14 +347,14 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
+              ? colorScheme.onSurface.withValues(alpha: 0.08)
               : AppColors.gold.withValues(alpha: 0.25),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withValues(alpha: 0.3)
+                ? colorScheme.shadow.withValues(alpha: 0.3)
                 : AppColors.gold.withValues(alpha: 0.10),
             blurRadius: 16,
             offset: const Offset(0, 6),
@@ -401,7 +401,7 @@ class _SummaryCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.darkest,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -409,9 +409,7 @@ class _SummaryCard extends StatelessWidget {
                   '$unlockedCount of $totalCount badges earned',
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : AppColors.dark.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -433,30 +431,35 @@ class _BadgeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final badge = progress.badge;
     final unlocked = progress.isUnlocked;
 
     final bgColor = isDark
         ? (unlocked
             ? badge.color.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.05))
+            : colorScheme.onSurface.withValues(alpha: 0.05))
         : (unlocked
             ? badge.color.withValues(alpha: 0.10)
-            : Colors.grey.withValues(alpha: 0.08));
+            : colorScheme.onSurface.withValues(alpha: 0.08));
 
     final iconColor = unlocked
         ? badge.color
-        : (isDark ? Colors.white.withValues(alpha: 0.25) : Colors.grey.shade400);
+        : (isDark
+            ? colorScheme.onSurface.withValues(alpha: 0.25)
+            : colorScheme.outline);
 
     final textColor = unlocked
-        ? (isDark ? Colors.white : AppColors.darkest)
-        : (isDark ? Colors.white.withValues(alpha: 0.35) : Colors.grey.shade500);
+        ? colorScheme.onSurface
+        : (isDark
+            ? colorScheme.onSurface.withValues(alpha: 0.35)
+            : colorScheme.onSurfaceVariant);
 
     final subtitleColor = unlocked
-        ? (isDark
-            ? Colors.white.withValues(alpha: 0.6)
-            : AppColors.dark.withValues(alpha: 0.65))
-        : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade400);
+        ? colorScheme.onSurfaceVariant
+        : (isDark
+            ? colorScheme.onSurface.withValues(alpha: 0.2)
+            : colorScheme.outline);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -467,8 +470,8 @@ class _BadgeCard extends StatelessWidget {
           color: unlocked
               ? badge.color.withValues(alpha: isDark ? 0.35 : 0.25)
               : (isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.grey.withValues(alpha: 0.15)),
+                  ? colorScheme.onSurface.withValues(alpha: 0.06)
+                  : colorScheme.onSurface.withValues(alpha: 0.15)),
           width: 1.5,
         ),
       ),
@@ -487,8 +490,8 @@ class _BadgeCard extends StatelessWidget {
                   color: unlocked
                       ? badge.color.withValues(alpha: isDark ? 0.25 : 0.15)
                       : (isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.grey.withValues(alpha: 0.10)),
+                          ? colorScheme.onSurface.withValues(alpha: 0.06)
+                          : colorScheme.onSurface.withValues(alpha: 0.10)),
                 ),
                 child: Icon(badge.icon, size: 28, color: iconColor),
               ),
@@ -501,12 +504,14 @@ class _BadgeCard extends StatelessWidget {
                     height: 20,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? AppColors.slateGrey : Colors.grey.shade300,
+                      color: colorScheme.outlineVariant,
                     ),
                     child: Icon(
                       Icons.lock_rounded,
                       size: 12,
-                      color: isDark ? Colors.white54 : Colors.grey.shade600,
+                      color: isDark
+                          ? colorScheme.onSurface.withValues(alpha: 0.54)
+                          : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -543,8 +548,8 @@ class _BadgeCard extends StatelessWidget {
                 value: progress.progress,
                 minHeight: 5,
                 backgroundColor: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.grey.shade200,
+                    ? colorScheme.onSurface.withValues(alpha: 0.08)
+                    : colorScheme.outlineVariant,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   badge.color.withValues(alpha: 0.7),
                 ),
@@ -608,26 +613,33 @@ class _GoAdFreeCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: isActiveToday
               ? [
-                  (isDark ? Colors.green.shade900 : Colors.green.shade50),
-                  (isDark ? Colors.green.shade800 : Colors.green.shade100),
+                  colorScheme.primaryContainer,
+                  colorScheme.primary.withValues(alpha: 0.12),
                 ]
-              : [
-                  (isDark ? const Color(0xFF2A1F3D) : const Color(0xFFFFF8E1)),
-                  (isDark ? const Color(0xFF1A1428) : const Color(0xFFFFF3CD)),
-                ],
+              : isDark
+                  ? [
+                      colorScheme.surfaceContainerHigh,
+                      colorScheme.surfaceContainer,
+                    ]
+                  : [
+                      const Color(0xFFFFF8E1),
+                      const Color(0xFFFFF3CD),
+                    ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActiveToday
-              ? Colors.green.withValues(alpha: 0.4)
+              ? colorScheme.primary.withValues(alpha: 0.4)
               : AppColors.coinGold.withValues(alpha: 0.4),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isActiveToday ? Colors.green : AppColors.coinGold)
+            color: (isActiveToday
+                    ? colorScheme.primary
+                    : AppColors.coinGold)
                 .withValues(alpha: 0.12),
             blurRadius: 12,
             offset: const Offset(0, 4),
@@ -642,7 +654,7 @@ class _GoAdFreeCard extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isActiveToday
-                  ? Colors.green.withValues(alpha: 0.2)
+                  ? colorScheme.primary.withValues(alpha: 0.2)
                   : AppColors.coinGold.withValues(alpha: 0.2),
             ),
             child: Icon(
@@ -650,7 +662,7 @@ class _GoAdFreeCard extends StatelessWidget {
                   ? Icons.check_circle_rounded
                   : Icons.monetization_on_rounded,
               size: 28,
-              color: isActiveToday ? Colors.green : AppColors.coinGold,
+              color: isActiveToday ? colorScheme.primary : AppColors.coinGold,
             ),
           ),
           const SizedBox(width: 14),
@@ -665,7 +677,7 @@ class _GoAdFreeCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.nearBlack,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -675,9 +687,7 @@ class _GoAdFreeCard extends StatelessWidget {
                       : 'Use ${AdFreeService.adFreeCoinCost} coins to remove ads for today',
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : AppColors.dimGrey,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -688,12 +698,12 @@ class _GoAdFreeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.15),
+                color: colorScheme.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.check_rounded,
-                color: Colors.green,
+                color: colorScheme.primary,
                 size: 24,
               ),
             )
@@ -719,7 +729,9 @@ class _GoAdFreeCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: canAfford
                     ? AppColors.coinGold
-                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                    : (isDark
+                        ? colorScheme.surfaceContainerHigh
+                        : colorScheme.outlineVariant),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

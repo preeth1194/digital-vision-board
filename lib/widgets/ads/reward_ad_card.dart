@@ -100,10 +100,10 @@ class _RewardAdCardState extends State<RewardAdCard>
     final watched = widget.watchedCount;
     final total = AdService.requiredAdsPerHabit;
 
-    final textColor = isDark ? Colors.white : AppColors.nearBlack;
+    final textColor = colorScheme.onSurface;
     final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.6)
-        : AppColors.dimGrey;
+        ? colorScheme.onSurface.withValues(alpha: 0.6)
+        : colorScheme.onSurfaceVariant;
 
     final progressFraction = (watched / total).clamp(0.0, 1.0);
 
@@ -137,7 +137,7 @@ class _RewardAdCardState extends State<RewardAdCard>
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+            color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: _isComplete
@@ -147,7 +147,7 @@ class _RewardAdCardState extends State<RewardAdCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: _isPressed ? 0.04 : 0.08),
+                color: colorScheme.shadow.withValues(alpha: _isPressed ? 0.04 : 0.08),
                 blurRadius: _isPressed ? 4 : 12,
                 offset: Offset(0, _isPressed ? 1 : 3),
               ),
@@ -213,8 +213,8 @@ class _RewardAdCardState extends State<RewardAdCard>
                         value: progressFraction,
                         minHeight: 4,
                         backgroundColor: isDark
-                            ? Colors.white.withValues(alpha: 0.1)
-                            : Colors.black.withValues(alpha: 0.06),
+                            ? colorScheme.onSurface.withValues(alpha: 0.1)
+                            : colorScheme.shadow.withValues(alpha: 0.06),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           _isComplete
                               ? AppColors.coinGold
@@ -241,8 +241,8 @@ class _RewardAdCardState extends State<RewardAdCard>
                 height: 32,
                 margin: const EdgeInsets.symmetric(horizontal: 12),
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : Colors.black.withValues(alpha: 0.08),
+                    ? colorScheme.onSurface.withValues(alpha: 0.12)
+                    : colorScheme.shadow.withValues(alpha: 0.08),
               ),
               Column(
                 mainAxisSize: MainAxisSize.min,

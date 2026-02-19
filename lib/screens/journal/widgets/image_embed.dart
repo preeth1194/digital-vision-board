@@ -141,13 +141,13 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                     BoxShadow(
                       color: _isSelected
                           ? colorScheme.primary.withOpacity(0.2)
-                          : Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                          : colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.1),
                       offset: const Offset(0, 4),
                       blurRadius: _isSelected ? 12 : 8,
                     ),
                     if (!isDark)
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.8),
+                        color: colorScheme.surface.withValues(alpha: 0.8),
                         offset: const Offset(-2, -2),
                         blurRadius: 6,
                       ),
@@ -250,12 +250,12 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                         border: Border.all(
                           color: isDark
                               ? colorScheme.surface
-                              : Colors.white,
+                              : colorScheme.surface,
                           width: 2,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: colorScheme.shadow.withValues(alpha: 0.15),
                             blurRadius: 4,
                           ),
                         ],
@@ -283,12 +283,12 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                         border: Border.all(
                           color: isDark
                               ? colorScheme.surface
-                              : Colors.white,
+                              : colorScheme.surface,
                           width: 2,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: colorScheme.shadow.withValues(alpha: 0.15),
                             blurRadius: 4,
                           ),
                         ],
@@ -326,7 +326,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
         width: 12,
         height: 12,
         decoration: BoxDecoration(
-          color: isDark ? colorScheme.surface : Colors.white,
+          color: isDark ? colorScheme.surface : colorScheme.surface,
           shape: BoxShape.circle,
           border: Border.all(
             color: colorScheme.outlineVariant,
@@ -334,7 +334,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: colorScheme.shadow.withValues(alpha: 0.1),
               blurRadius: 3,
             ),
           ],
@@ -352,7 +352,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+          color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
@@ -399,10 +399,11 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
   }
 
   void _showFullImage() {
+    final colorScheme = Theme.of(context).colorScheme;
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
-        barrierColor: Colors.black87,
+        barrierColor: colorScheme.onSurface,
         pageBuilder: (context, animation, secondaryAnimation) {
           return FullScreenImageViewer(imagePath: widget.imagePath);
         },
@@ -422,6 +423,7 @@ class FullScreenImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       child: Scaffold(
@@ -446,9 +448,9 @@ class FullScreenImageViewer extends StatelessWidget {
               right: 16,
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                icon: Icon(Icons.close_rounded, color: colorScheme.onPrimary),
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.black54,
+                  backgroundColor: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),

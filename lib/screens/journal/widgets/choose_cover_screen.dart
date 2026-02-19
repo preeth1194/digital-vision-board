@@ -246,7 +246,7 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isSelected
-                              ? (isDark ? Colors.white : colorScheme.primary)
+                              ? (isDark ? colorScheme.onSurface : colorScheme.primary)
                               : Colors.transparent,
                           width: 3,
                         ),
@@ -349,7 +349,7 @@ class _BookCoverPreview extends StatelessWidget {
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: colorScheme.shadow.withOpacity(0.2),
             offset: const Offset(4, 4),
             blurRadius: 12,
           ),
@@ -416,7 +416,7 @@ class _BookCoverPreview extends StatelessWidget {
                   height: 120,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
+                    color: colorScheme.onPrimary.withValues(alpha: 0.1),
                   ),
                 ),
               ),
@@ -428,7 +428,7 @@ class _BookCoverPreview extends StatelessWidget {
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.08),
+                    color: colorScheme.onPrimary.withValues(alpha: 0.08),
                   ),
                 ),
               ),
@@ -440,7 +440,7 @@ class _BookCoverPreview extends StatelessWidget {
                   height: 60,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.06),
+                    color: colorScheme.onPrimary.withValues(alpha: 0.06),
                   ),
                 ),
               ),
@@ -455,7 +455,7 @@ class _BookCoverPreview extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      color: Colors.white.withOpacity(0.15),
+                      color: colorScheme.onPrimary.withValues(alpha: 0.15),
                     ),
                   ),
                 ),
@@ -471,8 +471,8 @@ class _BookCoverPreview extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withOpacity(0.3),
-                      Colors.black.withOpacity(0.1),
+                      colorScheme.shadow.withValues(alpha: 0.3),
+                      colorScheme.shadow.withValues(alpha: 0.1),
                       Colors.transparent,
                     ],
                   ),
@@ -489,9 +489,9 @@ class _BookCoverPreview extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.grey.shade200,
-                      Colors.grey.shade100,
-                      Colors.grey.shade200,
+                      colorScheme.surfaceContainerLow,
+                      colorScheme.surfaceContainerHigh,
+                      colorScheme.surfaceContainerLow,
                     ],
                   ),
                   borderRadius: const BorderRadius.only(

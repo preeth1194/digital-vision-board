@@ -96,11 +96,11 @@ class FontPickerSheet extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+            color: colorScheme.shadow.withOpacity(isDark ? 0.4 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -208,7 +208,7 @@ class _FontOptionTileState extends State<_FontOptionTile> {
         decoration: BoxDecoration(
           color: widget.isSelected
               ? colorScheme.primaryContainer
-              : (isDark ? colorScheme.surfaceContainer : Colors.white),
+              : (isDark ? colorScheme.surfaceContainer : colorScheme.surface),
           borderRadius: BorderRadius.circular(EditorSpacing.cardRadius),
           border: Border.all(
             color: widget.isSelected
@@ -220,13 +220,13 @@ class _FontOptionTileState extends State<_FontOptionTile> {
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
                     offset: const Offset(2, 2),
                     blurRadius: 6,
                   ),
                   if (!isDark)
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.8),
+                      color: colorScheme.surface.withOpacity(0.8),
                       offset: const Offset(-2, -2),
                       blurRadius: 6,
                     ),

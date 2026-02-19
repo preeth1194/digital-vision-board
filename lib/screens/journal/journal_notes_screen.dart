@@ -312,23 +312,26 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   Future<void> _handleDeleteEntry(JournalEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Entry?'),
-        content: Text(
-          'This will permanently delete "${entry.title ?? 'Untitled'}". This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: const Text('Delete Entry?'),
+          content: Text(
+            'This will permanently delete "${entry.title ?? 'Untitled'}". This cannot be undone.',
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
 

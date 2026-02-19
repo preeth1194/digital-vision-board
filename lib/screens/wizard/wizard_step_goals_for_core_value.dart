@@ -478,7 +478,7 @@ class _WizardRecommendedCategoryCardState extends State<_WizardRecommendedCatego
           else if ((s.error ?? '').isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(s.error!, style: const TextStyle(color: Colors.red)),
+              child: Text(s.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             )
           else if (s.requested && s.goals.isEmpty)
             const Padding(

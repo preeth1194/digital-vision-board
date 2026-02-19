@@ -50,6 +50,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     final q = _query.trim().toLowerCase();
 
@@ -82,9 +83,9 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
           const SizedBox(height: 10),
           Flexible(
             child: filtered.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: Text('No goals found', style: TextStyle(color: Colors.grey))),
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(child: Text('No goals found', style: TextStyle(color: colorScheme.onSurfaceVariant))),
                   )
                 : ListView.separated(
                     shrinkWrap: true,
@@ -97,7 +98,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
                       return ListTile(
                         title: Text(label),
                         subtitle: showIdSubtitle
-                            ? Text(c.id, style: const TextStyle(color: Colors.black54))
+                            ? Text(c.id, style: TextStyle(color: colorScheme.onSurfaceVariant))
                             : null,
                         onTap: () => Navigator.of(context).pop(c),
                       );

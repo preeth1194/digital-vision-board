@@ -8,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
@@ -25,6 +26,8 @@ import 'services/subscription_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  // Read before recording so we can distinguish new vs existing users for onboarding.
+  final existingUser = prefs.getInt('dv_first_install_ms_v1') != null;
   await DvAuthService.ensureFirstInstallRecorded(prefs: prefs);
   await AppSettingsService.load(prefs: prefs);
   await LogicalDateService.ensureInitialized(prefs: prefs);
@@ -55,11 +58,21 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const DigitalVisionBoardApp());
+
+  // Existing users skip onboarding; new users see it.
+  final onboardingDone = await isOnboardingCompleted(prefs: prefs);
+  final showOnboarding = !onboardingDone && !existingUser;
+  if (!onboardingDone && existingUser) {
+    await markOnboardingCompleted(prefs: prefs);
+  }
+
+  runApp(DigitalVisionBoardApp(showOnboarding: showOnboarding));
 }
 
 class DigitalVisionBoardApp extends StatelessWidget {
-  const DigitalVisionBoardApp({super.key});
+  const DigitalVisionBoardApp({super.key, this.showOnboarding = false});
+
+  final bool showOnboarding;
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -105,12 +118,14 @@ class DigitalVisionBoardApp extends StatelessWidget {
                 labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ).apply(
-              bodyColor: AppColors.paleGreenTint,
-              displayColor: AppColors.paleGreenTint,
+              bodyColor: AppColors.darkScheme.onSurface,
+              displayColor: AppColors.darkScheme.onSurface,
             ),
           ),
           themeMode: mode,
-          home: const DashboardScreen(),
+          home: showOnboarding
+              ? const OnboardingScreen()
+              : const DashboardScreen(),
         );
       },
     );

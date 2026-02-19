@@ -212,6 +212,6 @@ Color habitSectionSeparatorColor(ColorScheme colorScheme) =>
 
 Color contrastColor(Color background) {
   return background.computeLuminance() > 0.5
-      ? AppColors.darkSurface
+      ? AppColors.darkest
       : Colors.white;
 }

@@ -9,10 +9,10 @@ export function isLogicalDate(v) {
 export async function getUserSettingsPg(canvaUserId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at from dv_user_settings where canva_user_id = $1",
+      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, encryption_key from dv_user_settings where canva_user_id = $1",
       [canvaUserId]
     );
-    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null, subscriptionPlanId: null, subscriptionActive: false, subscriptionUpdatedAt: null };
+    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null, subscriptionPlanId: null, subscriptionActive: false, subscriptionUpdatedAt: null, encryptionKey: null };
     const row = r.rows[0];
     const dob = row.date_of_birth;
     return {
@@ -25,7 +25,31 @@ export async function getUserSettingsPg(canvaUserId) {
       subscriptionPlanId: row.subscription_plan_id ?? null,
       subscriptionActive: Boolean(row.subscription_active),
       subscriptionUpdatedAt: row.subscription_updated_at?.toISOString?.() ?? row.subscription_updated_at ?? null,
+      encryptionKey: row.encryption_key ?? null,
     };
+  });
+}
+
+export async function getEncryptionKeyPg(canvaUserId) {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      "select encryption_key from dv_user_settings where canva_user_id = $1",
+      [canvaUserId]
+    );
+    return r.rowCount ? (r.rows[0].encryption_key ?? null) : null;
+  });
+}
+
+export async function putEncryptionKeyPg(canvaUserId, encryptionKey) {
+  return await withClient(async (c) => {
+    await c.query(
+      `insert into dv_user_settings (canva_user_id, encryption_key)
+       values ($1, $2)
+       on conflict (canva_user_id) do update set
+         encryption_key = coalesce(dv_user_settings.encryption_key, excluded.encryption_key),
+         updated_at = now()`,
+      [canvaUserId, encryptionKey]
+    );
   });
 }
 

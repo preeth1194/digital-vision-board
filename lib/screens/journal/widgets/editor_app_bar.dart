@@ -58,7 +58,7 @@ class EditorAppBar extends StatelessWidget {
             style: IconButton.styleFrom(
               backgroundColor: isDark
                   ? colorScheme.surfaceContainerHigh
-                  : Colors.white,
+                  : colorScheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(EditorSpacing.smallRadius),
               ),
@@ -79,17 +79,17 @@ class EditorAppBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: isDark
                   ? colorScheme.surfaceContainerHigh
-                  : Colors.white,
+                  : colorScheme.surface,
               borderRadius: BorderRadius.circular(EditorSpacing.cardRadius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                  color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
                 if (!isDark)
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.8),
+                    color: colorScheme.surface.withOpacity(0.8),
                     blurRadius: 4,
                     offset: const Offset(-1, -1),
                   ),
@@ -199,8 +199,8 @@ class EditorAppBar extends StatelessWidget {
           ],
         );
       case SaveStatus.saved:
-        // Use a themed success color
-        final successColor = Color.lerp(colorScheme.primary, Colors.green, 0.5)!;
+        // Use themed primary as success color
+        final successColor = colorScheme.primary;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [

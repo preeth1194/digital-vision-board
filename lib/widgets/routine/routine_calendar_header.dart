@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/routine.dart';
-import '../../utils/app_colors.dart';
 
 /// Calendar header widget for the routine screen.
 /// Displays:
@@ -118,8 +117,8 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
           ElevatedButton(
             onPressed: () => widget.onDateSelected(today),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.medium,
-              foregroundColor: Colors.white,
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
               elevation: 1,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               minimumSize: Size.zero,
@@ -295,15 +294,15 @@ class _DateItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     final bgColor = isSelected
-        ? AppColors.medium
+        ? colorScheme.primary
         : Colors.transparent;
 
     final textColor = isSelected
-        ? Colors.white
+        ? colorScheme.onPrimary
         : colorScheme.onSurface;
 
     final weekdayColor = isSelected
-        ? Colors.white.withOpacity(0.8)
+        ? colorScheme.onPrimary.withOpacity(0.8)
         : colorScheme.onSurfaceVariant;
 
     return GestureDetector(
@@ -317,7 +316,7 @@ class _DateItem extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(12),
           border: isToday && !isSelected
-              ? Border.all(color: AppColors.medium, width: 2)
+              ? Border.all(color: colorScheme.primary, width: 2)
               : null,
         ),
         child: Column(

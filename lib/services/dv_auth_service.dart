@@ -325,7 +325,7 @@ final class DvAuthService {
     await p.remove(_userProfilePicKey);
   }
 
-  /// Sign out: clear Firebase/Google sessions and app auth state.
+  /// Sign out: clear Firebase/Google sessions, auth state, and backup keys.
   static Future<void> signOut({SharedPreferences? prefs}) async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -334,6 +334,11 @@ final class DvAuthService {
       await GoogleSignIn.instance.signOut();
     } catch (_) {}
     await clear(prefs: prefs);
+    // Clear locally cached encryption key and backup link state.
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.remove('dv_encryption_key_v1');
+    await p.remove('dv_google_backup_linked_v1');
+    await p.remove('dv_google_drive_folder_id_v1');
   }
 
   static Future<GuestAuthResult> continueAsGuest({

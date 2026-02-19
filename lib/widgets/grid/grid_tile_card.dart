@@ -29,6 +29,7 @@ class GridTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final borderRadius = BorderRadius.zero;
     final goalTitle = (tile.goal?.title ?? '').trim();
     final fallbackTitle = tile.type == 'text'
@@ -38,7 +39,7 @@ class GridTileCard extends StatelessWidget {
     final showTitle = title.isNotEmpty && tile.type != 'empty';
 
     final Widget content = switch (tile.type) {
-      'image' => _imageTile(borderRadius),
+      'image' => _imageTile(context, borderRadius, colorScheme),
       _ => _textTile(context, borderRadius),
     };
 
@@ -53,8 +54,8 @@ class GridTileCard extends StatelessWidget {
                 borderRadius: borderRadius,
                 border: Border.all(
                   color: (isEditing && isSelected)
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                      : Colors.black12,
+                      ? colorScheme.primary.withValues(alpha: 0.7)
+                      : colorScheme.outlineVariant.withValues(alpha: 0.3),
                   width: (isEditing && isSelected) ? 2 : 1,
                 ),
               ),
@@ -70,14 +71,14 @@ class GridTileCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: colorScheme.shadow.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: colorScheme.surface, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -87,7 +88,7 @@ class GridTileCard extends StatelessWidget {
               right: 8,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: colorScheme.shadow.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: MiniIconButton(
@@ -102,13 +103,13 @@ class GridTileCard extends StatelessWidget {
     );
   }
 
-  Widget _imageTile(BorderRadius borderRadius) {
+  Widget _imageTile(BuildContext context, BorderRadius borderRadius, ColorScheme colorScheme) {
     final path = tile.content ?? '';
     final provider = fileImageProviderFromPath(path);
     return provider != null
         ? Image(image: provider, fit: BoxFit.cover)
         : Container(
-            color: Colors.black12,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined),
           );
@@ -149,7 +150,7 @@ class GridTileCard extends StatelessWidget {
     final textAlignment = _getTextAlignmentForTile(tile);
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
+        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.55),
         borderRadius: borderRadius,
       ),
       padding: const EdgeInsets.all(12),

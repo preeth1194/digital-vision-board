@@ -21,6 +21,9 @@ import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/sync_service.dart';
+import '../services/auto_sync_service.dart';
+import '../services/google_drive_backup_service.dart';
+import 'backup_restore_screen.dart';
 import '../services/logical_date_service.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
@@ -140,8 +143,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (state == AppLifecycleState.resumed) {
       _refreshReminders();
       _loadCoins();
-      // Best-effort: if user is still on a guest session after 10 days, re-prompt.
       _maybeShowAuthGatewayIfMandatoryAfterTenDays();
+      unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
     }
   }
 
@@ -166,6 +169,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _maybeShowAuthGatewayIfGuestExpired();
     await _maybeShowAuthGatewayIfMandatoryAfterTenDays();
     await _loadProfileAvatar();
+
+    // Auto-sync: check if 24h backup is due
+    unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -306,6 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   Widget _buildCoinBadge(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ValueListenableBuilder<int>(
       valueListenable: _coinNotifier,
@@ -333,13 +340,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     width: 1.5,
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     '\$',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -369,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? AppColors.lightest : AppColors.darkest,
+                    color: isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -843,6 +850,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
+      onSwitchToRoutine: () => setState(() => _tabIndex = 6),
     );
 
     return Scaffold(
@@ -912,13 +920,97 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   title: Text(subscribed ? 'Premium Active' : 'Go Premium'),
                   trailing: subscribed
                       ? Icon(Icons.check_circle_rounded,
-                          color: AppColors.forestGreen, size: 20)
+                          color: Theme.of(context).colorScheme.secondary, size: 20)
                       : null,
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                           builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                );
+              },
+            ),
+            ValueListenableBuilder<SyncState>(
+              valueListenable: AutoSyncService.state,
+              builder: (context, syncState, _) {
+                return FutureBuilder<bool>(
+                  future: GoogleDriveBackupService.isLinked(prefs: _prefs),
+                  builder: (context, linkSnap) {
+                    final linked = linkSnap.data ?? false;
+
+                    if (!linked) {
+                      return ListTile(
+                        leading: Icon(Icons.cloud_off_outlined,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        title: const Text('Backup not set up'),
+                        subtitle: const Text('Tap to link Google account'),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BackupRestoreScreen()),
+                          );
+                        },
+                      );
+                    }
+
+                    if (syncState == SyncState.syncing) {
+                      return ListTile(
+                        leading: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        title: const Text('Syncing...'),
+                        subtitle: const Text('Encrypting and uploading'),
+                      );
+                    }
+
+                    if (syncState == SyncState.error) {
+                      return ListTile(
+                        leading: Icon(Icons.cloud_off_outlined,
+                            color: Theme.of(context).colorScheme.error),
+                        title: const Text('Sync failed'),
+                        subtitle: const Text('Tap sync to retry'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.sync),
+                          onPressed: () =>
+                              AutoSyncService.syncNow(prefs: _prefs),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BackupRestoreScreen()),
+                          );
+                        },
+                      );
+                    }
+
+                    return ListTile(
+                      leading: Icon(Icons.cloud_done_outlined,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: Text(AutoSyncService.lastSyncText),
+                      subtitle: AutoSyncService.nextSyncText.isNotEmpty
+                          ? Text(AutoSyncService.nextSyncText)
+                          : null,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.sync),
+                        onPressed: () =>
+                            AutoSyncService.syncNow(prefs: _prefs),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const BackupRestoreScreen()),
+                        );
+                      },
                     );
                   },
                 );

@@ -33,6 +33,7 @@ class DashboardBody extends StatelessWidget {
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
+  final VoidCallback? onSwitchToRoutine;
 
   const DashboardBody({
     super.key,
@@ -49,6 +50,7 @@ class DashboardBody extends StatelessWidget {
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
+    this.onSwitchToRoutine,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -161,6 +163,7 @@ class DashboardBody extends StatelessWidget {
               },
               coinNotifier: coinNotifier,
               coinTargetKey: coinTargetKey,
+              onSwitchToRoutine: onSwitchToRoutine,
             );
           },
         ),

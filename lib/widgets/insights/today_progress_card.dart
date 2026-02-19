@@ -45,7 +45,7 @@ class TodayProgressCard extends StatelessWidget {
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: totalHabits > 0 ? completedToday / totalHabits : 0,
-              backgroundColor: Colors.white.withOpacity(0.3),
+              backgroundColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
               valueColor: AlwaysStoppedAnimation(
                 Theme.of(context).colorScheme.onPrimaryContainer,
               ),

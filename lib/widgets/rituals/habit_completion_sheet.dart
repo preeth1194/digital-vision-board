@@ -259,7 +259,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                color: colorScheme.shadow.withValues(alpha: 0.2),
                 blurRadius: 20,
                 offset: const Offset(0, -4),
               ),
@@ -444,7 +444,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: colorScheme.onPrimary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -567,7 +567,7 @@ class _StepTile extends StatelessWidget {
                 ),
               ),
               child: isChecked
-                  ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                  ? Icon(Icons.check_rounded, size: 14, color: colorScheme.onPrimary)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -698,10 +698,10 @@ class _MediaPreviews extends StatelessWidget {
                             color: colorScheme.error,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close_rounded,
                             size: 12,
-                            color: Colors.white,
+                            color: colorScheme.onError,
                           ),
                         ),
                       ),

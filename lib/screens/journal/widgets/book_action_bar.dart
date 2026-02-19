@@ -90,19 +90,19 @@ class _ActionButtonState extends State<_ActionButton> {
           decoration: BoxDecoration(
             color: isDark
                 ? colorScheme.surfaceContainerHigh
-                : Colors.white,
+                : colorScheme.surface,
             shape: BoxShape.circle,
             boxShadow: _isPressed
                 ? []
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                      color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.1),
                       offset: const Offset(0, 2),
                       blurRadius: 8,
                     ),
                     if (!isDark)
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.8),
+                        color: colorScheme.surface.withOpacity(0.8),
                         offset: const Offset(-1, -1),
                         blurRadius: 4,
                       ),

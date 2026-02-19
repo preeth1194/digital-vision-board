@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/subscription_service.dart';
-import '../utils/app_colors.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -58,16 +57,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.forestGreen,
-                    AppColors.mossGreen,
+                    colorScheme.secondary,
+                    colorScheme.primary,
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.workspace_premium_rounded,
-                color: Colors.white,
+                color: colorScheme.onPrimary,
                 size: 40,
               ),
             ),
@@ -77,7 +76,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.darkest,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -86,9 +85,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.6)
-                    : AppColors.dimGrey,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 32),
@@ -142,20 +139,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     gradient: LinearGradient(
                       colors: isDark
                           ? [
-                              AppColors.forestGreen,
-                              AppColors.mossGreen,
+                              colorScheme.secondary,
+                              colorScheme.primary,
                             ]
                           : [
-                              AppColors.mossGreen,
-                              AppColors.mintGreen,
+                              colorScheme.primary,
+                              colorScheme.primaryContainer,
                             ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.workspace_premium_rounded,
-                    color: Colors.white,
+                    color: colorScheme.onPrimary,
                     size: 36,
                   ),
                 ),
@@ -165,7 +162,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.darkest,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -174,9 +171,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : AppColors.dimGrey,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -193,19 +188,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 _BenefitRow(
                   icon: Icons.block_rounded,
                   text: 'No ads ever',
-                  isDark: isDark,
                 ),
                 const SizedBox(height: 12),
                 _BenefitRow(
                   icon: Icons.all_inclusive_rounded,
                   text: 'Unlimited habits',
-                  isDark: isDark,
                 ),
                 const SizedBox(height: 12),
                 _BenefitRow(
                   icon: Icons.star_rounded,
                   text: 'Support development',
-                  isDark: isDark,
                 ),
               ],
             ),
@@ -240,8 +232,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             child: FilledButton(
               onPressed: _purchasing ? null : _onSubscribe,
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.forestGreen,
-                foregroundColor: Colors.white,
+                backgroundColor: colorScheme.secondary,
+                foregroundColor: colorScheme.onSecondary,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -252,12 +244,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
               child: _purchasing
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: Colors.white,
+                        color: colorScheme.onSecondary,
                       ),
                     )
                   : Text(
@@ -285,9 +277,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 'Restore Purchases',
                 style: TextStyle(
                   fontSize: 14,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.5)
-                      : AppColors.dimGrey,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -305,9 +295,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.35)
-                    : AppColors.dimGrey.withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.35
+                        : 0.7),
                 height: 1.5,
               ),
             ),
@@ -343,16 +334,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 class _BenefitRow extends StatelessWidget {
   final IconData icon;
   final String text;
-  final bool isDark;
 
   const _BenefitRow({
     required this.icon,
     required this.text,
-    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Container(
@@ -360,12 +351,14 @@ class _BenefitRow extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.forestGreen.withValues(alpha: isDark ? 0.25 : 0.1),
+            color: colorScheme.secondary.withValues(alpha: isDark ? 0.25 : 0.1),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: isDark ? AppColors.mintGreen : AppColors.forestGreen,
+            color: isDark
+                ? colorScheme.primaryContainer
+                : colorScheme.secondary,
           ),
         ),
         const SizedBox(width: 14),
@@ -374,7 +367,7 @@ class _BenefitRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white : AppColors.nearBlack,
+            color: colorScheme.onSurface,
           ),
         ),
       ],
@@ -417,24 +410,24 @@ class _PlanCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark
-                  ? AppColors.forestGreen.withValues(alpha: 0.2)
-                  : AppColors.mintGreen.withValues(alpha: 0.15))
+                  ? colorScheme.secondary.withValues(alpha: 0.2)
+                  : colorScheme.primaryContainer.withValues(alpha: 0.15))
               : (isDark
                   ? colorScheme.surfaceContainerHigh
-                  : Colors.white),
+                  : colorScheme.surface),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
-                ? AppColors.forestGreen
+                ? colorScheme.secondary
                 : (isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06)),
+                    ? colorScheme.outlineVariant.withValues(alpha: 0.3)
+                    : colorScheme.outlineVariant.withValues(alpha: 0.15)),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.forestGreen.withValues(alpha: 0.15),
+                    color: colorScheme.secondary.withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 3),
                   ),
@@ -450,17 +443,17 @@ class _PlanCard extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.forestGreen : Colors.transparent,
+                color: isSelected ? colorScheme.secondary : Colors.transparent,
                 border: Border.all(
                   color: isSelected
-                      ? AppColors.forestGreen
-                      : (isDark ? Colors.white38 : Colors.grey.shade400),
+                      ? colorScheme.secondary
+                      : colorScheme.outline,
                   width: 2,
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded,
-                      size: 14, color: Colors.white)
+                  ? Icon(Icons.check_rounded,
+                      size: 14, color: colorScheme.onSecondary)
                   : null,
             ),
             const SizedBox(width: 16),
@@ -476,7 +469,7 @@ class _PlanCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : AppColors.nearBlack,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       if (hasSavings) ...[
@@ -485,7 +478,7 @@ class _PlanCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.forestGreen
+                            color: colorScheme.secondary
                                 .withValues(alpha: isDark ? 0.3 : 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -495,8 +488,8 @@ class _PlanCard extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: isDark
-                                  ? AppColors.mintGreen
-                                  : AppColors.forestGreen,
+                                  ? colorScheme.primaryContainer
+                                  : colorScheme.secondary,
                             ),
                           ),
                         ),
@@ -513,10 +506,11 @@ class _PlanCard extends StatelessWidget {
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: isSelected
-                    ? (isDark ? AppColors.mintGreen : AppColors.forestGreen)
-                    : (isDark
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : AppColors.dimGrey),
+                    ? (isDark
+                        ? colorScheme.primaryContainer
+                        : colorScheme.secondary)
+                    : colorScheme.onSurfaceVariant.withValues(
+                        alpha: isDark ? 0.7 : 1),
               ),
             ),
           ],

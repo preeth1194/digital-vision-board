@@ -908,6 +908,17 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                                   indices.isNotEmpty &&
                                   !indices.contains(_selectedIconIndex)) {
                                 _selectedIconIndex = indices.first;
+                                if (_trackerAddonAdded) {
+                                  final units = iconTrackingUnits[_selectedIconIndex];
+                                  if (units != null && units.isNotEmpty) {
+                                    _trackingUnitId = units.first.$1;
+                                    _trackingUnitLabel = units.first.$2;
+                                  } else {
+                                    _trackerAddonAdded = false;
+                                    _trackingUnitId = null;
+                                    _trackingUnitLabel = null;
+                                  }
+                                }
                               }
                             }
                           });

@@ -191,11 +191,14 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         chaining: req.chaining,
         cbtEnhancements: req.cbtEnhancements,
         timeBound: req.timeBound,
+        clearTimeBound: req.timeBound == null,
         locationBound: req.locationBound,
         trackingSpec: req.trackingSpec,
+        clearTrackingSpec: req.trackingSpec == null,
         iconIndex: req.iconIndex,
         actionSteps: req.actionSteps,
         startTimeMinutes: req.startTimeMinutes,
+        clearStartTimeMinutes: req.startTimeMinutes == null,
       );
       _updateComponent();
     });

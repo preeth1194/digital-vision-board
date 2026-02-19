@@ -375,8 +375,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         }
       }
 
+      String trackingText = '';
+      if (feedback.trackingValue != null && habit.trackingSpec != null) {
+        final v = feedback.trackingValue!;
+        final display = v == v.roundToDouble()
+            ? v.toInt().toString()
+            : v.toStringAsFixed(1);
+        final unit = habit.trackingSpec!.unitLabel;
+        trackingText = 'Tracked: $display $unit';
+      }
+
       final noteText = (feedback.note ?? '').trim();
-      final dayLog = [moodText, stepsText, noteText]
+      final dayLog = [moodText, trackingText, stepsText, noteText]
           .where((s) => s.isNotEmpty)
           .join('\n');
       final hasMedia = audioPath != null || capturedImagePaths.isNotEmpty;
@@ -557,13 +567,16 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       reminderMinutes: req.reminderMinutes,
       reminderEnabled: req.reminderEnabled,
       timeBound: req.timeBound,
+      clearTimeBound: req.timeBound == null,
       locationBound: req.locationBound,
       trackingSpec: req.trackingSpec,
+      clearTrackingSpec: req.trackingSpec == null,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      clearStartTimeMinutes: req.startTimeMinutes == null,
     );
 
     await HabitStorageService.updateHabit(updatedHabit);

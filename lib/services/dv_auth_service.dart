@@ -279,6 +279,7 @@ final class DvAuthService {
     String? dateOfBirth,
     String? subscriptionPlanId,
     bool? subscriptionActive,
+    String? subscriptionSource,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -293,6 +294,7 @@ final class DvAuthService {
     if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
     if (subscriptionPlanId != null) body['subscription_plan_id'] = subscriptionPlanId;
     if (subscriptionActive != null) body['subscription_active'] = subscriptionActive;
+    if (subscriptionSource != null) body['subscription_source'] = subscriptionSource;
     if (body.isEmpty) return;
     try {
       final res = await http.put(

@@ -190,6 +190,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       iconIndex: req.iconIndex,
       completedDates: const [],
       actionSteps: req.actionSteps,
@@ -310,6 +311,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         rating: result.mood ?? 0,
         note: result.note,
         coinsEarned: earnedCoins,
+        trackingValue: result.trackingValue,
       );
 
       await _toggleHabit(
@@ -528,6 +530,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         rating: result.mood ?? 0,
         note: result.note,
         coinsEarned: result.coinsEarned,
+        trackingValue: result.trackingValue,
       ),
       completedStepIds: result.completedStepIds,
       audioPath: result.audioPath,
@@ -555,6 +558,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       reminderEnabled: req.reminderEnabled,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
       iconIndex: req.iconIndex,

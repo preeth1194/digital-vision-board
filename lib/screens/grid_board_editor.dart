@@ -15,14 +15,12 @@ import '../services/habit_storage_service.dart';
 import '../services/image_service.dart';
 import '../services/stock_images_service.dart';
 import '../services/templates_service.dart';
+import '../utils/app_colors.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
-import '../widgets/editor/add_name_dialog.dart';
 import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
-import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/grid/image_source_sheet.dart';
-import 'grid_goal_viewer_screen.dart';
 
 /// Template-based grid editor: users pick a layout first, then fill the blanks.
 class GridEditorScreen extends StatefulWidget {
@@ -33,6 +31,8 @@ class GridEditorScreen extends StatefulWidget {
   /// When true, show a wizard-only AppBar action to proceed (closes editor with `true`).
   final bool wizardShowNext;
   final String wizardNextLabel;
+  /// When true, shows an inline board-name field above the grid.
+  final bool isNewBoard;
 
   const GridEditorScreen({
     super.key,
@@ -42,6 +42,7 @@ class GridEditorScreen extends StatefulWidget {
     required this.template,
     this.wizardShowNext = false,
     this.wizardNextLabel = 'Next',
+    this.isNewBoard = false,
   });
 
   @override
@@ -67,12 +68,40 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   List<GridTileModel> _tiles = [];
   int _styleSeed = 0;
   bool _viewportSizingApplied = false;
+  double _gridSpacing = 10.0;
+  double _tileBorderRadius = 14.0;
+  Color? _tileBackgroundColor;
+  int? _inlineEditingIndex;
+  TextEditingController? _inlineTextC;
+
+  late final TextEditingController _boardNameC;
 
   @override
   void initState() {
     super.initState();
     _isEditing = widget.initialIsEditing;
+    _boardNameC = TextEditingController(text: widget.title);
     _init();
+  }
+
+  @override
+  void dispose() {
+    _commitInlineEditSync();
+    _saveBoardName();
+    _boardNameC.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveBoardName() async {
+    final name = _boardNameC.text.trim();
+    if (name == widget.title) return;
+    final p = _prefs ?? await SharedPreferences.getInstance();
+    final boards = await BoardsStorageService.loadBoards(prefs: p);
+    if (boards.isEmpty) return;
+    final next = boards
+        .map((b) => b.id == widget.boardId ? b.copyWith(title: name.isEmpty ? 'Untitled' : name) : b)
+        .toList();
+    await BoardsStorageService.saveBoards(next, prefs: p);
   }
 
   Future<void> _init() async {
@@ -82,9 +111,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       _styleSeed = DateTime.now().millisecondsSinceEpoch;
       await _prefs?.setInt(BoardsStorageService.boardGridStyleSeedKey(widget.boardId), _styleSeed);
     }
+    _gridSpacing = _prefs?.getDouble(BoardsStorageService.boardGridCompactSpacingKey(widget.boardId)) ?? 10.0;
+    _tileBorderRadius = _prefs?.getDouble(BoardsStorageService.boardGridBorderRadiusKey(widget.boardId)) ?? 14.0;
+    final savedBgColor = _prefs?.getInt(BoardsStorageService.boardGridTileBgColorKey(widget.boardId));
+    _tileBackgroundColor = savedBgColor != null ? Color(savedBgColor) : null;
+    _viewportSizingApplied = _prefs?.getBool(BoardsStorageService.boardGridViewportSizedKey(widget.boardId)) ?? false;
     final loaded = await GridTilesStorageService.loadTiles(widget.boardId, prefs: _prefs);
     final hydrated = _ensureTemplateTiles(loaded);
-    // Ensure tiles are sorted by index for consistent ordering and sizing
     final sorted = GridTilesStorageService.sortTiles(hydrated);
     await GridTilesStorageService.saveTiles(widget.boardId, sorted, prefs: _prefs);
     if (!mounted) return;
@@ -123,28 +156,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       letterSpacing: letter,
       color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.9),
     );
-  }
-
-  Alignment _getTextAlignmentForTile(GridTileModel tile) {
-    final v = _hash32('${tile.id}::alignment');
-    final alignments = [
-      Alignment.topLeft,
-      Alignment.topCenter,
-      Alignment.topRight,
-      Alignment.centerLeft,
-      Alignment.center,
-      Alignment.centerRight,
-      Alignment.bottomLeft,
-      Alignment.bottomCenter,
-      Alignment.bottomRight,
-    ];
-    return alignments[v % alignments.length];
-  }
-
-  TextAlign _getTextAlignFromAlignment(Alignment alignment) {
-    if (alignment.x < -0.3) return TextAlign.left;
-    if (alignment.x > 0.3) return TextAlign.right;
-    return TextAlign.center;
   }
 
   Future<void> _shuffleGrid() async {
@@ -475,18 +486,102 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     await _setTile(index, _tileAt(index).copyWith(type: 'image', content: content));
   }
 
-  Future<void> _editText(int index) async {
+  void _editText(int index) {
+    if (_inlineEditingIndex != null) _commitInlineEditSync();
     final existing = _tileAt(index);
-    final String? text = await showTextInputDialog(
-      context,
-      title: 'Edit text',
-      initialText: existing.type == 'text' ? (existing.content ?? '') : '',
-    );
-    if (!mounted) return;
-    if (text == null) return;
+    final initialText = existing.type == 'text' ? (existing.content ?? '') : '';
+    _inlineTextC = TextEditingController(text: initialText);
+    setState(() {
+      _inlineEditingIndex = index;
+      _selectedIndex = index;
+    });
+  }
 
-    final nextText = text.trim();
-    await _setTile(index, existing.copyWith(type: nextText.isEmpty ? 'empty' : 'text', content: nextText.isEmpty ? null : nextText));
+  void _commitInlineEditSync() {
+    final idx = _inlineEditingIndex;
+    final ctrl = _inlineTextC;
+    if (idx == null || ctrl == null) return;
+    final nextText = ctrl.text.trim();
+    final existing = _tileAt(idx);
+    _setTile(
+      idx,
+      existing.copyWith(
+        type: nextText.isEmpty ? 'empty' : 'text',
+        content: nextText.isEmpty ? null : nextText,
+        isPlaceholder: false,
+      ),
+    );
+    ctrl.dispose();
+    _inlineTextC = null;
+    _inlineEditingIndex = null;
+  }
+
+  Future<void> _commitInlineEdit() async {
+    final idx = _inlineEditingIndex;
+    final ctrl = _inlineTextC;
+    if (idx == null || ctrl == null) return;
+    final nextText = ctrl.text.trim();
+    _inlineEditingIndex = null;
+    _inlineTextC = null;
+    final existing = _tileAt(idx);
+    await _setTile(
+      idx,
+      existing.copyWith(
+        type: nextText.isEmpty ? 'empty' : 'text',
+        content: nextText.isEmpty ? null : nextText,
+        isPlaceholder: false,
+      ),
+    );
+    ctrl.dispose();
+    if (mounted) setState(() {});
+  }
+
+  static const List<double> _fontSizeSteps = [12, 14, 16, 18, 20, 24, 28, 32];
+
+  double _currentInlineFontSize() {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return 16;
+    return _tileAt(idx).textFontSize ?? 16;
+  }
+
+  String _currentInlineAlign() {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return 'center';
+    return _tileAt(idx).textAlign ?? 'center';
+  }
+
+  bool _currentInlineBold() {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return true;
+    return _tileAt(idx).textBold ?? true;
+  }
+
+  Future<void> _setInlineFontSize(double size) async {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return;
+    final tile = _tileAt(idx);
+    await _setTile(idx, tile.copyWith(textFontSize: size, isPlaceholder: false));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _cycleInlineAlign() async {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return;
+    const cycle = ['left', 'center', 'right'];
+    final cur = _currentInlineAlign();
+    final next = cycle[(cycle.indexOf(cur) + 1) % cycle.length];
+    final tile = _tileAt(idx);
+    await _setTile(idx, tile.copyWith(textAlign: next, isPlaceholder: false));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleInlineBold() async {
+    final idx = _inlineEditingIndex;
+    if (idx == null) return;
+    final tile = _tileAt(idx);
+    final newBold = !_currentInlineBold();
+    await _setTile(idx, tile.copyWith(textBold: newBold, isPlaceholder: false));
+    if (mounted) setState(() {});
   }
 
   Future<void> _clearTile(int index) async {
@@ -542,7 +637,144 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     await _setTile(index, _tileAt(index).copyWith(goal: meta));
   }
 
+  void _promptSelectTile() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tap a tile first to select it'), duration: Duration(seconds: 2)),
+    );
+  }
+
+  static const List<Color?> _bgColorOptions = [
+    null, // theme default
+    Colors.white,
+    AppColors.pastelGreen,
+    AppColors.pastelBlue,
+    AppColors.pastelPurple,
+    AppColors.pastelOrange,
+    AppColors.pastelPink,
+    AppColors.pastelIndigo,
+  ];
+
+  Future<void> _openTileStyleSheet() async {
+    var spacingVal = _gridSpacing;
+    var radiusVal = _tileBorderRadius;
+    var bgColor = _tileBackgroundColor;
+
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: StatefulBuilder(
+          builder: (ctx, setLocal) => Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Tile Style', style: Theme.of(ctx).textTheme.titleMedium),
+                const SizedBox(height: 20),
+
+                Text('Grid Spacing', style: Theme.of(ctx).textTheme.labelLarge),
+                Row(
+                  children: [
+                    const Text('0'),
+                    Expanded(
+                      child: Slider(
+                        value: spacingVal,
+                        min: 0,
+                        max: 24,
+                        divisions: 12,
+                        label: '${spacingVal.round()}px',
+                        onChanged: (v) => setLocal(() => spacingVal = v),
+                      ),
+                    ),
+                    const Text('24'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Text('Border Radius', style: Theme.of(ctx).textTheme.labelLarge),
+                Row(
+                  children: [
+                    const Text('0'),
+                    Expanded(
+                      child: Slider(
+                        value: radiusVal,
+                        min: 0,
+                        max: 24,
+                        divisions: 12,
+                        label: '${radiusVal.round()}px',
+                        onChanged: (v) => setLocal(() => radiusVal = v),
+                      ),
+                    ),
+                    const Text('24'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Text('Tile Background', style: Theme.of(ctx).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (int i = 0; i < _bgColorOptions.length; i++)
+                      GestureDetector(
+                        onTap: () => setLocal(() => bgColor = _bgColorOptions[i]),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _bgColorOptions[i] ?? Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: (bgColor == _bgColorOptions[i] ||
+                                      (bgColor == null && _bgColorOptions[i] == null))
+                                  ? Theme.of(ctx).colorScheme.primary
+                                  : Theme.of(ctx).colorScheme.outline.withValues(alpha: 0.3),
+                              width: (bgColor == _bgColorOptions[i] ||
+                                      (bgColor == null && _bgColorOptions[i] == null))
+                                  ? 2.5
+                                  : 1,
+                            ),
+                          ),
+                          child: (bgColor == _bgColorOptions[i] ||
+                                  (bgColor == null && _bgColorOptions[i] == null))
+                              ? Icon(Icons.check, size: 18, color: Theme.of(ctx).colorScheme.primary)
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _gridSpacing = spacingVal;
+      _tileBorderRadius = radiusVal;
+      _tileBackgroundColor = bgColor;
+    });
+    await _prefs?.setDouble(BoardsStorageService.boardGridCompactSpacingKey(widget.boardId), spacingVal);
+    await _prefs?.setDouble(BoardsStorageService.boardGridBorderRadiusKey(widget.boardId), radiusVal);
+    if (bgColor != null) {
+      await _prefs?.setInt(BoardsStorageService.boardGridTileBgColorKey(widget.boardId), bgColor!.toARGB32());
+    } else {
+      await _prefs?.remove(BoardsStorageService.boardGridTileBgColorKey(widget.boardId));
+    }
+  }
+
   void _toggleEditMode() {
+    _commitInlineEdit();
     setState(() {
       _isEditing = !_isEditing;
       if (!_isEditing) {
@@ -553,7 +785,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   }
 
   Widget _tileChild(GridTileModel tile) {
-    final borderRadius = BorderRadius.circular(14);
+    final borderRadius = BorderRadius.circular(_tileBorderRadius);
     final isSelected = _isEditing && _selectedIndex == tile.index;
     final goalTitle = (tile.goal?.title ?? '').trim();
     final goalCategory = (tile.goal?.category ?? '').trim();
@@ -592,10 +824,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               ),
       );
     } else if (tile.type == 'text') {
-      final textAlignment = _getTextAlignmentForTile(tile);
+      final isInlineEditing = _inlineEditingIndex == tile.index && _inlineTextC != null;
+      final tileFont = tile.textFontSize ?? 16.0;
+      final tileBold = tile.textBold ?? true;
+      final tileAlignStr = tile.textAlign ?? 'center';
+      final tileTextAlign = tileAlignStr == 'left'
+          ? TextAlign.left
+          : tileAlignStr == 'right'
+              ? TextAlign.right
+              : TextAlign.center;
+      final tileAlignment = tileAlignStr == 'left'
+          ? Alignment.centerLeft
+          : tileAlignStr == 'right'
+              ? Alignment.centerRight
+              : Alignment.center;
+      final textStyle = TextStyle(
+        fontSize: tileFont,
+        fontWeight: tileBold ? FontWeight.w600 : FontWeight.normal,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
       base = Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.55),
+          color: _tileBackgroundColor ?? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.55),
           borderRadius: borderRadius,
           border: Border.all(
             color: isSelected 
@@ -605,27 +855,38 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           ),
         ),
         padding: const EdgeInsets.all(8),
-        alignment: textAlignment,
-        child: Text(
-          (tile.content ?? '').trim(),
-          maxLines: 6,
-          overflow: TextOverflow.ellipsis,
-          textAlign: _getTextAlignFromAlignment(textAlignment),
-          style: tile.isPlaceholder 
-              ? _placeholderTextStyle(context, tile) 
-              : TextStyle(
-                  fontSize: 16, 
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+        alignment: isInlineEditing ? Alignment.topLeft : tileAlignment,
+        child: isInlineEditing
+            ? TextField(
+                controller: _inlineTextC,
+                autofocus: true,
+                maxLines: null,
+                textAlign: tileTextAlign,
+                style: textStyle,
+                decoration: const InputDecoration(
+                  hintText: 'Enter text',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
                 ),
-        ),
+                onSubmitted: (_) => _commitInlineEdit(),
+              )
+            : Text(
+                (tile.content ?? '').trim(),
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                textAlign: tileTextAlign,
+                style: tile.isPlaceholder 
+                    ? _placeholderTextStyle(context, tile) 
+                    : textStyle,
+              ),
       );
     } else {
-      // Empty state
+      final isInlineEditing = _inlineEditingIndex == tile.index && _inlineTextC != null;
       final colorScheme = Theme.of(context).colorScheme;
       base = Container(
         decoration: BoxDecoration(
-          color: colorScheme.outline.withOpacity(0.08),
+          color: _tileBackgroundColor ?? colorScheme.outline.withValues(alpha: 0.08),
           borderRadius: borderRadius,
           border: Border.all(
             color: isSelected 
@@ -634,27 +895,45 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        alignment: Alignment.center,
+        alignment: isInlineEditing ? Alignment.topLeft : Alignment.center,
         clipBehavior: Clip.hardEdge,
-        padding: const EdgeInsets.all(4),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add, color: colorScheme.onSurfaceVariant),
-              const SizedBox(height: 4),
-              Text(
-                'Tap twice\nto add',
-                textAlign: TextAlign.center,
+        padding: EdgeInsets.all(isInlineEditing ? 8 : 4),
+        child: isInlineEditing
+            ? TextField(
+                controller: _inlineTextC,
+                autofocus: true,
+                maxLines: null,
                 style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontSize: 11,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'Enter text',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+                onSubmitted: (_) => _commitInlineEdit(),
+              )
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap twice\nto add',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
       );
     }
 
@@ -710,6 +989,62 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
     if (changed) _saveTiles(next);
     _viewportSizingApplied = true;
+    _prefs?.setBool(BoardsStorageService.boardGridViewportSizedKey(widget.boardId), true);
+  }
+
+  Widget _buildTextToolbar() {
+    final fontSize = _currentInlineFontSize();
+    final align = _currentInlineAlign();
+    final bold = _currentInlineBold();
+    final canGrow = fontSize < _fontSizeSteps.last;
+    final canShrink = fontSize > _fontSizeSteps.first;
+    final alignIcon = align == 'left'
+        ? Icons.format_align_left
+        : align == 'right'
+            ? Icons.format_align_right
+            : Icons.format_align_center;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        IconButton(
+          tooltip: 'Decrease size',
+          icon: const Icon(Icons.text_decrease),
+          onPressed: canShrink
+              ? () {
+                  final idx = _fontSizeSteps.lastIndexWhere((s) => s < fontSize);
+                  _setInlineFontSize(_fontSizeSteps[idx < 0 ? 0 : idx]);
+                }
+              : null,
+        ),
+        Text('${fontSize.round()}', style: Theme.of(context).textTheme.labelMedium),
+        IconButton(
+          tooltip: 'Increase size',
+          icon: const Icon(Icons.text_increase),
+          onPressed: canGrow
+              ? () {
+                  final idx = _fontSizeSteps.indexWhere((s) => s > fontSize);
+                  _setInlineFontSize(_fontSizeSteps[idx < 0 ? _fontSizeSteps.length - 1 : idx]);
+                }
+              : null,
+        ),
+        IconButton(
+          tooltip: 'Alignment',
+          icon: Icon(alignIcon),
+          onPressed: _cycleInlineAlign,
+        ),
+        IconButton(
+          tooltip: 'Bold',
+          icon: Icon(Icons.format_bold, color: bold ? Theme.of(context).colorScheme.primary : null),
+          onPressed: _toggleInlineBold,
+        ),
+        IconButton(
+          tooltip: 'Done',
+          icon: const Icon(Icons.check_circle_outline),
+          onPressed: () => _commitInlineEdit(),
+        ),
+      ],
+    );
   }
 
   @override
@@ -719,14 +1054,28 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         if (mounted && !_viewportSizingApplied) _applyViewportSizing(context);
       });
     }
-    // Slight spacing improves readability and makes the grid feel intentional.
-    const spacing = 10.0;
-    final selected = _selectedTile();
-    final viewTitle = widget.title;
+    final spacing = _gridSpacing;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit: ${widget.title}' : viewTitle),
-        leading: const BackButton(),
+        title: widget.isNewBoard
+            ? TextField(
+                controller: _boardNameC,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                decoration: const InputDecoration(
+                  hintText: 'Name your board',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+              )
+            : Text(_isEditing ? 'Edit: ${_boardNameC.text.trim()}' : _boardNameC.text.trim()),
+        leading: BackButton(
+          onPressed: () async {
+            await _saveBoardName();
+            if (!mounted) return;
+            Navigator.of(context).pop(widget.isNewBoard ? true : null);
+          },
+        ),
         actions: [
           if (widget.wizardShowNext)
             TextButton(
@@ -758,6 +1107,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
                     if (_isEditing) {
+                      _commitInlineEdit();
                       setState(() {
                         _selectedIndex = null;
                         _selectedResizeHandle = null;
@@ -772,7 +1122,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                       constraints: BoxConstraints(minHeight: constraints.maxHeight),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                        child: StaggeredGrid.count(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                        StaggeredGrid.count(
                           crossAxisCount: _crossAxisCount,
                           mainAxisSpacing: spacing,
                           crossAxisSpacing: spacing,
@@ -926,19 +1279,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
                                   final content = InkWell(
                                     onTap: (!_isEditing)
-                                        ? null // Disabled: grid tiles should not open modal in viewer mode
+                                        ? null
                                         : (selectionLocked)
                                             ? null
-                                            : () async {
+                                            : () {
+                                            if (_inlineEditingIndex != null && _inlineEditingIndex != i) {
+                                              _commitInlineEdit();
+                                            }
                                             final wasSelected = _selectedIndex == i;
                                             setState(() {
                                               _selectedIndex = i;
                                               if (!wasSelected) _selectedResizeHandle = null;
                                             });
-
-                                            // On second tap, open Pexels search directly for this tile.
-                                            if (!wasSelected) return;
-                                            await _openPexelsForTile(i);
                                           },
                                     child: tileStack,
                                   );
@@ -994,6 +1346,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                             ),
                           ],
                         ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1001,31 +1355,46 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                       },
                     ),
       bottomNavigationBar: _isEditing
-          ? SafeArea(
-              top: false,
-              child: BottomAppBar(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      tooltip: 'Add tile slot',
-                      icon: const Icon(Icons.add_box_outlined),
-                      onPressed: _addTileSlot,
-                    ),
-                    const Spacer(),
-                    if (selected != null)
-                      Flexible(
-                        child: Text(
-                          'Drag handles to resize • Long-press tile to move',
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+          ? BottomAppBar(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _inlineEditingIndex != null
+                  ? _buildTextToolbar()
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        IconButton(
+                          tooltip: 'Add tile',
+                          icon: const Icon(Icons.add_box_outlined),
+                          onPressed: _addTileSlot,
                         ),
-                      ),
-                  ],
-                ),
-              ),
+                        IconButton(
+                          tooltip: 'Add text',
+                          icon: const Icon(Icons.text_fields),
+                          onPressed: _selectedIndex != null
+                              ? () => _editText(_selectedIndex!)
+                              : _promptSelectTile,
+                        ),
+                        IconButton(
+                          tooltip: 'Custom image',
+                          icon: const Icon(Icons.image_outlined),
+                          onPressed: _selectedIndex != null
+                              ? () => _pickAndSetImage(_selectedIndex!)
+                              : _promptSelectTile,
+                        ),
+                        IconButton(
+                          tooltip: 'Pexels image',
+                          icon: const Icon(Icons.photo_library_outlined),
+                          onPressed: _selectedIndex != null
+                              ? () => _openPexelsForTile(_selectedIndex!)
+                              : _promptSelectTile,
+                        ),
+                        IconButton(
+                          tooltip: 'Tile style',
+                          icon: const Icon(Icons.tune),
+                          onPressed: _openTileStyleSheet,
+                        ),
+                      ],
+                    ),
             )
           : null,
     );

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -149,7 +151,7 @@ class SubscriptionService {
       if (purchase.status == PurchaseStatus.purchased ||
           purchase.status == PurchaseStatus.restored) {
         if (_productIds.contains(purchase.productID)) {
-          await _grantSubscription(purchase.productID);
+          await _grantSubscription(purchase.productID, source: 'store');
         }
         if (purchase.pendingCompletePurchase) {
           await InAppPurchase.instance.completePurchase(purchase);
@@ -165,21 +167,22 @@ class SubscriptionService {
     }
   }
 
-  static Future<void> _grantSubscription(String productId) async {
+  static Future<void> _grantSubscription(String productId, {String? source}) async {
     isSubscribed.value = true;
     activePlanId.value = productId;
     final p = await SharedPreferences.getInstance();
     await p.setBool(_subscribedKey, true);
     await p.setString(_activePlanKey, productId);
-    unawaited(_syncSubscriptionToBackend(productId, true));
+    unawaited(_syncSubscriptionToBackend(productId, true, source: source));
   }
 
   static Future<void> _syncSubscriptionToBackend(
-      String planId, bool active) async {
+      String planId, bool active, {String? source}) async {
     try {
       await DvAuthService.putUserSettings(
         subscriptionPlanId: planId,
         subscriptionActive: active,
+        subscriptionSource: source,
       );
     } catch (e) {
       debugPrint('Subscription backend sync failed: $e');
@@ -200,6 +203,85 @@ class SubscriptionService {
       await p.setString(_activePlanKey, subscriptionPlanId);
     } else {
       await p.remove(_activePlanKey);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Gift code redemption
+  // ------------------------------------------------------------------
+
+  static Future<({bool valid, String? planId, String? error})>
+      validateGiftCode(String code) async {
+    try {
+      final token = await DvAuthService.getDvToken();
+      if (token == null) {
+        return (valid: false, planId: null, error: 'not_authenticated');
+      }
+      final uri = Uri.parse(
+        '${DvAuthService.backendBaseUrl()}/gift-codes/validate?code=${Uri.encodeComponent(code.trim().toUpperCase())}',
+      );
+      final res = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token',
+        'accept': 'application/json',
+      });
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return (valid: false, planId: null, error: 'server_error');
+      }
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['valid'] == true) {
+        return (
+          valid: true,
+          planId: body['plan_id'] as String?,
+          error: null,
+        );
+      }
+      return (
+        valid: false,
+        planId: null,
+        error: (body['error'] as String?) ?? 'invalid_code',
+      );
+    } catch (e) {
+      debugPrint('validateGiftCode error: $e');
+      return (valid: false, planId: null, error: 'network_error');
+    }
+  }
+
+  static Future<({bool ok, String? planId, String? error})>
+      redeemGiftCode(String code) async {
+    try {
+      final token = await DvAuthService.getDvToken();
+      if (token == null) {
+        return (ok: false, planId: null, error: 'not_authenticated');
+      }
+      final uri = Uri.parse(
+        '${DvAuthService.backendBaseUrl()}/gift-codes/redeem',
+      );
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'content-type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: jsonEncode({'code': code.trim().toUpperCase()}),
+      );
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return (ok: false, planId: null, error: 'server_error');
+      }
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['ok'] == true) {
+        final planId = body['plan_id'] as String? ?? 'dvb_premium_1year';
+        await _grantSubscription(planId);
+        return (ok: true, planId: planId, error: null);
+      }
+      return (
+        ok: false,
+        planId: null,
+        error: (body['error'] as String?) ?? 'redeem_failed',
+      );
+    } catch (e) {
+      debugPrint('redeemGiftCode error: $e');
+      return (ok: false, planId: null, error: 'network_error');
     }
   }
 }

@@ -284,6 +284,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
         ),
 
+        // Redeem gift code
+        SliverToBoxAdapter(
+          child: Center(
+            child: TextButton.icon(
+              onPressed: () => _showRedeemGiftCodeDialog(colorScheme),
+              icon: Icon(Icons.card_giftcard_rounded, size: 18,
+                  color: colorScheme.secondary),
+              label: Text(
+                'Redeem Gift Code',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.secondary,
+                ),
+              ),
+            ),
+          ),
+        ),
+
         // Legal text
         SliverToBoxAdapter(
           child: Padding(
@@ -306,6 +325,180 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
       ],
     );
+  }
+
+  void _showRedeemGiftCodeDialog(ColorScheme colorScheme) {
+    final codeController = TextEditingController();
+    String? errorText;
+    bool loading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.card_giftcard_rounded,
+                      color: colorScheme.secondary, size: 24),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Redeem Gift Code')),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: codeController,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your gift code',
+                      errorText: errorText,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.vpn_key_rounded, size: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setDialogState(() => errorText = null);
+                      }
+                    },
+                    onSubmitted: (_) {
+                      if (!loading && codeController.text.trim().isNotEmpty) {
+                        _handleRedeemCode(
+                          codeController.text,
+                          setDialogState,
+                          dialogCtx,
+                          (v) => loading = v,
+                          () => loading,
+                          (e) => errorText = e,
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading ? null : () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: loading
+                      ? null
+                      : () {
+                          if (codeController.text.trim().isEmpty) {
+                            setDialogState(
+                                () => errorText = 'Please enter a code');
+                            return;
+                          }
+                          _handleRedeemCode(
+                            codeController.text,
+                            setDialogState,
+                            dialogCtx,
+                            (v) => loading = v,
+                            () => loading,
+                            (e) => errorText = e,
+                          );
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colorScheme.secondary,
+                    foregroundColor: colorScheme.onSecondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Redeem'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _handleRedeemCode(
+    String code,
+    void Function(void Function()) setDialogState,
+    BuildContext dialogCtx,
+    void Function(bool) setLoading,
+    bool Function() getLoading,
+    void Function(String?) setError,
+  ) async {
+    setDialogState(() {
+      setLoading(true);
+      setError(null);
+    });
+
+    final validation = await SubscriptionService.validateGiftCode(code);
+    if (!validation.valid) {
+      setDialogState(() {
+        setLoading(false);
+        setError(_friendlyError(validation.error));
+      });
+      return;
+    }
+
+    final result = await SubscriptionService.redeemGiftCode(code);
+    if (!result.ok) {
+      setDialogState(() {
+        setLoading(false);
+        setError(_friendlyError(result.error));
+      });
+      return;
+    }
+
+    if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Premium activated! Enjoy all features.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+        ),
+      );
+    }
+  }
+
+  static String _friendlyError(String? error) {
+    switch (error) {
+      case 'invalid_code':
+        return 'This code is not valid';
+      case 'code_inactive':
+        return 'This code has been deactivated';
+      case 'code_exhausted':
+        return 'This code has been fully used';
+      case 'already_redeemed':
+        return 'You have already redeemed this code';
+      case 'not_authenticated':
+        return 'Please sign in to redeem a code';
+      case 'network_error':
+        return 'Network error — check your connection';
+      case 'server_error':
+        return 'Server error — please try again later';
+      default:
+        return error ?? 'Something went wrong';
+    }
   }
 
   Future<void> _onSubscribe() async {

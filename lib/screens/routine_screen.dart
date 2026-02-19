@@ -373,6 +373,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       rating: result.mood ?? 0,
       note: result.note,
       coinsEarned: result.coinsEarned,
+      trackingValue: result.trackingValue,
     );
     final updatedFeedback = Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
     updatedFeedback[iso] = feedback;
@@ -499,6 +500,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       iconIndex: req.iconIndex,
       completedDates: const [],
       actionSteps: req.actionSteps,

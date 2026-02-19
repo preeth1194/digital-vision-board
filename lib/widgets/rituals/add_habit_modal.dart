@@ -7,6 +7,7 @@ import '../../models/cbt_enhancements.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
 import '../../services/boards_storage_service.dart';
+import '../../services/subscription_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../models/vision_board_info.dart';
@@ -143,6 +144,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   // Addon tools
   bool _remindersAddonAdded = false;
   bool _timerAddonAdded = false;
+  bool _trackerAddonAdded = false;
+  String? _trackingUnitId;
+  String? _trackingUnitLabel;
   // Timer sound & vibration
   String _notificationSound = 'default';
   String _vibrationType = 'default';
@@ -500,6 +504,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _timerAddonAdded = true;
     }
 
+    // Auto-enable tracker addon if the habit has tracking config
+    final ts = habit.trackingSpec;
+    if (ts != null && ts.enabled) {
+      _trackerAddonAdded = true;
+      _trackingUnitId = ts.unitId;
+      _trackingUnitLabel = ts.unitLabel;
+    }
+
     // Timer sound & vibration
     if (tb != null) {
       _notificationSound = tb.notificationSound ?? 'default';
@@ -731,7 +743,19 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       filteredSteps[i] = filteredSteps[i].copyWith(order: i);
     }
 
-    // 9. Create Request
+    // 9. Build TrackingSpec
+    HabitTrackingSpec? trackingSpec;
+    if (_trackerAddonAdded &&
+        _trackingUnitId != null &&
+        _trackingUnitLabel != null) {
+      trackingSpec = HabitTrackingSpec(
+        enabled: true,
+        unitId: _trackingUnitId!,
+        unitLabel: _trackingUnitLabel!,
+      );
+    }
+
+    // 10. Create Request
     final request = HabitCreateRequest(
       name: habitName,
       category: _category,
@@ -748,6 +772,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       cbtEnhancements: cbtEnhancements,
       timeBound: timeBound,
       locationBound: locationBound,
+      trackingSpec: trackingSpec,
       iconIndex: _selectedIconIndex,
       actionSteps: filteredSteps,
       startTimeMinutes: startTimeMinutes,
@@ -899,8 +924,22 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         }),
                         onCustomizeExpandedChanged: (v) =>
                             setState(() => _customizeExpanded = v),
-                        onIconSelected: (i) =>
-                            setState(() => _selectedIconIndex = i),
+                        onIconSelected: (i) {
+                          setState(() {
+                            _selectedIconIndex = i;
+                            if (_trackerAddonAdded) {
+                              final units = iconTrackingUnits[i];
+                              if (units != null && units.isNotEmpty) {
+                                _trackingUnitId = units.first.$1;
+                                _trackingUnitLabel = units.first.$2;
+                              } else {
+                                _trackerAddonAdded = false;
+                                _trackingUnitId = null;
+                                _trackingUnitLabel = null;
+                              }
+                            }
+                          });
+                        },
                         onColorSelected: (i) =>
                             setState(() => _selectedColorIndex = i),
                         onCustomizePreset: (index, gradientColor, darkColor) {
@@ -1069,7 +1108,32 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             }
                           });
                         },
+                        trackerAdded: _trackerAddonAdded,
+                        trackerAvailable: iconTrackingUnits
+                            .containsKey(_selectedIconIndex),
+                        isSubscribed:
+                            SubscriptionService.isSubscribed.value,
+                        onTrackerToggle: (added) {
+                          setState(() {
+                            _trackerAddonAdded = added;
+                            if (added) {
+                              final units =
+                                  iconTrackingUnits[_selectedIconIndex];
+                              if (units != null && units.isNotEmpty) {
+                                _trackingUnitId = units.first.$1;
+                                _trackingUnitLabel = units.first.$2;
+                              }
+                            } else {
+                              _trackingUnitId = null;
+                              _trackingUnitLabel = null;
+                            }
+                          });
+                        },
                       ),
+                      if (_trackerAddonAdded) ...[
+                        SizedBox(height: kSectionSpacing),
+                        _buildTrackingUnitSelector(colorScheme),
+                      ],
                       // Space for fixed bottom bar
                       const SizedBox(height: 24),
                     ],
@@ -1080,6 +1144,81 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTrackingUnitSelector(ColorScheme colorScheme) {
+    final units = iconTrackingUnits[_selectedIconIndex];
+    if (units == null || units.isEmpty) return const SizedBox.shrink();
+
+    final segmentChildren = <int, Widget>{
+      for (int i = 0; i < units.length; i++)
+        i: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            units[i].$2,
+            style: AppTypography.caption(context).copyWith(fontSize: 13),
+          ),
+        ),
+    };
+
+    final selectedIdx =
+        units.indexWhere((u) => u.$1 == _trackingUnitId);
+
+    return CupertinoListSection.insetGrouped(
+      header: Text(
+        'Tracking Unit',
+        style: AppTypography.caption(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
+      margin: EdgeInsets.zero,
+      backgroundColor: colorScheme.surface,
+      decoration: habitSectionDecoration(colorScheme),
+      separatorColor: habitSectionSeparatorColor(colorScheme),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.straighten,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Log ${habitIcons[_selectedIconIndex].$2.toLowerCase()} in:',
+                      style: AppTypography.body(context),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: CupertinoSlidingSegmentedControl<int>(
+                  groupValue: selectedIdx >= 0 ? selectedIdx : 0,
+                  children: segmentChildren,
+                  onValueChanged: (idx) {
+                    if (idx == null) return;
+                    setState(() {
+                      _trackingUnitId = units[idx].$1;
+                      _trackingUnitLabel = units[idx].$2;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

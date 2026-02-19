@@ -40,8 +40,8 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.dashboard_customize_outlined),
-                title: const Text('Create Dream Board (Wizard)'),
-                subtitle: const Text('Step-by-step: goals, categories, habits/tasks, then grid'),
+                title: const Text('Create Vision Board'),
+                subtitle: const Text('Pick a layout and fill it with your goals'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).pop('create_wizard'),
               ),

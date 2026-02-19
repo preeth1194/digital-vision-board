@@ -30,6 +30,7 @@ import {
 import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg } from "./stock_category_images_pg.js";
+import { getGiftCodePg, redeemGiftCodePg } from "./gift_codes_pg.js";
 
 const app = express();
 
@@ -707,8 +708,9 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   const dateOfBirth = typeof req.body?.date_of_birth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date_of_birth) ? req.body.date_of_birth : null;
   const subscriptionPlanId = typeof req.body?.subscription_plan_id === "string" ? req.body.subscription_plan_id.trim() || null : null;
   const subscriptionActive = req.body?.subscription_active != null ? Boolean(req.body.subscription_active) : null;
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive });
-  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive });
+  const subscriptionSource = typeof req.body?.subscription_source === "string" ? req.body.subscription_source.trim() || null : null;
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource });
+  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive, subscription_source: subscriptionSource });
 });
 
 app.get("/user/encryption-key", requireDvAuth(), async (req, res) => {
@@ -733,9 +735,48 @@ app.put("/user/encryption-key", requireDvAuth(), async (req, res) => {
   }
 });
 
+// ---- Gift Code Redemption ----
+
+app.get("/gift-codes/validate", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    const code = typeof req.query.code === "string" ? req.query.code.trim().toUpperCase() : "";
+    if (!code) return res.status(400).json({ ok: false, error: "missing_code" });
+
+    const gc = await getGiftCodePg(code);
+    if (!gc) return res.json({ ok: true, valid: false, error: "invalid_code" });
+    if (!gc.active) return res.json({ ok: true, valid: false, error: "code_inactive" });
+    if (gc.usedCount >= gc.maxUses) return res.json({ ok: true, valid: false, error: "code_exhausted" });
+
+    return res.json({
+      ok: true,
+      valid: true,
+      plan_id: gc.planId,
+      duration_days: gc.durationDays,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "validate_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/gift-codes/redeem", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+    if (!code) return res.status(400).json({ ok: false, error: "missing_code" });
+
+    const result = await redeemGiftCodePg(code, req.dvUser.canvaUserId);
+    if (!result.ok) return res.json(result);
+
+    return res.json({ ok: true, plan_id: result.planId });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "redeem_failed", message: String(e?.message ?? e) });
+  }
+});
+
 // Sync and affirmation endpoints have been removed.
 // User data is now backed up via encrypted Google Drive archives.
-// Only auth, subscription, and encryption key endpoints remain.
+// Only auth, subscription, encryption key, and gift code endpoints remain.
 
 // Export app for Vercel serverless functions
 export default app;

@@ -45,6 +45,7 @@ final class NotificationRoutingService {
       rating: result.mood ?? 0,
       note: result.note,
       coinsEarned: result.coinsEarned,
+      trackingValue: result.trackingValue,
     );
 
     // Persist feedback to the already-completed habit.

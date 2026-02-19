@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
 import 'affirmation_summary_card.dart';
+import 'challenge_progress_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
 import 'mood_tracker_card.dart';
@@ -19,6 +20,7 @@ class DashboardTab extends StatelessWidget {
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
+  final VoidCallback? onStartChallenge;
 
   const DashboardTab({
     super.key,
@@ -31,6 +33,7 @@ class DashboardTab extends StatelessWidget {
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
+    this.onStartChallenge,
   });
 
   @override
@@ -39,6 +42,12 @@ class DashboardTab extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
+          // Challenge progress (or start prompt)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ChallengeProgressCard(onStartChallenge: onStartChallenge),
+          ),
+          const SizedBox(height: 12),
           // Row 1: Insights | Mood
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

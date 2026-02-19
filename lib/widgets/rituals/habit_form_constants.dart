@@ -217,6 +217,7 @@ class MilestonePreset {
 const List<MilestonePreset> kMilestonePresets = [
   MilestonePreset(id: '21', days: 21, label: '21 Days', subtitle: 'Kickstart'),
   MilestonePreset(id: '66', days: 66, label: '66 Days', subtitle: 'Autopilot', isRecommended: true),
+  MilestonePreset(id: '75', days: 75, label: '75 Days', subtitle: '75 Hard'),
   MilestonePreset(id: '90', days: 90, label: '90 Days', subtitle: 'Lifestyle'),
   MilestonePreset(id: 'none', days: null, label: '\u221E', subtitle: 'No End Date'),
 ];

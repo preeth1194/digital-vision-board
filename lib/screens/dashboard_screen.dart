@@ -32,6 +32,7 @@ import 'goal_canvas_viewer_screen.dart';
 import 'templates/template_gallery_screen.dart';
 import 'journal/journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import 'challenge_setup_screen.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
@@ -48,6 +49,7 @@ import '../models/routine.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
+import '../models/challenge_template.dart';
 import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
@@ -671,6 +673,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  Future<void> _openChallengeSetup() async {
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ChallengeSetupScreen(
+          template: ChallengeTemplates.seventyFiveHard,
+        ),
+      ),
+    );
+    if (mounted && res == true) {
+      _boardDataVersion.value++;
+    }
+  }
+
   Future<void> _openPuzzleGame() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
@@ -973,6 +988,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
       onSwitchToRoutine: () => setState(() => _tabIndex = 6),
+      onStartChallenge: _openChallengeSetup,
     );
 
     final scaffold = Scaffold(
@@ -1349,7 +1365,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     const barHeight = 64.0;
     const circleOverflow = 20.0;
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
-    const panelContentHeight = 240.0;
+    const panelContentHeight = 320.0;
     final colorScheme = Theme.of(context).colorScheme;
 
     return AnimatedBuilder(
@@ -1436,6 +1452,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   ),
                                   trailing: const Icon(Icons.chevron_right),
                                   onTap: () => _addHabitFromPanel(timerEnabled: true),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Card(
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.military_tech_rounded,
+                                    color: colorScheme.primary,
+                                  ),
+                                  title: const Text('75 Hard Challenge'),
+                                  subtitle: const Text(
+                                    '75-day mental toughness program',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () {
+                                    _hideCreatePanel();
+                                    _openChallengeSetup();
+                                  },
                                 ),
                               ),
                             ],

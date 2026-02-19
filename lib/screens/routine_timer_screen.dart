@@ -169,8 +169,11 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
           _pageController.animateToPage(nextIndex,
               duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic);
         }
-        if (_allStepsComplete && mounted) {
+        if (_allStepsComplete && mounted && !_completionTriggered) {
+          _completionTriggered = true;
           HapticFeedback.heavyImpact();
+          widget.onComplete?.call();
+          Navigator.of(context).pop(_completedStepIds.toList());
         }
       });
     }

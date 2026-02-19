@@ -7,11 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/habit_item.dart';
 import '../services/ad_free_service.dart';
 import '../services/ad_service.dart';
+import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/logical_date_service.dart';
 import '../services/sun_times_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/ads/reward_ad_card.dart';
 import '../widgets/rituals/add_habit_modal.dart';
+import '../widgets/rituals/habit_completion_sheet.dart';
 import '../widgets/routine/routine_calendar_header.dart';
 import '../widgets/routine/sun_times_header.dart';
 import '../widgets/rituals/habit_form_constants.dart';
@@ -102,7 +105,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     }
   }
 
-  void _onDataVersionChanged() => _loadHabits();
+  void _onDataVersionChanged() {
+    _loadHabits();
+    _loadAdState();
+  }
 
   void _normalizeDate() {
     _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -329,11 +335,43 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       _showCompletionDetails(habit);
       return;
     }
-    Navigator.of(context).push<void>(
+    Navigator.of(context).push<List<String>>(
       MaterialPageRoute(
         builder: (_) => RoutineTimerScreen(habit: habit, onComplete: () => _loadHabits()),
       ),
-    ).then((_) => _loadHabits());
+    ).then((completedStepIds) async {
+      await _loadHabits();
+      if (completedStepIds != null && mounted) {
+        await _handleHabitCompletion(habit, completedStepIds);
+      }
+    });
+  }
+
+  Future<void> _handleHabitCompletion(HabitItem habit, List<String> completedStepIds) async {
+    final baseCoins = CoinsService.habitCompletionCoins;
+    final result = await showHabitCompletionSheet(
+      context,
+      habit: habit,
+      baseCoins: baseCoins,
+      isFullHabit: true,
+      preSelectedStepIds: completedStepIds,
+    );
+    if (result == null || !mounted) return;
+
+    final now = LogicalDateService.now();
+    final latestHabit = _habits
+        .where((h) => h.id == habit.id)
+        .cast<HabitItem?>()
+        .firstWhere((_) => true, orElse: () => null);
+    if (latestHabit == null) return;
+    if (latestHabit.isCompletedForCurrentPeriod(now)) return;
+
+    final toggled = latestHabit.toggleForDate(now);
+    await HabitStorageService.updateHabit(toggled);
+
+    await CoinsService.addCoins(result.coinsEarned);
+
+    await _loadHabits();
   }
 
   void _showCompletionDetails(HabitItem habit) {

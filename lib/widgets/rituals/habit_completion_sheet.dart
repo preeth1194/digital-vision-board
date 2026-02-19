@@ -36,6 +36,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
   required HabitItem habit,
   required int baseCoins,
   bool isFullHabit = true,
+  List<String> preSelectedStepIds = const [],
 }) {
   return showModalBottomSheet<HabitCompletionResult>(
     context: context,
@@ -45,6 +46,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
       habit: habit,
       baseCoins: baseCoins,
       isFullHabit: isFullHabit,
+      preSelectedStepIds: preSelectedStepIds,
     ),
   );
 }
@@ -101,11 +103,13 @@ class _HabitCompletionSheet extends StatefulWidget {
   final HabitItem habit;
   final int baseCoins;
   final bool isFullHabit;
+  final List<String> preSelectedStepIds;
 
   const _HabitCompletionSheet({
     required this.habit,
     required this.baseCoins,
     required this.isFullHabit,
+    this.preSelectedStepIds = const [],
   });
 
   @override
@@ -138,6 +142,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   @override
   void initState() {
     super.initState();
+    _completedStepIds.addAll(widget.preSelectedStepIds);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),

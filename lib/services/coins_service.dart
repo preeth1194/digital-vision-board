@@ -13,8 +13,8 @@ class CoinsService {
   static const int streakBonusThreshold = 7; // Every 7 days
   static const int maxStepBonus = 5;
   static const int mediaBonusCoins = 2;
-  static const int puzzle6x6Coins = 2;
-  static const int puzzle12x12Coins = 5;
+  static const int puzzle4x4Coins = 2;
+  static const int puzzle8x8Coins = 5;
 
   /// Get the total coins accumulated by the user.
   static Future<int> getTotalCoins({SharedPreferences? prefs}) async {
@@ -88,12 +88,12 @@ class CoinsService {
 
   /// Award coins for completing a puzzle based on grid size.
   static Future<int> awardPuzzleCompletion(int gridSize, {SharedPreferences? prefs}) async {
-    final coins = gridSize >= 12 ? puzzle12x12Coins : puzzle6x6Coins;
+    final coins = gridSize >= 8 ? puzzle8x8Coins : puzzle4x4Coins;
     return addCoins(coins, prefs: prefs);
   }
 
   static int coinsForPuzzleGrid(int gridSize) {
-    return gridSize >= 12 ? puzzle12x12Coins : puzzle6x6Coins;
+    return gridSize >= 8 ? puzzle8x8Coins : puzzle4x4Coins;
   }
 }
 

@@ -47,6 +47,8 @@ import '../models/routine.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
+import '../services/ad_service.dart';
+import '../services/ad_free_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/rituals/add_habit_modal.dart';
@@ -723,8 +725,50 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _addHabitFromPanel({bool timerEnabled = false}) async {
     _hideCreatePanel();
+
     final habits = await HabitStorageService.loadAll(prefs: _prefs);
     if (!mounted) return;
+
+    // Gate: non-subscribed users with 3+ habits must watch ads on the Habits tab
+    const freeLimit = 3;
+    if (habits.length >= freeLimit) {
+      final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+      if (shouldShowAds) {
+        final session = await AdService.getActiveSession(prefs: _prefs);
+        if (session != null) {
+          final watched = await AdService.getWatchedCount(session, prefs: _prefs);
+          if (watched >= AdService.requiredAdsPerHabit) {
+            // Session complete — allow and fall through
+          } else {
+            if (!mounted) return;
+            // Switch to Habits tab so user can see the ad card
+            setState(() => _tabIndex = 7);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Watch ${AdService.requiredAdsPerHabit - watched} more ad(s) to unlock a new habit.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
+        } else {
+          // Create a new ad session and switch to Habits tab
+          final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+          await AdService.setActiveSession(sessionKey, prefs: _prefs);
+          if (!mounted) return;
+          setState(() => _tabIndex = 7);
+          _boardDataVersion.value++;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Watch 5 ads to unlock a new habit slot!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
     final req = await showAddHabitModal(
       context,
       existingHabits: habits,
@@ -1075,22 +1119,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     );
                   },
                 );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.format_quote_outlined),
-              title: const Text('Affirmations'),
-              onTap: () {
-                Navigator.of(context).pop();
-                setState(() => _tabIndex = 3);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.extension),
-              title: const Text('Puzzle Game'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _openPuzzleGame();
               },
             ),
             ListTile(

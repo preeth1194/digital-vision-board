@@ -775,6 +775,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   void _toggleEditMode() {
     _commitInlineEdit();
+    final wasEditing = _isEditing;
     setState(() {
       _isEditing = !_isEditing;
       if (!_isEditing) {
@@ -782,6 +783,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         _selectedResizeHandle = null;
       }
     });
+    if (wasEditing) _saveBoardName();
   }
 
   Widget _tileChild(GridTileModel tile) {
@@ -1057,7 +1059,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     final spacing = _gridSpacing;
     return Scaffold(
       appBar: AppBar(
-        title: widget.isNewBoard
+        title: (widget.isNewBoard && _isEditing)
             ? TextField(
                 controller: _boardNameC,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),

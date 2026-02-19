@@ -628,6 +628,17 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     if (_habitNameController.text.trim().isEmpty) {
       _nameError = 'Please enter a habit name';
       hasError = true;
+    } else {
+      final normalizedName = _habitNameController.text.trim().toLowerCase();
+      final editingId = widget.initialHabit?.id;
+      final isDuplicate = widget.existingHabits.any((h) {
+        if (h.id == editingId) return false;
+        return h.name.trim().toLowerCase() == normalizedName;
+      });
+      if (isDuplicate) {
+        _nameError = 'A habit with this name already exists';
+        hasError = true;
+      }
     }
     if (_triggerController.text.trim().isEmpty) {
       _triggerError = 'Please enter a trigger';

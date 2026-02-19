@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -60,7 +58,7 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
 
     _slideController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 500),
     )..value = 1.0;
 
     _slideAnimation = CurvedAnimation(
@@ -93,8 +91,14 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
   void didUpdateWidget(AnimatedBottomNavBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.currentIndex != oldWidget.currentIndex) {
-      _previousIndex = oldWidget.currentIndex;
+      if (oldWidget.suppressHighlight && !widget.suppressHighlight) {
+        _previousIndex = -1; // sentinel: animate from center "+"
+      } else {
+        _previousIndex = oldWidget.currentIndex;
+      }
       _slideController.forward(from: 0.0);
+    } else if (oldWidget.suppressHighlight && !widget.suppressHighlight) {
+      _bounceController.forward(from: 0.0);
     }
   }
 
@@ -115,6 +119,10 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
     final slotCount =
         widget.items.length + (widget.onCenterTap != null ? 1 : 0);
     final slotWidth = totalWidth / slotCount;
+    if (tabIndex == -1) {
+      final midSlot = widget.items.length ~/ 2;
+      return (midSlot + 0.5) * slotWidth;
+    }
     final slot = _tabToSlot(tabIndex);
     return (slot + 0.5) * slotWidth;
   }
@@ -255,9 +263,6 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
 
                       // Pop-up circle for selected tab
                       if (!widget.suppressHighlight) ...[
-                        // #region agent log
-                        if (t >= 1.0) Builder(builder: (_) { try { File('/Users/preeth/digital-vision-board/.cursor/debug-aa6b4f.log').writeAsStringSync(jsonEncode({'sessionId':'aa6b4f','hypothesisId':'FIX-verify','location':'build:circle-pos','message':'circle vs cutout alignment','data':{'currentX':currentX,'centerSlotX':centerSlotX,'circleTotalRadius':_circleTotalRadius,'cutoutRadius':_cutoutRadius,'centerBtnTotalRadius':_centerBtnTotalRadius,'centerCutoutRadius':_centerCutoutRadius,'totalWidth':totalWidth,'tabIndex':widget.currentIndex},'timestamp':DateTime.now().millisecondsSinceEpoch})+'\n', mode: FileMode.append); } catch(_) {} return const SizedBox.shrink(); }),
-                        // #endregion
                         Positioned(
                           left: currentX - _circleSize / 2 - _circleBorder,
                           top: 0,
@@ -324,9 +329,6 @@ class _NotchedBarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // #region agent log
-    try { File('/Users/preeth/digital-vision-board/.cursor/debug-aa6b4f.log').writeAsStringSync(jsonEncode({'sessionId':'aa6b4f','hypothesisId':'FIX-verify','location':'_NotchedBarPainter.paint','message':'dual-cutout geometry','data':{'canvasW':size.width,'canvasH':size.height,'notchCenterX':notchCenterX,'cutoutCenterY':cutoutCenterY,'cutoutRadius':cutoutRadius,'centerBtnX':centerBtnX,'centerBtnCutoutCenterY':centerBtnCutoutCenterY,'centerBtnCutoutRadius':centerBtnCutoutRadius,'borderRadius':borderRadius},'timestamp':DateTime.now().millisecondsSinceEpoch})+'\n', mode: FileMode.append); } catch(_) {}
-    // #endregion
     final path = _buildPath(size);
     canvas.drawShadow(path, shadowColor, 10.0, true);
     canvas.drawPath(path, Paint()..color = color);

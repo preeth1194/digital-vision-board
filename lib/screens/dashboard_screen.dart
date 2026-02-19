@@ -1145,9 +1145,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
       suppressHighlight: _showCreatePanel,
       onTap: (i) {
-        _hideCreatePanel();
         final nextTab = visibleTabIndices[i];
-        setState(() => _tabIndex = nextTab);
+        if (_showCreatePanel) {
+          _createPanelController.value = 0;
+          setState(() {
+            _showCreatePanel = false;
+            _tabIndex = nextTab;
+          });
+        } else {
+          setState(() => _tabIndex = nextTab);
+        }
         _refreshReminders();
         _loadCoins();
       },

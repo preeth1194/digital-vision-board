@@ -1142,5 +1142,27 @@
       { "label": "6 Months", "duration": "semi-annual", "price": "$19.99/6mo", "savings": "Save 33%" },
       { "label": "1 Year", "duration": "annual", "price": "$34.99/yr", "savings": "Best Value - Save 42%" }
     ]
+  },
+  "voice_habit_input": {
+    "sheetTitle": "Create Habit by Voice",
+    "promptHint": "Try saying: \"Create a habit of walking daily for 10 mins at 6am after brushing my teeth. If too tired I'll walk 2 mins.\"",
+    "idleText": "Tap the mic to start speaking",
+    "listeningText": "Listening...",
+    "parsingText": "Parsing your habit...",
+    "doneText": "Habit details extracted! Tap \"Apply\" to fill the form.",
+    "buttonVoice": "Voice",
+    "buttonApply": "Apply",
+    "buttonCancel": "Cancel",
+    "buttonRetry": "Retry",
+    "premiumBadge": "PRO",
+    "errors": {
+      "noPermission": "Microphone permission is required. Please allow it in Settings.",
+      "noMatch": "Could not understand. Please try again.",
+      "network": "Network error. Check your connection and retry.",
+      "noSpeechAvailable": "Speech recognition is not available on this device.",
+      "parseFailed": "Failed to parse your input. Please try again.",
+      "noDetails": "Could not extract habit details. Try being more specific.",
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

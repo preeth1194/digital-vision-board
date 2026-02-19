@@ -73,6 +73,7 @@ dependencies:
   in_app_purchase: ^3.2.0
   cryptography: ^2.7.0
   archive: ^4.0.2
+  speech_to_text: ^7.0.0
 
 dependency_overrides:
   record_linux: ^1.2.1

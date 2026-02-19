@@ -25,6 +25,8 @@ class Step1IdentityWithColor extends StatefulWidget {
   onCustomizePreset;
   final VoidCallback? onSectionExpanded;
   final String? nameError;
+  final VoidCallback? onVoiceInputTap;
+  final bool isSubscribed;
 
   const Step1IdentityWithColor({
     super.key,
@@ -45,6 +47,8 @@ class Step1IdentityWithColor extends StatefulWidget {
     required this.onCustomizePreset,
     this.onSectionExpanded,
     this.nameError,
+    this.onVoiceInputTap,
+    this.isSubscribed = false,
   });
 
   @override
@@ -144,13 +148,72 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
     final colors = widget.allColors[widget.selectedColorIndex].$2;
 
     return CupertinoListSection.insetGrouped(
-      header: Text(
-        "Habit",
-        style: AppTypography.caption(context).copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
+      header: Row(
+        children: [
+          Text(
+            "Habit",
+            style: AppTypography.caption(context).copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+          const Spacer(),
+          if (widget.onVoiceInputTap != null)
+            GestureDetector(
+              onTap: widget.onVoiceInputTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.mic_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Voice',
+                      style: AppTypography.caption(context).copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (!widget.isSubscribed) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.tertiary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'PRO',
+                          style: AppTypography.caption(context).copyWith(
+                            color: colorScheme.tertiary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 8,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
       margin: EdgeInsets.zero,
       backgroundColor: colorScheme.surface,

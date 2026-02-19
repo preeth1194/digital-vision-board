@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../models/core_value.dart';
@@ -225,9 +226,12 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
           children: [
             TextField(
               controller: _controller,
+              maxLength: 100,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: const InputDecoration(
                 hintText: 'Board name',
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
               autofocus: true,
               textInputAction: TextInputAction.done,

@@ -356,6 +356,8 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                   // Note text field with embedded media icons
                   TextField(
                     controller: _noteController,
+                    maxLength: 500,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     maxLines: 3,
                     minLines: 1,
                     textInputAction: TextInputAction.done,
@@ -394,6 +396,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                         top: 14,
                         bottom: 14,
                       ),
+                      counterText: '',
                       prefixIcon: GestureDetector(
                         onTap: _pickImage,
                         child: Padding(
@@ -881,6 +884,10 @@ class _TrackingValueInput extends StatelessWidget {
               controller: controller,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                LengthLimitingTextInputFormatter(8),
+              ],
               textInputAction: TextInputAction.done,
               style: TextStyle(
                 fontSize: 18,

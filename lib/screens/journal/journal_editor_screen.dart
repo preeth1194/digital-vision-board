@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -939,6 +940,8 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                               padding: EdgeInsets.symmetric(horizontal: EditorSpacing.contentPadding),
                               child: TextField(
                                 controller: _titleController,
+                                maxLength: 200,
+                                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                                 decoration: InputDecoration(
                                   hintText: 'Title',
                                   hintStyle: _selectedFont.getTitleStyle(
@@ -946,6 +949,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                   ),
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
+                                  counterText: '',
                                 ),
                                 style: _selectedFont.getTitleStyle(
                                   color: colorScheme.onSurface,

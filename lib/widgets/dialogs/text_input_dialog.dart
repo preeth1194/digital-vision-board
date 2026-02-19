@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Simple text input dialog that returns the entered text (or null).
 Future<String?> showTextInputDialog(
@@ -137,12 +138,15 @@ class _TextInputDialogState extends State<_TextInputDialog> {
               ),
             TextField(
               controller: _controller,
+              maxLength: 200,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               autofocus: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 border: const OutlineInputBorder(),
+                counterText: '',
                 suffixIcon: _hasText
                     ? IconButton(
                         tooltip: 'Clear',

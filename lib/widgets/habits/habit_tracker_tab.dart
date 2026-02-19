@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/habit_item.dart';
@@ -231,7 +232,10 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                 Expanded(
                   child: TextField(
                     controller: widget.newHabitController,
+                    maxLength: 100,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     decoration: const InputDecoration(
+                      counterText: '',
                       hintText: 'Enter habit name (optional)',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

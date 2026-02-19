@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
@@ -272,7 +273,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       controller: _nameController,
                       style: AppTypography.body(context),
                       textCapitalization: TextCapitalization.words,
+                      maxLength: 100,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       decoration: InputDecoration(
+                        counterText: '',
                         labelText: 'Name',
                         hintText: 'Your name',
                         hintStyle: AppTypography.body(context).copyWith(
@@ -308,6 +312,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                               controller: _weightController,
                               style: AppTypography.body(context),
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                                LengthLimitingTextInputFormatter(6),
+                              ],
                               decoration: InputDecoration(
                                 hintText: unit == MeasurementUnit.metric ? 'e.g. 70' : 'e.g. 154',
                                 hintStyle: AppTypography.body(context).copyWith(
@@ -375,6 +383,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 controller: _heightController,
                                 style: AppTypography.body(context),
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                                  LengthLimitingTextInputFormatter(5),
+                                ],
                                 decoration: InputDecoration(
                                   hintText: 'e.g. 170',
                                   hintStyle: AppTypography.body(context).copyWith(
@@ -403,6 +415,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 controller: _heightFeetController,
                                 style: AppTypography.body(context),
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(1),
+                                ],
                                 decoration: InputDecoration(
                                   labelText: 'Feet',
                                   hintText: 'e.g. 5',
@@ -426,6 +442,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 controller: _heightInchesController,
                                 style: AppTypography.body(context),
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(2),
+                                ],
                                 decoration: InputDecoration(
                                   labelText: 'Inches',
                                   hintText: 'e.g. 10',

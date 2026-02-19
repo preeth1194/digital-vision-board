@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/goal_metadata.dart';
 import '../../models/habit_item.dart';
@@ -196,6 +197,8 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
             Expanded(
               child: TextField(
                 controller: _newTodoC,
+                maxLength: 200,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 focusNode: _newTodoFocus,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _addTodos(context),
@@ -204,6 +207,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
                   hintText: 'Add a todo…',
                   border: OutlineInputBorder(),
                   isDense: true,
+                  counterText: '',
                 ),
               ),
             ),

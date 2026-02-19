@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
@@ -371,6 +372,8 @@ class _TodosListScreenState extends State<TodosListScreen> {
                 Expanded(
                   child: TextField(
                     controller: _newTodoC,
+                    maxLength: 200,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     focusNode: _newTodoFocus,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _addTodos(context),
@@ -379,6 +382,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
                       hintText: 'Add a todo…',
                       border: OutlineInputBorder(),
                       isDense: true,
+                      counterText: '',
                     ),
                   ),
                 ),
@@ -413,6 +417,8 @@ class _TodosListScreenState extends State<TodosListScreen> {
                       Expanded(
                         child: TextField(
                           controller: _newTodoC,
+                          maxLength: 200,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           focusNode: _newTodoFocus,
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _addTodos(context),
@@ -421,6 +427,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
                             hintText: 'Add a todo…',
                             border: OutlineInputBorder(),
                             isDense: true,
+                            counterText: '',
                           ),
                         ),
                       ),

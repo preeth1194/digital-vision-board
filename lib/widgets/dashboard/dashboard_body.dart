@@ -16,7 +16,6 @@ import '../../screens/routine_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
-import '../../screens/global_insights_screen.dart';
 
 class DashboardBody extends StatelessWidget {
   final int tabIndex;
@@ -136,7 +135,9 @@ class DashboardBody extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: boardDataVersion,
       builder: (context, _, __) {
-        return switch (tabIndex) {
+        final child = KeyedSubtree(
+          key: ValueKey<int>(tabIndex),
+          child: switch (tabIndex) {
       1 => DashboardTab(
           boards: boards,
           activeBoardId: activeBoardId,
@@ -196,25 +197,49 @@ class DashboardBody extends StatelessWidget {
             );
           },
         ),
-      4 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
-          future: _loadBoardComponents(activeBoard),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return GlobalInsightsScreen(components: snap.data ?? const <VisionComponent>[]);
+      _ => const SizedBox.shrink(),
           },
-        ),
-      _ => FutureBuilder<Map<String, List<VisionComponent>>>(
-          future: _loadAllBoardsComponents(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            final all = <VisionComponent>[];
-            for (final list in snap.data!.values) {
-              all.addAll(list);
+        );
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          reverseDuration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final fade = CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+            );
+            final slide = Tween<Offset>(
+              begin: const Offset(0, 0.03),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ));
+
+            final isJournal = child.key == const ValueKey<int>(2);
+            if (isJournal) {
+              final scale = Tween<double>(begin: 0.96, end: 1.0).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
+              return FadeTransition(
+                opacity: fade,
+                child: SlideTransition(
+                  position: slide,
+                  child: ScaleTransition(scale: scale, child: child),
+                ),
+              );
             }
-            return GlobalInsightsScreen(components: all);
+
+            return FadeTransition(
+              opacity: fade,
+              child: SlideTransition(position: slide, child: child),
+            );
           },
-        ),
-        };
+          child: child,
+        );
       },
     );
   }

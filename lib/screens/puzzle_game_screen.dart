@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,7 +29,7 @@ class PuzzleGameScreen extends StatefulWidget {
 }
 
 class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
-  int _gridSize = 6;
+  int _gridSize = 4;
   int get _totalPieces => _gridSize * _gridSize;
 
   List<Uint8List>? _puzzlePieces;
@@ -240,7 +239,6 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   void _changeGridSize(int newSize) {
     if (newSize == _gridSize || _actionsLocked) return;
     setState(() => _gridSize = newSize);
-    // Clear old state so it re-shuffles with the new grid
     PuzzleStateService.clearPuzzleState(
       imagePath: widget.imagePath,
       prefs: widget.prefs,
@@ -424,124 +422,143 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Puzzle Game'),
+        title: const Text('Puzzle'),
         actions: [
           IconButton(
-            icon: Icon(
-                _showReference ? Icons.visibility_off : Icons.visibility),
-            tooltip: _showReference ? 'Hide reference' : 'Show reference',
-            onPressed: () =>
-                setState(() => _showReference = !_showReference),
-          ),
-          IconButton(
-            icon: const Icon(Icons.shuffle),
-            tooltip: _actionsLocked
-                ? 'Available in ${_formatCooldown(_cooldownRemaining)}'
-                : 'Shuffle',
-            onPressed: _actionsLocked ? null : _shufflePuzzle,
-          ),
-          IconButton(
             icon: const Icon(Icons.image_outlined),
-            tooltip: _actionsLocked ? 'Locked during cooldown' : 'Select image',
+            tooltip: _actionsLocked ? 'Locked during cooldown' : 'Change image',
             onPressed: _actionsLocked ? null : _selectNewImage,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildGridSizeSelector(scheme),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _puzzlePieces == null
-                    ? const Center(child: Text('Failed to load puzzle'))
-                    : _showingCompletionTile
-                        ? _buildCompletionTile()
-                        : _buildPuzzleGrid(),
-          ),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _puzzlePieces == null
+                      ? const Center(child: Text('Failed to load puzzle'))
+                      : _showingCompletionTile
+                          ? _buildCompletionTile(scheme)
+                          : _showReference
+                              ? _buildReferenceView(scheme)
+                              : _buildBoardArea(scheme),
+            ),
+            _buildControlsBar(scheme),
+            if (_actionsLocked)
+              _buildCooldownBanner(scheme),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGridSizeSelector(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: SegmentedButton<int>(
-              segments: [
-                ButtonSegment(
-                  value: 6,
-                  label: Text('6x6  (${CoinsService.puzzle6x6Coins} pts)'),
+  // ── Reference image (full view, replaces board) ────────────────────
+
+  Widget _buildReferenceView(ColorScheme scheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 380, maxHeight: 380),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.shadow.withValues(alpha: 0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                ButtonSegment(
-                  value: 12,
-                  label: Text('12x12  (${CoinsService.puzzle12x12Coins} pts)'),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _buildReferenceImage(),
                 ),
-              ],
-              selected: {_gridSize},
-              onSelectionChanged: _actionsLocked
-                  ? null
-                  : (s) => _changeGridSize(s.first),
+              ),
             ),
-          ),
-          if (_actionsLocked) ...[
-            const SizedBox(width: 12),
-            Tooltip(
-              message: 'Cooldown active',
-              child: Chip(
-                avatar: Icon(Icons.timer, size: 16, color: scheme.error),
-                label: Text(
-                  _formatCooldown(_cooldownRemaining),
-                  style: TextStyle(color: scheme.error, fontSize: 12),
-                ),
-                visualDensity: VisualDensity.compact,
+            const SizedBox(height: 16),
+            Text(
+              'Reference Image',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap the eye icon to return to the puzzle',
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPuzzleGrid() {
-    return Stack(
-      children: [
-        if (_showReference)
-          Positioned.fill(
-            child: Opacity(opacity: 0.3, child: _buildReferenceImage()),
-          ),
-        Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
-            padding: const EdgeInsets.all(16),
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: _gridSize,
-                crossAxisSpacing: 2,
-                mainAxisSpacing: 2,
-              ),
-              itemCount: _totalPieces,
-              itemBuilder: (context, position) => _buildPuzzleSlot(position),
-            ),
-          ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildReferenceImage() {
     final provider = fileImageProviderFromPath(widget.imagePath);
-    if (provider == null) return Container();
-    return Image(image: provider, fit: BoxFit.contain);
+    if (provider == null) return const SizedBox.shrink();
+    return Image(image: provider, fit: BoxFit.cover);
+  }
+
+  // ── Styled puzzle board area ───────────────────────────────────────
+
+  Widget _buildBoardArea(ColorScheme scheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.primary.withValues(alpha: 0.15),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _gridSize,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
+                ),
+                itemCount: _totalPieces,
+                itemBuilder: (context, position) => _buildPuzzleSlot(position),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildPuzzleSlot(int position) {
     final pieceIndex = _positionPieces[position];
     final isCorrectPosition = pieceIndex == position;
+    final scheme = Theme.of(context).colorScheme;
 
     return DragTarget<int>(
       onAccept: (draggedPieceIndex) => _movePiece(draggedPieceIndex, position),
@@ -550,24 +567,25 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
         return Container(
           decoration: BoxDecoration(
             color: isTargeted
-                ? Theme.of(context).colorScheme.primaryContainer
+                ? scheme.primaryContainer
                 : isCorrectPosition
-                    ? Theme.of(context).colorScheme.tertiaryContainer
-                    : Theme.of(context).colorScheme.surfaceVariant,
+                    ? scheme.tertiaryContainer
+                    : scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(2),
             border: Border.all(
               color: isTargeted
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.outline.withOpacity(0.3),
-              width: isTargeted ? 2 : 1,
+                  ? scheme.primary
+                  : scheme.outline.withValues(alpha: 0.2),
+              width: isTargeted ? 2 : 0.5,
             ),
           ),
           child: pieceIndex != null
               ? _buildPuzzlePiece(pieceIndex, position)
               : Center(
                   child: Icon(
-                    Icons.image_outlined,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    size: _gridSize > 6 ? 16 : 32,
+                    Icons.extension_outlined,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    size: _gridSize > 4 ? 12 : 24,
                   ),
                 ),
         );
@@ -578,7 +596,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   Widget _buildPuzzlePiece(int pieceIndex, int currentPosition) {
     final pieceBytes = _puzzlePieces![pieceIndex];
     final isCorrectPosition = pieceIndex == currentPosition;
-    final feedbackSize = _gridSize > 6 ? 50.0 : 80.0;
+    final feedbackSize = _gridSize > 4 ? 50.0 : 80.0;
+    final scheme = Theme.of(context).colorScheme;
 
     return Draggable<int>(
       data: pieceIndex,
@@ -588,39 +607,232 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           width: feedbackSize,
           height: feedbackSize,
           decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary,
-              width: 2,
-            ),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: scheme.primary, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: Image.memory(pieceBytes, fit: BoxFit.cover),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: Image.memory(pieceBytes, fit: BoxFit.cover),
+          ),
         ),
       ),
       childWhenDragging: Container(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        child: Icon(
-          Icons.image_outlined,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(2),
           border: isCorrectPosition
-              ? Border.all(
-                  color: Theme.of(context).colorScheme.tertiary,
-                  width: 2,
-                )
+              ? Border.all(color: scheme.tertiary, width: 1.5)
               : null,
         ),
-        child: Image.memory(pieceBytes, fit: BoxFit.cover),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(1),
+          child: Image.memory(pieceBytes, fit: BoxFit.cover),
+        ),
       ),
     );
   }
 
-  Widget _buildCompletionTile() {
+  // ── Controls bar ───────────────────────────────────────────────────
+
+  Widget _buildControlsBar(ColorScheme scheme) {
+    final isEasy = _gridSize == 4;
+    final ptsColor = scheme.onPrimaryContainer.withValues(alpha: 0.5);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.shadow.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: SizedBox.shrink()),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '${CoinsService.puzzle4x4Coins}pts',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: ptsColor,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '${CoinsService.puzzle8x8Coins}pts',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: ptsColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const Expanded(child: SizedBox.shrink()),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildControlItem(
+                    icon: _showReference
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    label: _showReference ? 'Hide' : 'Peek',
+                    isActive: _showReference,
+                    onTap: () =>
+                        setState(() => _showReference = !_showReference),
+                    scheme: scheme,
+                  ),
+                ),
+                Expanded(
+                  child: _buildControlItem(
+                    icon: Icons.grid_view_rounded,
+                    label: 'Easy',
+                    isActive: isEasy,
+                    onTap: _actionsLocked
+                        ? null
+                        : () => _changeGridSize(4),
+                    scheme: scheme,
+                  ),
+                ),
+                Expanded(
+                  child: _buildControlItem(
+                    icon: Icons.apps_rounded,
+                    label: 'Hard',
+                    isActive: !isEasy,
+                    onTap: _actionsLocked
+                        ? null
+                        : () => _changeGridSize(8),
+                    scheme: scheme,
+                  ),
+                ),
+                Expanded(
+                  child: _buildControlItem(
+                    icon: Icons.shuffle_rounded,
+                    label: 'Shuffle',
+                    isActive: false,
+                    onTap: _actionsLocked ? null : _shufflePuzzle,
+                    scheme: scheme,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlItem({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback? onTap,
+    required ColorScheme scheme,
+  }) {
+    final isDisabled = onTap == null;
+    final color = isDisabled
+        ? scheme.onPrimaryContainer.withValues(alpha: 0.3)
+        : isActive
+            ? scheme.primary
+            : scheme.onPrimaryContainer;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? scheme.primary.withValues(alpha: 0.15)
+                  : scheme.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Cooldown banner ────────────────────────────────────────────────
+
+  Widget _buildCooldownBanner(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.timer_outlined, size: 16, color: scheme.onErrorContainer),
+            const SizedBox(width: 8),
+            Text(
+              'Next puzzle in ${_formatCooldown(_cooldownRemaining)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: scheme.onErrorContainer,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Completion tile ────────────────────────────────────────────────
+
+  Widget _buildCompletionTile(ColorScheme scheme) {
     final goalMessage = _goalTitle != null && _goalTitle!.isNotEmpty
-        ? 'You are 1 step closer in reaching your goal: $_goalTitle'
-        : 'You are 1 step closer in reaching your goal!';
+        ? 'You are 1 step closer\nin reaching your goal!'
+        : 'You are 1 step closer\nin reaching your goal!';
 
     return Center(
       child: SingleChildScrollView(
@@ -643,70 +855,49 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                       width: 300,
                       height: 300,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.3),
+                            color: scheme.primary.withValues(alpha: 0.3),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            _buildReferenceImage(),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Theme.of(context).colorScheme.shadow.withOpacity(0.7),
-                                    Theme.of(context).colorScheme.shadow.withOpacity(0.9),
-                                  ],
-                                ),
-                              ),
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.celebration,
-                                          color: Theme.of(context).colorScheme.tertiary, size: 64),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        goalMessage,
-                                        textAlign: TextAlign.center,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineSmall
-                                            ?.copyWith(
-                                              color: Theme.of(context).colorScheme.surface,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        child: _buildReferenceImage(),
                       ),
                     ),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+            Icon(Icons.celebration, color: scheme.tertiary, size: 40),
+            const SizedBox(height: 8),
+            Text(
+              goalMessage,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                    height: 1.4,
+                  ),
+            ),
+            if (_goalTitle != null && _goalTitle!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                _goalTitle!,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.7),
+                    ),
+              ),
+            ],
+            const SizedBox(height: 24),
             if (!_actionsLocked)
               FilledButton.icon(
                 onPressed: () {
@@ -720,7 +911,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               Text(
                 'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
+                      color: scheme.error,
                     ),
               ),
           ],

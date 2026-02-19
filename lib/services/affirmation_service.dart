@@ -137,6 +137,39 @@ final class AffirmationService {
     return sorted;
   }
 
+  static const List<String> _defaultQuotes = [
+    'I commit to showing up for myself every single day, no matter how small the step.',
+    'My daily actions are the building blocks of my future.',
+    'I do not need to be perfect; I only need to be consistent.',
+    'Consistency is my superpower. Through steady effort, I create lasting change.',
+    'Every day I practice my habits, I cast a vote for the person I want to become.',
+    'Small, daily efforts quietly compound into massive results.',
+    'I trust the process of daily practice to unlock my true potential.',
+    'Momentum is built one day at a time, and today I choose to keep moving forward.',
+    'I honor my biggest goals by honoring my daily routines.',
+    'By showing up today, I am watering the seeds of my future success.',
+  ];
+
+  static Future<void> seedDefaultsIfEmpty({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final existing = await _loadLocalAffirmations(prefs: p);
+    if (existing.isNotEmpty) return;
+
+    final now = DateTime.now();
+    final defaults = _defaultQuotes.asMap().entries.map((e) {
+      return Affirmation(
+        id: 'default_${e.key}',
+        text: e.value,
+        category: 'Motivation',
+        isPinned: false,
+        isCustom: false,
+        createdAt: now,
+      );
+    }).toList();
+
+    await _saveLocalAffirmations(defaults, prefs: p);
+  }
+
   static Future<List<Affirmation>> _loadLocalAffirmations({
     SharedPreferences? prefs,
     String? category,

@@ -14,7 +14,6 @@ import '../services/boards_storage_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
-import '../widgets/dashboard/expandable_fab.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -38,6 +37,8 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
 import 'subscription_screen.dart';
 import '../services/subscription_service.dart';
@@ -47,8 +48,11 @@ import '../models/routine.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
+import '../services/ad_service.dart';
+import '../services/ad_free_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/rituals/add_habit_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -57,13 +61,17 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
   int _tabIndex = 1;
   bool _loading = true;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
   bool _checkedMandatoryLogin = false;
+
+  late final AnimationController _createPanelController;
+  bool _showCreatePanel = false;
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
@@ -81,12 +89,17 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   final GlobalKey _coinTargetKey = GlobalKey();
 
   // Profile avatar for app bar and drawer (refreshed when returning from Account)
-  final ValueNotifier<({String? picPath, String initial})> _profileAvatarNotifier =
-      ValueNotifier((picPath: null, initial: '?'));
+  final ValueNotifier<({String? picPath, String initial, String displayName})>
+      _profileAvatarNotifier =
+          ValueNotifier((picPath: null, initial: '?', displayName: ''));
 
   @override
   void initState() {
     super.initState();
+    _createPanelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     WidgetsBinding.instance.addObserver(this);
     _init();
     _loadCoins();
@@ -103,8 +116,20 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         : (identifier != null && identifier.isNotEmpty)
             ? identifier[0].toUpperCase()
             : '?';
+
+    String resolvedName;
+    if (displayName != null && displayName.isNotEmpty) {
+      resolvedName = displayName;
+    } else {
+      resolvedName = 'Guest User';
+    }
+
     if (mounted) {
-      _profileAvatarNotifier.value = (picPath: picPath, initial: initial);
+      _profileAvatarNotifier.value = (
+        picPath: picPath,
+        initial: initial,
+        displayName: resolvedName,
+      );
     }
   }
 
@@ -127,6 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   @override
   void dispose() {
+    _createPanelController.dispose();
     _remindersAutoRefreshTimer?.cancel();
     if (_syncAuthListener != null) {
       SyncService.authExpired.removeListener(_syncAuthListener!);
@@ -324,10 +350,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             key: _coinTargetKey,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Gold coin icon
               Container(
-                width: 24,
-                height: 24,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -339,15 +364,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     color: AppColors.amberBorder,
                     width: 1.5,
                   ),
-                ),
-                child: Center(
-                  child: Text(
-                    '\$',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: colorScheme.onPrimary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.goldDark.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.monetization_on_rounded,
+                    size: 15,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -376,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -693,11 +722,104 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     setState(() => _activeBoardId = null);
   }
 
-  Future<void> _createBoard() async {
-    final boardsBefore = _boards.length;
-    final layoutType = await showTemplatePickerSheet(context);
+  void _toggleCreatePanel() {
+    if (_showCreatePanel) {
+      _createPanelController.reverse().then((_) {
+        if (mounted) setState(() => _showCreatePanel = false);
+      });
+    } else {
+      setState(() => _showCreatePanel = true);
+      _createPanelController.forward(from: 0.0);
+    }
+  }
+
+  void _hideCreatePanel() {
+    if (!_showCreatePanel) return;
+    _createPanelController.reverse().then((_) {
+      if (mounted) setState(() => _showCreatePanel = false);
+    });
+  }
+
+  Future<void> _addHabitFromPanel({bool timerEnabled = false}) async {
+    _hideCreatePanel();
+
+    final habits = await HabitStorageService.loadAll(prefs: _prefs);
     if (!mounted) return;
-    if (layoutType == null) return;
+
+    // Gate: non-subscribed users with 3+ habits must watch ads on the Habits tab
+    const freeLimit = 3;
+    if (habits.length >= freeLimit) {
+      final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+      if (shouldShowAds) {
+        final session = await AdService.getActiveSession(prefs: _prefs);
+        if (session != null) {
+          final watched = await AdService.getWatchedCount(session, prefs: _prefs);
+          if (watched >= AdService.requiredAdsPerHabit) {
+            // Session complete — allow and fall through
+          } else {
+            if (!mounted) return;
+            // Switch to Habits tab so user can see the ad card
+            setState(() => _tabIndex = 7);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Watch ${AdService.requiredAdsPerHabit - watched} more ad(s) to unlock a new habit.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
+        } else {
+          // Create a new ad session and switch to Habits tab
+          final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+          await AdService.setActiveSession(sessionKey, prefs: _prefs);
+          if (!mounted) return;
+          setState(() => _tabIndex = 7);
+          _boardDataVersion.value++;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Watch 5 ads to unlock a new habit slot!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    final req = await showAddHabitModal(
+      context,
+      existingHabits: habits,
+      initialTimerEnabled: timerEnabled,
+    );
+    if (req == null || !mounted) return;
+    final newHabit = HabitItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: req.name,
+      category: req.category,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
+      iconIndex: req.iconIndex,
+      completedDates: const [],
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
+    );
+    await HabitStorageService.addHabit(newHabit, prefs: _prefs);
+    _boardDataVersion.value++;
+  }
+
+  Future<void> _onTemplatePicked(String layoutType) async {
+    _hideCreatePanel();
+    final boardsBefore = _boards.length;
 
     if (layoutType == 'browse_templates') {
       final res = await Navigator.of(context).push<bool>(
@@ -833,7 +955,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 7, 6, 2, 4]; // Dashboard, Rituals, Routine, Journal, Insights
+    const visibleTabIndices = <int>[1, 7, 6, 2]; // Dashboard, Rituals, Routine, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -846,68 +968,74 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       boardDataVersion: _boardDataVersion,
       coinNotifier: _coinNotifier,
       coinTargetKey: _coinTargetKey,
-      onCreateBoard: _createBoard,
+      onCreateBoard: _toggleCreatePanel,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
       onSwitchToRoutine: () => setState(() => _tabIndex = 6),
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       drawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.65,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Digital Vision Board',
-                    style: AppTypography.heading3(context),
-                  ),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<({String? picPath, String initial})>(
-                    valueListenable: _profileAvatarNotifier,
-                    builder: (context, profile, _) {
-                      return FutureBuilder<String?>(
-                        future: DvAuthService.getUserId(prefs: _prefs),
-                        builder: (context, snap) {
-                          final id = (snap.data ?? '').trim();
-                          final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                          return Row(
-                            children: [
-                              ProfileAvatar(
-                                initial: profile.initial,
-                                imagePath: profile.picPath,
-                                radius: 20,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
+                valueListenable: _profileAvatarNotifier,
+                builder: (context, profile, _) {
+                  return FutureBuilder<String?>(
+                    future: DvAuthService.getUserId(prefs: _prefs),
+                    builder: (context, snap) {
+                      final id = (snap.data ?? '').trim();
+                      final isGuest = id.isEmpty;
+                      final displayName = isGuest
+                          ? 'Guest session'
+                          : profile.displayName.isNotEmpty
+                              ? profile.displayName
+                              : 'Signed in';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ProfileAvatar(
+                            initial: profile.initial,
+                            imagePath: profile.picPath,
+                            radius: 38,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _openAccount();
+                            },
+                            child: Text(
+                              isGuest ? 'Sign In / Sign Up' : 'View Profile',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w500,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                            ),
+                          ),
+                        ],
                       );
                     },
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('User profile'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _openAccount();
-              },
             ),
             ValueListenableBuilder<bool>(
               valueListenable: SubscriptionService.isSubscribed,
@@ -1017,28 +1145,35 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               },
             ),
             ListTile(
-              leading: const Icon(Icons.format_quote_outlined),
-              title: const Text('Affirmations'),
-              onTap: () {
-                Navigator.of(context).pop();
-                setState(() => _tabIndex = 3);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.extension),
-              title: const Text('Puzzle Game'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _openPuzzleGame();
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.widgets_outlined),
               title: const Text('Widget Guide'),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('App Tour'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const OnboardingScreen(replayMode: true),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Privacy Policy'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen()),
                 );
               },
             ),
@@ -1057,6 +1192,32 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 );
               },
             ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Habit Seeding',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Seed your new habits',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1076,7 +1237,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               Builder(
                 builder: (scaffoldContext) => GestureDetector(
                   onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  child: ValueListenableBuilder<({String? picPath, String initial})>(
+                  child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
                     valueListenable: _profileAvatarNotifier,
                     builder: (context, profile, _) => ProfileAvatar(
                       initial: profile.initial,
@@ -1087,11 +1248,34 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 ),
               ),
               const SizedBox(width: 12),
-              // Greeting text (date removed)
               Expanded(
-                child: Text(
-                  _getGreeting(),
-                  style: AppTypography.heading3(context),
+                child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
+                  valueListenable: _profileAvatarNotifier,
+                  builder: (context, profile, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        profile.displayName.isNotEmpty
+                            ? profile.displayName
+                            : 'Guest User',
+                        style: AppTypography.heading3(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _getGreeting(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               // Coin badge
@@ -1101,48 +1285,214 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ),
       ),
       body: body,
-      floatingActionButton: _tabIndex == 1
-          ? ExpandableFAB(
-              onCreateBoard: _createBoard,
-            )
-          : null,
-      bottomNavigationBar: AnimatedBottomNavBar(
-        currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
-        onTap: (i) {
-          final nextTab = visibleTabIndices[i];
+      bottomNavigationBar: const _NavBarSpacer(),
+    );
+
+    final navBar = AnimatedBottomNavBar(
+      currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
+      suppressHighlight: _showCreatePanel,
+      onTap: (i) {
+        final nextTab = visibleTabIndices[i];
+        if (_showCreatePanel) {
+          _createPanelController.value = 0;
+          setState(() {
+            _showCreatePanel = false;
+            _tabIndex = nextTab;
+          });
+        } else {
           setState(() => _tabIndex = nextTab);
-          _refreshReminders();
-          _loadCoins();
-        },
-        items: const [
-          AnimatedNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
-            label: 'Home',
-          ),
-          AnimatedNavItem(
-            icon: Icons.self_improvement_outlined,
-            activeIcon: Icons.self_improvement,
-            label: 'Rituals',
-          ),
-          AnimatedNavItem(
-            icon: Icons.schedule_outlined,
-            activeIcon: Icons.schedule_rounded,
-            label: 'Routine',
-          ),
-          AnimatedNavItem(
-            icon: Icons.book_outlined,
-            activeIcon: Icons.book_rounded,
-            label: 'Journal',
-          ),
-          AnimatedNavItem(
-            icon: Icons.insights_outlined,
-            activeIcon: Icons.insights,
-            label: 'Insights',
-          ),
-        ],
-      ),
+        }
+        _refreshReminders();
+        _loadCoins();
+      },
+      onCenterTap: _toggleCreatePanel,
+      items: const [
+        AnimatedNavItem(
+          icon: Icons.home_outlined,
+          activeIcon: Icons.home_rounded,
+          label: 'Home',
+        ),
+        AnimatedNavItem(
+          icon: Icons.repeat_rounded,
+          activeIcon: Icons.repeat_rounded,
+          label: 'Habits',
+        ),
+        AnimatedNavItem(
+          icon: Icons.schedule_outlined,
+          activeIcon: Icons.schedule_rounded,
+          label: 'Routine',
+        ),
+        AnimatedNavItem(
+          icon: Icons.book_outlined,
+          activeIcon: Icons.book_rounded,
+          label: 'Journal',
+        ),
+      ],
+    );
+
+    return Stack(
+      children: [
+        scaffold,
+        if (_showCreatePanel) _buildCreatePanelOverlay(),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: navBar,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCreatePanelOverlay() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    const barHeight = 64.0;
+    const circleOverflow = 20.0;
+    final navTotalHeight = barHeight + circleOverflow + bottomPad;
+    const panelContentHeight = 240.0;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AnimatedBuilder(
+      animation: _createPanelController,
+      builder: (context, _) {
+        final t = CurvedAnimation(
+          parent: _createPanelController,
+          curve: Curves.easeOutCubic,
+        ).value;
+
+        return Stack(
+          children: [
+            // Scrim
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _hideCreatePanel,
+                child: Container(
+                  color: Colors.black.withOpacity(0.35 * t),
+                ),
+              ),
+            ),
+            // Panel sliding up from behind the nav bar
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: navTotalHeight - circleOverflow,
+              child: Transform.translate(
+                offset: Offset(0, panelContentHeight * (1 - t)),
+                child: Opacity(
+                  opacity: t,
+                  child: ClipPath(
+                    clipper: _NotchedBottomClipper(
+                      cutoutRadius: 34.0,
+                      cutoutCenterOffset: 10.0,
+                    ),
+                    child: Material(
+                      color: colorScheme.surface,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: SizedBox(
+                        height: panelContentHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                                child: Text(
+                                  'Create New',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              Card(
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.self_improvement_outlined,
+                                    color: colorScheme.primary,
+                                  ),
+                                  title: const Text('New Habit'),
+                                  subtitle: const Text(
+                                    'Build a daily practice',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _addHabitFromPanel(),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Card(
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.schedule_outlined,
+                                    color: colorScheme.primary,
+                                  ),
+                                  title: const Text('New Routine'),
+                                  subtitle: const Text(
+                                    'Habit with timer enabled',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _addHabitFromPanel(timerEnabled: true),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
+class _NavBarSpacer extends StatelessWidget {
+  const _NavBarSpacer();
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return SizedBox(height: 64.0 + 20.0 + bottomPad);
+  }
+}
+
+class _NotchedBottomClipper extends CustomClipper<Path> {
+  final double cutoutRadius;
+  final double cutoutCenterOffset;
+
+  _NotchedBottomClipper({
+    required this.cutoutRadius,
+    required this.cutoutCenterOffset,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final rect = Path()
+      ..addRRect(RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        topLeft: const Radius.circular(20),
+        topRight: const Radius.circular(20),
+      ));
+
+    final cutout = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+        radius: cutoutRadius,
+      ));
+
+    return Path.combine(PathOperation.difference, rect, cutout);
+  }
+
+  @override
+  bool shouldReclip(_NotchedBottomClipper oldClipper) =>
+      cutoutRadius != oldClipper.cutoutRadius ||
+      cutoutCenterOffset != oldClipper.cutoutCenterOffset;
+}

@@ -21,7 +21,11 @@ Future<void> markOnboardingCompleted({SharedPreferences? prefs}) async {
 }
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// When true the screen acts as a re-viewable guide opened from the drawer
+  /// and simply pops when finished instead of replacing the navigation stack.
+  final bool replayMode;
+
+  const OnboardingScreen({super.key, this.replayMode = false});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -109,9 +113,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _finishOnboarding() async {
     await markOnboardingCompleted();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
+    if (widget.replayMode) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    }
   }
 
   @override

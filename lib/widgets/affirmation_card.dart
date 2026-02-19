@@ -11,6 +11,7 @@ class AffirmationCard extends StatefulWidget {
   final VoidCallback? onSettings;
   final Color? cardColor;
   final bool showPinIndicator;
+  final bool showCategory;
 
   const AffirmationCard({
     super.key,
@@ -20,6 +21,7 @@ class AffirmationCard extends StatefulWidget {
     this.onSettings,
     this.cardColor,
     this.showPinIndicator = true,
+    this.showCategory = true,
   });
 
   @override
@@ -129,7 +131,7 @@ class _AffirmationCardState extends State<AffirmationCard>
 
     return Container(
       width: double.infinity,
-      height: 300,
+      height: 180,
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -150,7 +152,7 @@ class _AffirmationCardState extends State<AffirmationCard>
             child: Stack(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -170,16 +172,18 @@ class _AffirmationCardState extends State<AffirmationCard>
                           child: Text(
                             affirmation.text,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.headlineSmall?.copyWith(
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: colorScheme.onSurface,
-                              height: 1.4,
+                              height: 1.3,
                             ),
                           ),
                         ),
                       ),
-                      if (affirmation.category != null) ...[
-                        const SizedBox(height: 16),
+                      if (widget.showCategory && affirmation.category != null) ...[
+                        const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -229,7 +233,7 @@ class _AffirmationCardState extends State<AffirmationCard>
   Widget _buildEmptyCard(Color cardColor, ColorScheme colorScheme, ThemeData theme) {
     return Container(
       width: double.infinity,
-      height: 300,
+      height: 180,
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(24),

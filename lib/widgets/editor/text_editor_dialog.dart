@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class TextEditorResult {
   final String text;
@@ -122,9 +123,12 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
           const SizedBox(height: 12),
           TextField(
             controller: _textController,
+            maxLength: 500,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             decoration: const InputDecoration(
               hintText: 'Type something...',
               border: OutlineInputBorder(),
+              counterText: '',
             ),
             autofocus: widget.initialText.isEmpty,
             maxLines: 4,

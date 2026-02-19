@@ -1235,9 +1235,12 @@ class _TimelineHabitCard extends StatelessWidget {
 
   Color _getContrastColor(ColorScheme colorScheme, Color color) {
     final luminance = color.computeLuminance();
-    return luminance > 0.5
-        ? colorScheme.onSurface
-        : colorScheme.surfaceContainerHighest;
+    final isDark = colorScheme.brightness == Brightness.dark;
+    if (luminance > 0.45) {
+      return isDark ? colorScheme.surface : colorScheme.onSurface;
+    } else {
+      return isDark ? colorScheme.onSurface : colorScheme.surface;
+    }
   }
 }
 

@@ -50,7 +50,7 @@ class DailyProgressHeader extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: isDark
-                        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.7)
+                        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
                         : colorScheme.secondary.withValues(alpha: 0.65),
                   ),
                 ),
@@ -61,7 +61,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+                      color: colorScheme.onSurface,
                       height: 1.2,
                     ),
                   )
@@ -71,7 +71,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+                      color: colorScheme.onSurface,
                       height: 1.2,
                     ),
                   ),
@@ -90,7 +90,7 @@ class DailyProgressHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final progressColor = colorScheme.primary;
     final trackColor = isDark
-        ? colorScheme.surface.withValues(alpha: 0.12)
+        ? colorScheme.onSurface.withValues(alpha: 0.15)
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.20);
     final percentage = (progress * 100).round();
 
@@ -131,7 +131,7 @@ class DailyProgressHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+              color: colorScheme.onSurface,
             ),
           ),
         ],

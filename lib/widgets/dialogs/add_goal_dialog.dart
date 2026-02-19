@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/goal_metadata.dart';
 import '../../utils/app_typography.dart';
@@ -77,9 +78,12 @@ Future<AddGoalResult?> showAddGoalDialog(
                     const SizedBox(height: 12),
                     TextField(
                       controller: nameC,
+                      maxLength: 150,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       decoration: const InputDecoration(
                         labelText: 'Goal name',
                         border: OutlineInputBorder(),
+                        counterText: '',
                       ),
                       textCapitalization: TextCapitalization.sentences,
                     ),
@@ -123,11 +127,14 @@ Future<AddGoalResult?> showAddGoalDialog(
                       const SizedBox(height: 12),
                       TextField(
                         controller: whyC,
+                        maxLength: 500,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
                         minLines: 3,
                         maxLines: 6,
                         decoration: const InputDecoration(
                           labelText: 'Why is this important to you?',
                           border: OutlineInputBorder(),
+                          counterText: '',
                         ),
                         textCapitalization: TextCapitalization.sentences,
                       ),

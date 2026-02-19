@@ -653,16 +653,37 @@ class _GoAdFreeCard extends StatelessWidget {
             height: 50,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+              gradient: isActiveToday
+                  ? null
+                  : const LinearGradient(
+                      colors: [AppColors.goldLight, AppColors.goldDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
               color: isActiveToday
                   ? colorScheme.primary.withValues(alpha: 0.2)
-                  : AppColors.coinGold.withValues(alpha: 0.2),
+                  : null,
+              border: isActiveToday
+                  ? null
+                  : Border.all(color: AppColors.amberBorder, width: 2),
+              boxShadow: isActiveToday
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: AppColors.goldDark.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
             ),
-            child: Icon(
-              isActiveToday
-                  ? Icons.check_circle_rounded
-                  : Icons.monetization_on_rounded,
-              size: 28,
-              color: isActiveToday ? colorScheme.primary : AppColors.coinGold,
+            child: Center(
+              child: Icon(
+                isActiveToday
+                    ? Icons.check_circle_rounded
+                    : Icons.monetization_on_rounded,
+                size: 26,
+                color: isActiveToday ? colorScheme.primary : Colors.white,
+              ),
             ),
           ),
           const SizedBox(width: 14),

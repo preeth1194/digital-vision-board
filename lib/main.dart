@@ -21,6 +21,7 @@ import 'services/habit_progress_widget_action_queue_service.dart';
 import 'services/notifications_service.dart';
 import 'services/wizard_defaults_service.dart';
 import 'services/ad_service.dart';
+import 'services/affirmation_service.dart';
 import 'services/subscription_service.dart';
 
 Future<void> main() async {
@@ -54,6 +55,7 @@ Future<void> main() async {
   // Initialize ads and subscriptions (best-effort, non-blocking).
   unawaited(AdService.initialize().catchError((_) {}));
   unawaited(SubscriptionService.initialize(prefs: prefs).catchError((_) {}));
+  unawaited(AffirmationService.seedDefaultsIfEmpty(prefs: prefs));
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/affirmation.dart';
@@ -71,6 +72,9 @@ class _AddAffirmationDialogState extends State<_AddAffirmationDialog> {
       if (!categories.contains('General')) {
         categories.insert(0, 'General');
       }
+      if (_selectedCategory != null && !categories.contains(_selectedCategory)) {
+        categories.add(_selectedCategory!);
+      }
       if (mounted) {
         setState(() {
           _categories = categories;
@@ -125,10 +129,13 @@ class _AddAffirmationDialogState extends State<_AddAffirmationDialog> {
             children: [
               TextFormField(
                 controller: _textController,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Affirmation text',
                   hintText: 'Enter your affirmation...',
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
                 maxLines: 4,
                 minLines: 2,

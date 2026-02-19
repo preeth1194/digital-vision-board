@@ -375,8 +375,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         }
       }
 
+      String trackingText = '';
+      if (feedback.trackingValue != null && habit.trackingSpec != null) {
+        final v = feedback.trackingValue!;
+        final display = v == v.roundToDouble()
+            ? v.toInt().toString()
+            : v.toStringAsFixed(1);
+        final unit = habit.trackingSpec!.unitLabel;
+        trackingText = 'Tracked: $display $unit';
+      }
+
       final noteText = (feedback.note ?? '').trim();
-      final dayLog = [moodText, stepsText, noteText]
+      final dayLog = [moodText, trackingText, stepsText, noteText]
           .where((s) => s.isNotEmpty)
           .join('\n');
       final hasMedia = audioPath != null || capturedImagePaths.isNotEmpty;
@@ -557,13 +567,16 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       reminderMinutes: req.reminderMinutes,
       reminderEnabled: req.reminderEnabled,
       timeBound: req.timeBound,
+      clearTimeBound: req.timeBound == null,
       locationBound: req.locationBound,
       trackingSpec: req.trackingSpec,
+      clearTrackingSpec: req.trackingSpec == null,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      clearStartTimeMinutes: req.startTimeMinutes == null,
     );
 
     await HabitStorageService.updateHabit(updatedHabit);
@@ -694,7 +707,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No rituals yet',
+                        'No habits yet',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -703,14 +716,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Add habits to start building\nyour daily rituals',
+                        'Tap + to create your first habit\nand build your daily routine',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                       ),
-                      const SizedBox(height: 80), // Space for FAB
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -849,16 +862,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onComplete: () => _onAnimationComplete(index),
           );
         }),
-        // FAB
-        Positioned(
-          right: 16,
-          bottom: 16 + MediaQuery.of(context).viewPadding.bottom,
-          child: FloatingActionButton(
-            onPressed: _addHabitGlobal,
-            tooltip: 'Add habit',
-            child: const Icon(Icons.add),
-          ),
-        ),
       ],
     );
   }

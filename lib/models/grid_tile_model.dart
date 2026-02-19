@@ -27,6 +27,9 @@ class GridTileModel {
   final List<String> habitIds;
   /// Tasks associated with this tile-goal.
   final List<TaskItem> tasks;
+  final double? textFontSize;
+  final String? textAlign; // 'left' | 'center' | 'right'
+  final bool? textBold;
 
   const GridTileModel({
     required this.id,
@@ -40,6 +43,9 @@ class GridTileModel {
     this.habits = const [],
     this.habitIds = const [],
     this.tasks = const [],
+    this.textFontSize,
+    this.textAlign,
+    this.textBold,
   });
 
   bool get hasTrackerData {
@@ -63,6 +69,9 @@ class GridTileModel {
     List<HabitItem>? habits,
     List<String>? habitIds,
     List<TaskItem>? tasks,
+    double? textFontSize,
+    String? textAlign,
+    bool? textBold,
   }) {
     return GridTileModel(
       id: id ?? this.id,
@@ -76,6 +85,9 @@ class GridTileModel {
       habits: habits ?? this.habits,
       habitIds: habitIds ?? this.habitIds,
       tasks: tasks ?? this.tasks,
+      textFontSize: textFontSize ?? this.textFontSize,
+      textAlign: textAlign ?? this.textAlign,
+      textBold: textBold ?? this.textBold,
     );
   }
 
@@ -90,6 +102,9 @@ class GridTileModel {
         'goal': goal?.toJson(),
         'habits': habits.map((h) => h.toJson()).toList(),
         'habitIds': habitIds,
+        if (textFontSize != null) 'textFontSize': textFontSize,
+        if (textAlign != null) 'textAlign': textAlign,
+        if (textBold != null) 'textBold': textBold,
       };
 
   factory GridTileModel.fromJson(Map<String, dynamic> json) {
@@ -118,6 +133,9 @@ class GridTileModel {
           .whereType<Map<String, dynamic>>()
           .map(TaskItem.fromJson)
           .toList(),
+      textFontSize: (json['textFontSize'] as num?)?.toDouble(),
+      textAlign: json['textAlign'] as String?,
+      textBold: json['textBold'] as bool?,
     );
   }
 }

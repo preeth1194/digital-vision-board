@@ -630,6 +630,7 @@ class _WizardTodoListEditorState extends State<_WizardTodoListEditor> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,

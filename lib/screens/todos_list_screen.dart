@@ -89,6 +89,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,

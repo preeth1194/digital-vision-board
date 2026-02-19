@@ -94,24 +94,44 @@ const List<(IconData, String)> habitIcons = [
   (Icons.music_note, 'Music'),
   (Icons.photo_camera, 'Photo'),
   (Icons.create, 'Create'),
+  // Backfill icons for deduped categories (49-55)
+  (Icons.air, 'Breathe'),               // 49 – Mindfulness
+  (Icons.visibility, 'Awareness'),       // 50 – Mindfulness
+  (Icons.nights_stay, 'Evening'),        // 51 – Mindfulness
+  (Icons.translate, 'Language'),          // 52 – Learning
+  (Icons.science, 'Science'),            // 53 – Learning
+  (Icons.volunteer_activism, 'Give'),    // 54 – Relationships
+  (Icons.family_restroom, 'Family'),     // 55 – Relationships
 ];
 
 /// Maps each category to global icon indices from habitIcons.
-/// Only thematically relevant icons per category. Fitness: sports/workout only (no Nature, Goal, Sunlight).
+/// Each icon appears in exactly one category (no duplicates across categories).
 const Map<String, List<int>> categoryToIconIndices = {
-  'Fitness': [0, 1, 2, 3, 4, 5, 6, 7, 8], // Workout, Cycling, Running, Walking, Stretch, Basketball, Soccer, Tennis, Swimming
-  'Health': [9, 10, 11, 12, 13, 14, 15], // Water, Food, Sleep, Heart, Medical, Mental, Spa
-  'Productivity': [16, 17, 18, 19, 20, 21, 22, 23], // Read, Morning, Schedule, Task, Work, Focus, Goal, Alarm
-  'Mindfulness': [24, 15, 14, 11, 25, 26], // Meditation, Spa, Mental, Sleep, Calm, Nature
-  'Learning': [16, 27, 14, 28, 29, 30, 31], // Read, Study, Mental, Idea, Code, Books, Math
-  'Relationships': [32, 12, 33, 34, 35, 25], // People, Heart, Love, Connect, Group, Calm
-  'Finance': [36, 37, 38, 39, 40, 41, 42], // Money, Savings, Wallet, Bank, Growth, Paid, Card
-  'Creativity': [43, 44, 45, 46, 47, 48], // Brush, Palette, Design, Music, Photo, Create
+  'Fitness': [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  'Health': [9, 10, 11, 12, 13, 14, 15],
+  'Productivity': [16, 17, 18, 19, 20, 21, 22, 23],
+  'Mindfulness': [24, 25, 26, 49, 50, 51],  // Meditation, Calm, Nature, Breathe, Awareness, Evening
+  'Learning': [27, 28, 29, 30, 31, 52, 53], // Study, Idea, Code, Books, Math, Language, Science
+  'Relationships': [32, 33, 34, 35, 54, 55], // People, Love, Connect, Group, Give, Family
+  'Finance': [36, 37, 38, 39, 40, 41, 42],
+  'Creativity': [43, 44, 45, 46, 47, 48],
   'Other': [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-    40, 41, 42, 43, 44, 45, 46, 47, 48,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
   ],
+};
+
+/// Maps icon indices to their available measurement-tracking units.
+/// Each entry is (unitId, unitLabel). Icons not in this map have no tracking.
+const Map<int, List<(String, String)>> iconTrackingUnits = {
+  0:  [('kg', 'kgs'), ('lb', 'lbs')],                       // Workout
+  1:  [('km', 'km'), ('mi', 'miles')],                       // Cycling
+  2:  [('km', 'km'), ('mi', 'miles')],                       // Running
+  3:  [('km', 'km'), ('mi', 'miles'), ('steps', 'steps')],   // Walking
+  8:  [('m', 'meters'), ('yd', 'yards')],                     // Swimming
+  9:  [('ml', 'ml'), ('oz', 'oz'), ('glasses', 'glasses')],   // Water
+  11: [('hr', 'hours'), ('min', 'minutes')],                  // Sleep
 };
 
 List<Color> hueSpectrumColors = [

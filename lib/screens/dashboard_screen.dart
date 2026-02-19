@@ -1112,6 +1112,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           final nextTab = visibleTabIndices[i];
           setState(() => _tabIndex = nextTab);
           _refreshReminders();
+          _loadCoins();
         },
         items: const [
           AnimatedNavItem(

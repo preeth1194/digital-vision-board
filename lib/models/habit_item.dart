@@ -144,6 +144,51 @@ final class HabitLocationBoundSpec {
   }
 }
 
+/// Measurement tracking configuration (premium feature).
+/// Maps an icon-specific unit (e.g. kg, km, meters) to the habit so users
+/// can log numeric values on each completion.
+final class HabitTrackingSpec {
+  final bool enabled;
+
+  /// Machine-readable unit key, e.g. 'kg', 'km', 'm', 'ml', 'steps'.
+  final String unitId;
+
+  /// Human-readable label, e.g. 'kgs', 'miles', 'meters', 'glasses'.
+  final String unitLabel;
+
+  const HabitTrackingSpec({
+    required this.enabled,
+    required this.unitId,
+    required this.unitLabel,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'unitId': unitId,
+        'unitLabel': unitLabel,
+      };
+
+  factory HabitTrackingSpec.fromJson(Map<String, dynamic> json) {
+    return HabitTrackingSpec(
+      enabled: (json['enabled'] as bool?) ?? false,
+      unitId: (json['unitId'] as String?) ?? '',
+      unitLabel: (json['unitLabel'] as String?) ?? '',
+    );
+  }
+
+  HabitTrackingSpec copyWith({
+    bool? enabled,
+    String? unitId,
+    String? unitLabel,
+  }) {
+    return HabitTrackingSpec(
+      enabled: enabled ?? this.enabled,
+      unitId: unitId ?? this.unitId,
+      unitLabel: unitLabel ?? this.unitLabel,
+    );
+  }
+}
+
 /// Model representing a habit item with completion tracking.
 
 class HabitItem {
@@ -198,6 +243,9 @@ class HabitItem {
   /// Optional location-based settings (geofence + dwell).
   final HabitLocationBoundSpec? locationBound;
 
+  /// Optional measurement tracking config (premium; e.g. kgs, km, meters).
+  final HabitTrackingSpec? trackingSpec;
+
   /// Optional icon index into the global [habitIcons] list.
   /// When null, the card falls back to the first icon for the category.
   final int? iconIndex;
@@ -233,6 +281,7 @@ class HabitItem {
     this.cbtEnhancements,
     this.timeBound,
     this.locationBound,
+    this.trackingSpec,
     this.iconIndex,
     this.completedDates = const [],
     this.actionSteps = const [],
@@ -267,6 +316,8 @@ class HabitItem {
     HabitTimeBoundSpec? timeBound,
     bool clearTimeBound = false,
     HabitLocationBoundSpec? locationBound,
+    HabitTrackingSpec? trackingSpec,
+    bool clearTrackingSpec = false,
     int? iconIndex,
     List<DateTime>? completedDates,
     List<HabitActionStep>? actionSteps,
@@ -291,6 +342,7 @@ class HabitItem {
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
       timeBound: clearTimeBound ? null : (timeBound ?? this.timeBound),
       locationBound: locationBound ?? this.locationBound,
+      trackingSpec: clearTrackingSpec ? null : (trackingSpec ?? this.trackingSpec),
       iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
       actionSteps: actionSteps ?? this.actionSteps,
@@ -318,6 +370,7 @@ class HabitItem {
       'cbtEnhancements': cbtEnhancements?.toJson(),
       'timeBound': timeBound?.toJson(),
       'locationBound': locationBound?.toJson(),
+      'trackingSpec': trackingSpec?.toJson(),
       'iconIndex': iconIndex,
       'stats': stats,
       'completedDates': completedDates
@@ -393,6 +446,8 @@ class HabitItem {
         (json['time_bound'] as Map<String, dynamic>?);
     final locationBoundRaw = (json['locationBound'] as Map<String, dynamic>?) ??
         (json['location_bound'] as Map<String, dynamic>?);
+    final trackingSpecRaw = (json['trackingSpec'] as Map<String, dynamic>?) ??
+        (json['tracking_spec'] as Map<String, dynamic>?);
     final iconIndex = (json['iconIndex'] as num?)?.toInt() ??
         (json['icon_index'] as num?)?.toInt();
 
@@ -429,6 +484,7 @@ class HabitItem {
               : null,
       timeBound: (timeBoundRaw != null) ? HabitTimeBoundSpec.fromJson(timeBoundRaw) : null,
       locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
+      trackingSpec: (trackingSpecRaw != null) ? HabitTrackingSpec.fromJson(trackingSpecRaw) : null,
       iconIndex: iconIndex,
       completedDates: dates,
       actionSteps: actionSteps,
@@ -609,18 +665,28 @@ final class HabitCompletionFeedback {
   /// Total coins awarded for this completion (base + step bonus + media bonus).
   /// Stored so we can deduct the exact amount on uncheck.
   final int? coinsEarned;
-  const HabitCompletionFeedback({required this.rating, required this.note, this.coinsEarned});
+  /// Optional measurement value logged during completion (e.g. 5.0 km).
+  final double? trackingValue;
+
+  const HabitCompletionFeedback({
+    required this.rating,
+    required this.note,
+    this.coinsEarned,
+    this.trackingValue,
+  });
 
   Map<String, dynamic> toJson() => {
         'rating': rating,
         'note': note,
         if (coinsEarned != null) 'coinsEarned': coinsEarned,
+        if (trackingValue != null) 'trackingValue': trackingValue,
       };
 
   factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) => HabitCompletionFeedback(
         rating: (json['rating'] as num?)?.toInt() ?? 0,
         note: json['note'] as String?,
         coinsEarned: (json['coinsEarned'] as num?)?.toInt(),
+        trackingValue: (json['trackingValue'] as num?)?.toDouble(),
       );
 }
 
@@ -656,6 +722,7 @@ final class HabitCreateRequest {
   final CbtEnhancements? cbtEnhancements;
   final HabitTimeBoundSpec? timeBound;
   final HabitLocationBoundSpec? locationBound;
+  final HabitTrackingSpec? trackingSpec;
   final int? iconIndex;
   final List<HabitActionStep> actionSteps;
   final int? startTimeMinutes;
@@ -676,6 +743,7 @@ final class HabitCreateRequest {
     required this.cbtEnhancements,
     required this.timeBound,
     required this.locationBound,
+    this.trackingSpec,
     this.iconIndex,
     this.actionSteps = const [],
     this.startTimeMinutes,

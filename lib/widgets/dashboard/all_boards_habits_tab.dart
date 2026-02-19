@@ -16,7 +16,7 @@ import '../../services/journal_storage_service.dart';
 import '../../services/ad_service.dart';
 import '../../services/ad_free_service.dart';
 import '../../utils/app_colors.dart';
-import '../../screens/habit_timer_screen.dart';
+import '../../screens/routine_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
 import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
@@ -24,7 +24,6 @@ import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
-import '../ads/banner_ad_widget.dart';
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
@@ -62,7 +61,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   static const int _freeHabitLimit = 3;
   String? _activeAdSession;
   int _adWatchedCount = 0;
-  bool _showBannerAd = false;
   bool _shouldShowAds = true;
 
   @override
@@ -93,6 +91,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   Future<void> _loadHabits() async {
     final habits = await HabitStorageService.loadAll();
     if (mounted) setState(() => _habits = habits);
+    if (widget.coinNotifier != null) {
+      final coins = await CoinsService.getTotalCoins();
+      if (mounted) widget.coinNotifier!.value = coins;
+    }
   }
   
   void _onScroll() {
@@ -108,6 +110,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       if (_isSaving) return;
       _localComponents = Map.from(widget.componentsByBoardId);
       _loadHabits();
+      _loadAdState();
     }
   }
   
@@ -129,27 +132,22 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _addHabitGlobal() async {
-    // Gate: redirect non-subscribed users with 3+ habits to Routine screen
+    // Gate: non-subscribed users with 3+ habits must watch ads first
     if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      if (widget.onSwitchToRoutine != null) {
-        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setActiveSession(sessionKey);
-        if (!mounted) return;
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        widget.onSwitchToRoutine!();
+      // Session already complete — let user proceed to add the habit
+      if (_activeAdSession != null && _adWatchedCount >= AdService.requiredAdsPerHabit) {
+        // Fall through to _proceedToAddHabit()
+      } else if (_activeAdSession != null) {
+        // Session in progress — tell user to watch the ads on the card above
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pick a time slot on the Routine screen to add your habit.'),
+          SnackBar(
+            content: Text('Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
         return;
-      }
-      // Fallback: if no callback, keep existing behavior
-      if (_activeAdSession == null) {
+      } else {
+        // No session yet — create one so the ad card appears
         final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
         await AdService.setActiveSession(sessionKey);
         if (!mounted) return;
@@ -160,15 +158,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -201,6 +190,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       cbtEnhancements: req.cbtEnhancements,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       iconIndex: req.iconIndex,
       completedDates: const [],
       actionSteps: req.actionSteps,
@@ -321,6 +311,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         rating: result.mood ?? 0,
         note: result.note,
         coinsEarned: earnedCoins,
+        trackingValue: result.trackingValue,
       );
 
       await _toggleHabit(
@@ -334,12 +325,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         capturedImagePaths: result.imagePaths,
       );
 
-      // Show banner ad after completion if user should see ads
+      // Show interstitial ad after completion if user should see ads
       if (_shouldShowAds && mounted) {
-        setState(() => _showBannerAd = true);
-        Future.delayed(const Duration(seconds: 6), () {
-          if (mounted) setState(() => _showBannerAd = false);
-        });
+        AdService.showInterstitialAd();
       }
     }
   }
@@ -496,30 +484,57 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
 
-    Future<void> onMarkCompleted() async {
-      final latestHabit = _habits
-          .where((h) => h.id == habit.id)
-          .cast<HabitItem?>()
-          .firstWhere((_) => true, orElse: () => null);
-      if (latestHabit == null) return;
-      final now2 = LogicalDateService.now();
-      if (!latestHabit.isScheduledOnDate(now2)) return;
-      if (latestHabit.isCompletedForCurrentPeriod(now2)) return;
-      await _toggleHabit(
-        habit: latestHabit,
-        wasCompleted: false,
-        completionType: CompletionType.habit,
-        coinsEarned: CoinsService.habitCompletionCoins,
-      );
-    }
+    final isCompleted = habit.isCompletedForCurrentPeriod(LogicalDateService.now());
+    if (isCompleted) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => HabitTimerScreen(
+    Navigator.of(context).push<List<String>>(
+      MaterialPageRoute(
+        builder: (_) => RoutineTimerScreen(
           habit: habit,
-          onMarkCompleted: onMarkCompleted,
+          onComplete: () => _loadHabits(),
         ),
       ),
+    ).then((completedStepIds) async {
+      await _loadHabits();
+      if (completedStepIds != null && mounted) {
+        await _handleTimerCompletion(habit, completedStepIds);
+      }
+    });
+  }
+
+  Future<void> _handleTimerCompletion(HabitItem habit, List<String> completedStepIds) async {
+    final baseCoins = CoinsService.habitCompletionCoins;
+    final result = await showHabitCompletionSheet(
+      context,
+      habit: habit,
+      baseCoins: baseCoins,
+      isFullHabit: true,
+      preSelectedStepIds: completedStepIds,
+    );
+    if (result == null || !mounted) return;
+
+    final now = LogicalDateService.now();
+    final latestHabit = _habits
+        .where((h) => h.id == habit.id)
+        .cast<HabitItem?>()
+        .firstWhere((_) => true, orElse: () => null);
+    if (latestHabit == null) return;
+    if (latestHabit.isCompletedForCurrentPeriod(now)) return;
+
+    await _toggleHabit(
+      habit: latestHabit,
+      wasCompleted: false,
+      completionType: CompletionType.habit,
+      coinsEarned: result.coinsEarned,
+      feedback: HabitCompletionFeedback(
+        rating: result.mood ?? 0,
+        note: result.note,
+        coinsEarned: result.coinsEarned,
+        trackingValue: result.trackingValue,
+      ),
+      completedStepIds: result.completedStepIds,
+      audioPath: result.audioPath,
+      capturedImagePaths: result.imagePaths,
     );
   }
 
@@ -543,6 +558,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       reminderEnabled: req.reminderEnabled,
       timeBound: req.timeBound,
       locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
       chaining: req.chaining,
       cbtEnhancements: req.cbtEnhancements,
       iconIndex: req.iconIndex,
@@ -584,6 +600,15 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
     await HabitStorageService.deleteHabit(entry.habit.id);
     await _loadHabits();
+
+    if (_habits.length < _freeHabitLimit && _activeAdSession != null) {
+      await AdService.clearSession(_activeAdSession!);
+      await AdService.setActiveSession(null);
+      setState(() {
+        _activeAdSession = null;
+        _adWatchedCount = 0;
+      });
+    }
 
     await NotificationsService.cancelHabitReminders(entry.habit);
 
@@ -781,12 +806,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                       onIconTap: () => swipeKey.currentState?.toggleFlip(),
                                       onLongPress: () => _openTimerForHabit(entry),
                                       onDurationTap: () => _openTimerForHabit(entry),
-                                      adWatchedCount: (_activeAdSession != null && _shouldShowAds)
-                                          ? _adWatchedCount
-                                          : null,
-                                      adTotalRequired: (_activeAdSession != null && _shouldShowAds)
-                                          ? AdService.requiredAdsPerHabit
-                                          : null,
+                                      adWatchedCount: null,
+                                      adTotalRequired: null,
                                     ),
                                   ),
                                 ),
@@ -828,18 +849,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onComplete: () => _onAnimationComplete(index),
           );
         }),
-        // Banner ad overlay after habit completion
-        if (_showBannerAd)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 80 + MediaQuery.of(context).viewPadding.bottom,
-            child: const Center(
-              child: BannerAdWidget(
-                autoDismissDuration: Duration(seconds: 5),
-              ),
-            ),
-          ),
         // FAB
         Positioned(
           right: 16,

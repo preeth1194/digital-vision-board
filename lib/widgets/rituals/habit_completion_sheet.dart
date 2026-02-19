@@ -19,6 +19,7 @@ class HabitCompletionResult {
   final List<String> completedStepIds;
   final String? audioPath;
   final List<String> imagePaths;
+  final double? trackingValue;
 
   const HabitCompletionResult({
     required this.coinsEarned,
@@ -27,6 +28,7 @@ class HabitCompletionResult {
     this.completedStepIds = const [],
     this.audioPath,
     this.imagePaths = const [],
+    this.trackingValue,
   });
 }
 
@@ -36,6 +38,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
   required HabitItem habit,
   required int baseCoins,
   bool isFullHabit = true,
+  List<String> preSelectedStepIds = const [],
 }) {
   return showModalBottomSheet<HabitCompletionResult>(
     context: context,
@@ -45,6 +48,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
       habit: habit,
       baseCoins: baseCoins,
       isFullHabit: isFullHabit,
+      preSelectedStepIds: preSelectedStepIds,
     ),
   );
 }
@@ -101,11 +105,13 @@ class _HabitCompletionSheet extends StatefulWidget {
   final HabitItem habit;
   final int baseCoins;
   final bool isFullHabit;
+  final List<String> preSelectedStepIds;
 
   const _HabitCompletionSheet({
     required this.habit,
     required this.baseCoins,
     required this.isFullHabit,
+    this.preSelectedStepIds = const [],
   });
 
   @override
@@ -118,9 +124,13 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   late Animation<double> _scaleAnimation;
   int? _selectedMood;
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _trackingController = TextEditingController();
   final Set<String> _completedStepIds = {};
   String? _audioPath;
   final List<String> _imagePaths = [];
+
+  bool get _hasTracking =>
+      widget.habit.trackingSpec != null && widget.habit.trackingSpec!.enabled;
 
   bool get _showSteps =>
       widget.isFullHabit && widget.habit.actionSteps.isNotEmpty;
@@ -138,6 +148,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   @override
   void initState() {
     super.initState();
+    _completedStepIds.addAll(widget.preSelectedStepIds);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -155,6 +166,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   void dispose() {
     _controller.dispose();
     _noteController.dispose();
+    _trackingController.dispose();
     super.dispose();
   }
 
@@ -219,6 +231,11 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
     HapticFeedback.mediumImpact();
 
     final noteText = _noteController.text.trim();
+    final trackingText = _trackingController.text.trim();
+    final trackingVal = trackingText.isNotEmpty
+        ? double.tryParse(trackingText)
+        : null;
+
     Navigator.of(context).pop(HabitCompletionResult(
       coinsEarned: _totalCoins,
       mood: _selectedMood,
@@ -226,6 +243,7 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
       completedStepIds: _completedStepIds.toList(),
       audioPath: _audioPath,
       imagePaths: List.unmodifiable(_imagePaths),
+      trackingValue: trackingVal,
     ));
   }
 
@@ -308,6 +326,16 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
                       steps: widget.habit.actionSteps,
                       completedIds: _completedStepIds,
                       onToggle: _toggleStep,
+                    ),
+                  ],
+
+                  // Tracking value input
+                  if (_hasTracking) ...[
+                    const SizedBox(height: 20),
+                    _TrackingValueInput(
+                      controller: _trackingController,
+                      unitLabel: widget.habit.trackingSpec!.unitLabel,
+                      habitName: widget.habit.name,
                     ),
                   ],
 
@@ -814,6 +842,74 @@ class _MoodButtonState extends State<_MoodButton>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TrackingValueInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String unitLabel;
+  final String habitName;
+
+  const _TrackingValueInput({
+    required this.controller,
+    required this.unitLabel,
+    required this.habitName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.straighten,
+            size: 22,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            unitLabel,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.primary,
+            ),
+          ),
+        ],
       ),
     );
   }

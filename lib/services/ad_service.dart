@@ -22,6 +22,15 @@ class AdService {
     return '';
   }
 
+  static String get interstitialAdUnitId {
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/1033173712';
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/4411468910';
+    }
+    return '';
+  }
+
   static String get rewardedAdUnitId {
     if (Platform.isAndroid) {
       return 'ca-app-pub-3940256099942544/5224354917';
@@ -38,6 +47,7 @@ class AdService {
     if (_initialized) return;
     await MobileAds.instance.initialize();
     _initialized = true;
+    loadInterstitialAd();
     loadRewardedAd();
   }
 
@@ -70,6 +80,54 @@ class AdService {
     _bannerAd?.dispose();
     _bannerAd = null;
     bannerAdReady.value = false;
+  }
+
+  // ------------------------------------------------------------------
+  // Interstitial ads
+  // ------------------------------------------------------------------
+  static InterstitialAd? _interstitialAd;
+  static final ValueNotifier<bool> interstitialAdReady = ValueNotifier(false);
+
+  static void loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+          interstitialAdReady.value = true;
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('Interstitial ad failed to load: $error');
+          _interstitialAd = null;
+          interstitialAdReady.value = false;
+        },
+      ),
+    );
+  }
+
+  /// Show an interstitial ad. Returns `true` if the ad was shown.
+  static Future<bool> showInterstitialAd() async {
+    if (_interstitialAd == null) return false;
+
+    _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _interstitialAd = null;
+        interstitialAdReady.value = false;
+        loadInterstitialAd();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('Interstitial ad failed to show: $error');
+        ad.dispose();
+        _interstitialAd = null;
+        interstitialAdReady.value = false;
+        loadInterstitialAd();
+      },
+    );
+
+    await _interstitialAd!.show();
+    return true;
   }
 
   // ------------------------------------------------------------------

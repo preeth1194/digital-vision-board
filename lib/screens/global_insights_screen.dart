@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../services/habit_storage_service.dart';
-import '../widgets/insights/habit_points_chart.dart';
 import '../widgets/insights/stat_card.dart';
 import '../widgets/insights/today_progress_card.dart';
 import '../widgets/insights/weekly_activity_card.dart';
@@ -72,9 +71,7 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
           totalHabits: allHabits.length,
         ),
         const SizedBox(height: 24),
-        HabitCompletionsChart(habits: allHabits),
-        const SizedBox(height: 24),
-        HabitPointsChart(habits: allHabits),
+        HabitTrendsChart(habits: allHabits),
         const SizedBox(height: 24),
         GridView.count(
           crossAxisCount: 2,

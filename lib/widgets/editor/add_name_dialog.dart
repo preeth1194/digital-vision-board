@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 Future<String?> showAddNameDialog(
   BuildContext context, {
@@ -69,7 +70,12 @@ class _AddNameDialogState extends State<_AddNameDialog> {
 
     final field = TextField(
       controller: _nameController,
-      decoration: const InputDecoration(hintText: 'e.g. Fitness'),
+      maxLength: 100,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+      decoration: const InputDecoration(
+        hintText: 'e.g. Fitness',
+        counterText: '',
+      ),
       autofocus: true,
       textCapitalization: TextCapitalization.sentences,
       onSubmitted: (_) => _submit(),
@@ -187,7 +193,12 @@ class _AddNameAndCategoryDialogState extends State<_AddNameAndCategoryDialog> {
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(hintText: 'e.g. Fitness'),
+            maxLength: 100,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Fitness',
+              counterText: '',
+            ),
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
             onSubmitted: (_) => _submit(),

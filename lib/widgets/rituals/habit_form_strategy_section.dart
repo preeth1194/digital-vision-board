@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
@@ -709,12 +710,15 @@ class _ActionStepTileState extends State<_ActionStepTile> {
           Expanded(
             child: TextField(
               controller: _controller,
+              maxLength: 200,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
                 hintText: 'Step title...',
                 hintStyle: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                counterText: '',
               ),
               style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
               onChanged: widget.onTitleChanged,

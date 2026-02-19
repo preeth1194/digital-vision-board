@@ -172,7 +172,10 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                 controller: widget.nameController,
                 style: AppTypography.body(context),
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
+                  counterText: '',
                   hintText: "Add a habit (e.g., meditation)",
                   hintStyle: AppTypography.body(context).copyWith(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),

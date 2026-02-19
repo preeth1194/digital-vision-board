@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -352,10 +350,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             key: _coinTargetKey,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Gold coin icon
               Container(
-                width: 24,
-                height: 24,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -367,31 +364,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: AppColors.amberBorder,
                     width: 1.5,
                   ),
-                ),
-                child: Center(
-                  child: Text(
-                    '\$',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: colorScheme.onPrimary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.goldDark.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.monetization_on_rounded,
+                    size: 15,
+                    color: Colors.white,
                   ),
                 ),
               ),
               const SizedBox(width: 6),
-              // #region agent log
-              Builder(builder: (_) {
-                try {
-                  final _coinTextColor = isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface;
-                  File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
-                    '${jsonEncode({"sessionId":"308c67","hypothesisId":"B","location":"dashboard_screen.dart:coinBadge","message":"Coin badge text color","data":{"isDark":isDark,"coinTextColor":"0x${_coinTextColor.value.toRadixString(16)}","surfaceBg":"0x${colorScheme.surface.value.toRadixString(16)}","onSurface":"0x${colorScheme.onSurface.value.toRadixString(16)}","surfaceContainerHighest":"0x${colorScheme.surfaceContainerHighest.value.toRadixString(16)}"},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
-                    mode: FileMode.append,
-                  );
-                } catch (_) {}
-                return const SizedBox.shrink();
-              }),
-              // #endregion
               // Coin count
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),

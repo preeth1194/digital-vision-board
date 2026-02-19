@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -861,6 +862,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: isInlineEditing
             ? TextField(
                 controller: _inlineTextC,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 autofocus: true,
                 maxLines: null,
                 textAlign: tileTextAlign,
@@ -870,6 +873,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
+                  counterText: '',
                 ),
                 onSubmitted: (_) => _commitInlineEdit(),
               )
@@ -903,6 +907,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: isInlineEditing
             ? TextField(
                 controller: _inlineTextC,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 autofocus: true,
                 maxLines: null,
                 style: TextStyle(
@@ -915,6 +921,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
+                  counterText: '',
                 ),
                 onSubmitted: (_) => _commitInlineEdit(),
               )
@@ -1062,12 +1069,15 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         title: (widget.isNewBoard && _isEditing)
             ? TextField(
                 controller: _boardNameC,
+                maxLength: 100,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 decoration: const InputDecoration(
                   hintText: 'Name your board',
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
+                  counterText: '',
                 ),
               )
             : Text(_isEditing ? 'Edit: ${_boardNameC.text.trim()}' : _boardNameC.text.trim()),

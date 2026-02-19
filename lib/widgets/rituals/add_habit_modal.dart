@@ -1298,6 +1298,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                   Expanded(
                     child: TextField(
                       controller: _triggerController,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       style: AppTypography.body(context),
                       decoration: InputDecoration(
                         hintText: "I'm feeling too tired...",
@@ -1329,6 +1331,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         ),
                         contentPadding: const EdgeInsets.only(bottom: 4),
                         isDense: true,
+                        counterText: '',
                       ),
                     ),
                   ),
@@ -1369,6 +1372,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                   Expanded(
                     child: TextField(
                       controller: _actionController,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       style: AppTypography.body(context),
                       decoration: InputDecoration(
                         hintText: "I will just do 2 minutes.",
@@ -1400,6 +1405,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         ),
                         contentPadding: const EdgeInsets.only(bottom: 4),
                         isDense: true,
+                        counterText: '',
                       ),
                     ),
                   ),

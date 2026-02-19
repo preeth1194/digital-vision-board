@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../services/habit_storage_service.dart';
+import '../widgets/insights/habit_points_chart.dart';
 import '../widgets/insights/stat_card.dart';
 import '../widgets/insights/today_progress_card.dart';
 import '../widgets/insights/weekly_activity_card.dart';
@@ -63,17 +63,6 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
     final completedHabitsToday = allHabits.where((h) => h.isCompletedOnDate(today)).length;
     final completionRate = allHabits.isNotEmpty ? (completedHabitsToday / allHabits.length * 100) : 0.0;
 
-    final weeklyData = <({String day, int count})>[];
-    for (int i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      final dateOnly = DateTime(date.year, date.month, date.day);
-      final count = allHabits.where((h) => h.isCompletedOnDate(dateOnly)).length;
-      weeklyData.add((day: DateFormat('E').format(date), count: count));
-    }
-    final maxWeeklyCount = weeklyData.isEmpty
-        ? 0
-        : weeklyData.map((d) => d.count).reduce((a, b) => a > b ? a : b);
-
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -83,7 +72,9 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
           totalHabits: allHabits.length,
         ),
         const SizedBox(height: 24),
-        WeeklyActivityCard(weeklyData: weeklyData, maxWeeklyCount: maxWeeklyCount),
+        HabitCompletionsChart(habits: allHabits),
+        const SizedBox(height: 24),
+        HabitPointsChart(habits: allHabits),
         const SizedBox(height: 24),
         GridView.count(
           crossAxisCount: 2,

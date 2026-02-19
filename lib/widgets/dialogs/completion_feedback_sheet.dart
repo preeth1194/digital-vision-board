@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 final class CompletionFeedbackResult {
   final int rating; // 1..5
@@ -119,11 +120,14 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
           ),
           TextField(
             controller: _note,
+            maxLength: 500,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             minLines: 2,
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Notes (optional)',
               border: OutlineInputBorder(),
+              counterText: '',
             ),
           ),
           const SizedBox(height: 12),

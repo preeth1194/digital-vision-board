@@ -1,6 +1,4 @@
 import 'dart:math' as math;
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 /// Header widget showing today's progress ring and streak info.
@@ -23,16 +21,6 @@ class DailyProgressHeader extends StatelessWidget {
     final progress = totalCount > 0
         ? (completedCount / totalCount).clamp(0.0, 1.0)
         : 0.0;
-
-    // #region agent log
-    try {
-      final _subtitleColor = isDark ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7) : colorScheme.secondary.withValues(alpha: 0.65);
-      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
-        '${jsonEncode({"sessionId":"308c67","runId":"post-fix","hypothesisId":"A,C","location":"daily_progress_header.dart:build","message":"DailyProgressHeader colors FIXED","data":{"isDark":isDark,"subtitleColor":"0x${_subtitleColor.value.toRadixString(16)}","streakTextColor":"0x${colorScheme.onSurface.value.toRadixString(16)}","pctTextColor":"0x${colorScheme.onSurface.value.toRadixString(16)}","onSurface":"0x${colorScheme.onSurface.value.toRadixString(16)}"},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
-        mode: FileMode.append,
-      );
-    } catch (_) {}
-    // #endregion
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),

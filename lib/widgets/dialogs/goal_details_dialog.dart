@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/goal_metadata.dart';
 
@@ -182,19 +183,25 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
           children: [
             TextField(
               controller: trigger,
+              maxLength: 200,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: const InputDecoration(
                 labelText: 'Trigger',
                 hintText: 'e.g., Overwhelmed by new tech',
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: strategy,
+              maxLength: 500,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: const InputDecoration(
                 labelText: 'Coping strategy',
                 hintText: "e.g., Spend 15 mins reading docs—don't master it today.",
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
               minLines: 2,
               maxLines: 4,
@@ -256,9 +263,12 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                   Expanded(
                     child: TextField(
                       controller: _category,
+                      maxLength: 100,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       decoration: const InputDecoration(
                         labelText: 'Category (e.g., Career)',
                         border: OutlineInputBorder(),
+                        counterText: '',
                       ),
                     ),
                   ),
@@ -277,19 +287,25 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               const SizedBox(height: 8),
               TextField(
                 controller: _coreValue,
+                maxLength: 200,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Core value',
                   hintText: 'e.g., Growth and Mentorship',
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _visualization,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Visualization',
                   hintText: 'e.g., I feel respected and capable leading large systems.',
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
                 minLines: 2,
                 maxLines: 4,
@@ -297,10 +313,13 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               const SizedBox(height: 10),
               TextField(
                 controller: _limitingBelief,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Limiting belief',
                   hintText: "e.g., I worry I'm not technical enough.",
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
                 minLines: 2,
                 maxLines: 4,
@@ -308,10 +327,13 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               const SizedBox(height: 10),
               TextField(
                 controller: _reframedTruth,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Reframed truth',
                   hintText: "e.g., I have 10 years of experience and can learn what I don't know.",
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
                 minLines: 2,
                 maxLines: 4,
@@ -345,10 +367,13 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               const SizedBox(height: 8),
               TextField(
                 controller: _microHabit,
+                maxLength: 200,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: const InputDecoration(
                   labelText: 'Micro habit',
                   hintText: 'e.g., Read 1 system design paper per week',
                   border: OutlineInputBorder(),
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 10),

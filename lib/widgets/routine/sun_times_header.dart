@@ -1,6 +1,4 @@
 import 'dart:math' as math;
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/sun_times_service.dart';
 import '../../utils/app_colors.dart';
@@ -301,15 +299,6 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
   }
 
   Widget _buildTimeLabel(String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
-    // #region agent log
-    try {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
-        '${jsonEncode({"sessionId":"308c67","hypothesisId":"D","location":"sun_times_header.dart:_buildTimeLabel","message":"SunTimesHeader label color","data":{"isDark":isDark,"labelColor":"0x${colorScheme.onPrimary.value.toRadixString(16)}","skyGradient":_skyGradientColors.map((c) => "0x${c.value.toRadixString(16)}").toList(),"text":text},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
-        mode: FileMode.append,
-      );
-    } catch (_) {}
-    // #endregion
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(

@@ -841,6 +841,10 @@ class _Step4TriggersState extends State<Step4Triggers> {
                                         controller: _durationController,
                                         focusNode: _durationFocusNode,
                                         keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly,
+                                          LengthLimitingTextInputFormatter(4),
+                                        ],
                                         textAlign: TextAlign.center,
                                         autofocus: true,
                                         style: AppTypography.body(context)

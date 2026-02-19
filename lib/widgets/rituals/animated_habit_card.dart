@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -194,16 +192,6 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     final strikeColor = isDark
         ? colorScheme.onSurface.withValues(alpha: 0.6)
         : colorScheme.onSurface.withValues(alpha: 0.5);
-
-    // #region agent log
-    try {
-      final _cardBg = isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface;
-      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
-        '${jsonEncode({"sessionId":"308c67","hypothesisId":"E","location":"animated_habit_card.dart:build","message":"HabitCard colors","data":{"isDark":isDark,"textColor":"0x${textColor.value.toRadixString(16)}","subtitleColor":"0x${subtitleColor.value.toRadixString(16)}","cardBg":"0x${_cardBg.value.toRadixString(16)}","habitName":widget.habit.name},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
-        mode: FileMode.append,
-      );
-    } catch (_) {}
-    // #endregion
 
     return AnimatedBuilder(
       animation: _entranceCtrl,

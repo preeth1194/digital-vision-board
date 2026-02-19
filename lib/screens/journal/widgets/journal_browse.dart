@@ -17,16 +17,7 @@ class JournalBrowseSection extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 12, 20, 12),
-      decoration: BoxDecoration(
-        color: isDark ? colorScheme.surface : colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.04),
-            offset: const Offset(0, 2),
-            blurRadius: 6,
-          ),
-        ],
-      ),
+      color: colorScheme.surface,
       child: Row(
         children: [
           Expanded(

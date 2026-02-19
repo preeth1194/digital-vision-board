@@ -13,6 +13,8 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../models/grid_tile_model.dart';
+import '../../screens/subscription_screen.dart';
+import '../../services/voice_habit_parser_service.dart';
 import '../../utils/app_typography.dart';
 import 'addon_tools_section.dart';
 import 'habit_form_constants.dart';
@@ -20,6 +22,7 @@ import 'habit_form_identity_section.dart';
 import 'habit_form_pacing_section.dart';
 import 'habit_form_strategy_section.dart';
 import 'habit_form_triggers_section.dart';
+import 'voice_habit_input_sheet.dart';
 
 // ============================================================================
 // Main Entry Function
@@ -617,6 +620,125 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     super.dispose();
   }
 
+  // --- Voice Input ---
+
+  void _onVoiceInputTap() {
+    if (!SubscriptionService.isSubscribed.value) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+      );
+      return;
+    }
+    _showVoiceInput();
+  }
+
+  Future<void> _showVoiceInput() async {
+    final parsed = await showVoiceHabitInputSheet(context);
+    if (parsed == null || !mounted) return;
+    _applyVoiceParsedData(parsed);
+  }
+
+  void _applyVoiceParsedData(ParsedHabitData data) {
+    setState(() {
+      if (data.name != null && data.name!.isNotEmpty) {
+        _habitNameController.text = data.name!;
+        _nameError = null;
+      }
+
+      if (data.category != null) {
+        _category = data.category;
+        final indices = categoryToIconIndices[_category];
+        if (indices != null && indices.isNotEmpty) {
+          if (data.iconIndex != null && indices.contains(data.iconIndex)) {
+            _selectedIconIndex = data.iconIndex!;
+          } else if (!indices.contains(_selectedIconIndex)) {
+            _selectedIconIndex = indices.first;
+          }
+        }
+      }
+      if (data.iconIndex != null && data.category == null) {
+        _selectedIconIndex = data.iconIndex!.clamp(0, habitIcons.length - 1);
+      }
+
+      if (data.weeklyDays != null && data.weeklyDays!.isNotEmpty) {
+        _weekdays.clear();
+        for (final d in data.weeklyDays!) {
+          _weekdays.add(d - 1); // convert 1-based to 0-based
+        }
+      }
+
+      if (data.deadlineDays != null && data.deadlineDays! > 0) {
+        final days = data.deadlineDays!;
+        if (days == 21) {
+          _selectedMilestone = '21';
+        } else if (days == 66) {
+          _selectedMilestone = '66';
+        } else if (days == 90) {
+          _selectedMilestone = '90';
+        } else {
+          _selectedMilestone = 'custom';
+          _customDeadlineDate = DateTime.now().add(Duration(days: days));
+        }
+      }
+
+      if (data.startTimeHour != null) {
+        _timeBoundStartTime = TimeOfDay(
+          hour: data.startTimeHour!,
+          minute: data.startTimeMinute ?? 0,
+        );
+        _timerAddonAdded = true;
+      }
+
+      if (data.duration != null && data.duration! > 0) {
+        _timeBoundDurationValue = data.duration!;
+        _timeBoundDurationUnit = data.durationUnit ?? 'minutes';
+        _timerAddonAdded = true;
+      }
+
+      if (data.anchorHabit != null && data.anchorHabit!.isNotEmpty) {
+        _habitStackingEnabled = true;
+        _anchorHabitText = data.anchorHabit!;
+        _relationship = data.relationship ?? 'After';
+        _anchorHabitError = null;
+      }
+
+      if (data.predictedObstacle != null &&
+          data.predictedObstacle!.isNotEmpty) {
+        _triggerController.text = data.predictedObstacle!;
+        _triggerError = null;
+      }
+      if (data.ifThenPlan != null && data.ifThenPlan!.isNotEmpty) {
+        _actionController.text = data.ifThenPlan!;
+        _actionError = null;
+      }
+
+      if (data.vibrationType != null) {
+        _vibrationType = data.vibrationType!;
+        _timerAddonAdded = true;
+      }
+      if (data.notificationSound != null) {
+        _notificationSound = data.notificationSound!;
+        _timerAddonAdded = true;
+      }
+
+      if (data.actionSteps != null && data.actionSteps!.isNotEmpty) {
+        _actionStepsEnabled = true;
+        _actionSteps = data.actionSteps!.asMap().entries.map((e) {
+          return HabitActionStep(
+            id: DateTime.now().millisecondsSinceEpoch.toString() +
+                e.key.toString(),
+            title: e.value,
+            iconCodePoint: Icons.check_circle_outline.codePoint,
+            order: e.key,
+          );
+        }).toList();
+        _actionStepsError = null;
+      }
+    });
+
+    _checkTimeConflict();
+  }
+
   // --- Save Logic ---
 
   void _handleCommit() {
@@ -984,6 +1106,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         },
                         onSectionExpanded: () =>
                             setState(() => _milestoneExpanded = false),
+                        onVoiceInputTap: _onVoiceInputTap,
+                        isSubscribed:
+                            SubscriptionService.isSubscribed.value,
                       ),
                       SizedBox(height: kSectionSpacing),
                       _buildScheduleSection(colorScheme, baseColor),

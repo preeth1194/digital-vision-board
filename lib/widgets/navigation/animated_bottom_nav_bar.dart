@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_colors.dart';
 
 /// A modern, floating bottom navigation bar with fluid expanding pill animation.
 ///
 /// Features:
-/// - Dark pill-shaped container using AppColors
+/// - Pill-shaped container using theme colorScheme
 /// - Each icon in a circular background
 /// - Selected item expands into a pill showing icon + label
 /// - Smooth spring-like fluid animations
@@ -22,8 +21,7 @@ class AnimatedBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use AppColors.darkest for the container (same for both themes)
-    const containerColor = AppColors.darkest;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -33,11 +31,11 @@ class AnimatedBottomNavBar extends StatelessWidget {
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
-            color: containerColor,
+            color: colorScheme.onSurface,
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.25),
+                color: colorScheme.shadow.withOpacity(0.25),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -57,6 +55,7 @@ class AnimatedBottomNavBar extends StatelessWidget {
                         onTap: () => onTap(index),
                         totalItems: items.length,
                         availableWidth: constraints.maxWidth,
+                        colorScheme: colorScheme,
                       ),
                     ),
                   );
@@ -76,6 +75,7 @@ class _FluidNavItem extends StatefulWidget {
   final VoidCallback onTap;
   final int totalItems;
   final double availableWidth;
+  final ColorScheme colorScheme;
 
   const _FluidNavItem({
     required this.item,
@@ -83,6 +83,7 @@ class _FluidNavItem extends StatefulWidget {
     required this.onTap,
     required this.totalItems,
     required this.availableWidth,
+    required this.colorScheme,
   });
 
   @override
@@ -182,12 +183,12 @@ class _FluidNavItemState extends State<_FluidNavItem>
 
   @override
   Widget build(BuildContext context) {
-    // Use AppColors for consistent theming
-    final unselectedBgColor = AppColors.dark.withOpacity(0.6);
-    const unselectedIconColor = AppColors.light;
-    const selectedAccentColor = AppColors.lightest; // Accent color for selected pill
-    const selectedIconColor = AppColors.darkest; // Dark icon on light background
-    const selectedLabelColor = AppColors.darkest; // Dark text on light background
+    final colorScheme = widget.colorScheme;
+    final unselectedBgColor = colorScheme.secondary.withOpacity(0.6);
+    final unselectedIconColor = colorScheme.outlineVariant;
+    final selectedAccentColor = colorScheme.surfaceContainerHighest;
+    final selectedIconColor = colorScheme.onSurface;
+    final selectedLabelColor = colorScheme.onSurface;
 
     // Calculate max width for expanded state
     final labelWidth = _measureLabelWidth();
@@ -249,7 +250,7 @@ class _FluidNavItemState extends State<_FluidNavItem>
                             padding: const EdgeInsets.only(right: 14),
                             child: Text(
                               widget.item.label,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: selectedLabelColor,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,

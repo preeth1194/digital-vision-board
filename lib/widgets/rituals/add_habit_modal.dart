@@ -32,6 +32,8 @@ Future<HabitCreateRequest?> showAddHabitModal(
   required List<HabitItem> existingHabits,
   HabitItem? initialHabit,
   String? initialName,
+  TimeOfDay? initialStartTime,
+  int? initialDurationMinutes,
 }) {
   return Navigator.of(context).push<HabitCreateRequest?>(
     PageRouteBuilder<HabitCreateRequest?>(
@@ -42,6 +44,8 @@ Future<HabitCreateRequest?> showAddHabitModal(
           existingHabits: existingHabits,
           initialHabit: initialHabit,
           initialName: initialName,
+          initialStartTime: initialStartTime,
+          initialDurationMinutes: initialDurationMinutes,
         );
       },
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -72,11 +76,15 @@ class _CreateHabitPage extends StatefulWidget {
   final List<HabitItem> existingHabits;
   final HabitItem? initialHabit;
   final String? initialName;
+  final TimeOfDay? initialStartTime;
+  final int? initialDurationMinutes;
 
   const _CreateHabitPage({
     required this.existingHabits,
     this.initialHabit,
     this.initialName,
+    this.initialStartTime,
+    this.initialDurationMinutes,
   });
 
   @override
@@ -204,6 +212,19 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _habitNameController.text = widget.initialName!.trim();
     }
     _initializeFromHabit();
+    // Apply pre-filled start time / duration when provided (e.g. from routine time-slot tap)
+    if (widget.initialHabit == null && widget.initialStartTime != null) {
+      _timerAddonAdded = true;
+      _timeBoundStartTime = widget.initialStartTime;
+      final dur = widget.initialDurationMinutes ?? 30;
+      if (dur >= 60 && dur % 60 == 0) {
+        _timeBoundDurationValue = dur ~/ 60;
+        _timeBoundDurationUnit = 'hours';
+      } else {
+        _timeBoundDurationValue = dur;
+        _timeBoundDurationUnit = 'minutes';
+      }
+    }
     // Default start time when creating new habit
     if (_timeBoundStartTime == null) {
       _timeBoundStartTime = TimeOfDay.now();

@@ -39,7 +39,6 @@ class ManipulableNode extends StatefulWidget {
 
 class _ManipulableNodeState extends State<ManipulableNode> {
   static const double _minSize = 40;
-  static const Color _selectionBorderColor = Colors.white;
   static const List<BoxShadow> _viewSelectionShadow = [
     BoxShadow(
       color: AppColors.shadowMedium,
@@ -128,6 +127,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final c = widget.component;
 
     // Keep Positioned unscaled/unrotated; apply transform around center.
@@ -169,7 +169,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: _selectionBorderColor, width: 3),
+                        border: Border.all(color: colorScheme.surface, width: 3),
                         boxShadow: widget.gesturesEnabled ? _editSelectionShadow : _viewSelectionShadow,
                         borderRadius: BorderRadius.circular(10),
                       ),

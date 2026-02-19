@@ -248,7 +248,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               const SizedBox(height: 6),
               Text(
                 widget.goalTitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               Row(

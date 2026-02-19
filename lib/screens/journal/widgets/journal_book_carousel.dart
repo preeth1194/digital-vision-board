@@ -137,6 +137,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   void _confirmDeleteBook(JournalBook book) {
     if (book.id == JournalBookStorageService.goalLogsBookId) return;
     final entryCount = widget.entryCounts[book.id] ?? 0;
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -154,7 +155,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
               Navigator.pop(ctx);
               widget.onDeleteBook(book.id);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -299,7 +300,7 @@ class _AddBookCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
                     offset: const Offset(4, 6),
                     blurRadius: 16,
                   ),
@@ -398,7 +399,7 @@ class _ColorPickerSheetState extends State<_ColorPickerSheet> {
                     color: Color(color),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? Colors.white : Colors.transparent,
+                      color: isSelected ? colorScheme.onSurface : Colors.transparent,
                       width: 3,
                     ),
                     boxShadow: [

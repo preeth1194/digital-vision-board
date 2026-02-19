@@ -17,13 +17,10 @@ import {
 import { ensureSchema } from "./migrate.js";
 import { hasDatabase } from "./db.js";
 import {
-  applySyncPushPg,
-  cleanupOldLogsPg,
-  getRecentChecklistEventsPg,
-  getRecentHabitCompletionsPg,
   getUserSettingsPg,
-  listBoardsPg,
   putUserSettingsPg,
+  getEncryptionKeyPg,
+  putEncryptionKeyPg,
 } from "./sync_pg.js";
 import {
   getTemplateImagePg,
@@ -33,13 +30,6 @@ import {
 import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg } from "./stock_category_images_pg.js";
-import {
-  getAllAffirmationsPg,
-  getAffirmationsPg,
-  upsertAffirmationPg,
-  deleteAffirmationPg,
-  pinAffirmationPg,
-} from "./affirmations_pg.js";
 
 const app = express();
 
@@ -703,8 +693,7 @@ app.get("/template-images/:id", async (req, res) => {
   res.status(200).send(found.bytes);
 });
 
-// ---- Sync APIs (Phase A) ----
-const SYNC_RETAIN_DAYS = Number(process.env.SYNC_RETAIN_DAYS ?? 90);
+// ---- User Settings + Encryption Key ----
 
 app.put("/user/settings", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
@@ -716,158 +705,37 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   const weightKgVal = typeof weightKg === "number" && !Number.isNaN(weightKg) ? weightKg : null;
   const heightCmVal = typeof heightCm === "number" && !Number.isNaN(heightCm) ? heightCm : null;
   const dateOfBirth = typeof req.body?.date_of_birth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date_of_birth) ? req.body.date_of_birth : null;
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth });
-  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth });
+  const subscriptionPlanId = typeof req.body?.subscription_plan_id === "string" ? req.body.subscription_plan_id.trim() || null : null;
+  const subscriptionActive = req.body?.subscription_active != null ? Boolean(req.body.subscription_active) : null;
+  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive });
+  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive });
 });
 
-app.get("/sync/bootstrap", requireDvAuth(), async (req, res) => {
-  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
-  const days = Number.isFinite(SYNC_RETAIN_DAYS) && SYNC_RETAIN_DAYS > 0 ? SYNC_RETAIN_DAYS : 90;
-
-  // Best-effort retention to keep server storage bounded.
-  await cleanupOldLogsPg(req.dvUser.canvaUserId, days);
-
-  const [settings, boards, habitCompletions, checklistEvents] = await Promise.all([
-    getUserSettingsPg(req.dvUser.canvaUserId),
-    listBoardsPg(req.dvUser.canvaUserId),
-    getRecentHabitCompletionsPg(req.dvUser.canvaUserId, days),
-    getRecentChecklistEventsPg(req.dvUser.canvaUserId, days),
-  ]);
-
-  res.json({
-    ok: true,
-    home_timezone: settings?.homeTimezone ?? null,
-    gender: settings?.gender ?? "prefer_not_to_say",
-    display_name: settings?.displayName ?? null,
-    weight_kg: settings?.weightKg ?? null,
-    height_cm: settings?.heightCm ?? null,
-    date_of_birth: settings?.dateOfBirth ?? null,
-    boards,
-    habit_completions: habitCompletions,
-    checklist_events: checklistEvents,
-    retain_days: days,
-  });
-});
-
-/**
- * Push a batch of recent mutations (idempotent).
- * Body:
- * {
- *   boards?: [{ boardId, boardJson }],
- *   userSettings?: { homeTimezone, gender },
- *   habitCompletions?: [{ boardId, componentId, habitId, logicalDate, rating?, note?, deleted? }],
- *   checklistEvents?: [{ boardId, componentId, taskId, itemId, logicalDate, rating?, note?, deleted? }]
- * }
- */
-app.post("/sync/push", requireDvAuth(), async (req, res) => {
-  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
-  const days = Number.isFinite(SYNC_RETAIN_DAYS) && SYNC_RETAIN_DAYS > 0 ? SYNC_RETAIN_DAYS : 90;
-
-  const body = req.body ?? {};
-  await applySyncPushPg(req.dvUser.canvaUserId, {
-    boards: Array.isArray(body?.boards) ? body.boards : null,
-    userSettings: typeof body?.userSettings === "object" && body.userSettings ? body.userSettings : null,
-    habitCompletions: Array.isArray(body?.habitCompletions) ? body.habitCompletions : null,
-    checklistEvents: Array.isArray(body?.checklistEvents) ? body.checklistEvents : null,
-    retainDays: days,
-  });
-
-  res.json({ ok: true });
-});
-
-// ---- Affirmations APIs ----
-app.get("/api/affirmations", requireDvAuth(), async (req, res) => {
+app.get("/user/encryption-key", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   try {
-    const category = typeof req.query.category === "string" ? req.query.category.trim() : null;
-    const affirmations = await getAffirmationsPg(req.dvUser.canvaUserId, category || null);
-    res.json({ ok: true, affirmations });
+    const key = await getEncryptionKeyPg(req.dvUser.canvaUserId);
+    res.json({ ok: true, encryption_key: key });
   } catch (e) {
-    res.status(500).json({ error: "affirmations_fetch_failed", message: String(e?.message ?? e) });
+    res.status(500).json({ error: "encryption_key_fetch_failed", message: String(e?.message ?? e) });
   }
 });
 
-app.post("/api/affirmations", requireDvAuth(), async (req, res) => {
+app.put("/user/encryption-key", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   try {
-    const body = req.body ?? {};
-    const affirmation = {
-      id: typeof body.id === "string" ? body.id : null,
-      category: typeof body.category === "string" ? body.category.trim() || null : null,
-      text: typeof body.text === "string" ? body.text.trim() : "",
-      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
-      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
-    };
-    if (!affirmation.text) {
-      return res.status(400).json({ error: "text_required" });
-    }
-    const affirmationId = await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
-    res.json({ ok: true, id: affirmationId });
-  } catch (e) {
-    res.status(500).json({ error: "affirmation_create_failed", message: String(e?.message ?? e) });
-  }
-});
-
-app.put("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
-  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
-  try {
-    const affirmationId = String(req.params.id ?? "").trim();
-    if (!affirmationId) {
-      return res.status(400).json({ error: "id_required" });
-    }
-    const body = req.body ?? {};
-    const affirmation = {
-      id: affirmationId,
-      category: typeof body.category === "string" ? body.category.trim() || null : null,
-      text: typeof body.text === "string" ? body.text.trim() : "",
-      isPinned: Boolean(body.is_pinned ?? body.isPinned ?? false),
-      isCustom: Boolean(body.is_custom ?? body.isCustom ?? true),
-    };
-    if (!affirmation.text) {
-      return res.status(400).json({ error: "text_required" });
-    }
-    await upsertAffirmationPg(req.dvUser.canvaUserId, affirmation);
+    const key = typeof req.body?.encryption_key === "string" ? req.body.encryption_key.trim() : null;
+    if (!key) return res.status(400).json({ error: "missing_encryption_key" });
+    await putEncryptionKeyPg(req.dvUser.canvaUserId, key);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: "affirmation_update_failed", message: String(e?.message ?? e) });
+    res.status(500).json({ error: "encryption_key_update_failed", message: String(e?.message ?? e) });
   }
 });
 
-app.delete("/api/affirmations/:id", requireDvAuth(), async (req, res) => {
-  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
-  try {
-    const affirmationId = String(req.params.id ?? "").trim();
-    if (!affirmationId) {
-      return res.status(400).json({ error: "id_required" });
-    }
-    const deleted = await deleteAffirmationPg(req.dvUser.canvaUserId, affirmationId);
-    if (!deleted) {
-      return res.status(404).json({ error: "affirmation_not_found" });
-    }
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: "affirmation_delete_failed", message: String(e?.message ?? e) });
-  }
-});
-
-app.put("/api/affirmations/:id/pin", requireDvAuth(), async (req, res) => {
-  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
-  try {
-    const affirmationId = String(req.params.id ?? "").trim();
-    if (!affirmationId) {
-      return res.status(400).json({ error: "id_required" });
-    }
-    const body = req.body ?? {};
-    const isPinned = Boolean(body.is_pinned ?? body.isPinned ?? true);
-    const updated = await pinAffirmationPg(req.dvUser.canvaUserId, affirmationId, isPinned);
-    if (!updated) {
-      return res.status(404).json({ error: "affirmation_not_found" });
-    }
-    res.json({ ok: true, is_pinned: isPinned });
-  } catch (e) {
-    res.status(500).json({ error: "affirmation_pin_failed", message: String(e?.message ?? e) });
-  }
-});
+// Sync and affirmation endpoints have been removed.
+// User data is now backed up via encrypted Google Drive archives.
+// Only auth, subscription, and encryption key endpoints remain.
 
 // Export app for Vercel serverless functions
 export default app;

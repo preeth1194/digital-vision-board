@@ -8,7 +8,6 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
-import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
@@ -42,7 +41,7 @@ class GoalCanvasViewerScreen extends StatefulWidget {
 class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   bool _loading = true;
   List<VisionComponent> _components = [];
-  Color _backgroundColor = AppColors.offWhite;
+  Color _backgroundColor = const Color(0xFFF8F9F4);
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
   String? _selectedId;
@@ -212,6 +211,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final title = _tabIndex == 0
         ? widget.title
         : _tabIndex == 1
@@ -219,6 +219,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
             : _tabIndex == 2
                 ? 'Todo'
                 : 'Insights';
+    final effectiveBgColor = _backgroundColor.value == 0xFFF8F9F4 ? colorScheme.surfaceContainerLowest : _backgroundColor;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -311,7 +312,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                     onSelectedComponentIdChanged: (id) => setState(() => _selectedId = id),
                     onComponentsChanged: _saveComponents,
                     onOpenComponent: (c) => _openHabitTracker(c),
-                    backgroundColor: _backgroundColor,
+                    backgroundColor: effectiveBgColor,
                     backgroundImage: _backgroundImage,
                     backgroundImageSize: null,
                     canvasSize: _canvasSize,

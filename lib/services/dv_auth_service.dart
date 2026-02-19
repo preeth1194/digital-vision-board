@@ -277,6 +277,8 @@ final class DvAuthService {
     double? weightKg,
     double? heightCm,
     String? dateOfBirth,
+    String? subscriptionPlanId,
+    bool? subscriptionActive,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -289,6 +291,8 @@ final class DvAuthService {
     if (weightKg != null) body['weight_kg'] = weightKg;
     if (heightCm != null) body['height_cm'] = heightCm;
     if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
+    if (subscriptionPlanId != null) body['subscription_plan_id'] = subscriptionPlanId;
+    if (subscriptionActive != null) body['subscription_active'] = subscriptionActive;
     if (body.isEmpty) return;
     try {
       final res = await http.put(
@@ -321,7 +325,7 @@ final class DvAuthService {
     await p.remove(_userProfilePicKey);
   }
 
-  /// Sign out: clear Firebase/Google sessions and app auth state.
+  /// Sign out: clear Firebase/Google sessions, auth state, and backup keys.
   static Future<void> signOut({SharedPreferences? prefs}) async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -330,6 +334,11 @@ final class DvAuthService {
       await GoogleSignIn.instance.signOut();
     } catch (_) {}
     await clear(prefs: prefs);
+    // Clear locally cached encryption key and backup link state.
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.remove('dv_encryption_key_v1');
+    await p.remove('dv_google_backup_linked_v1');
+    await p.remove('dv_google_drive_folder_id_v1');
   }
 
   static Future<GuestAuthResult> continueAsGuest({

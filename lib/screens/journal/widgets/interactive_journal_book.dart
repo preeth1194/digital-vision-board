@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import '../../../services/journal_book_storage_service.dart';
-import '../../../utils/app_colors.dart';
 
 /// An interactive 3D journal book that opens on tap to reveal entries.
 class InteractiveJournalBook extends StatefulWidget {
@@ -146,6 +145,7 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
     final openHeight = size.height - topBar - bottomNav - 48;
     final coverColor = Color(widget.book.coverColor ?? JournalBook.defaultCoverColor);
 
+    final colorScheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _openAnimation,
       builder: (context, child) {
@@ -175,7 +175,7 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                         borderRadius: BorderRadius.circular(currentWidth / 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: colorScheme.shadow.withOpacity(0.25),
                             blurRadius: 25,
                             spreadRadius: 3,
                           ),
@@ -275,6 +275,7 @@ class _BookCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final darkerColor = HSLColor.fromColor(color).withLightness(
       (HSLColor.fromColor(color).lightness - 0.15).clamp(0.0, 1.0),
     ).toColor();
@@ -300,7 +301,7 @@ class _BookCover extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: colorScheme.shadow.withOpacity(0.3),
                     offset: const Offset(2, 0),
                     blurRadius: 4,
                   ),
@@ -330,7 +331,7 @@ class _BookCover extends StatelessWidget {
                     ? []
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: colorScheme.shadow.withOpacity(0.2),
                           offset: const Offset(4, 4),
                           blurRadius: 8,
                         ),
@@ -360,8 +361,8 @@ class _BookCover extends StatelessWidget {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                Colors.black.withOpacity(0.1),
-                                Colors.black.withOpacity(0.5),
+                                colorScheme.shadow.withOpacity(0.1),
+                                colorScheme.shadow.withOpacity(0.5),
                               ],
                             ),
                           ),
@@ -403,7 +404,7 @@ class _BookCover extends StatelessWidget {
                                         color: Colors.white,
                                         shadows: [
                                           Shadow(
-                                            color: Colors.black.withOpacity(0.5),
+                                            color: colorScheme.shadow.withOpacity(0.5),
                                             offset: const Offset(1, 1),
                                             blurRadius: 3,
                                           ),
@@ -442,7 +443,7 @@ class _BookCover extends StatelessWidget {
                                   shadows: coverImagePath != null
                                       ? [
                                           Shadow(
-                                            color: Colors.black.withOpacity(0.5),
+                                            color: colorScheme.shadow.withOpacity(0.5),
                                             offset: const Offset(1, 1),
                                             blurRadius: 2,
                                           ),
@@ -472,9 +473,9 @@ class _BookCover extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.grey.shade300,
-                      Colors.grey.shade100,
-                      Colors.grey.shade300,
+                      colorScheme.outlineVariant,
+                      colorScheme.surfaceContainerLow,
+                      colorScheme.outlineVariant,
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
@@ -580,7 +581,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
         decoration: BoxDecoration(
           color: isDark
               ? colorScheme.surfaceContainerHigh
-              : AppColors.warmIvory,
+              : colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: widget.coverColor.withOpacity(0.3),
@@ -619,9 +620,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                           style: GoogleFonts.merriweather(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? Colors.white
-                                : Colors.grey.shade800,
+                            color: colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -630,9 +629,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                           '${widget.entries.length} ${widget.entries.length == 1 ? 'entry' : 'entries'}',
                           style: GoogleFonts.inter(
                             fontSize: 11,
-                            color: isDark
-                                ? Colors.white70
-                                : Colors.grey.shade600,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -696,7 +693,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
           Icon(
             Icons.note_add_outlined,
             size: 32,
-            color: isDark ? Colors.white38 : Colors.grey.shade400,
+            color: colorScheme.outline,
           ),
           const SizedBox(height: 10),
           Text(
@@ -704,7 +701,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
             style: GoogleFonts.inter(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white54 : Colors.grey.shade500,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
@@ -712,7 +709,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
             'Tap + below to add your first entry',
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: isDark ? Colors.white38 : Colors.grey.shade400,
+              color: colorScheme.outline,
             ),
           ),
         ],
@@ -794,10 +791,10 @@ class _EntryRowState extends State<_EntryRow> {
   Widget build(BuildContext context) {
     final bgColor = widget.isDark
         ? widget.colorScheme.surfaceContainerHighest
-        : Colors.white;
+        : widget.colorScheme.surface;
     final borderColor = widget.isDark
         ? widget.colorScheme.outlineVariant.withOpacity(0.3)
-        : Colors.grey.shade200;
+        : widget.colorScheme.outlineVariant;
 
     return GestureDetector(
       onTap: widget.onEdit,
@@ -810,7 +807,7 @@ class _EntryRowState extends State<_EntryRow> {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(widget.isDark ? 0.15 : 0.04),
+              color: widget.colorScheme.shadow.withOpacity(widget.isDark ? 0.15 : 0.04),
               offset: const Offset(0, 1),
               blurRadius: 3,
             ),
@@ -838,9 +835,7 @@ class _EntryRowState extends State<_EntryRow> {
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: widget.isDark
-                          ? Colors.white
-                          : Colors.grey.shade800,
+                      color: widget.colorScheme.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -850,9 +845,7 @@ class _EntryRowState extends State<_EntryRow> {
                     widget.formattedDate,
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: widget.isDark
-                          ? Colors.white54
-                          : Colors.grey.shade500,
+                      color: widget.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -874,9 +867,7 @@ class _EntryRowState extends State<_EntryRow> {
                   child: Icon(
                     Icons.edit_outlined,
                     size: 20,
-                    color: widget.isDark
-                        ? Colors.white60
-                        : Colors.grey.shade600,
+                    color: widget.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -899,10 +890,8 @@ class _EntryRowState extends State<_EntryRow> {
                     Icons.delete_outline_rounded,
                     size: 20,
                     color: _deletePressed
-                        ? Colors.red.shade400
-                        : (widget.isDark
-                            ? Colors.white38
-                            : Colors.grey.shade400),
+                        ? widget.colorScheme.error
+                        : widget.colorScheme.outline,
                   ),
                 ),
               ),
@@ -965,9 +954,7 @@ class _HeaderActionBtnState extends State<_HeaderActionBtn> {
             child: Icon(
               widget.icon,
               size: 18,
-              color: widget.isDark
-                  ? Colors.white54
-                  : Colors.grey.shade600,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ),

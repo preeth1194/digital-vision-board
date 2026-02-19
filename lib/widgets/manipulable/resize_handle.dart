@@ -61,9 +61,7 @@ class ResizeHandle extends StatefulWidget {
   static const double defaultEdgeVisualOutset = 3;
 
   static const Color _handleBorderColor = AppColors.handleBorderGrey;
-  static const Color _handleFillColor = Colors.white;
   static const Color _handleActiveFillColor = AppColors.handleActivePurple;
-  static const Color _handleActiveInnerBorderColor = Colors.white;
   static const double _handleBorderWidth = 1.5;
   static final BorderRadius _edgeBorderRadius = BorderRadius.circular(4);
   static const List<BoxShadow> _handleShadow = [
@@ -177,11 +175,12 @@ class _ResizeHandleState extends State<ResizeHandle> {
             ? Size(edgeLength, edgeThickness)
             : Size(edgeThickness, edgeLength);
 
+    final colorScheme = Theme.of(context).colorScheme;
     final bool isActive = _active || widget.isSelected;
     final borderColor = isActive
-        ? ResizeHandle._handleActiveInnerBorderColor
+        ? colorScheme.surface
         : ResizeHandle._handleBorderColor;
-    final fillColor = isActive ? ResizeHandle._handleActiveFillColor : ResizeHandle._handleFillColor;
+    final fillColor = isActive ? ResizeHandle._handleActiveFillColor : colorScheme.surface;
 
     // Slightly emphasize the selected edge handle (visual feedback only).
     final bool isEdge = !isCorner;

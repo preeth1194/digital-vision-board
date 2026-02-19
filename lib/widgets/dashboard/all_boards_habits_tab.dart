@@ -13,6 +13,8 @@ import '../../services/sync_service.dart';
 import '../../services/coins_service.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
+import '../../services/ad_service.dart';
+import '../../services/ad_free_service.dart';
 import '../../utils/app_colors.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
@@ -21,6 +23,8 @@ import '../rituals/coin_animation_overlay.dart';
 import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
+import '../ads/reward_ad_card.dart';
+import '../ads/banner_ad_widget.dart';
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
@@ -28,6 +32,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
   final Future<void> Function(String boardId, List<VisionComponent> updated) onSaveBoardComponents;
   final ValueNotifier<int>? coinNotifier;
   final GlobalKey? coinTargetKey;
+  final VoidCallback? onSwitchToRoutine;
 
   const AllBoardsHabitsTab({
     super.key,
@@ -36,6 +41,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
     required this.onSaveBoardComponents,
     this.coinNotifier,
     this.coinTargetKey,
+    this.onSwitchToRoutine,
   });
 
   @override
@@ -52,12 +58,36 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   double _scrollOffset = 0;
   Offset? _confettiOrigin;
 
+  // Ad-related state
+  static const int _freeHabitLimit = 3;
+  String? _activeAdSession;
+  int _adWatchedCount = 0;
+  bool _showBannerAd = false;
+  bool _shouldShowAds = true;
+
   @override
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
     _scrollController.addListener(_onScroll);
     _loadHabits();
+    _loadAdState();
+  }
+
+  Future<void> _loadAdState() async {
+    final showAds = await AdFreeService.shouldShowAds();
+    final session = await AdService.getActiveSession();
+    int watched = 0;
+    if (session != null) {
+      watched = await AdService.getWatchedCount(session);
+    }
+    if (mounted) {
+      setState(() {
+        _shouldShowAds = showAds;
+        _activeAdSession = session;
+        _adWatchedCount = watched;
+      });
+    }
   }
 
   Future<void> _loadHabits() async {
@@ -99,6 +129,57 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _addHabitGlobal() async {
+    // Gate: redirect non-subscribed users with 3+ habits to Routine screen
+    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
+      if (widget.onSwitchToRoutine != null) {
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setActiveSession(sessionKey);
+        if (!mounted) return;
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        widget.onSwitchToRoutine!();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pick a time slot on the Routine screen to add your habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      // Fallback: if no callback, keep existing behavior
+      if (_activeAdSession == null) {
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setActiveSession(sessionKey);
+        if (!mounted) return;
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Watch 5 ads to unlock a new habit slot!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    await _proceedToAddHabit();
+  }
+
+  Future<void> _proceedToAddHabit() async {
     final req = await showAddHabitModal(
       context,
       existingHabits: _habits,
@@ -129,12 +210,34 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     await HabitStorageService.addHabit(newHabit);
     await _loadHabits();
 
+    // Clear the completed ad session
+    if (_activeAdSession != null) {
+      await AdService.clearSession(_activeAdSession!);
+      await AdService.setActiveSession(null);
+      setState(() {
+        _activeAdSession = null;
+        _adWatchedCount = 0;
+      });
+    }
+
     Future<void>(() async {
       if (!NotificationsService.shouldSchedule(newHabit)) return;
       final ok = await NotificationsService.requestPermissionsIfNeeded();
       if (!ok) return;
       await NotificationsService.scheduleHabitReminders(newHabit);
     });
+  }
+
+  Future<void> _onRewardAdWatched() async {
+    if (_activeAdSession == null) return;
+    final newCount = await AdService.incrementWatchedCount(_activeAdSession!);
+    if (mounted) {
+      setState(() => _adWatchedCount = newCount);
+    }
+  }
+
+  void _onAllAdsWatched() {
+    _proceedToAddHabit();
   }
 
   Future<void> _handleHabitTap({
@@ -230,6 +333,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         audioPath: result.audioPath,
         capturedImagePaths: result.imagePaths,
       );
+
+      // Show banner ad after completion if user should see ads
+      if (_shouldShowAds && mounted) {
+        setState(() => _showBannerAd = true);
+        Future.delayed(const Duration(seconds: 6), () {
+          if (mounted) setState(() => _showBannerAd = false);
+        });
+      }
     }
   }
 
@@ -462,7 +573,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -579,6 +690,20 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
+            // Reward ad card (shown when user needs to watch ads for new habit)
+            if (_activeAdSession != null && _shouldShowAds)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16)
+                      .copyWith(top: 8),
+                  child: RewardAdCard(
+                    sessionKey: _activeAdSession!,
+                    watchedCount: _adWatchedCount,
+                    onAdWatched: _onRewardAdWatched,
+                    onAllAdsWatched: _onAllAdsWatched,
+                  ),
+                ),
+              ),
             // Habits list with timeline
             if (allHabits.isNotEmpty)
               SliverPadding(
@@ -656,6 +781,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                       onIconTap: () => swipeKey.currentState?.toggleFlip(),
                                       onLongPress: () => _openTimerForHabit(entry),
                                       onDurationTap: () => _openTimerForHabit(entry),
+                                      adWatchedCount: (_activeAdSession != null && _shouldShowAds)
+                                          ? _adWatchedCount
+                                          : null,
+                                      adTotalRequired: (_activeAdSession != null && _shouldShowAds)
+                                          ? AdService.requiredAdsPerHabit
+                                          : null,
                                     ),
                                   ),
                                 ),
@@ -697,6 +828,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onComplete: () => _onAnimationComplete(index),
           );
         }),
+        // Banner ad overlay after habit completion
+        if (_showBannerAd)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 80 + MediaQuery.of(context).viewPadding.bottom,
+            child: const Center(
+              child: BannerAdWidget(
+                autoDismissDuration: Duration(seconds: 5),
+              ),
+            ),
+          ),
         // FAB
         Positioned(
           right: 16,
@@ -1081,13 +1224,13 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     onTap: _onEditTap,
                                     child: Container(
                                       color: isDark
-                                          ? Colors.blueGrey.shade700
+                                          ? colorScheme.onSurfaceVariant
                                           : colorScheme.primary
                                               .withValues(alpha: 0.85),
                                       alignment: Alignment.center,
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.edit_outlined,
-                                        color: Colors.white,
+                                        color: colorScheme.onPrimary,
                                         size: 22,
                                       ),
                                     ),
@@ -1099,16 +1242,16 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     onTap: _onDeleteTap,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.red.shade600,
+                                        color: colorScheme.error,
                                         borderRadius: const BorderRadius.only(
                                           topRight: Radius.circular(24),
                                           bottomRight: Radius.circular(24),
                                         ),
                                       ),
                                       alignment: Alignment.center,
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.delete_outline_rounded,
-                                        color: Colors.white,
+                                        color: colorScheme.onPrimary,
                                         size: 22,
                                       ),
                                     ),
@@ -1173,16 +1316,16 @@ class _CopingPlanFace extends StatelessWidget {
         ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
             (cbt.ifThenPlan?.isNotEmpty ?? false));
 
-    final textColor = isDark ? Colors.white : AppColors.nearBlack;
+    final textColor = colorScheme.onSurface;
     final subtitleColor =
-        isDark ? Colors.white.withValues(alpha: 0.6) : AppColors.dimGrey;
+        isDark ? colorScheme.onSurface.withValues(alpha: 0.6) : colorScheme.onSurfaceVariant;
     final accentColor = AppColors.completedOrange;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: accentColor.withValues(alpha: 0.3),
@@ -1190,7 +1333,7 @@ class _CopingPlanFace extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: colorScheme.shadow.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -1227,7 +1370,7 @@ class _CopingPlanFace extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.12),
+                                color: colorScheme.error.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1235,7 +1378,7 @@ class _CopingPlanFace extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.red.shade400,
+                                  color: colorScheme.error,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -1273,7 +1416,7 @@ class _CopingPlanFace extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
+                                color: colorScheme.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1281,7 +1424,7 @@ class _CopingPlanFace extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: Colors.green.shade400,
+                                  color: colorScheme.primary,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -1372,10 +1515,11 @@ class _TimelineCheckpoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.3)
-        : Colors.grey.shade400;
+        ? colorScheme.onSurface.withValues(alpha: 0.3)
+        : colorScheme.outline;
 
     return GestureDetector(
       onTap: onTap,
@@ -1393,7 +1537,7 @@ class _TimelineCheckpoint extends StatelessWidget {
           ),
         ),
         child: isCompleted
-            ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+            ? Icon(Icons.check_rounded, color: colorScheme.onPrimary, size: 16)
             : null,
       ),
     );
@@ -1406,10 +1550,11 @@ class _TimelineDash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.grey.shade300;
+        ? colorScheme.onSurface.withValues(alpha: 0.15)
+        : colorScheme.outline;
 
     return SizedBox(
       width: 2,

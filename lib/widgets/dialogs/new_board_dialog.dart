@@ -58,78 +58,81 @@ Future<GridTemplate?> showGridTemplateSelectorSheet(BuildContext context) {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Pick a layout',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Choose a template first, then fill in the blanks.',
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: GridTemplates.all.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, i) {
-                  final template = GridTemplates.all[i];
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => Navigator.of(context).pop(template),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 96,
-                            height: 96,
-                            child: _GridTemplatePreview(template: template),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  template.name,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${template.tiles.length} tiles',
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+    builder: (context) {
+      final colorScheme = Theme.of(context).colorScheme;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Pick a layout',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Choose a template first, then fill in the blanks.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: GridTemplates.all.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) {
+                    final template = GridTemplates.all[i];
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(context).pop(template),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 96,
+                              height: 96,
+                              child: _GridTemplatePreview(template: template),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    template.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${template.tiles.length} tiles',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -139,6 +142,7 @@ class _GridTemplatePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final colors = <Color>[
       AppColors.pastelIndigo,
       AppColors.pastelBlue,
@@ -150,7 +154,7 @@ class _GridTemplatePreview extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.zero,
       child: Container(
-        color: Colors.black12.withOpacity(0.08),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.08),
         padding: const EdgeInsets.all(4),
         child: StaggeredGrid.count(
           crossAxisCount: 4,
@@ -211,6 +215,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: const Text('New Vision Board'),
       content: SingleChildScrollView(
@@ -234,9 +239,9 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Pick one major focus for this board.',
-              style: TextStyle(color: Colors.black54),
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -253,7 +258,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
                         CircleAvatar(
                           radius: 14,
                           backgroundColor: cv.tileColor,
-                          child: Icon(cv.icon, size: 16, color: Colors.black87),
+                          child: Icon(cv.icon, size: 16, color: colorScheme.onSurface),
                         ),
                         const SizedBox(width: 10),
                         Text(cv.label),

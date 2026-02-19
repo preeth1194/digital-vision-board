@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../utils/app_colors.dart';
-
 /// Pinned header bar for the journal screen — title and add-book button.
 class JournalBrowseSection extends StatelessWidget {
   final VoidCallback? onAddBook;
@@ -23,7 +21,7 @@ class JournalBrowseSection extends StatelessWidget {
         color: isDark ? colorScheme.surface : colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+            color: colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.04),
             offset: const Offset(0, 2),
             blurRadius: 6,
           ),
@@ -103,16 +101,16 @@ class _NeumorphicFilterChipState extends State<NeumorphicFilterChip>
 
     final baseColor = widget.selected
         ? colorScheme.primary
-        : (isDark ? colorScheme.surfaceContainerHigh : Colors.white);
+        : (isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface);
     final textColor = widget.selected
         ? colorScheme.onPrimary
         : colorScheme.onSurface;
     final shadowDark = isDark
-        ? Colors.black.withOpacity(0.3)
-        : AppColors.darkest.withOpacity(0.08);
+        ? colorScheme.shadow.withOpacity(0.3)
+        : colorScheme.onSurface.withOpacity(0.08);
     final shadowLight = isDark
-        ? Colors.white.withOpacity(0.05)
-        : Colors.white.withOpacity(0.9);
+        ? colorScheme.surface.withOpacity(0.05)
+        : colorScheme.surface.withOpacity(0.9);
 
     return GestureDetector(
       onTapDown: (_) {

@@ -6,53 +6,57 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Metadata for a backup file on Google Drive.
+class DriveBackupInfo {
+  final String fileId;
+  final String name;
+  final DateTime? createdTime;
+  final int? sizeBytes;
+
+  const DriveBackupInfo({
+    required this.fileId,
+    required this.name,
+    this.createdTime,
+    this.sizeBytes,
+  });
+}
+
 class GoogleDriveBackupService {
   GoogleDriveBackupService._();
 
   static const _folderIdKey = 'dv_google_drive_folder_id_v1';
   static const _folderName = 'Digital Vision Board';
   static const _boardBackupPrefix = 'dv_board_drive_bg_file_id_v1_';
+  static const _googleLinkedKey = 'dv_google_backup_linked_v1';
+  static const maxBackups = 3;
 
-  // Minimal scope: can create/read files created by this app.
   static const _scopes = <String>[
     drive.DriveApi.driveFileScope,
   ];
 
   static GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
 
+  /// Whether the user has linked Google for backup.
+  static Future<bool> isLinked({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    return p.getBool(_googleLinkedKey) ?? false;
+  }
+
+  static Future<void> setLinked(bool linked, {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.setBool(_googleLinkedKey, linked);
+  }
+
   static Future<String> backupPng({
     required String filePath,
     required String fileName,
   }) async {
-    if (kIsWeb) {
-      throw Exception('Google Drive backup is not supported on web yet.');
-    }
+    if (kIsWeb) throw Exception('Not supported on web.');
 
     final f = File(filePath);
     if (!await f.exists()) throw Exception('File not found: $filePath');
 
-    // Initialize GoogleSignIn if not already initialized
-    await _googleSignIn.initialize();
-
-    // Try lightweight authentication first, then full authentication if needed
-    GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
-    if (account == null) {
-      account = await _googleSignIn.authenticate(scopeHint: _scopes);
-    }
-    if (account == null) {
-      throw Exception('Google sign-in cancelled.');
-    }
-
-    // Request authorization for scopes to get access token
-    final authorization = await account.authorizationClient.authorizeScopes(_scopes);
-    if (authorization.accessToken == null) {
-      throw Exception('Failed to get authorization for Drive access.');
-    }
-
-    final headers = <String, String>{
-      'Authorization': 'Bearer ${authorization.accessToken!}',
-    };
-    final client = _GoogleAuthClient(headers);
+    final client = await _getAuthClient();
     final api = drive.DriveApi(client);
 
     try {
@@ -68,7 +72,7 @@ class GoogleDriveBackupService {
       );
 
       final id = created.id;
-      if (id == null || id.isEmpty) throw Exception('Drive upload failed (missing file id).');
+      if (id == null || id.isEmpty) throw Exception('Drive upload failed.');
       return id;
     } finally {
       client.close();
@@ -94,32 +98,9 @@ class GoogleDriveBackupService {
   static Future<List<int>> downloadFileBytes({
     required String driveFileId,
   }) async {
-    if (kIsWeb) {
-      throw Exception('Google Drive download is not supported on web yet.');
-    }
+    if (kIsWeb) throw Exception('Not supported on web.');
 
-    // Initialize GoogleSignIn if not already initialized
-    await _googleSignIn.initialize();
-
-    // Try lightweight authentication first, then full authentication if needed
-    GoogleSignInAccount? account = await _googleSignIn.attemptLightweightAuthentication();
-    if (account == null) {
-      account = await _googleSignIn.authenticate(scopeHint: _scopes);
-    }
-    if (account == null) {
-      throw Exception('Google sign-in cancelled.');
-    }
-
-    // Request authorization for scopes to get access token
-    final authorization = await account.authorizationClient.authorizeScopes(_scopes);
-    if (authorization.accessToken == null) {
-      throw Exception('Failed to get authorization for Drive access.');
-    }
-
-    final headers = <String, String>{
-      'Authorization': 'Bearer ${authorization.accessToken!}',
-    };
-    final client = _GoogleAuthClient(headers);
+    final client = await _getAuthClient();
     final api = drive.DriveApi(client);
 
     try {
@@ -139,6 +120,175 @@ class GoogleDriveBackupService {
       return chunks;
     } finally {
       client.close();
+    }
+  }
+
+  /// Upload an encrypted backup archive to Google Drive.
+  /// Returns the Drive file ID.
+  static Future<String> uploadBackupArchive({
+    required String filePath,
+  }) async {
+    if (kIsWeb) throw Exception('Not supported on web.');
+
+    final f = File(filePath);
+    if (!await f.exists()) throw Exception('Backup file not found: $filePath');
+
+    final client = await _getAuthClient();
+    final api = drive.DriveApi(client);
+
+    try {
+      final folderId = await _getOrCreateFolderId(api);
+      final fileName =
+          'dvb_${DateTime.now().toUtc().toIso8601String().replaceAll(':', '-')}.dvb.enc';
+      final media = drive.Media(f.openRead(), await f.length());
+
+      final created = await api.files.create(
+        drive.File()
+          ..name = fileName
+          ..parents = [folderId],
+        uploadMedia: media,
+        $fields: 'id',
+      );
+
+      final id = created.id;
+      if (id == null || id.isEmpty) throw Exception('Drive upload failed.');
+
+      await _pruneOldBackups(api, folderId);
+      await setLinked(true);
+      return id;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// List all backup archives in the Drive folder, newest first.
+  static Future<List<DriveBackupInfo>> listBackups() async {
+    if (kIsWeb) throw Exception('Not supported on web.');
+
+    final client = await _getAuthClient();
+    final api = drive.DriveApi(client);
+
+    try {
+      final folderId = await _getOrCreateFolderId(api);
+      final result = await api.files.list(
+        q: "'$folderId' in parents and name contains '.dvb.enc' and trashed = false",
+        orderBy: 'createdTime desc',
+        $fields: 'files(id,name,createdTime,size)',
+        spaces: 'drive',
+      );
+
+      return (result.files ?? []).map((f) {
+        return DriveBackupInfo(
+          fileId: f.id ?? '',
+          name: f.name ?? '',
+          createdTime: f.createdTime,
+          sizeBytes: f.size != null ? int.tryParse(f.size!) : null,
+        );
+      }).toList();
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Download a backup archive to a temp file. Returns the local file path.
+  static Future<String> downloadBackupArchive({
+    required String driveFileId,
+  }) async {
+    if (kIsWeb) throw Exception('Not supported on web.');
+
+    final client = await _getAuthClient();
+    final api = drive.DriveApi(client);
+
+    try {
+      final resp = await api.files.get(
+        driveFileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      );
+
+      if (resp is! drive.Media) {
+        throw Exception('Unexpected Drive download response.');
+      }
+
+      final tempDir = await Directory.systemTemp.createTemp('dvb_restore_');
+      final filePath = '${tempDir.path}/backup.dvb.enc';
+      final outFile = File(filePath);
+      final sink = outFile.openWrite();
+      await for (final chunk in resp.stream) {
+        sink.add(chunk);
+      }
+      await sink.flush();
+      await sink.close();
+      return filePath;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Link Google account for backup. Returns true if successful.
+  static Future<bool> linkGoogleAccount() async {
+    if (kIsWeb) return false;
+    try {
+      final client = await _getAuthClient();
+      client.close();
+      await setLinked(true);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Unlink Google account from backup.
+  static Future<void> unlinkGoogleAccount({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.setBool(_googleLinkedKey, false);
+    await p.remove(_folderIdKey);
+  }
+
+  static Future<_GoogleAuthClient> _getAuthClient() async {
+    await _googleSignIn.initialize();
+    GoogleSignInAccount? account =
+        await _googleSignIn.attemptLightweightAuthentication();
+    if (account == null) {
+      account = await _googleSignIn.authenticate(scopeHint: _scopes);
+    }
+    if (account == null) throw Exception('Google sign-in cancelled.');
+
+    final authorization =
+        await account.authorizationClient.authorizeScopes(_scopes);
+    if (authorization.accessToken == null) {
+      throw Exception('Failed to get Drive authorization.');
+    }
+
+    return _GoogleAuthClient(<String, String>{
+      'Authorization': 'Bearer ${authorization.accessToken!}',
+    });
+  }
+
+  static Future<void> _pruneOldBackups(
+    drive.DriveApi api,
+    String folderId,
+  ) async {
+    try {
+      final result = await api.files.list(
+        q: "'$folderId' in parents and name contains '.dvb.enc' and trashed = false",
+        orderBy: 'createdTime desc',
+        $fields: 'files(id,name,createdTime)',
+        spaces: 'drive',
+      );
+
+      final files = result.files ?? [];
+      if (files.length <= maxBackups) return;
+
+      for (int i = maxBackups; i < files.length; i++) {
+        final fid = files[i].id;
+        if (fid != null) {
+          try {
+            await api.files.delete(fid);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {
+      // non-fatal
     }
   }
 

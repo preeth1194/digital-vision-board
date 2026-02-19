@@ -83,6 +83,7 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + inset),
@@ -96,7 +97,7 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
           ),
           if ((widget.subtitle ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(widget.subtitle!, style: const TextStyle(color: Colors.black54)),
+            Text(widget.subtitle!, style: TextStyle(color: colorScheme.onSurfaceVariant)),
           ],
           const SizedBox(height: 12),
           Row(

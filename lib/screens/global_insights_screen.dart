@@ -14,19 +14,20 @@ class GlobalInsightsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final allHabits = components.expand((c) => c.habits).toList();
     final allTodos = _allGoalTodos(components);
 
     if (allHabits.isEmpty && allTodos.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.insights, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            Icon(Icons.insights, size: 64, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
             Text(
               'No activity to analyze yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(fontSize: 18, color: colorScheme.onSurfaceVariant),
             ),
           ],
         ),

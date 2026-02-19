@@ -29,7 +29,7 @@ class NotificationsService {
     const initSettings = InitializationSettings(android: android, iOS: ios);
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
     _initialized = true;
@@ -205,9 +205,9 @@ class NotificationsService {
     if (kIsWeb) return;
     await ensureInitialized();
     // Cancel daily (weekday null -> id uses 0) and weekly variants.
-    await _plugin.cancel(_habitReminderId(habit));
+    await _plugin.cancel(id: _habitReminderId(habit));
     for (int wd = DateTime.monday; wd <= DateTime.sunday; wd++) {
-      await _plugin.cancel(_habitReminderId(habit, weekday: wd));
+      await _plugin.cancel(id: _habitReminderId(habit, weekday: wd));
     }
   }
 
@@ -261,11 +261,11 @@ class NotificationsService {
       for (final wd in habit.weeklyDays.toSet()) {
         final when = _nextInstanceForWeekday(time, wd);
         await _plugin.zonedSchedule(
-          _habitReminderId(habit, weekday: wd),
-          'Habit reminder',
-          habit.name,
-          when,
-          platformDetails,
+          id: _habitReminderId(habit, weekday: wd),
+          title: 'Habit reminder',
+          body: habit.name,
+          scheduledDate: when,
+          notificationDetails: platformDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
@@ -276,11 +276,11 @@ class NotificationsService {
     // Default: daily reminder
     final when = _nextInstanceForTimeTodayOrTomorrow(time);
     await _plugin.zonedSchedule(
-      _habitReminderId(habit),
-      'Habit reminder',
-      habit.name,
-      when,
-      platformDetails,
+      id: _habitReminderId(habit),
+      title: 'Habit reminder',
+      body: habit.name,
+      scheduledDate: when,
+      notificationDetails: platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -307,11 +307,11 @@ class NotificationsService {
       vibrationType: vibrationType,
     );
     await _plugin.zonedSchedule(
-      _habitSnoozeId(habit, iso),
-      'Habit reminder',
-      habit.name,
-      when,
-      platformDetails,
+      id: _habitSnoozeId(habit, iso),
+      title: 'Habit reminder',
+      body: habit.name,
+      scheduledDate: when,
+      notificationDetails: platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
@@ -357,10 +357,10 @@ class NotificationsService {
     });
 
     await _plugin.show(
-      _stableId('geofence:$habitId'),
-      'You completed "$habitName"!',
-      'Tell us how it went.',
-      _geofenceCompletionDetails(),
+      id: _stableId('geofence:$habitId'),
+      title: 'You completed "$habitName"!',
+      body: 'Tell us how it went.',
+      notificationDetails: _geofenceCompletionDetails(),
       payload: payload,
     );
   }

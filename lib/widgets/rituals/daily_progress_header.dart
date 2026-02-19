@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../../utils/app_colors.dart';
-
 /// Header widget showing today's progress ring and streak info.
 class DailyProgressHeader extends StatelessWidget {
   final int completedCount;
@@ -18,6 +16,7 @@ class DailyProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progress = totalCount > 0
         ? (completedCount / totalCount).clamp(0.0, 1.0)
@@ -28,13 +27,13 @@ class DailyProgressHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
         color: isDark
-            ? AppColors.forestGreen.withValues(alpha: 0.4)
-            : AppColors.mintGreen.withValues(alpha: 0.18),
+            ? colorScheme.secondary.withValues(alpha: 0.4)
+            : colorScheme.outlineVariant.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark
-              ? AppColors.mintGreen.withValues(alpha: 0.10)
-              : AppColors.mintGreen.withValues(alpha: 0.45),
+              ? colorScheme.outlineVariant.withValues(alpha: 0.10)
+              : colorScheme.outlineVariant.withValues(alpha: 0.45),
           width: 1,
         ),
       ),
@@ -51,8 +50,8 @@ class DailyProgressHeader extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: isDark
-                        ? AppColors.lightest.withValues(alpha: 0.7)
-                        : AppColors.dark.withValues(alpha: 0.65),
+                        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.7)
+                        : colorScheme.secondary.withValues(alpha: 0.65),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -62,7 +61,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.darkest,
+                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
                       height: 1.2,
                     ),
                   )
@@ -72,7 +71,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.darkest,
+                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
                       height: 1.2,
                     ),
                   ),
@@ -81,17 +80,18 @@ class DailyProgressHeader extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           // Progress ring
-          _buildProgressRing(progress, isDark),
+          _buildProgressRing(context, progress, isDark),
         ],
       ),
     );
   }
 
-  static Widget _buildProgressRing(double progress, bool isDark) {
-    final progressColor = AppColors.progressBlue;
+  static Widget _buildProgressRing(BuildContext context, double progress, bool isDark) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final progressColor = colorScheme.primary;
     final trackColor = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.grey.withValues(alpha: 0.20);
+        ? colorScheme.surface.withValues(alpha: 0.12)
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.20);
     final percentage = (progress * 100).round();
 
     return SizedBox(
@@ -131,7 +131,7 @@ class DailyProgressHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : AppColors.darkest,
+              color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
             ),
           ),
         ],

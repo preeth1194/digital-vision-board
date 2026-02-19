@@ -210,6 +210,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       clipBehavior: Clip.antiAlias,
@@ -217,7 +218,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -238,11 +239,12 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             Positioned(
               top: 8,
               left: 12,
-              child: GestureDetector(
+                child: GestureDetector(
                 onTap: widget.onRefreshLocation,
                 child: _buildTimeLabel(
                   'Sunrise: ${SunTimesService.formatTime(widget.sunrise)}',
                   showRefreshHint: widget.onRefreshLocation != null,
+                  colorScheme: colorScheme,
                 ),
               ),
             ),
@@ -254,6 +256,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
                 child: _buildTimeLabel(
                   'Sunset: ${SunTimesService.formatTime(widget.sunset)}',
                   showRefreshHint: widget.onRefreshLocation != null,
+                  colorScheme: colorScheme,
                 ),
               ),
             ),
@@ -282,6 +285,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
                         sunPulseValue: _sunPulseController.value,
                         rayValue: _rayController.value,
                         starValue: _starController.value,
+                        starColor: colorScheme.onPrimary,
                       ),
                     );
                   },
@@ -294,7 +298,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
     );
   }
 
-  Widget _buildTimeLabel(String text, {bool showRefreshHint = false}) {
+  Widget _buildTimeLabel(String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -309,10 +313,10 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: colorScheme.onPrimary,
               shadows: [
                 Shadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: colorScheme.shadow.withValues(alpha: 0.5),
                   blurRadius: 4,
                   offset: const Offset(0, 1),
                 ),
@@ -324,10 +328,10 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             Icon(
               Icons.refresh,
               size: 12,
-              color: Colors.white.withOpacity(0.8),
+              color: colorScheme.onPrimary.withValues(alpha: 0.8),
               shadows: [
                 Shadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: colorScheme.shadow.withValues(alpha: 0.5),
                   blurRadius: 4,
                   offset: const Offset(0, 1),
                 ),
@@ -350,6 +354,7 @@ class _SunMoonArcPainter extends CustomPainter {
   final double sunPulseValue;
   final double rayValue;
   final double starValue;
+  final Color starColor;
 
   _SunMoonArcPainter({
     required this.sunPosition,
@@ -359,6 +364,7 @@ class _SunMoonArcPainter extends CustomPainter {
     required this.sunPulseValue,
     required this.rayValue,
     required this.starValue,
+    required this.starColor,
   });
 
   @override
@@ -458,7 +464,7 @@ class _SunMoonArcPainter extends CustomPainter {
   }
 
   void _drawStars(Canvas canvas, Offset moonCenter) {
-    final starPaint = Paint()..color = Colors.white;
+    final starPaint = Paint()..color = starColor;
     final random = math.Random(42); // Fixed seed for consistent positions
 
     for (int i = 0; i < 5; i++) {
@@ -473,7 +479,7 @@ class _SunMoonArcPainter extends CustomPainter {
       final opacity = 0.3 + (twinkle * 0.7);
       final scale = 1.0 + (twinkle * 0.5);
       
-      starPaint.color = Colors.white.withOpacity(opacity);
+      starPaint.color = starColor.withValues(alpha: opacity);
       canvas.drawCircle(Offset(x, y), 1.5 * scale, starPaint);
     }
   }
@@ -486,6 +492,7 @@ class _SunMoonArcPainter extends CustomPainter {
         oldDelegate.isMoonVisible != isMoonVisible ||
         oldDelegate.sunPulseValue != sunPulseValue ||
         oldDelegate.rayValue != rayValue ||
-        oldDelegate.starValue != starValue;
+        oldDelegate.starValue != starValue ||
+        oldDelegate.starColor != starColor;
   }
 }

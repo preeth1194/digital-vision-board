@@ -357,7 +357,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                 backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 thumbColor: theme.brightness == Brightness.dark
                     ? colorScheme.surfaceContainerHigh
-                    : CupertinoColors.white,
+                    : colorScheme.surface,
                 children: {
                   'arrival': Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -577,7 +577,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                   .withValues(alpha: 0.5),
               thumbColor: theme.brightness == Brightness.dark
                   ? colorScheme.surfaceContainerHigh
-                  : CupertinoColors.white,
+                  : colorScheme.surface,
               children: {
                 for (final opt in kVibrateTypeOptions)
                   opt.$1: Padding(

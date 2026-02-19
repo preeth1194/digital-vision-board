@@ -53,6 +53,7 @@ class VisionBoardBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final sorted = [...components]..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
     return LayoutBuilder(
@@ -113,14 +114,14 @@ class VisionBoardBuilder extends StatelessWidget {
                                   children: [
                                     Opacity(
                                       opacity: c.isDisabled ? 0.35 : 1.0,
-                                      child: componentImageForPath(c.imagePath),
+                                      child: componentImageForPath(context, c.imagePath),
                                     ),
                                     if (c.isDisabled)
-                                      const Align(
+                                      Align(
                                         alignment: Alignment.topRight,
                                         child: Padding(
-                                          padding: EdgeInsets.all(6),
-                                          child: Icon(Icons.check_circle, color: Colors.white),
+                                          padding: const EdgeInsets.all(6),
+                                          child: Icon(Icons.check_circle, color: colorScheme.surface),
                                         ),
                                       ),
                                   ],

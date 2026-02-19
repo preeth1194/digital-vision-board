@@ -5,9 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
+import '../services/ad_free_service.dart';
+import '../services/ad_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/sun_times_service.dart';
 import '../utils/app_colors.dart';
+import '../widgets/ads/reward_ad_card.dart';
+import '../widgets/rituals/add_habit_modal.dart';
 import '../widgets/routine/routine_calendar_header.dart';
 import '../widgets/routine/sun_times_header.dart';
 import '../widgets/rituals/habit_form_constants.dart';
@@ -52,6 +56,18 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   double _viewportHeight = 0;
   int _lastCrossedHour = -1;
   double _timelineMaxY = 0;
+
+  // Occupied Y-ranges for empty-slot detection (populated by _buildPositionedHabitCards)
+  List<(double top, double bottom)> _occupiedRanges = [];
+
+  // Visual feedback for tapped time slot
+  double? _tapHighlightY;
+
+  // Ad gating state
+  static const int _freeHabitLimit = 3;
+  bool _shouldShowAds = true;
+  String? _activeAdSession;
+  int _adWatchedCount = 0;
 
   late AnimationController _currentTimeIndicatorController;
 
@@ -137,7 +153,23 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     _prefs = await SharedPreferences.getInstance();
     await _loadHabits();
     await _loadSunTimes();
+    await _loadAdState();
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadAdState() async {
+    final showAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+    final session = await AdService.getActiveSession(prefs: _prefs);
+    final watched = session != null
+        ? await AdService.getWatchedCount(session, prefs: _prefs)
+        : 0;
+    if (mounted) {
+      setState(() {
+        _shouldShowAds = showAds;
+        _activeAdSession = session;
+        _adWatchedCount = watched;
+      });
+    }
   }
 
   Future<void> _loadHabits() async {
@@ -258,14 +290,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     }).toList();
   }
 
-  /// Habits without a specific time slot — shown in the compact section.
-  List<HabitItem> get _untimedHabitsForDate {
-    return _habitsForSelectedDate.where((h) {
-      final tb = h.timeBound;
-      return h.startTimeMinutes == null || tb == null || !tb.enabled || tb.durationMinutes <= 0;
-    }).toList();
-  }
-
   void _computeHourLayout(List<HabitItem> habits) {
     final perHour = List.filled(24, 0);
     for (final h in habits) {
@@ -329,6 +353,144 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   }
 
   // -----------------------------------------------------------------------
+  // Time-slot tap handling
+  // -----------------------------------------------------------------------
+
+  TimeOfDay? _timeFromYOffset(double y) {
+    int hour = _hourFromOffset(y);
+    final fraction = _hourHeights[hour] > 0
+        ? ((y - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(0.0, 1.0)
+        : 0.0;
+    final rawMinute = (fraction * 60).toInt();
+    final snappedMinute = (rawMinute / 15).round() * 15;
+    final totalMinutes = hour * 60 + snappedMinute;
+    final h = (totalMinutes ~/ 60).clamp(0, 23);
+    final m = totalMinutes % 60;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  bool _isSlotOccupied(double y) {
+    for (final range in _occupiedRanges) {
+      if (y >= range.$1 && y <= range.$2) return true;
+    }
+    return false;
+  }
+
+  void _onTimelineTap(TapUpDetails details) {
+    final localY = details.localPosition.dy;
+    final localX = details.localPosition.dx;
+    if (localX < 56) return; // tapped on time labels area
+
+    if (_isSlotOccupied(localY)) return;
+
+    final time = _timeFromYOffset(localY);
+    if (time == null) return;
+
+    setState(() => _tapHighlightY = localY);
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _tapHighlightY = null);
+    });
+
+    HapticFeedback.lightImpact();
+    _handleSlotTap(time);
+  }
+
+  void _handleSlotTap(TimeOfDay time) {
+    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
+      if (_activeAdSession == null) {
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        AdService.setActiveSession(sessionKey, prefs: _prefs);
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Watch 5 ads to unlock a new habit slot!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
+        final remaining = AdService.requiredAdsPerHabit - _adWatchedCount;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Watch $remaining more ad(s) to unlock a new habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+    _openAddHabitAtTime(time);
+  }
+
+  Future<void> _openAddHabitAtTime(TimeOfDay time) async {
+    final req = await showAddHabitModal(
+      context,
+      existingHabits: _habits,
+      initialStartTime: time,
+      initialDurationMinutes: 30,
+    );
+    if (req == null || !mounted) return;
+
+    final newHabit = HabitItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: req.name,
+      category: req.category,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+      iconIndex: req.iconIndex,
+      completedDates: const [],
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
+    );
+
+    await HabitStorageService.addHabit(newHabit);
+
+    if (_activeAdSession != null) {
+      await AdService.clearSession(_activeAdSession!);
+      await AdService.setActiveSession(null, prefs: _prefs);
+      setState(() {
+        _activeAdSession = null;
+        _adWatchedCount = 0;
+      });
+    }
+
+    await _loadHabits();
+    await _loadAdState();
+  }
+
+  Future<void> _onRewardAdWatched() async {
+    if (_activeAdSession == null) return;
+    final newCount = await AdService.incrementWatchedCount(
+      _activeAdSession!,
+      prefs: _prefs,
+    );
+    if (mounted) setState(() => _adWatchedCount = newCount);
+  }
+
+  void _onAllAdsWatched() {
+    // Ads complete — user can now tap an empty time slot
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Habit unlocked! Tap an empty time slot to create.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
   // Build
   // -----------------------------------------------------------------------
 
@@ -350,7 +512,16 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
             previewTime: _timelinePreviewTime,
             onRefreshLocation: _refreshLocation,
           ),
-        _buildUntimedHabitsSection(),
+        if (_activeAdSession != null && _shouldShowAds)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: RewardAdCard(
+              sessionKey: _activeAdSession!,
+              watchedCount: _adWatchedCount,
+              onAdWatched: _onRewardAdWatched,
+              onAllAdsWatched: _onAllAdsWatched,
+            ),
+          ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -371,116 +542,12 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildUntimedHabitsSection() {
-    final habits = _untimedHabitsForDate;
-    if (habits.isEmpty) return const SizedBox.shrink();
-
-    final colorScheme = Theme.of(context).colorScheme;
-    final completedCount =
-        habits.where((h) => h.isCompletedForCurrentPeriod(_selectedDate)).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-          child: Row(
-            children: [
-              Text(
-                'Anytime',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '$completedCount / ${habits.length}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: habits.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final habit = habits[index];
-              final isCompleted =
-                  habit.isCompletedForCurrentPeriod(_selectedDate);
-              final iconData =
-                  habit.iconIndex != null && habit.iconIndex! < habitIcons.length
-                      ? habitIcons[habit.iconIndex!].$1
-                      : Icons.self_improvement;
-
-              return GestureDetector(
-                onTap: () => _openHabitTimer(habit),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? AppColors.mossGreen.withOpacity(0.15)
-                        : colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isCompleted
-                          ? AppColors.mossGreen.withOpacity(0.3)
-                          : colorScheme.outlineVariant.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(iconData, size: 14,
-                          color: isCompleted
-                              ? AppColors.mossGreen
-                              : colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Text(
-                        habit.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isCompleted
-                              ? AppColors.mossGreen
-                              : colorScheme.onSurface,
-                          decoration:
-                              isCompleted ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                      if (isCompleted) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.check_circle_rounded, size: 14,
-                            color: AppColors.mossGreen),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
-      ],
-    );
-  }
-
   Widget _build24HourTimeline() {
     final habitsForDate = _timedHabitsForDate;
     _computeHourLayout(habitsForDate);
     final totalHeight = _hourYOffsets[24];
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final habitCards = _buildPositionedHabitCards(habitsForDate, isDark);
     final effectiveHeight =
         _timelineMaxY > totalHeight ? _timelineMaxY + 20 : totalHeight;
@@ -497,23 +564,46 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         child: Container(
           height: effectiveHeight,
-          color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
-          child: Stack(
-            children: [
-              ..._buildHourLines(isDark),
-              if (isToday)
-                _buildCurrentTimeIndicator(isDark)
-              else
-                _buildDateAnchorLine(isDark),
-              ...habitCards,
-              if (habitsForDate.isEmpty && _untimedHabitsForDate.isEmpty)
-                Positioned(
-                  top: _hourYOffsets[7],
-                  left: 56,
-                  right: 16,
-                  child: _buildEmptyTimelineHint(),
-                ),
-            ],
+          color: isDark
+              ? colorScheme.onSurface.withValues(alpha: 0.03)
+              : colorScheme.shadow.withValues(alpha: 0.02),
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTapUp: _onTimelineTap,
+            child: Stack(
+              children: [
+                ..._buildHourLines(isDark, colorScheme),
+                if (isToday)
+                  _buildCurrentTimeIndicator(isDark, colorScheme)
+                else
+                  _buildDateAnchorLine(colorScheme),
+                ...habitCards,
+                if (_tapHighlightY != null)
+                  Positioned(
+                    top: _tapHighlightY! - 1,
+                    left: 56,
+                    right: 24,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      opacity: _tapHighlightY != null ? 1.0 : 0.0,
+                      child: Container(
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (habitsForDate.isEmpty)
+                  Positioned(
+                    top: _hourYOffsets[7],
+                    left: 56,
+                    right: 16,
+                    child: _buildEmptyTimelineHint(),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -525,30 +615,30 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.schedule_outlined, size: 40,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.6)),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
           const SizedBox(height: 12),
           Text('No habits yet',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
                   color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 4),
-          Text('Create habits with a timer & start time to see them here',
+          Text('Tap an empty time slot to create a habit',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7))),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
         ],
       ),
     );
   }
 
-  List<Widget> _buildHourLines(bool isDark) {
+  List<Widget> _buildHourLines(bool isDark, ColorScheme colorScheme) {
     final List<Widget> hourWidgets = [];
     final totalHeight = _hourYOffsets[24];
 
@@ -561,7 +651,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       child: Container(
         height: totalHeight,
         decoration: BoxDecoration(
-          color: isDark ? Colors.white24 : Colors.black12,
+          color: isDark
+              ? colorScheme.onSurface.withValues(alpha: 0.24)
+              : colorScheme.outlineVariant.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(1),
         ),
       ),
@@ -595,8 +687,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                       fontSize: 13,
                       fontWeight: isCurrentHour ? FontWeight.w700 : FontWeight.w600,
                       color: isCurrentHour
-                          ? AppColors.medium
-                          : (isDark ? Colors.white70 : Colors.grey[700]!),
+                          ? colorScheme.primary
+                          : (isDark
+                              ? colorScheme.onSurface.withValues(alpha: 0.7)
+                              : colorScheme.onSurfaceVariant),
                     )),
               ),
             ),
@@ -606,7 +700,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                 padding: const EdgeInsets.only(top: 7, right: 16),
                 child: Container(
                   height: 1,
-                  color: isDark ? Colors.white24 : Colors.grey[300]!,
+                  color: isDark
+                      ? colorScheme.onSurface.withValues(alpha: 0.24)
+                      : colorScheme.outlineVariant,
                 ),
               ),
             ),
@@ -634,7 +730,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w400,
-                      color: isDark ? Colors.white38 : Colors.grey[500]!,
+                      color: isDark
+                          ? colorScheme.onSurface.withValues(alpha: 0.38)
+                          : colorScheme.onSurfaceVariant,
                     )),
               ),
             ),
@@ -645,7 +743,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                 child: CustomPaint(
                   size: const Size(double.infinity, 1),
                   painter: _DottedLinePainter(
-                    color: isDark ? Colors.white12 : Colors.grey[200]!,
+                    color: isDark
+                        ? colorScheme.onSurface.withValues(alpha: 0.12)
+                        : colorScheme.outlineVariant,
                   ),
                 ),
               ),
@@ -658,7 +758,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   }
 
   /// Visible anchor line at 6 AM for non-today dates so the timeline feels present.
-  Widget _buildDateAnchorLine(bool isDark) {
+  Widget _buildDateAnchorLine(ColorScheme colorScheme) {
     final yPosition = _hourYOffsets[6];
     return Positioned(
       top: yPosition - 4,
@@ -671,7 +771,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
             height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.medium.withOpacity(0.6),
+              color: colorScheme.primary.withOpacity(0.6),
             ),
           ),
           Expanded(
@@ -680,8 +780,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.medium.withOpacity(0.5),
-                    AppColors.medium.withOpacity(0.0),
+                    colorScheme.primary.withOpacity(0.5),
+                    colorScheme.primary.withOpacity(0.0),
                   ],
                 ),
               ),
@@ -692,7 +792,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildCurrentTimeIndicator(bool isDark) {
+  Widget _buildCurrentTimeIndicator(bool isDark, ColorScheme colorScheme) {
     final now = DateTime.now();
     final hour = now.hour.clamp(0, 23);
     final yPosition = _hourYOffsets[hour] + (now.minute / 60) * _hourHeights[hour];
@@ -711,10 +811,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               height: 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.red,
+                color: colorScheme.error,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.red.withOpacity(0.3 + pulseValue * 0.3),
+                    color: colorScheme.error.withOpacity(0.3 + pulseValue * 0.3),
                     blurRadius: 4 + pulseValue * 4,
                     spreadRadius: pulseValue * 2,
                   ),
@@ -726,10 +826,13 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                 height: 2,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                      colors: [Colors.red, Colors.red.withOpacity(0.3)]),
+                      colors: [
+                    colorScheme.error,
+                    colorScheme.error.withOpacity(0.3),
+                  ]),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.red.withOpacity(0.2 + pulseValue * 0.2),
+                      color: colorScheme.error.withOpacity(0.2 + pulseValue * 0.2),
                       blurRadius: 2 + pulseValue * 2,
                     ),
                   ],
@@ -748,7 +851,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
         _timelineScrollController.hasClients ? _timelineScrollController.offset : 0.0;
 
     _timelineMaxY = _hourYOffsets[24];
-    if (habits.isEmpty) return cards;
+    if (habits.isEmpty) {
+      _occupiedRanges = [];
+      return cards;
+    }
 
     final cardData = habits.map((h) {
       final s = h.startTimeMinutes ?? 0;
@@ -776,6 +882,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
     final lastIdx = habits.length - 1;
     _timelineMaxY = adjustedY[lastIdx] + cardData[lastIdx].cardHeight;
+
+    _occupiedRanges = List.generate(habits.length, (i) {
+      return (adjustedY[i], adjustedY[i] + cardData[i].cardHeight);
+    });
 
     for (int i = 0; i < habits.length; i++) {
       final habit = habits[i];
@@ -912,9 +1022,9 @@ class _TimelineHabitCard extends StatelessWidget {
     final endTime = startTime != null ? startTime + duration : null;
     final isCompleted = habit.isCompletedOnDate(selectedDate);
     final tileColor = isCompleted
-        ? AppColors.mossGreen
+        ? colorScheme.primary
         : _categoryColor(habit.category, isDark);
-    final textColor = _getContrastColor(tileColor);
+    final textColor = _getContrastColor(colorScheme, tileColor);
     final subtitleColor = textColor.withOpacity(0.65);
 
     return Material(
@@ -1072,9 +1182,11 @@ class _TimelineHabitCard extends StatelessWidget {
     );
   }
 
-  Color _getContrastColor(Color color) {
+  Color _getContrastColor(ColorScheme colorScheme, Color color) {
     final luminance = color.computeLuminance();
-    return luminance > 0.5 ? AppColors.darkest : AppColors.lightest;
+    return luminance > 0.5
+        ? colorScheme.onSurface
+        : colorScheme.surfaceContainerHighest;
   }
 }
 
@@ -1124,7 +1236,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: colorScheme.shadow.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -1153,10 +1265,10 @@ class _CompletionDetailsSheet extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppColors.mossGreen.withValues(alpha: 0.15),
+                    color: colorScheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(iconData, size: 24, color: AppColors.mossGreen),
+                  child: Icon(iconData, size: 24, color: colorScheme.primary),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1177,14 +1289,14 @@ class _CompletionDetailsSheet extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.check_circle_rounded,
-                              size: 14, color: AppColors.mossGreen),
+                              size: 14, color: colorScheme.primary),
                           const SizedBox(width: 4),
                           Text(
                             'Completed',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.mossGreen,
+                              color: colorScheme.primary,
                             ),
                           ),
                         ],

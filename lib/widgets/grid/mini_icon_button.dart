@@ -14,8 +14,9 @@ class MiniIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return IconButton(
-      icon: Icon(icon, size: 18, color: Colors.white),
+      icon: Icon(icon, size: 18, color: colorScheme.surface),
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,

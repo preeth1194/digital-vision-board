@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/image_service.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,13 +21,15 @@ import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/sync_service.dart';
+import '../services/auto_sync_service.dart';
+import '../services/google_drive_backup_service.dart';
+import 'backup_restore_screen.dart';
 import '../services/logical_date_service.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
 import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
-import 'settings_screen.dart';
 import 'templates/template_gallery_screen.dart';
 import 'journal/journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
@@ -35,6 +39,8 @@ import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
 import 'earn_badges_screen.dart';
+import 'subscription_screen.dart';
+import '../services/subscription_service.dart';
 import '../models/grid_tile_model.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
@@ -137,8 +143,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (state == AppLifecycleState.resumed) {
       _refreshReminders();
       _loadCoins();
-      // Best-effort: if user is still on a guest session after 10 days, re-prompt.
       _maybeShowAuthGatewayIfMandatoryAfterTenDays();
+      unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
     }
   }
 
@@ -163,6 +169,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _maybeShowAuthGatewayIfGuestExpired();
     await _maybeShowAuthGatewayIfMandatoryAfterTenDays();
     await _loadProfileAvatar();
+
+    // Auto-sync: check if 24h backup is due
+    unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -303,6 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   Widget _buildCoinBadge(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ValueListenableBuilder<int>(
       valueListenable: _coinNotifier,
@@ -330,13 +340,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     width: 1.5,
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     '\$',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -366,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? AppColors.lightest : AppColors.darkest,
+                    color: isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -589,10 +599,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     await _reload();
   }
 
-  void _openSettings() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-  }
-
   Future<void> _openEarnBadges() async {
     // Gather all habits from all boards (handles both freeform and grid layouts)
     final allHabits = <HabitItem>[];
@@ -630,6 +636,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         builder: (_) => EarnBadgesScreen(
           allHabits: allHabits,
           totalCoins: _coinNotifier.value,
+          coinNotifier: _coinNotifier,
         ),
       ),
     );
@@ -639,26 +646,28 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
     
-    final imagePath = await PuzzleService.getCurrentPuzzleImage(
+    var imagePath = await PuzzleService.getCurrentPuzzleImage(
       boards: _boards,
       prefs: prefs,
     );
 
     if (imagePath == null || imagePath.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No puzzle images available. Add goal images to your vision boards.'),
-        ),
+      final cropped = await ImageService.pickAndCropPuzzleImage(
+        context,
+        source: ImageSource.gallery,
       );
-      return;
+      if (cropped == null || !mounted) return;
+      await PuzzleService.setPuzzleImage(cropped, prefs: prefs);
+      imagePath = cropped;
     }
 
-    if (!mounted) return;
+    if (!mounted || imagePath == null) return;
+    final resolvedPath = imagePath;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PuzzleGameScreen(
-          imagePath: imagePath,
+          imagePath: resolvedPath,
           prefs: prefs,
         ),
       ),
@@ -841,6 +850,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
+      onSwitchToRoutine: () => setState(() => _tabIndex = 6),
     );
 
     return Scaffold(
@@ -899,20 +909,119 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 await _openAccount();
               },
             ),
+            ValueListenableBuilder<bool>(
+              valueListenable: SubscriptionService.isSubscribed,
+              builder: (context, subscribed, _) {
+                return ListTile(
+                  leading: Icon(
+                    Icons.workspace_premium_rounded,
+                    color: subscribed ? AppColors.coinGold : null,
+                  ),
+                  title: Text(subscribed ? 'Premium Active' : 'Go Premium'),
+                  trailing: subscribed
+                      ? Icon(Icons.check_circle_rounded,
+                          color: Theme.of(context).colorScheme.secondary, size: 20)
+                      : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                );
+              },
+            ),
+            ValueListenableBuilder<SyncState>(
+              valueListenable: AutoSyncService.state,
+              builder: (context, syncState, _) {
+                return FutureBuilder<bool>(
+                  future: GoogleDriveBackupService.isLinked(prefs: _prefs),
+                  builder: (context, linkSnap) {
+                    final linked = linkSnap.data ?? false;
+
+                    if (!linked) {
+                      return ListTile(
+                        leading: Icon(Icons.cloud_off_outlined,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        title: const Text('Backup not set up'),
+                        subtitle: const Text('Tap to link Google account'),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BackupRestoreScreen()),
+                          );
+                        },
+                      );
+                    }
+
+                    if (syncState == SyncState.syncing) {
+                      return ListTile(
+                        leading: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        title: const Text('Syncing...'),
+                        subtitle: const Text('Encrypting and uploading'),
+                      );
+                    }
+
+                    if (syncState == SyncState.error) {
+                      return ListTile(
+                        leading: Icon(Icons.cloud_off_outlined,
+                            color: Theme.of(context).colorScheme.error),
+                        title: const Text('Sync failed'),
+                        subtitle: const Text('Tap sync to retry'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.sync),
+                          onPressed: () =>
+                              AutoSyncService.syncNow(prefs: _prefs),
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BackupRestoreScreen()),
+                          );
+                        },
+                      );
+                    }
+
+                    return ListTile(
+                      leading: Icon(Icons.cloud_done_outlined,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: Text(AutoSyncService.lastSyncText),
+                      subtitle: AutoSyncService.nextSyncText.isNotEmpty
+                          ? Text(AutoSyncService.nextSyncText)
+                          : null,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.sync),
+                        onPressed: () =>
+                            AutoSyncService.syncNow(prefs: _prefs),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const BackupRestoreScreen()),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.format_quote_outlined),
               title: const Text('Affirmations'),
               onTap: () {
                 Navigator.of(context).pop();
                 setState(() => _tabIndex = 3);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _openSettings();
               },
             ),
             ListTile(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import '../../services/image_service.dart';
 import '../../services/puzzle_service.dart';
 import '../../utils/file_image_provider.dart';
 
@@ -76,6 +78,24 @@ class _PuzzleImageSelectorContentState
     });
   }
 
+  Future<void> _pickFromGallery() async {
+    final cropped = await ImageService.pickAndCropPuzzleImage(
+      context,
+      source: ImageSource.gallery,
+    );
+    if (cropped == null || !mounted) return;
+    Navigator.of(context).pop(cropped);
+  }
+
+  Future<void> _cropAndSelect(String imagePath) async {
+    final cropped = await ImageService.cropExistingImageToSquare(
+      context,
+      sourcePath: imagePath,
+    );
+    if (!mounted) return;
+    Navigator.of(context).pop(cropped ?? imagePath);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -94,36 +114,6 @@ class _PuzzleImageSelectorContentState
           const Expanded(
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (_availableImages.isEmpty)
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.image_not_supported,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No images available',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add goal images to your vision boards to create puzzles',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          )
         else
           Expanded(
             child: GridView.builder(
@@ -134,14 +124,49 @@ class _PuzzleImageSelectorContentState
                 mainAxisSpacing: 12,
                 childAspectRatio: 1.0,
               ),
-              itemCount: _availableImages.length,
+              itemCount: _availableImages.length + 1,
               itemBuilder: (context, index) {
-                final imagePath = _availableImages[index];
+                if (index == 0) {
+                  return InkWell(
+                    onTap: _pickFromGallery,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withOpacity(0.2),
+                        ),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(height: 8),
+                          Text('Upload Image',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary)),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final imagePath = _availableImages[index - 1];
                 final isSelected = imagePath == _currentPuzzleImage;
                 final provider = fileImageProviderFromPath(imagePath);
 
                 return InkWell(
-                  onTap: () => Navigator.of(context).pop(imagePath),
+                  onTap: () => _cropAndSelect(imagePath),
                   borderRadius: BorderRadius.circular(12),
                   child: Stack(
                     children: [

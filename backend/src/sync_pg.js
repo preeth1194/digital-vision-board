@@ -9,10 +9,10 @@ export function isLogicalDate(v) {
 export async function getUserSettingsPg(canvaUserId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth from dv_user_settings where canva_user_id = $1",
+      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, encryption_key from dv_user_settings where canva_user_id = $1",
       [canvaUserId]
     );
-    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null };
+    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null, subscriptionPlanId: null, subscriptionActive: false, subscriptionUpdatedAt: null, encryptionKey: null };
     const row = r.rows[0];
     const dob = row.date_of_birth;
     return {
@@ -22,16 +22,45 @@ export async function getUserSettingsPg(canvaUserId) {
       weightKg: row.weight_kg != null ? Number(row.weight_kg) : null,
       heightCm: row.height_cm != null ? Number(row.height_cm) : null,
       dateOfBirth: dob != null ? (typeof dob === "string" ? dob : dob.toISOString?.().slice(0, 10)) : null,
+      subscriptionPlanId: row.subscription_plan_id ?? null,
+      subscriptionActive: Boolean(row.subscription_active),
+      subscriptionUpdatedAt: row.subscription_updated_at?.toISOString?.() ?? row.subscription_updated_at ?? null,
+      encryptionKey: row.encryption_key ?? null,
     };
   });
 }
 
-export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth }) {
+export async function getEncryptionKeyPg(canvaUserId) {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      "select encryption_key from dv_user_settings where canva_user_id = $1",
+      [canvaUserId]
+    );
+    return r.rowCount ? (r.rows[0].encryption_key ?? null) : null;
+  });
+}
+
+export async function putEncryptionKeyPg(canvaUserId, encryptionKey) {
+  return await withClient(async (c) => {
+    await c.query(
+      `insert into dv_user_settings (canva_user_id, encryption_key)
+       values ($1, $2)
+       on conflict (canva_user_id) do update set
+         encryption_key = coalesce(dv_user_settings.encryption_key, excluded.encryption_key),
+         updated_at = now()`,
+      [canvaUserId, encryptionKey]
+    );
+  });
+}
+
+export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth, subscriptionPlanId, subscriptionActive }) {
   return await withClient(async (c) => {
     const dobVal = dateOfBirth && typeof dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? dateOfBirth : null;
+    const subActive = subscriptionActive != null ? Boolean(subscriptionActive) : null;
+    const subPlan = typeof subscriptionPlanId === "string" && subscriptionPlanId.trim() ? subscriptionPlanId.trim() : null;
     await c.query(
-      `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth)
-       values ($1, $2, $3, $4, $5, $6, $7::date)
+      `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end)
        on conflict (canva_user_id) do update set
          home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
          gender = coalesce(excluded.gender, dv_user_settings.gender),
@@ -39,8 +68,11 @@ export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, dis
          weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
          height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
          date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
+         subscription_plan_id = coalesce(excluded.subscription_plan_id, dv_user_settings.subscription_plan_id),
+         subscription_active = case when $9 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
+         subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
          updated_at = now()`,
-      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null],
+      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null, subPlan, subActive],
     );
   });
 }
@@ -131,9 +163,11 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
         const weightKg = typeof userSettings.weightKg === "number" ? userSettings.weightKg : null;
         const heightCm = typeof userSettings.heightCm === "number" ? userSettings.heightCm : null;
         const dob = userSettings.dateOfBirth && typeof userSettings.dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(userSettings.dateOfBirth) ? userSettings.dateOfBirth : null;
+        const subActive = userSettings.subscriptionActive != null ? Boolean(userSettings.subscriptionActive) : null;
+        const subPlan = typeof userSettings.subscriptionPlanId === "string" && userSettings.subscriptionPlanId.trim() ? userSettings.subscriptionPlanId.trim() : null;
         await c.query(
-          `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth)
-           values ($1, $2, $3, $4, $5, $6, $7::date)
+          `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end)
            on conflict (canva_user_id) do update set
              home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
              gender = coalesce(excluded.gender, dv_user_settings.gender),
@@ -141,8 +175,11 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
              weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
              height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
              date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
+             subscription_plan_id = coalesce(excluded.subscription_plan_id, dv_user_settings.subscription_plan_id),
+             subscription_active = case when $9 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
+             subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
              updated_at = now()`,
-          [canvaUserId, tz, gender, displayName, weightKg, heightCm, dob],
+          [canvaUserId, tz, gender, displayName, weightKg, heightCm, dob, subPlan, subActive],
         );
       }
 

@@ -95,6 +95,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final size = MediaQuery.sizeOf(context);
     final isCompact = size.width < 600;
     final insetBottom = MediaQuery.viewInsetsOf(context).bottom;
@@ -108,9 +109,9 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
             ),
             child: Text(
               _textController.text.isEmpty ? 'Preview' : _textController.text,
@@ -235,7 +236,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: _textColor == color ? Colors.blue : Colors.grey,
+                        color: _textColor == color ? colorScheme.primary : colorScheme.onSurfaceVariant,
                         width: _textColor == color ? 3 : 1,
                       ),
                     ),

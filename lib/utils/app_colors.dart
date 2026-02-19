@@ -20,34 +20,23 @@ class AppColors {
   static const Color lightest = Color(0xFFD4EBD4);
 
   // ── Semantic named colors ──
-  static const Color offWhite = Color(0xFFF8F9F4);
   static const Color mintGreen = Color(0xFFA8D5BA);
   static const Color sageGreen = Color(0xFF8FBC8F);
   static const Color mossGreen = Color(0xFF4A7C59);
   static const Color forestGreen = Color(0xFF2D5A3D);
   static const Color gold = Color(0xFFD4A843);
-  static const Color cream = Color(0xFFFAFAF5);
 
-  // ── Derived / utility colors ──
-  static const Color backgroundDark = Color(0xFF0F1A0F);
-  static const Color backgroundLight = Color(0xFFF8F9F4);
-  static const Color surfaceLight = Color(0xFFFFFFFF);
-  static const Color errorLight = Color(0xFFBA1A1A);
-  static const Color errorDark = Color(0xFFFFB4AB);
-  static const Color onErrorLight = Color(0xFFFFFFFF);
-  static const Color onErrorDark = Color(0xFF690005);
-
-  // ═══════════════════════════════════════════════════════════════
-  // ── Group 1: General UI Colors ──
-  // ═══════════════════════════════════════════════════════════════
-  static const Color paleGreenTint = Color(0xFFE8F5E9);
-  static const Color nearBlack = Color(0xFF1A1A1A);
-  static const Color dimGrey = Color(0xFF6B6B6B);
+  // ── Domain accent (not in ColorScheme) ──
   static const Color completedOrange = Color(0xFFE8802A);
-  static const Color slateGrey = Color(0xFF334155);
-  static const Color progressBlue = Color(0xFF3366CC);
-  static const Color darkSurface = Color(0xFF1C1B1F);
-  static const Color warmIvory = Color(0xFFFAF8F5);
+
+  // ── ColorScheme source values (used only inside lightScheme/darkScheme) ──
+  static const Color _backgroundDark = Color(0xFF0F1A0F);
+  static const Color _surfaceLight = Color(0xFFFFFFFF);
+  static const Color _errorLight = Color(0xFFBA1A1A);
+  static const Color _errorDark = Color(0xFFFFB4AB);
+  static const Color _onErrorLight = Color(0xFFFFFFFF);
+  static const Color _onErrorDark = Color(0xFF690005);
+  static const Color _paleGreenTint = Color(0xFFE8F5E9);
 
   // ═══════════════════════════════════════════════════════════════
   // ── Group 2: Gold / Amber Gradient (coins, badges, dashboard) ──
@@ -291,21 +280,19 @@ class AppColors {
   static const Color badgeBgLightStart = Color(0xFFFFF8E1);
   static const Color badgeBgLightEnd = Color(0xFFFFF3E0);
 
-  // ═══════════════════════════════════════════════════════════════
-  // ── ColorScheme-internal hex colors (used inside light/dark schemes) ──
-  // ═══════════════════════════════════════════════════════════════
-  static const Color tertiaryGoldDark = Color(0xFFE8C46A);
-  static const Color tertiaryOnDark = Color(0xFF3E2E00);
-  static const Color tertiaryContainerDark = Color(0xFF5C4400);
-  static const Color tertiaryContainerLight = Color(0xFFFFF3D6);
-  static const Color errorContainerDark = Color(0xFF93000A);
-  static const Color errorContainerLight = Color(0xFFFFDAD6);
-  static const Color onErrorContainerLight = Color(0xFF410002);
-  static const Color surfaceContainerGreenHigh = Color(0xFF1E3A1E);
-  static const Color surfaceContainerGreen = Color(0xFF152B15);
-  static const Color surfaceContainerGreenLow = Color(0xFF122412);
-  static const Color surfaceContainerLightMid = Color(0xFFF0F7F0);
-  static const Color surfaceContainerLightLow = Color(0xFFF5FAF5);
+  // ── ColorScheme-internal (private — only used inside lightScheme/darkScheme) ──
+  static const Color _tertiaryGoldDark = Color(0xFFE8C46A);
+  static const Color _tertiaryOnDark = Color(0xFF3E2E00);
+  static const Color _tertiaryContainerDark = Color(0xFF5C4400);
+  static const Color _tertiaryContainerLight = Color(0xFFFFF3D6);
+  static const Color _errorContainerDark = Color(0xFF93000A);
+  static const Color _errorContainerLight = Color(0xFFFFDAD6);
+  static const Color _onErrorContainerLight = Color(0xFF410002);
+  static const Color _surfaceContainerGreenHigh = Color(0xFF1E3A1E);
+  static const Color _surfaceContainerGreen = Color(0xFF152B15);
+  static const Color _surfaceContainerGreenLow = Color(0xFF122412);
+  static const Color _surfaceContainerLightMid = Color(0xFFF0F7F0);
+  static const Color _surfaceContainerLightLow = Color(0xFFF5FAF5);
 
   /// Light theme ColorScheme
   static const ColorScheme lightScheme = ColorScheme(
@@ -313,7 +300,7 @@ class AppColors {
     // Primary
     primary: mossGreen,
     onPrimary: Colors.white,
-    primaryContainer: paleGreenTint,
+    primaryContainer: _paleGreenTint,
     onPrimaryContainer: darkest,
     // Secondary
     secondary: forestGreen,
@@ -323,15 +310,15 @@ class AppColors {
     // Tertiary (gold accent — coins, sliders)
     tertiary: gold,
     onTertiary: Colors.white,
-    tertiaryContainer: tertiaryContainerLight,
-    onTertiaryContainer: tertiaryOnDark,
+    tertiaryContainer: _tertiaryContainerLight,
+    onTertiaryContainer: _tertiaryOnDark,
     // Error
-    error: errorLight,
-    onError: onErrorLight,
-    errorContainer: errorContainerLight,
-    onErrorContainer: onErrorContainerLight,
+    error: _errorLight,
+    onError: _onErrorLight,
+    errorContainer: _errorContainerLight,
+    onErrorContainer: _onErrorContainerLight,
     // Surface
-    surface: surfaceLight,
+    surface: _surfaceLight,
     onSurface: darkest,
     onSurfaceVariant: forestGreen,
     // Outline
@@ -346,12 +333,12 @@ class AppColors {
     inversePrimary: mintGreen,
     // Surface variants
     surfaceContainerHighest: lightest,
-    surfaceContainerHigh: paleGreenTint,
-    surfaceContainer: surfaceContainerLightMid,
-    surfaceContainerLow: surfaceContainerLightLow,
-    surfaceContainerLowest: surfaceLight,
+    surfaceContainerHigh: _paleGreenTint,
+    surfaceContainer: _surfaceContainerLightMid,
+    surfaceContainerLow: _surfaceContainerLightLow,
+    surfaceContainerLowest: _surfaceLight,
     surfaceDim: mintGreen,
-    surfaceBright: surfaceLight,
+    surfaceBright: _surfaceLight,
   );
 
   /// Dark theme ColorScheme
@@ -368,18 +355,18 @@ class AppColors {
     secondaryContainer: forestGreen,
     onSecondaryContainer: lightest,
     // Tertiary (gold accent — coins, sliders)
-    tertiary: tertiaryGoldDark,
-    onTertiary: tertiaryOnDark,
-    tertiaryContainer: tertiaryContainerDark,
-    onTertiaryContainer: tertiaryContainerLight,
+    tertiary: _tertiaryGoldDark,
+    onTertiary: _tertiaryOnDark,
+    tertiaryContainer: _tertiaryContainerDark,
+    onTertiaryContainer: _tertiaryContainerLight,
     // Error
-    error: errorDark,
-    onError: onErrorDark,
-    errorContainer: errorContainerDark,
-    onErrorContainer: errorContainerLight,
+    error: _errorDark,
+    onError: _onErrorDark,
+    errorContainer: _errorContainerDark,
+    onErrorContainer: _errorContainerLight,
     // Surface
     surface: darkest,
-    onSurface: paleGreenTint,
+    onSurface: _paleGreenTint,
     onSurfaceVariant: mintGreen,
     // Outline
     outline: sageGreen,
@@ -393,10 +380,10 @@ class AppColors {
     inversePrimary: mossGreen,
     // Surface variants
     surfaceContainerHighest: forestGreen,
-    surfaceContainerHigh: surfaceContainerGreenHigh,
-    surfaceContainer: surfaceContainerGreen,
-    surfaceContainerLow: surfaceContainerGreenLow,
-    surfaceContainerLowest: backgroundDark,
+    surfaceContainerHigh: _surfaceContainerGreenHigh,
+    surfaceContainer: _surfaceContainerGreen,
+    surfaceContainerLow: _surfaceContainerGreenLow,
+    surfaceContainerLowest: _backgroundDark,
     surfaceDim: darkest,
     surfaceBright: forestGreen,
   );

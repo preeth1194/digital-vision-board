@@ -76,6 +76,7 @@ class _LayersSheetState extends State<_LayersSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final allowReorder = widget.allowReorder;
     final allowDelete = widget.allowDelete;
     return Column(
@@ -114,13 +115,13 @@ class _LayersSheetState extends State<_LayersSheet> {
                           children: [
                             if (widget.onComplete != null)
                               IconButton(
-                                icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                                icon: Icon(Icons.check_circle_outline, color: colorScheme.primary),
                                 onPressed: () => widget.onComplete?.call(c.id),
                                 tooltip: 'Mark completed',
                               ),
                             if (allowDelete)
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: Icon(Icons.delete, color: colorScheme.error),
                                 onPressed: () => widget.onDelete(c.id),
                                 tooltip: 'Delete',
                               ),
@@ -146,13 +147,13 @@ class _LayersSheetState extends State<_LayersSheet> {
                           children: [
                             if (widget.onComplete != null)
                               IconButton(
-                                icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                                icon: Icon(Icons.check_circle_outline, color: colorScheme.primary),
                                 onPressed: () => widget.onComplete?.call(c.id),
                                 tooltip: 'Mark completed',
                               ),
                             if (allowDelete)
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: Icon(Icons.delete, color: colorScheme.error),
                                 onPressed: () => widget.onDelete(c.id),
                                 tooltip: 'Delete',
                               ),

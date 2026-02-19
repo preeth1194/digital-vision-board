@@ -79,6 +79,7 @@ class _CoinAnimationOverlayState extends State<CoinAnimationOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,
@@ -90,6 +91,8 @@ class _CoinAnimationOverlayState extends State<CoinAnimationOverlay>
               progress: _controller.value,
               source: widget.sourcePosition,
               target: widget.targetPosition,
+              shadowColor: colorScheme.shadow,
+              onPrimaryColor: colorScheme.onPrimary,
             ),
           );
         },
@@ -119,12 +122,16 @@ class _CoinPainter extends CustomPainter {
   final double progress;
   final Offset source;
   final Offset target;
+  final Color shadowColor;
+  final Color onPrimaryColor;
 
   _CoinPainter({
     required this.particles,
     required this.progress,
     required this.source,
     required this.target,
+    required this.shadowColor,
+    required this.onPrimaryColor,
   });
 
   @override
@@ -193,7 +200,7 @@ class _CoinPainter extends CustomPainter {
 
     // Outer shadow
     final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: opacity * 0.3)
+      ..color = shadowColor.withValues(alpha: opacity * 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawCircle(center + const Offset(2, 2), radius, shadowPaint);
 
@@ -209,7 +216,7 @@ class _CoinPainter extends CustomPainter {
 
     // Shine effect
     final shinePaint = Paint()
-      ..color = Colors.white.withValues(alpha: opacity * 0.5);
+      ..color = onPrimaryColor.withValues(alpha: opacity * 0.5);
     canvas.drawCircle(
       center + Offset(-radius * 0.3, -radius * 0.3),
       radius * 0.2,

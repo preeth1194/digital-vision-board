@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
-import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/image_persistence.dart';
@@ -50,7 +49,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
   List<VisionComponent> _components = [];
   String? _selectedId;
 
-  Color _backgroundColor = AppColors.offWhite;
+  Color _backgroundColor = const Color(0xFFF8F9F4);
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
 
@@ -298,10 +297,11 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
   }
 
   Future<void> _addTextLayer() async {
+    final colorScheme = Theme.of(context).colorScheme;
     final result = await showTextEditorDialog(
       context,
       initialText: '',
-      initialStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Colors.black),
+      initialStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: colorScheme.onSurface),
     );
     if (!mounted) return;
     if (result == null || result.text.trim().isEmpty) return;
@@ -360,7 +360,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
           ),

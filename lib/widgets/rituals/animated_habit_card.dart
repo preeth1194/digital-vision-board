@@ -22,6 +22,11 @@ class AnimatedHabitCard extends StatefulWidget {
   final VoidCallback? onIconTap;
   final int index;
 
+  /// When non-null, shows ad watch progress (e.g. "3/5") in the duration badge
+  /// area instead of the timer duration.
+  final int? adWatchedCount;
+  final int? adTotalRequired;
+
   const AnimatedHabitCard({
     super.key,
     required this.habit,
@@ -34,6 +39,8 @@ class AnimatedHabitCard extends StatefulWidget {
     this.onDurationTap,
     this.onIconTap,
     this.index = 0,
+    this.adWatchedCount,
+    this.adTotalRequired,
   });
 
   @override
@@ -178,13 +185,13 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
     final iconColor = _categoryIconColor(category, Theme.of(context).brightness);
     final icon = _resolveIcon(category, widget.habit.iconIndex);
 
-    final textColor = isDark ? Colors.white : AppColors.nearBlack;
+    final textColor = colorScheme.onSurface;
     final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.6)
-        : AppColors.dimGrey;
+        ? colorScheme.onSurface.withValues(alpha: 0.6)
+        : colorScheme.onSurfaceVariant;
     final strikeColor = isDark
-        ? Colors.white.withValues(alpha: 0.6)
-        : AppColors.nearBlack.withValues(alpha: 0.5);
+        ? colorScheme.onSurface.withValues(alpha: 0.6)
+        : colorScheme.onSurface.withValues(alpha: 0.5);
 
     return AnimatedBuilder(
       animation: _entranceCtrl,
@@ -215,11 +222,11 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+            color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: _isPressed ? 0.04 : 0.08),
+                color: colorScheme.shadow.withValues(alpha: _isPressed ? 0.04 : 0.08),
                 blurRadius: _isPressed ? 4 : 12,
                 offset: Offset(0, _isPressed ? 1 : 3),
               ),
@@ -305,15 +312,45 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                   ],
                 ),
               ),
-              // Duration badge (if applicable) — tappable to open timer
-              if (durationLabel != null) ...[
+              // Ad progress badge (when user has pending ads to watch)
+              if (widget.adWatchedCount != null && widget.adTotalRequired != null) ...[
                 Container(
                   width: 1,
                   height: 32,
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.12)
-                      : Colors.black.withValues(alpha: 0.08),
+                      ? colorScheme.onSurface.withValues(alpha: 0.12)
+                      : colorScheme.shadow.withValues(alpha: 0.08),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.videocam_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${widget.adWatchedCount}/${widget.adTotalRequired}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ]
+              // Duration badge (if applicable) — tappable to open timer
+              else if (durationLabel != null) ...[
+                Container(
+                  width: 1,
+                  height: 32,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  color: isDark
+                      ? colorScheme.onSurface.withValues(alpha: 0.12)
+                      : colorScheme.shadow.withValues(alpha: 0.08),
                 ),
                 GestureDetector(
                   onTap: widget.onDurationTap,

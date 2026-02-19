@@ -142,9 +142,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Enter your phone number in international format.',
-            style: TextStyle(color: Colors.black54),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           TextField(

@@ -372,7 +372,7 @@ class _PreviewTile extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: hasImage
-                  ? componentImageForPath(path)
+                  ? componentImageForPath(context, path)
                   : Container(
                       color: Theme.of(context).colorScheme.outline.withOpacity(0.08),
                       alignment: Alignment.center,
@@ -435,7 +435,7 @@ class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: componentImageForPath(path),
+      child: componentImageForPath(context, path),
     );
   }
 }

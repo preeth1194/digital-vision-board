@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../models/habit_item.dart';
 import '../models/habit_action_step.dart';
 import '../services/icon_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../widgets/circular_countdown_timer.dart';
 import '../widgets/routine/confetti_overlay.dart';
@@ -215,7 +214,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
     final isCelebrating = _showCelebration && _celebratingStepId == step.id;
     final icon = IconService.iconFromCodePoint(step.iconCodePoint);
     final total = _steps.length;
-    final successColor = AppColors.mossGreen;
+    final successColor = scheme.primary;
 
     return Padding(
       key: ValueKey(step.id),
@@ -238,7 +237,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: scheme.shadow.withOpacity(0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2)),
               ],
@@ -279,7 +278,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                           child: Icon(
                             isCompleted ? Icons.check_rounded : icon,
                             size: isCompleted ? 28 : 26,
-                            color: isCompleted ? Colors.white : scheme.primary,
+                            color: isCompleted ? scheme.onPrimary : scheme.primary,
                           ),
                         ),
                       ),

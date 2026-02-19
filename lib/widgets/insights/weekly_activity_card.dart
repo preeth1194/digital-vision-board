@@ -13,6 +13,7 @@ class WeeklyActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -35,7 +36,7 @@ class WeeklyActivityCard extends StatelessWidget {
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (_) => Colors.grey[800]!,
+                      getTooltipColor: (_) => colorScheme.surfaceContainerHighest,
                     ),
                   ),
                   titlesData: FlTitlesData(
@@ -51,7 +52,7 @@ class WeeklyActivityCard extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               weeklyData[i].day,
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                             ),
                           );
                         },
@@ -67,7 +68,7 @@ class WeeklyActivityCard extends StatelessWidget {
                     drawVerticalLine: false,
                     horizontalInterval: 1,
                     getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey[200]!,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                       strokeWidth: 1,
                     ),
                   ),

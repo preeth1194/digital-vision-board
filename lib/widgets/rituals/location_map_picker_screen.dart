@@ -188,7 +188,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                 shadows: [
                   Shadow(
                     blurRadius: 8,
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: colorScheme.shadow.withValues(alpha: 0.3),
                   ),
                 ],
               ),
@@ -202,7 +202,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withValues(alpha: 0.25),
+                color: colorScheme.shadow.withValues(alpha: 0.25),
               ),
             ),
           ),
@@ -214,7 +214,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
             right: 16,
             child: Material(
               elevation: 4,
-              shadowColor: Colors.black.withValues(alpha: 0.15),
+              shadowColor: colorScheme.shadow.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
               child: TextField(
                 controller: _searchController,
@@ -262,7 +262,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: colorScheme.shadow.withValues(alpha: 0.1),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),

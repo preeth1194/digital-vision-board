@@ -91,6 +91,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   Future<void> _loadHabits() async {
     final habits = await HabitStorageService.loadAll();
     if (mounted) setState(() => _habits = habits);
+    if (widget.coinNotifier != null) {
+      final coins = await CoinsService.getTotalCoins();
+      if (mounted) widget.coinNotifier!.value = coins;
+    }
   }
   
   void _onScroll() {
@@ -523,6 +527,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       feedback: HabitCompletionFeedback(
         rating: result.mood ?? 0,
         note: result.note,
+        coinsEarned: result.coinsEarned,
       ),
       completedStepIds: result.completedStepIds,
       audioPath: result.audioPath,

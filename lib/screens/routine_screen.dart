@@ -366,7 +366,18 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     if (latestHabit == null) return;
     if (latestHabit.isCompletedForCurrentPeriod(now)) return;
 
-    final toggled = latestHabit.toggleForDate(now);
+    var toggled = latestHabit.toggleForDate(now);
+
+    final iso = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final feedback = HabitCompletionFeedback(
+      rating: result.mood ?? 0,
+      note: result.note,
+      coinsEarned: result.coinsEarned,
+    );
+    final updatedFeedback = Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
+    updatedFeedback[iso] = feedback;
+    toggled = toggled.copyWith(feedbackByDate: updatedFeedback);
+
     await HabitStorageService.updateHabit(toggled);
 
     await CoinsService.addCoins(result.coinsEarned);

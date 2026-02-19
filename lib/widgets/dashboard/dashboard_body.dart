@@ -16,7 +16,6 @@ import '../../screens/routine_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
-import '../../screens/global_insights_screen.dart';
 
 class DashboardBody extends StatelessWidget {
   final int tabIndex;
@@ -196,24 +195,7 @@ class DashboardBody extends StatelessWidget {
             );
           },
         ),
-      4 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
-          future: _loadBoardComponents(activeBoard),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return GlobalInsightsScreen(components: snap.data ?? const <VisionComponent>[]);
-          },
-        ),
-      _ => FutureBuilder<Map<String, List<VisionComponent>>>(
-          future: _loadAllBoardsComponents(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            final all = <VisionComponent>[];
-            for (final list in snap.data!.values) {
-              all.addAll(list);
-            }
-            return GlobalInsightsScreen(components: all);
-          },
-        ),
+      _ => const SizedBox.shrink(),
         };
       },
     );

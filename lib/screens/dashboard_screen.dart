@@ -14,7 +14,6 @@ import '../services/boards_storage_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
-import '../widgets/dashboard/expandable_fab.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -58,13 +57,17 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
   int _tabIndex = 1;
   bool _loading = true;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
   bool _checkedMandatoryLogin = false;
+
+  late final AnimationController _createPanelController;
+  bool _showCreatePanel = false;
 
   List<VisionBoardInfo> _boards = [];
   String? _activeBoardId;
@@ -88,6 +91,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   @override
   void initState() {
     super.initState();
+    _createPanelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     WidgetsBinding.instance.addObserver(this);
     _init();
     _loadCoins();
@@ -128,6 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   @override
   void dispose() {
+    _createPanelController.dispose();
     _remindersAutoRefreshTimer?.cancel();
     if (_syncAuthListener != null) {
       SyncService.authExpired.removeListener(_syncAuthListener!);
@@ -694,11 +702,27 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     setState(() => _activeBoardId = null);
   }
 
-  Future<void> _createBoard() async {
+  void _toggleCreatePanel() {
+    if (_showCreatePanel) {
+      _createPanelController.reverse().then((_) {
+        if (mounted) setState(() => _showCreatePanel = false);
+      });
+    } else {
+      setState(() => _showCreatePanel = true);
+      _createPanelController.forward(from: 0.0);
+    }
+  }
+
+  void _hideCreatePanel() {
+    if (!_showCreatePanel) return;
+    _createPanelController.reverse().then((_) {
+      if (mounted) setState(() => _showCreatePanel = false);
+    });
+  }
+
+  Future<void> _onTemplatePicked(String layoutType) async {
+    _hideCreatePanel();
     final boardsBefore = _boards.length;
-    final layoutType = await showTemplatePickerSheet(context);
-    if (!mounted) return;
-    if (layoutType == null) return;
 
     if (layoutType == 'browse_templates') {
       final res = await Navigator.of(context).push<bool>(
@@ -834,7 +858,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 7, 6, 2, 4]; // Dashboard, Rituals, Routine, Journal, Insights
+    const visibleTabIndices = <int>[1, 7, 6, 2]; // Dashboard, Rituals, Routine, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -847,14 +871,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       boardDataVersion: _boardDataVersion,
       coinNotifier: _coinNotifier,
       coinTargetKey: _coinTargetKey,
-      onCreateBoard: _createBoard,
+      onCreateBoard: _toggleCreatePanel,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
       onSwitchToRoutine: () => setState(() => _tabIndex = 6),
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -1114,48 +1138,196 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ),
       ),
       body: body,
-      floatingActionButton: _tabIndex == 1
-          ? ExpandableFAB(
-              onCreateBoard: _createBoard,
-            )
-          : null,
-      bottomNavigationBar: AnimatedBottomNavBar(
-        currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
-        onTap: (i) {
-          final nextTab = visibleTabIndices[i];
-          setState(() => _tabIndex = nextTab);
-          _refreshReminders();
-          _loadCoins();
-        },
-        items: const [
-          AnimatedNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
-            label: 'Home',
-          ),
-          AnimatedNavItem(
-            icon: Icons.self_improvement_outlined,
-            activeIcon: Icons.self_improvement,
-            label: 'Rituals',
-          ),
-          AnimatedNavItem(
-            icon: Icons.schedule_outlined,
-            activeIcon: Icons.schedule_rounded,
-            label: 'Routine',
-          ),
-          AnimatedNavItem(
-            icon: Icons.book_outlined,
-            activeIcon: Icons.book_rounded,
-            label: 'Journal',
-          ),
-          AnimatedNavItem(
-            icon: Icons.insights_outlined,
-            activeIcon: Icons.insights,
-            label: 'Insights',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const _NavBarSpacer(),
+    );
+
+    final navBar = AnimatedBottomNavBar(
+      currentIndex: visibleNavIndex < 0 ? 0 : visibleNavIndex,
+      suppressHighlight: _showCreatePanel,
+      onTap: (i) {
+        _hideCreatePanel();
+        final nextTab = visibleTabIndices[i];
+        setState(() => _tabIndex = nextTab);
+        _refreshReminders();
+        _loadCoins();
+      },
+      onCenterTap: _toggleCreatePanel,
+      items: const [
+        AnimatedNavItem(
+          icon: Icons.home_outlined,
+          activeIcon: Icons.home_rounded,
+          label: 'Home',
+        ),
+        AnimatedNavItem(
+          icon: Icons.self_improvement_outlined,
+          activeIcon: Icons.self_improvement,
+          label: 'Rituals',
+        ),
+        AnimatedNavItem(
+          icon: Icons.schedule_outlined,
+          activeIcon: Icons.schedule_rounded,
+          label: 'Routine',
+        ),
+        AnimatedNavItem(
+          icon: Icons.book_outlined,
+          activeIcon: Icons.book_rounded,
+          label: 'Journal',
+        ),
+      ],
+    );
+
+    return Stack(
+      children: [
+        scaffold,
+        if (_showCreatePanel) _buildCreatePanelOverlay(),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: navBar,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCreatePanelOverlay() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    const barHeight = 64.0;
+    const circleOverflow = 20.0;
+    final navTotalHeight = barHeight + circleOverflow + bottomPad;
+    const panelContentHeight = 180.0;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AnimatedBuilder(
+      animation: _createPanelController,
+      builder: (context, _) {
+        final t = CurvedAnimation(
+          parent: _createPanelController,
+          curve: Curves.easeOutCubic,
+        ).value;
+
+        return Stack(
+          children: [
+            // Scrim
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _hideCreatePanel,
+                child: Container(
+                  color: Colors.black.withOpacity(0.35 * t),
+                ),
+              ),
+            ),
+            // Panel sliding up from behind the nav bar
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: navTotalHeight - circleOverflow,
+              child: Transform.translate(
+                offset: Offset(0, panelContentHeight * (1 - t)),
+                child: Opacity(
+                  opacity: t,
+                  child: ClipPath(
+                    clipper: _NotchedBottomClipper(
+                      cutoutRadius: 34.0,
+                      cutoutCenterOffset: 10.0,
+                    ),
+                    child: Material(
+                      color: colorScheme.surface,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: SizedBox(
+                        height: panelContentHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ListTile(
+                                title: Text(
+                                  'Choose a template',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Create your vision board',
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              Card(
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.dashboard_customize_outlined,
+                                    color: colorScheme.primary,
+                                  ),
+                                  title: const Text('Create Vision Board'),
+                                  subtitle: const Text(
+                                    'Pick a layout and fill it with your goals',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _onTemplatePicked('create_wizard'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
+class _NavBarSpacer extends StatelessWidget {
+  const _NavBarSpacer();
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return SizedBox(height: 64.0 + 20.0 + bottomPad);
+  }
+}
+
+class _NotchedBottomClipper extends CustomClipper<Path> {
+  final double cutoutRadius;
+  final double cutoutCenterOffset;
+
+  _NotchedBottomClipper({
+    required this.cutoutRadius,
+    required this.cutoutCenterOffset,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final rect = Path()
+      ..addRRect(RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        topLeft: const Radius.circular(20),
+        topRight: const Radius.circular(20),
+      ));
+
+    final cutout = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+        radius: cutoutRadius,
+      ));
+
+    return Path.combine(PathOperation.difference, rect, cutout);
+  }
+
+  @override
+  bool shouldReclip(_NotchedBottomClipper oldClipper) =>
+      cutoutRadius != oldClipper.cutoutRadius ||
+      cutoutCenterOffset != oldClipper.cutoutCenterOffset;
+}

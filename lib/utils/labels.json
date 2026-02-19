@@ -1,0 +1,1146 @@
+{
+  "main": {
+    "appTitle": "Seero: Habit Seeding"
+  },
+  "affirmation_management_screen": {
+    "appBarTitle": "Manage Affirmations",
+    "tooltips": ["Refresh", "Unpin", "Pin"],
+    "labels": ["General", "All", "No affirmations yet", "Tap the + button to add your first affirmation"],
+    "menuItems": ["Edit", "Delete"],
+    "dialogs": {
+      "deleteAffirmation": {
+        "title": "Delete Affirmation",
+        "content": "Are you sure you want to delete this affirmation?",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    },
+    "snackBars": [
+      "Failed to load affirmations: {error}",
+      "Affirmation added",
+      "Failed to add affirmation: {error}",
+      "Affirmation updated",
+      "Failed to update affirmation: {error}",
+      "Affirmation deleted",
+      "Failed to delete affirmation: {error}",
+      "Failed to update pin status: {error}"
+    ]
+  },
+  "affirmation_screen": {
+    "labels": [
+      "Filter by Category",
+      "No affirmations yet",
+      "Add your first affirmation to get started. Affirmations are organized by categories from your vision boards.",
+      "{current} of {total}"
+    ],
+    "buttons": ["Add Affirmation"],
+    "snackBars": ["Failed to load affirmations: {error}"]
+  },
+  "auth_gateway_screen": {
+    "appBarTitle": "Account",
+    "labels": [
+      "Profile",
+      "Name",
+      "Weight",
+      "Height",
+      "Date of birth",
+      "{age} years old",
+      "Signed in as {identifier}",
+      "Signed in",
+      "Guest session",
+      "Google",
+      "Phone",
+      "Sign out from the menu to use a different account or continue as guest."
+    ],
+    "genderLabels": ["Male", "Female", "Non-binary", "Prefer not to say"],
+    "buttons": [
+      "Continue with Google",
+      "Continue with phone",
+      "Continue as Guest",
+      "Log In",
+      "Sign Up"
+    ],
+    "greetings": ["Good Morning", "Good Afternoon", "Good Evening"],
+    "loginView": {
+      "title": "Welcome",
+      "titleForced": "Your guest access expired",
+      "subtitle": "Continue as guest (expires after 10 days), or create an account to keep your data synced long-term."
+    },
+    "whyLogin": {
+      "title": "Why login?",
+      "content": "Guest sessions expire after 10 days. Logging in will let you sync across devices and preserve full history."
+    }
+  },
+  "login_screen": {
+    "appBarTitle": "Log In",
+    "labels": ["Template only (auth provider integration coming soon)."],
+    "hintTexts": ["Email", "Password"],
+    "buttons": ["Log In"],
+    "dialogs": {
+      "comingSoon": {
+        "title": "Coming soon",
+        "content": "Log in will be wired to a provider in a future update.",
+        "confirm": "OK"
+      }
+    }
+  },
+  "phone_auth_screen": {
+    "appBarTitle": "Sign in with phone",
+    "labels": [
+      "Enter your phone number in international format.",
+      "Phone number",
+      "SMS code"
+    ],
+    "hintTexts": ["+14155552671"],
+    "buttons": ["Send code", "Sending…", "Verify & continue"],
+    "errors": [
+      "Enter a phone number (E.164 format, e.g. +14155552671).",
+      "Tap \"Send code\" first.",
+      "Enter the SMS code."
+    ]
+  },
+  "profile_completion_screen": {
+    "appBarTitle": "Complete your profile",
+    "labels": [
+      "Add your details to personalize your experience.",
+      "Profile",
+      "Change photo",
+      "Name",
+      "Weight",
+      "Height",
+      "Date of birth",
+      "cm",
+      "ft",
+      "in",
+      "kg",
+      "lb",
+      "Feet",
+      "Inches"
+    ],
+    "hintTexts": ["Your name", "e.g. 70", "e.g. 154", "e.g. 170", "e.g. 5", "e.g. 10"],
+    "genderLabels": ["Male", "Female", "Non-binary", "Prefer not to say"],
+    "buttons": ["Save & continue"],
+    "errors": ["Name is required"]
+  },
+  "signup_screen": {
+    "appBarTitle": "Sign Up",
+    "labels": ["Template only (auth provider integration coming soon)."],
+    "hintTexts": ["Email", "Password", "Confirm password"],
+    "buttons": ["Create account"],
+    "dialogs": {
+      "comingSoon": {
+        "title": "Coming soon",
+        "content": "Sign up will be wired to a provider in a future update.",
+        "confirm": "OK"
+      }
+    }
+  },
+  "backup_restore_screen": {
+    "appBarTitle": "Backup & Restore",
+    "labels": [
+      "Keep Your Data Safe",
+      "Link your Google account to back up your boards, journal, habits, and more to your personal Google Drive — encrypted and private.",
+      "Estimated backup size: {size}",
+      "Backups on Google Drive",
+      "No backups yet.",
+      "About backups",
+      "Syncing...",
+      "Encrypting and uploading to Google Drive",
+      "Last sync failed",
+      "Auto-sync every 24 hours on app open",
+      "Back Up Now",
+      "Backing up...",
+      "Unknown date"
+    ],
+    "buttons": ["Link Google Account", "Unlink Google Account"],
+    "tooltips": ["Restore this backup"],
+    "dialogs": {
+      "unlinkGoogle": {
+        "title": "Unlink Google Account?",
+        "content": "Auto-sync will stop. Existing backups on Drive are not deleted.",
+        "cancel": "Cancel",
+        "confirm": "Unlink"
+      },
+      "restoreBackup": {
+        "title": "Restore from backup?",
+        "content": "Choose how to handle your current data:",
+        "cancel": "Cancel",
+        "keepLocal": "Keep local data",
+        "replaceAll": "Replace all data"
+      }
+    },
+    "snackBars": [
+      "Google sign-in was cancelled.",
+      "Downloading and restoring backup...",
+      "Backup restored successfully. Restart the app for full effect.",
+      "Restore failed. The backup may be corrupted.",
+      "Restore error: {error}"
+    ]
+  },
+  "dashboard_screen": {
+    "navLabels": ["Home", "Rituals", "Routine", "Journal", "Insights"],
+    "drawer": [
+      "Digital Vision Board",
+      "User profile",
+      "Premium Active",
+      "Go Premium",
+      "Backup not set up",
+      "Tap to link Google account",
+      "Syncing...",
+      "Encrypting and uploading",
+      "Sync failed",
+      "Tap sync to retry",
+      "Affirmations",
+      "Puzzle Game",
+      "Widget Guide",
+      "App Tour",
+      "Sign out"
+    ],
+    "labels": [
+      "Reminders",
+      "No reminders today.",
+      "Add home-screen widget?",
+      "Get a quick view of today's habits and mark them complete from your home screen."
+    ],
+    "buttons": ["Yes", "Not now"],
+    "snackBars": [
+      "Deleted \"{title}\"",
+      "Error deleting board: {error}"
+    ],
+    "dialogs": {
+      "deleteBoard": {
+        "title": "Delete board?",
+        "content": "Delete \"{title}\"? This cannot be undone.",
+        "confirm": "Delete"
+      }
+    },
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  },
+  "earn_badges_screen": {
+    "appBarTitle": "Achievements",
+    "labels": [
+      "Badges",
+      "Earned",
+      "{total} coins",
+      "{unlocked} of {total} badges earned",
+      "Ad-Free Active Today",
+      "Go Ad-Free Today!",
+      "Enjoy your ad-free experience",
+      "Use {cost} coins to remove ads for today"
+    ],
+    "badges": [
+      {
+        "name": "First Step",
+        "description": "Complete your first habit"
+      },
+      {
+        "name": "Week Warrior",
+        "description": "7-day streak on any habit"
+      },
+      {
+        "name": "Consistency King",
+        "description": "30-day streak on any habit"
+      },
+      {
+        "name": "Century Club",
+        "description": "100 total habit check-ins"
+      },
+      {
+        "name": "Perfect Day",
+        "description": "Complete all habits in a day"
+      },
+      {
+        "name": "Coin Collector",
+        "description": "Earn 500+ total coins"
+      },
+      {
+        "name": "Coin Hoarder",
+        "description": "Earn 2 000+ total coins"
+      },
+      {
+        "name": "Multi-Tasker",
+        "description": "Have 5+ active habits"
+      },
+      {
+        "name": "Coping Champion",
+        "description": "Set a coping plan on a habit"
+      }
+    ],
+    "snackBars": [
+      "Not enough coins! You need 20 coins.",
+      "Ad-free for today!"
+    ]
+  },
+  "global_insights_screen": {
+    "labels": [
+      "No activity to analyze yet",
+      "Active Habits",
+      "Longest Streak"
+    ]
+  },
+  "goal_canvas_editor_screen": {
+    "appBarTitle": "Edit: {title}",
+    "labels": ["Goal name", "Category (optional)"],
+    "tooltips": ["Edit text", "Delete selected", "Layers", "Add goal", "Add text", "Background"],
+    "dialogs": {
+      "deleteGoal": {
+        "title": "Delete goal?",
+        "content": "Delete \"{name}\"? This will delete all habits, tasks, and streak history associated with this goal.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    },
+    "snackBars": [
+      "Goal images are not supported on web yet.",
+      "Background images are not supported on web yet."
+    ]
+  },
+  "goal_canvas_viewer_screen": {
+    "tabs": ["Canvas", "Habits", "Todo", "Insights"],
+    "tooltips": ["Layers"],
+    "menuItems": ["Edit", "Upload to Google Drive"],
+    "snackBars": [
+      "No goals yet.",
+      "Google Drive upload is not supported on web yet.",
+      "Uploaded to Google Drive (file id: {fileId}).",
+      "Google Drive upload failed: {error}"
+    ]
+  },
+  "grid_board_editor": {
+    "labels": [
+      "Tile Style",
+      "Grid Spacing",
+      "Border Radius",
+      "Tile Background",
+      "{value}px",
+      "Tap twice\nto add"
+    ],
+    "placeholderPhrases": ["Dream", "Focus", "Progress", "Today", "You got this", "Grow", "Achieve", "Believe"],
+    "hintTexts": ["Enter text", "Name your board"],
+    "buttons": ["Apply"],
+    "tooltips": [
+      "Decrease size",
+      "Increase size",
+      "Alignment",
+      "Bold",
+      "Done",
+      "Shuffle layout",
+      "Complete",
+      "Edit",
+      "Add tile",
+      "Add text",
+      "Custom image",
+      "Pexels image",
+      "Tile style"
+    ],
+    "dialogs": {
+      "removeGoal": {
+        "title": "Remove goal?",
+        "content": "This will remove the goal from this tile and delete all its habits, tasks, and streak history.",
+        "cancel": "Cancel",
+        "confirm": "Remove"
+      }
+    },
+    "snackBars": [
+      "Shuffled layout: {name}",
+      "Image picking/cropping is not supported on web yet.",
+      "Tap a tile first to select it"
+    ]
+  },
+  "habits_list_screen": {
+    "appBarTitle": "All Habits",
+    "labels": [
+      "How did it go?",
+      "Not scheduled today",
+      "{streak} {unit} streak",
+      "No streak yet",
+      "Due {deadline}"
+    ],
+    "emptyStates": ["No habits found", "Add a habit to a goal to get started"],
+    "buttons": ["Add habit"],
+    "tooltips": ["Timer", "Edit habit", "Delete habit", "Add habit"],
+    "dialogs": {
+      "deleteHabit": {
+        "title": "Delete habit?",
+        "content": "Delete \"{name}\"?",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    }
+  },
+  "journal_editor_screen": {
+    "labels": ["Tag (optional)", "Done", "Add \"{tag}\""],
+    "hintTexts": ["Search or add a tag…", "Title", "Begin your story..."],
+    "snackBars": ["Failed to pick image: {error}"],
+    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  },
+  "journal_notes_screen": {
+    "appBarTitle": "Journal",
+    "appBarTitleWithLogs": "Journal & Notes",
+    "tabs": ["Journal", "Goal logs"],
+    "labels": [
+      "Goal logs",
+      "No habit feedback logged yet.",
+      "Why important: (not set)",
+      "Why important: {value}"
+    ],
+    "tooltips": ["Refresh"],
+    "dialogs": {
+      "deleteEntry": {
+        "title": "Delete Entry?",
+        "content": "This will permanently delete \"{title}\". This cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    }
+  },
+  "onboarding_screen": {
+    "slides": [
+      {
+        "title": "A Goal Operating System",
+        "body": "This isn't a standard vision board. Create visual boards (Goal Canvas or Grid) and turn them into a system you can execute every day."
+      },
+      {
+        "title": "Attach Habits + Todo to goals",
+        "body": "Link actionable Habits and Todo items directly to your visuals, so each goal becomes trackable and measurable—not just inspirational."
+      },
+      {
+        "title": "Daily tracking + mood",
+        "body": "Track completions with feedback and see your daily mood over time. Stay consistent, reflect, and improve."
+      },
+      {
+        "title": "Keep Your Data Safe",
+        "body": "Link your Google account to back up your boards, journal, habits, and more to your personal Google Drive—encrypted and private."
+      }
+    ],
+    "buttons": ["Link Google Account", "Skip for now", "Get Started", "Next"],
+    "snackBars": [
+      "Google Drive linked successfully!",
+      "Google sign-in was cancelled."
+    ]
+  },
+  "puzzle_game_screen": {
+    "appBarTitle": "Puzzle Game",
+    "labels": [
+      "Failed to load puzzle",
+      "Puzzle Completed!",
+      "Congratulations! You solved the puzzle in {minutes}m {seconds}s.",
+      "+{coins} coins earned!",
+      "Next puzzle available in {time}",
+      "You are 1 step closer in reaching your goal: {goalTitle}",
+      "You are 1 step closer in reaching your goal!",
+      "6x6  ({coins} pts)",
+      "12x12  ({coins} pts)"
+    ],
+    "buttons": ["Play Again", "Done"],
+    "tooltips": [
+      "Hide reference",
+      "Show reference",
+      "Shuffle",
+      "Select image",
+      "Available in {time}",
+      "Locked during cooldown",
+      "Cooldown active"
+    ],
+    "snackBars": ["Failed to load puzzle: {error}"]
+  },
+  "routine_screen": {
+    "labels": [
+      "Mood",
+      "No habits yet",
+      "Tap an empty time slot to create a habit",
+      "No additional details recorded.",
+      "{count} steps"
+    ],
+    "moodLabels": ["Awful", "Bad", "Neutral", "Good", "Great"],
+    "buttons": ["Done"],
+    "snackBars": [
+      "Location updated",
+      "Could not get location. Check permissions.",
+      "Watch 5 ads to unlock a new habit slot!",
+      "Watch {remaining} more ad(s) to unlock a new habit.",
+      "Habit unlocked! Tap an empty time slot to create."
+    ]
+  },
+  "routine_timer_screen": {
+    "labels": [
+      "Step {index}",
+      "Done",
+      "No timer set",
+      "Elapsed: {time}",
+      "Target: {time}",
+      "No action steps"
+    ],
+    "buttons": ["Pause", "Start", "Reset", "-5m", "-1m", "+1m", "+5m", "Done"],
+    "snackBars": ["Target reached"]
+  },
+  "subscription_screen": {
+    "appBarTitle": "Go Premium",
+    "labels": [
+      "You're Premium!",
+      "Enjoy your ad-free experience and all premium features.",
+      "Unlock Premium",
+      "Remove all ads and unlock unlimited habits",
+      "No ads ever",
+      "Unlimited habits",
+      "Support development",
+      "Subscribe — {price}",
+      "Payment will be charged to your App Store or Google Play account. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage subscriptions in your device settings."
+    ],
+    "buttons": ["Restore Purchases", "Redeem Gift Code"],
+    "dialogs": {
+      "redeemGiftCode": {
+        "title": "Redeem Gift Code",
+        "hintText": "Enter your gift code",
+        "cancel": "Cancel",
+        "confirm": "Redeem",
+        "error": "Please enter a code"
+      }
+    },
+    "snackBars": [
+      "Purchases restored.",
+      "Premium activated! Enjoy all features.",
+      "Subscription not available. Make sure you are signed in to your store account."
+    ],
+    "giftCodeErrors": {
+      "invalid_code": "This code is not valid",
+      "deactivated": "This code has been deactivated",
+      "fully_used": "This code has been fully used",
+      "already_redeemed": "You have already redeemed this code",
+      "not_authenticated": "Please sign in to redeem a code",
+      "network_error": "Network error — check your connection",
+      "server_error": "Server error — please try again later",
+      "default": "Something went wrong"
+    }
+  },
+  "template_gallery_screen": {
+    "appBarTitle": "Templates",
+    "labels": ["Grid", "Goal Canvas"],
+    "emptyStates": ["No templates yet."],
+    "snackBars": ["Not authenticated."]
+  },
+  "todos_list_screen": {
+    "appBarTitle": "Todo",
+    "labels": ["Select goal for todo", "Edit todo"],
+    "hintTexts": ["Add a todo…"],
+    "buttons": ["Save"],
+    "emptyStates": ["No todo items yet."],
+    "menuItems": ["Edit", "Delete", "Convert to habit", "Unlink habit"],
+    "tooltips": ["Habit"]
+  },
+  "vision_board_home_screen": {
+    "tooltips": ["Change default board", "Dashboard"],
+    "snackBars": ["No puzzle images available. Add goal images to your vision boards."]
+  },
+  "vision_board_home_widgets": {
+    "labels": [
+      "How did it go?",
+      "Set default board",
+      "Default",
+      "No tiles yet.",
+      "No images yet.",
+      "Select micro habit",
+      "Clear selection",
+      "From: {goalTitle}",
+      "No habits scheduled today",
+      "No micro habits defined. Add them in goal details."
+    ],
+    "tabs": ["Habits", "Micro Habits"],
+    "snackBars": ["No micro habits defined. Add them in goal details."]
+  },
+  "widget_guide_screen": {
+    "appBarTitle": "Widget Guide",
+    "labels": [
+      "Home Screen Widgets",
+      "Add widgets to your home screen for quick access to habits and puzzles.",
+      "If a widget doesn't update right away, open the app once to refresh."
+    ],
+    "widgets": [
+      {
+        "title": "Habit Progress",
+        "subtitle": "Track and toggle habits without opening the app."
+      },
+      {
+        "title": "Puzzle Challenge",
+        "subtitle": "Solve goal-image puzzles from your home screen."
+      }
+    ],
+    "platforms": ["Android", "iOS"],
+    "androidSteps": [
+      "Long-press home screen → Widgets.",
+      "Find \"Digital Vision Board\".",
+      "Add the \"Habit Progress\" widget."
+    ],
+    "iosSteps": [
+      "Long-press home screen → tap +.",
+      "Search \"Digital Vision Board\".",
+      "Add the \"Habit Progress\" widget."
+    ]
+  },
+  "create_board_wizard_screen": {
+    "snackBars": ["Could not create board: {error}"]
+  },
+  "reward_ad_card": {
+    "labels": [
+      "Habit Unlocked!",
+      "Watch Ads to Unlock Habit",
+      "All ads watched!",
+      "Tap to watch ad",
+      "{watched}/{total}"
+    ],
+    "snackBars": ["Ad not ready yet. Please try again in a moment."]
+  },
+  "all_boards_habits_tab": {
+    "labels": [
+      "No rituals yet",
+      "Add habits to start building\nyour daily rituals",
+      "IF",
+      "THEN",
+      "Micro",
+      "No coping plan set",
+      "Steps: {done}/{total} completed",
+      "Tracked: {display} {unit}",
+      "Completed"
+    ],
+    "moodLabels": ["", "Awful", "Bad", "Okay", "Good", "Great"],
+    "tooltips": ["Add habit"],
+    "dialogs": {
+      "deleteHabit": {
+        "title": "Delete Habit",
+        "content": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    },
+    "snackBars": [
+      "Watch {remaining} more ad(s) to unlock a new habit.",
+      "Watch 5 ads to unlock a new habit slot!",
+      "Streak bonus! +{coins} coins",
+      "\"{name}\" deleted"
+    ]
+  },
+  "all_boards_todos_tab": {
+    "labels": ["Habit ✓"],
+    "emptyStates": ["No todo items yet."]
+  },
+  "dashboard_tab": {
+    "labels": ["My Vision Boards", "No Vision Boards Yet", "Create your first vision board to get started."],
+    "buttons": ["Create Board"]
+  },
+  "vision_board_preview_card": {
+    "labels": ["Selected"],
+    "tooltips": ["Edit", "Delete"]
+  },
+  "expandable_fab": {
+    "labels": ["Vision Board"]
+  },
+  "add_affirmation_dialog": {
+    "titles": ["Edit Affirmation", "Add Affirmation"],
+    "labels": [
+      "Affirmation text",
+      "Category",
+      "General",
+      "Pin this affirmation",
+      "Pinned affirmations show the same text on both sides when flipped"
+    ],
+    "hintTexts": ["Enter your affirmation..."],
+    "buttons": ["Cancel", "Update", "Add"],
+    "errors": ["Please enter an affirmation"]
+  },
+  "add_goal_dialog": {
+    "titles": ["Add goal", "Edit goal"],
+    "labels": [
+      "Goal name",
+      "Category",
+      "Category (optional)",
+      "Why is this important to you?",
+      "Add deadline (optional)",
+      "Deadline: {date}"
+    ],
+    "buttons": ["Clear deadline", "Cancel", "Add goal", "Save goal"]
+  },
+  "goal_details_dialog": {
+    "labels": [
+      "Goal details (optional)",
+      "Category (e.g., Career)",
+      "Deadline",
+      "Mindset & coping",
+      "Core value",
+      "Visualization",
+      "Limiting belief",
+      "Reframed truth",
+      "Obstacles",
+      "Action plan",
+      "Micro habit",
+      "Frequency (optional)",
+      "Daily",
+      "Weekly",
+      "Weekly days",
+      "Frequency"
+    ],
+    "hintTexts": [
+      "e.g., Overwhelmed by new tech",
+      "e.g., Spend 15 mins reading docs—don't master it today.",
+      "e.g., Growth and Mentorship",
+      "e.g., I feel respected and capable leading large systems.",
+      "e.g., I worry I'm not technical enough.",
+      "e.g., I have 10 years of experience and can learn what I don't know.",
+      "e.g., Read 1 system design paper per week"
+    ],
+    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "buttons": ["Add", "Cancel", "Skip", "Save"],
+    "dialogs": {
+      "addObstacle": {
+        "title": "Add obstacle",
+        "cancel": "Cancel",
+        "confirm": "Add"
+      }
+    }
+  },
+  "goal_picker_sheet": {
+    "labels": ["Select a goal", "No goals found"],
+    "hintTexts": ["Search goals…"]
+  },
+  "new_board_dialog": {
+    "labels": [
+      "Choose a template",
+      "Create your vision board",
+      "Create Vision Board",
+      "Pick a layout and fill it with your goals",
+      "Pick a layout",
+      "Choose a template first, then fill in the blanks.",
+      "{count} tiles",
+      "New Vision Board",
+      "Core value",
+      "Pick one major focus for this board."
+    ],
+    "hintTexts": ["Board name"],
+    "buttons": ["Cancel", "Create"]
+  },
+  "puzzle_image_selector_sheet": {
+    "labels": ["Select Puzzle Image", "Upload Image"]
+  },
+  "text_input_dialog": {
+    "defaults": {
+      "hintText": "Type something...",
+      "cancelText": "Cancel",
+      "saveText": "Save"
+    },
+    "tooltips": ["Clear"],
+    "dialogs": {
+      "discardChanges": {
+        "title": "Discard changes?",
+        "content": "You have unsaved changes.",
+        "keep": "Keep editing",
+        "discard": "Discard"
+      }
+    }
+  },
+  "home_screen_widget_instructions_sheet": {
+    "labels": [
+      "Add home-screen widget",
+      "This widget shows up to 3 of today's pending habits from your default board (time-target habits are excluded). Tap to mark complete.",
+      "Tip: If the widget doesn't update immediately, open the app once to refresh today's snapshot."
+    ],
+    "platforms": {
+      "android": {
+        "title": "Android",
+        "steps": [
+          "Long-press your home screen.",
+          "Tap Widgets.",
+          "Find \"Digital Vision Board\".",
+          "Add \"Habit Progress\".",
+          "Optional: Tap a habit in the widget to toggle it (may briefly open the app)."
+        ]
+      },
+      "ios": {
+        "title": "iPhone / iPad",
+        "steps": [
+          "Long-press your home screen.",
+          "Tap the + button (top-left).",
+          "Search for \"Digital Vision Board\".",
+          "Add \"Habit Progress\".",
+          "iOS 17+: the toggle can be interactive. iOS < 17: toggles open the app to apply."
+        ]
+      }
+    }
+  },
+  "add_name_dialog": {
+    "hintTexts": ["e.g. Fitness", "Category (optional)"],
+    "buttons": ["Save", "Cancel", "Set Name"],
+    "tooltips": ["Pick category"]
+  },
+  "background_options_sheet": {
+    "labels": ["Background"],
+    "buttons": ["Upload background image", "Clear background image"]
+  },
+  "layers_sheet": {
+    "labels": ["Layers (Drag to Reorder)", "Layers"],
+    "tooltips": ["Mark completed", "Delete"]
+  },
+  "text_editor_dialog": {
+    "appBarTitle": "Text Editor",
+    "labels": ["Preview", "Font Size: ", "Formatting", "Color: "],
+    "hintTexts": ["Type something..."],
+    "tooltips": ["Light", "Normal", "Bold", "Left", "Center", "Right"],
+    "buttons": ["Cancel", "Done"]
+  },
+  "goal_details_sheet": {
+    "labels": [
+      "Goal details",
+      "Mindset & coping",
+      "Obstacles",
+      "Action plan",
+      "Category",
+      "Deadline",
+      "Core value",
+      "Visualization",
+      "Limiting belief",
+      "Reframed truth",
+      "Micro habit",
+      "Frequency",
+      "Weekly days"
+    ],
+    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "tooltips": ["Edit goal details"]
+  },
+  "image_source_sheet": {
+    "labels": ["Choose from Gallery", "Take a Photo", "Cancel"]
+  },
+  "pexels_search_sheet": {
+    "labels": [
+      "Search from web (Pexels)",
+      "No results. Try another search.",
+      "Could not load images."
+    ],
+    "hintTexts": ["Search (e.g., \"Mindfulness minimal calm\")"],
+    "tooltips": ["Search"]
+  },
+  "habit_tracker_sheet": {
+    "labels": ["How did it go?"],
+    "tabs": ["Tracker", "Todo"],
+    "dialogs": {
+      "createFromActionPlan": {
+        "title": "Create habit from action plan?",
+        "content": "Add this habit?\n\n{habitName}",
+        "cancel": "Cancel",
+        "confirm": "Add"
+      },
+      "rescheduleReminder": {
+        "title": "Reschedule reminder?",
+        "content": "You missed the reminder for \"{name}\". Reschedule it later today?",
+        "cancel": "No",
+        "confirm": "Reschedule"
+      }
+    },
+    "snackBars": [
+      "Habit already exists: {name}",
+      "Saved goal details."
+    ]
+  },
+  "habit_tracker_header": {
+    "tooltips": ["Mindset & coping", "Create habit from action plan"],
+    "buttons": ["Open Link"],
+    "snackBars": ["Could not open link: {error}"]
+  },
+  "habit_tracker_tab": {
+    "labels": [
+      "No habits yet. Add one above!",
+      "Not scheduled today",
+      "{streak} {unit} streak",
+      "No streak yet",
+      "Days {weeklyDays}",
+      "Due {deadline}",
+      "• {time} left"
+    ],
+    "hintTexts": ["Enter habit name (optional)"],
+    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "buttons": ["Resume", "Start", "Pause"],
+    "tooltips": ["Add habit", "Timer", "Edit habit"],
+    "dialogs": {
+      "deleteHabit": {
+        "title": "Delete Habit",
+        "content": "Delete \"{name}\"?",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    }
+  },
+  "addon_tools_section": {
+    "labels": [
+      "Addon Tools",
+      "None active",
+      "{count} active",
+      "Premium"
+    ],
+    "tools": [
+      {
+        "title": "Reminders",
+        "subtitle": "Location triggers"
+      },
+      {
+        "title": "Timer",
+        "subtitle": "Start time & duration"
+      },
+      {
+        "title": "Tracker",
+        "subtitle": "Log measurements per completion"
+      }
+    ]
+  },
+  "habit_completion_sheet": {
+    "labels": ["How did it feel?", "Voice note attached"],
+    "moodLabels": ["Awful", "Bad", "Neutral", "Good", "Great"],
+    "hintTexts": ["Write about how you feel...", "0"],
+    "buttons": ["Complete"]
+  },
+  "habit_form_identity_section": {
+    "labels": ["Habit", "Customize color"],
+    "hintTexts": ["Add a habit (e.g., meditation)"],
+    "buttons": ["Use this color"]
+  },
+  "habit_form_triggers_section": {
+    "labels": [
+      "Timer & Location",
+      "Timer",
+      "Location",
+      "Start time",
+      "Duration",
+      "Notification sound",
+      "Vibrate",
+      "Notification Sound",
+      "Custom (selected)",
+      "Choose from files...",
+      "Try {suggestion}"
+    ],
+    "locationTypes": ["Current", "Custom"],
+    "geofenceTypes": ["Arriving", "Leaving"],
+    "durationUnits": ["min", "hr"],
+    "hintTexts": ["5", "Search an address or place..."],
+    "buttons": ["Cancel", "Done"]
+  },
+  "habit_form_strategy_section": {
+    "labels": [
+      "Action Steps",
+      "Break into small steps",
+      "Add a step",
+      "Anchor to an existing habit",
+      "Your Habits",
+      "Common Habits",
+      "No matching habits found",
+      "Use \"{query}\""
+    ],
+    "anchorPositions": ["Before", "After"],
+    "hintTexts": ["Search or type a habit...", "Step title..."],
+    "tooltips": ["Add step", "Remove"]
+  },
+  "habit_form_constants": {
+    "categories": ["Health", "Fitness", "Productivity", "Mindfulness", "Learning", "Relationships", "Finance", "Creativity", "Other"],
+    "defaultStackingHabits": [
+      "Brush teeth",
+      "Morning coffee",
+      "Shower",
+      "Breakfast",
+      "Lunch",
+      "Dinner",
+      "Wake up",
+      "Go to bed",
+      "Morning walk",
+      "Evening walk",
+      "Commute to work",
+      "Commute home",
+      "Workout",
+      "Meditation",
+      "Journaling",
+      "Reading"
+    ],
+    "habitIconLabels": [
+      "Workout", "Cycling", "Running", "Walking", "Stretch",
+      "Basketball", "Soccer", "Tennis", "Swimming",
+      "Water", "Food", "Sleep", "Heart", "Medical", "Mental", "Spa",
+      "Read", "Morning", "Schedule", "Task", "Work", "Focus", "Goal", "Alarm",
+      "Meditation", "Calm", "Nature",
+      "Study", "Idea", "Code", "Books", "Math",
+      "People", "Love", "Connect", "Group",
+      "Money", "Savings", "Wallet", "Bank", "Growth", "Paid", "Card",
+      "Brush", "Palette", "Design", "Music", "Photo", "Create",
+      "Breathe", "Awareness", "Evening",
+      "Language", "Science", "Give", "Family"
+    ],
+    "habitColorLabels": ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"],
+    "notificationSounds": ["Default", "Chime", "Bell", "Gentle", "Alert", "None", "Custom"],
+    "vibrateTypes": ["None", "Default", "Short", "Long"],
+    "milestonePresets": [
+      { "label": "21 Days", "subtitle": "Kickstart" },
+      { "label": "66 Days", "subtitle": "Autopilot" },
+      { "label": "90 Days", "subtitle": "Lifestyle" },
+      { "label": "∞", "subtitle": "No End Date" }
+    ]
+  },
+  "location_map_picker_screen": {
+    "appBarTitle": "Choose Location",
+    "labels": ["Pan the map to select a location"],
+    "hintTexts": ["Search an address or place..."],
+    "buttons": ["Use This Location"],
+    "snackBars": ["No results found for \"{query}\""]
+  },
+  "add_habit_modal": {
+    "labels": [
+      "IF",
+      "THEN",
+      "Log {icon} in:",
+      "Tracking Unit",
+      "Safety Net",
+      "Schedule",
+      "No End Date",
+      "Custom: {date}",
+      "Pick a custom end date",
+      "Conflicts with \"{name}\""
+    ],
+    "scheduleDays": ["M", "T", "W", "T", "F", "S", "S"],
+    "hintTexts": ["I'm feeling too tired...", "I will just do 2 minutes."],
+    "buttons": ["Cancel", "Save Habit", "Create Habit"],
+    "validationErrors": [
+      "Please enter a habit name",
+      "Please enter a trigger",
+      "Please enter a coping action",
+      "Please select or enter a habit",
+      "Add at least one step with a title"
+    ]
+  },
+  "routine_calendar_header": {
+    "buttons": ["Today"],
+    "weekdays": ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+  },
+  "goal_todo_tab": {
+    "labels": ["Edit todo", "Habit", "Habit ✓"],
+    "hintTexts": ["Add a todo…"],
+    "buttons": ["Save"],
+    "menuItems": ["Edit", "Delete"],
+    "emptyStates": ["No todo items yet."]
+  },
+  "today_progress_card": {
+    "labels": [
+      "Today's Progress",
+      "{completed} of {total} habits completed"
+    ]
+  },
+  "weekly_activity_card": {
+    "labels": ["Last 7 Days Activity"]
+  },
+  "audio_embed": {
+    "labels": ["Recording...", "Recording Complete", "Voice Note"],
+    "buttons": ["Cancel", "Start Recording", "Stop", "Discard", "Re-record", "Save"],
+    "snackBars": [
+      "Microphone permission required",
+      "Failed to start recording: {error}",
+      "Failed to stop recording: {error}"
+    ]
+  },
+  "journal_book_carousel": {
+    "labels": ["New Book", "Choose Cover Color"],
+    "buttons": ["Apply"],
+    "dialogs": {
+      "deleteBook": {
+        "title": "Delete Book?",
+        "content": "This will permanently delete \"{name}\" and all {count} {entries} in it. This cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    }
+  },
+  "journal_browse": {
+    "labels": ["Journal"],
+    "tooltips": ["New book"]
+  },
+  "choose_cover_screen": {
+    "labels": [
+      "First things first.",
+      "Choose a cover.",
+      "Custom Image",
+      "Tap to upload"
+    ],
+    "buttons": ["NEXT"],
+    "tooltips": ["Cancel"]
+  },
+  "editor_app_bar": {
+    "tooltips": ["Font: {fontName}", "Font Size", "Add Image", "Voice Note", "Add Tag"],
+    "labels": ["Aa", "Saving", "Saved", "Error"]
+  },
+  "image_embed": {
+    "labels": ["Image not found", "View Full Size", "Delete Image"]
+  },
+  "interactive_journal_book": {
+    "labels": [
+      "Written by you",
+      "{count} Pages",
+      "{count} entries",
+      "Untitled"
+    ],
+    "tooltips": ["More options", "Delete book", "New entry", "Close"],
+    "emptyStates": ["No entries yet", "Tap + below to add your first entry"],
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  },
+  "journal_hero_section": {
+    "labels": ["Here, your journal\ncomes to life"]
+  },
+  "core_value": {
+    "labels": [
+      "Growth & Mindset",
+      "Career & Ambition",
+      "Creativity & Expression",
+      "Lifestyle & Adventure",
+      "Connection & Community"
+    ]
+  },
+  "model_defaults": {
+    "labels": ["Untitled", "Untitled Routine", "Goal"]
+  },
+  "image_service": {
+    "labels": ["Crop", "Crop for Puzzle"],
+    "snackBars": [
+      "Image picking/cropping is not supported on web yet.",
+      "Web: image will be used as a URL (device storage is not supported).",
+      "Could not download image ({statusCode}).",
+      "Could not download image."
+    ]
+  },
+  "notifications_service": {
+    "channels": [
+      {
+        "id": "habit_reminders",
+        "name": "Habit reminders",
+        "description": "Reminders for scheduled habits"
+      },
+      {
+        "id": "geofence_completions",
+        "name": "Location completions",
+        "description": "Notifications when a habit is auto-completed by location"
+      }
+    ],
+    "notifications": {
+      "habitReminder": "Habit reminder",
+      "completionTitle": "You completed \"{habitName}\"!",
+      "completionBody": "Tell us how it went."
+    }
+  },
+  "journal_book_storage_service": {
+    "defaultBook": {
+      "name": "Journal",
+      "subtitle": "written by you"
+    },
+    "goalLogsBook": {
+      "name": "Goal Logs",
+      "subtitle": "habit completions"
+    }
+  },
+  "subscription_service": {
+    "plans": [
+      { "label": "1 Month", "duration": "monthly", "price": "$4.99/mo" },
+      { "label": "3 Months", "duration": "quarterly", "price": "$11.99/qtr", "savings": "Save 20%" },
+      { "label": "6 Months", "duration": "semi-annual", "price": "$19.99/6mo", "savings": "Save 33%" },
+      { "label": "1 Year", "duration": "annual", "price": "$34.99/yr", "savings": "Best Value - Save 42%" }
+    ]
+  }
+}

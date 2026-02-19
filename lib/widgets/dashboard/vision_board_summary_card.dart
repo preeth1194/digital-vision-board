@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import '../../models/grid_tile_model.dart';
 import '../../screens/vision_boards_screen.dart';
 import '../../services/boards_storage_service.dart';
+import '../../services/grid_tiles_storage_service.dart';
+import '../../utils/file_image_provider.dart';
 
 class VisionBoardSummaryCard extends StatefulWidget {
   final VoidCallback onCreateBoard;
@@ -29,6 +32,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
   VisionBoardInfo? _activeBoard;
   bool _loaded = false;
   SharedPreferences? _prefs;
+  ImageProvider? _heroImage;
 
   @override
   void initState() {
@@ -69,10 +73,22 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
     }
     active ??= boards.isNotEmpty ? boards.first : null;
 
+    ImageProvider? heroImage;
+    if (active != null) {
+      final tiles = await GridTilesStorageService.loadTiles(active.id, prefs: prefs);
+      final firstImage = tiles
+          .where((t) => t.type == 'image' && (t.content ?? '').trim().isNotEmpty)
+          .toList();
+      if (firstImage.isNotEmpty) {
+        heroImage = fileImageProviderFromPath(firstImage.first.content!.trim());
+      }
+    }
+
     if (mounted) {
       setState(() {
         _boards = boards;
         _activeBoard = active;
+        _heroImage = heroImage;
         _loaded = true;
       });
     }
@@ -147,30 +163,33 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                         ),
                       )
                     else if (_activeBoard != null) ...[
-                      Icon(
-                        boardIconFromCodePoint(_activeBoard!.iconCodePoint),
-                        size: 36,
-                        color: Color(_activeBoard!.tileColorValue),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _activeBoard!.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onPrimaryContainer,
+                      if (_heroImage != null)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image(
+                                image: _heroImage!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  boardIconFromCodePoint(
+                                      _activeBoard!.iconCodePoint),
+                                  size: 36,
+                                  color: Color(_activeBoard!.tileColorValue),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Icon(
+                          boardIconFromCodePoint(_activeBoard!.iconCodePoint),
+                          size: 36,
+                          color: Color(_activeBoard!.tileColorValue),
                         ),
-                      ),
-                      Text(
-                        '${_boards.length} board${_boards.length == 1 ? '' : 's'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7),
-                        ),
-                      ),
+                      const SizedBox(height: 4),
                     ] else ...[
                       Icon(
                         Icons.dashboard_outlined,

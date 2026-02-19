@@ -46,7 +46,7 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
 
   Map<String, List<GridTileModel>> _tilesCache = {};
 
-  static const double _viewportFraction = 0.72;
+  static const double _viewportFraction = 0.68;
 
   @override
   void initState() {
@@ -350,6 +350,16 @@ class _BoardCard extends StatelessWidget {
   }
 
   Widget _buildImageCollage(BuildContext context, List<GridTileModel> imageTiles) {
+    if (imageTiles.length == 1) {
+      return Padding(
+        padding: const EdgeInsets.all(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: _buildTileImage(context, imageTiles.first),
+        ),
+      );
+    }
+
     const spacing = 3.0;
     final displayTiles = imageTiles.take(6).toList();
 
@@ -384,10 +394,12 @@ class _BoardCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: provider != null
-          ? Image(
-              image: provider,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _emptyTile(context),
+          ? SizedBox.expand(
+              child: Image(
+                image: provider,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _emptyTile(context),
+              ),
             )
           : _emptyTile(context),
     );

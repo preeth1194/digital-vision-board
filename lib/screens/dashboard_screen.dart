@@ -88,8 +88,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   final GlobalKey _coinTargetKey = GlobalKey();
 
   // Profile avatar for app bar and drawer (refreshed when returning from Account)
-  final ValueNotifier<({String? picPath, String initial})> _profileAvatarNotifier =
-      ValueNotifier((picPath: null, initial: '?'));
+  final ValueNotifier<({String? picPath, String initial, String displayName})>
+      _profileAvatarNotifier =
+          ValueNotifier((picPath: null, initial: '?', displayName: ''));
 
   @override
   void initState() {
@@ -114,8 +115,20 @@ class _DashboardScreenState extends State<DashboardScreen>
         : (identifier != null && identifier.isNotEmpty)
             ? identifier[0].toUpperCase()
             : '?';
+
+    String resolvedName;
+    if (displayName != null && displayName.isNotEmpty) {
+      resolvedName = displayName;
+    } else {
+      resolvedName = 'Guest User';
+    }
+
     if (mounted) {
-      _profileAvatarNotifier.value = (picPath: picPath, initial: initial);
+      _profileAvatarNotifier.value = (
+        picPath: picPath,
+        initial: initial,
+        displayName: resolvedName,
+      );
     }
   }
 
@@ -973,7 +986,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     style: AppTypography.heading3(context),
                   ),
                   const SizedBox(height: 12),
-                  ValueListenableBuilder<({String? picPath, String initial})>(
+                  ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
                     valueListenable: _profileAvatarNotifier,
                     builder: (context, profile, _) {
                       return FutureBuilder<String?>(
@@ -1177,7 +1190,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Builder(
                 builder: (scaffoldContext) => GestureDetector(
                   onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  child: ValueListenableBuilder<({String? picPath, String initial})>(
+                  child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
                     valueListenable: _profileAvatarNotifier,
                     builder: (context, profile, _) => ProfileAvatar(
                       initial: profile.initial,
@@ -1188,11 +1201,34 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              // Greeting text (date removed)
               Expanded(
-                child: Text(
-                  _getGreeting(),
-                  style: AppTypography.heading3(context),
+                child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
+                  valueListenable: _profileAvatarNotifier,
+                  builder: (context, profile, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        profile.displayName.isNotEmpty
+                            ? profile.displayName
+                            : 'Guest User',
+                        style: AppTypography.heading3(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _getGreeting(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               // Coin badge

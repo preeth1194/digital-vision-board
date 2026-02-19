@@ -41,12 +41,16 @@ Future<void> main() async {
   // Lazy prefetch: do not block app startup (keeps loading screens minimal).
   unawaited(WizardDefaultsService.prefetchDefaults(prefs: prefs));
   // Initialize notifications early so tap handler is wired before any notification arrives.
-  await NotificationsService.ensureInitialized();
+  try {
+    await NotificationsService.ensureInitialized();
+  } catch (_) {
+    // Non-fatal: app can still run without notifications.
+  }
   // Lazy start geofence tracking from local storage (best-effort).
-  unawaited(HabitGeofenceTrackingService.instance.bootstrapFromStorage(prefs: prefs));
+  unawaited(HabitGeofenceTrackingService.instance.bootstrapFromStorage(prefs: prefs).catchError((_) {}));
   // Initialize ads and subscriptions (best-effort, non-blocking).
-  unawaited(AdService.initialize());
-  unawaited(SubscriptionService.initialize(prefs: prefs));
+  unawaited(AdService.initialize().catchError((_) {}));
+  unawaited(SubscriptionService.initialize(prefs: prefs).catchError((_) {}));
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

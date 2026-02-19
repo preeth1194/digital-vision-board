@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/sun_times_service.dart';
 import '../../utils/app_colors.dart';
@@ -285,7 +287,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
                         sunPulseValue: _sunPulseController.value,
                         rayValue: _rayController.value,
                         starValue: _starController.value,
-                        starColor: colorScheme.onPrimary,
+                        starColor: Colors.white,
                       ),
                     );
                   },
@@ -299,6 +301,15 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
   }
 
   Widget _buildTimeLabel(String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
+    // #region agent log
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
+        '${jsonEncode({"sessionId":"308c67","hypothesisId":"D","location":"sun_times_header.dart:_buildTimeLabel","message":"SunTimesHeader label color","data":{"isDark":isDark,"labelColor":"0x${colorScheme.onPrimary.value.toRadixString(16)}","skyGradient":_skyGradientColors.map((c) => "0x${c.value.toRadixString(16)}").toList(),"text":text},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
+        mode: FileMode.append,
+      );
+    } catch (_) {}
+    // #endregion
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -313,7 +324,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: colorScheme.onPrimary,
+              color: Colors.white,
               shadows: [
                 Shadow(
                   color: colorScheme.shadow.withValues(alpha: 0.5),
@@ -328,7 +339,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             Icon(
               Icons.refresh,
               size: 12,
-              color: colorScheme.onPrimary.withValues(alpha: 0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               shadows: [
                 Shadow(
                   color: colorScheme.shadow.withValues(alpha: 0.5),

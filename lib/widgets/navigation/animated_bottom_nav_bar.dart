@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 /// A floating bottom navigation bar with a curved notch that slides between
@@ -133,6 +135,16 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
     final hasCenterButton = widget.onCenterTap != null;
     final slotCount = widget.items.length + (hasCenterButton ? 1 : 0);
     final midSlot = widget.items.length ~/ 2;
+
+    // #region agent log
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
+        '${jsonEncode({"sessionId":"308c67","hypothesisId":"E","location":"animated_bottom_nav_bar.dart:build","message":"NavBar colors","data":{"isDark":isDark,"barBodyColor":"0x${colorScheme.onSurface.value.toRadixString(16)}","labelIconColor":"0x${colorScheme.outlineVariant.value.toRadixString(16)}","surface":"0x${colorScheme.surface.value.toRadixString(16)}"},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
+        mode: FileMode.append,
+      );
+    } catch (_) {}
+    // #endregion
 
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 

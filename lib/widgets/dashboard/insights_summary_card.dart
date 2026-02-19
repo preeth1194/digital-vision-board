@@ -119,7 +119,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                         height: 4,
                         child: LinearProgressIndicator(
                           backgroundColor:
-                              colorScheme.onPrimary.withValues(alpha: 0.3),
+                              colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
                         ),
                       )
                     else if (total == 0)
@@ -155,7 +155,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                           value: rate,
                           minHeight: 5,
                           backgroundColor:
-                              colorScheme.onPrimary.withValues(alpha: 0.3),
+                              colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
                           valueColor: AlwaysStoppedAnimation(
                             colorScheme.onPrimaryContainer,
                           ),

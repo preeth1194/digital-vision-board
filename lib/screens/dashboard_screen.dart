@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,6 +39,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
+import 'privacy_policy_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
 import 'subscription_screen.dart';
@@ -377,6 +380,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const SizedBox(width: 6),
+              // #region agent log
+              Builder(builder: (_) {
+                try {
+                  final _coinTextColor = isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface;
+                  File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
+                    '${jsonEncode({"sessionId":"308c67","hypothesisId":"B","location":"dashboard_screen.dart:coinBadge","message":"Coin badge text color","data":{"isDark":isDark,"coinTextColor":"0x${_coinTextColor.value.toRadixString(16)}","surfaceBg":"0x${colorScheme.surface.value.toRadixString(16)}","onSurface":"0x${colorScheme.onSurface.value.toRadixString(16)}","surfaceContainerHighest":"0x${colorScheme.surfaceContainerHighest.value.toRadixString(16)}"},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
+                    mode: FileMode.append,
+                  );
+                } catch (_) {}
+                return const SizedBox.shrink();
+              }),
+              // #endregion
               // Coin count
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -401,7 +416,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? colorScheme.surfaceContainerHighest : colorScheme.onSurface,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -973,59 +988,65 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final scaffold = Scaffold(
       drawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.65,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Digital Vision Board',
-                    style: AppTypography.heading3(context),
-                  ),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
-                    valueListenable: _profileAvatarNotifier,
-                    builder: (context, profile, _) {
-                      return FutureBuilder<String?>(
-                        future: DvAuthService.getUserId(prefs: _prefs),
-                        builder: (context, snap) {
-                          final id = (snap.data ?? '').trim();
-                          final label = id.isEmpty ? 'Guest session' : 'Signed in';
-                          return Row(
-                            children: [
-                              ProfileAvatar(
-                                initial: profile.initial,
-                                imagePath: profile.picPath,
-                                radius: 20,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
+                valueListenable: _profileAvatarNotifier,
+                builder: (context, profile, _) {
+                  return FutureBuilder<String?>(
+                    future: DvAuthService.getUserId(prefs: _prefs),
+                    builder: (context, snap) {
+                      final id = (snap.data ?? '').trim();
+                      final isGuest = id.isEmpty;
+                      final displayName = isGuest
+                          ? 'Guest session'
+                          : profile.displayName.isNotEmpty
+                              ? profile.displayName
+                              : 'Signed in';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ProfileAvatar(
+                            initial: profile.initial,
+                            imagePath: profile.picPath,
+                            radius: 38,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _openAccount();
+                            },
+                            child: Text(
+                              isGuest ? 'Sign In / Sign Up' : 'View Profile',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w500,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                            ),
+                          ),
+                        ],
                       );
                     },
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('User profile'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _openAccount();
-              },
             ),
             ValueListenableBuilder<bool>(
               valueListenable: SubscriptionService.isSubscribed,
@@ -1156,6 +1177,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Privacy Policy'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen()),
+                );
+              },
+            ),
             FutureBuilder<String?>(
               future: DvAuthService.getUserId(prefs: _prefs),
               builder: (context, snap) {
@@ -1171,6 +1203,32 @@ class _DashboardScreenState extends State<DashboardScreen>
                 );
               },
             ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Habit Seeding',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Seed your new habits',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

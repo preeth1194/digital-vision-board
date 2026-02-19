@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 /// Header widget showing today's progress ring and streak info.
@@ -21,6 +23,16 @@ class DailyProgressHeader extends StatelessWidget {
     final progress = totalCount > 0
         ? (completedCount / totalCount).clamp(0.0, 1.0)
         : 0.0;
+
+    // #region agent log
+    try {
+      final _subtitleColor = isDark ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7) : colorScheme.secondary.withValues(alpha: 0.65);
+      File('/Users/preeth/digital-vision-board/.cursor/debug-308c67.log').writeAsStringSync(
+        '${jsonEncode({"sessionId":"308c67","runId":"post-fix","hypothesisId":"A,C","location":"daily_progress_header.dart:build","message":"DailyProgressHeader colors FIXED","data":{"isDark":isDark,"subtitleColor":"0x${_subtitleColor.value.toRadixString(16)}","streakTextColor":"0x${colorScheme.onSurface.value.toRadixString(16)}","pctTextColor":"0x${colorScheme.onSurface.value.toRadixString(16)}","onSurface":"0x${colorScheme.onSurface.value.toRadixString(16)}"},"timestamp":DateTime.now().millisecondsSinceEpoch})}\n',
+        mode: FileMode.append,
+      );
+    } catch (_) {}
+    // #endregion
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -50,7 +62,7 @@ class DailyProgressHeader extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: isDark
-                        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.7)
+                        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
                         : colorScheme.secondary.withValues(alpha: 0.65),
                   ),
                 ),
@@ -61,7 +73,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+                      color: colorScheme.onSurface,
                       height: 1.2,
                     ),
                   )
@@ -71,7 +83,7 @@ class DailyProgressHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+                      color: colorScheme.onSurface,
                       height: 1.2,
                     ),
                   ),
@@ -90,7 +102,7 @@ class DailyProgressHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final progressColor = colorScheme.primary;
     final trackColor = isDark
-        ? colorScheme.surface.withValues(alpha: 0.12)
+        ? colorScheme.onSurface.withValues(alpha: 0.15)
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.20);
     final percentage = (progress * 100).round();
 
@@ -131,7 +143,7 @@ class DailyProgressHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: isDark ? colorScheme.onPrimary : colorScheme.onSurface,
+              color: colorScheme.onSurface,
             ),
           ),
         ],

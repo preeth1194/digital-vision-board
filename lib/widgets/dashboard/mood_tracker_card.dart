@@ -172,7 +172,7 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                   height: 4,
                   child: LinearProgressIndicator(
                     backgroundColor:
-                        colorScheme.onPrimary.withValues(alpha: 0.3),
+                        colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
                   ),
                 )
               else if (_todayMood != null) ...[

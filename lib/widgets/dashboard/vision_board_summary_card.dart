@@ -159,7 +159,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                         height: 4,
                         child: LinearProgressIndicator(
                           backgroundColor:
-                              colorScheme.onPrimary.withValues(alpha: 0.3),
+                              colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
                         ),
                       )
                     else if (_activeBoard != null) ...[

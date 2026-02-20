@@ -22,7 +22,7 @@ final class StockImagesService {
       },
     );
     try {
-      final res = await http.get(uri, headers: {'accept': 'application/json'});
+      final res = await http.get(uri, headers: {'accept': 'application/json'}).timeout(const Duration(seconds: 15));
       if (res.statusCode < 200 || res.statusCode >= 300) return const [];
       final decoded = jsonDecode(res.body);
       if (decoded is! Map<String, dynamic>) return const [];

@@ -1,17 +1,37 @@
 import 'package:flutter/material.dart';
 
-/// Custom color palette for the Digital Vision Board app.
-/// "Habit Seeding" nature theme — soil, seed, water, sky & clouds.
+/// Seero: HabitSeeding — Premium "Digital Greenhouse" Palette.
 ///
-/// Metaphor mapping:
-/// - Bottom nav bar  → Soil (brown earth)
-/// - Nav icons       → Seed (golden-tan husk)
-/// - "+" button      → Water (clear blue)
-/// - Screen bg       → Sky-to-land gradient
-/// - Top app bar     → White sky / night sky
-/// - Widgets/cards   → Clouds (puffy, soft shadow)
+/// Metaphor Mapping:
+/// - Mist & Sky   → Backgrounds (Airy and breathable)
+/// - Clouds       → Cards/Widgets (Floating and soft)
+/// - Forest       → Bottom Nav (Grounded, fertile foundation)
+/// - Sprout       → Primary Actions (Growth and life)
+/// - Water        → Floating Action Button (The catalyst for growth)
+/// - Seed         → Rewards & Coins (The golden potential)
 class AppColors {
   AppColors._();
+
+  // ═══════════════════════════════════════════════════════════════
+  // ── 1. The Core Nature Foundation ──
+  // ═══════════════════════════════════════════════════════════════
+
+  // Mist & Sky (Atmosphere)
+  static const Color mistBackground = Color(0xFFF4F7F5);
+  static const Color skyTopTint = Color(0xFFE0F2F1);
+
+  // Forest & Growth (Primary Brand)
+  static const Color forestDeep = Color(0xFF1B3022);
+  static const Color sproutGreen = Color(0xFF4CAF50);
+  static const Color springWater = Color(0xFF2D5A27);
+
+  // Seed & Reward (Accents)
+  static const Color seedChampagne = Color(0xFFF5E6D3);
+  static const Color seedGold = Color(0xFFD4AF37);
+
+  // Cloud Surfaces
+  static const Color cloudWhite = Colors.white;
+  static const Color cloudDark = Color(0xFF1E2A3A);
 
   // ── Legacy palette (kept for backward-compat references) ──
   static const Color darkest = Color(0xFF2C1810);
@@ -19,43 +39,31 @@ class AppColors {
   static const Color medium = Color(0xFF8B7355);
   static const Color light = Color(0xFFC9A96E);
   static const Color lightest = Color(0xFFE8D5B8);
-
-  // ── Semantic named colors (kept for backward-compat) ──
   static const Color mintGreen = Color(0xFFA8D5BA);
   static const Color sageGreen = Color(0xFF8FBC8F);
   static const Color mossGreen = Color(0xFF4A7C59);
   static const Color forestGreen = Color(0xFF2D5A3D);
   static const Color gold = Color(0xFFD4A843);
-
-  // ═══════════════════════════════════════════════════════════════
-  // ── Nature Theme: Soil, Seed, Water, Sky, Cloud ──
-  // ═══════════════════════════════════════════════════════════════
   static const Color soilLight = Color(0xFF5C3D2E);
   static const Color soilDark = Color(0xFF2A1B12);
   static const Color soilMedium = Color(0xFF7B5B4A);
-
   static const Color seedLight = Color(0xFFC9A96E);
   static const Color seedDark = Color(0xFFD4B896);
   static const Color seedDeep = Color(0xFF8B6B3E);
-
   static const Color waterLight = Color(0xFF4FA4D4);
   static const Color waterDark = Color(0xFF6CB4D9);
-
-  static const Color skyGradientTopLight = Color(0xFFD6EEFF);
-  static const Color skyGradientBottomLight = Color(0xFFA8D8A8);
+  static const Color skyGradientTopLight = Color(0xFFE0F2F1);
+  static const Color skyGradientBottomLight = Color(0xFFF4F7F5);
   static const Color skyGradientTopDark = Color(0xFF0D1B2A);
-  static const Color skyGradientBottomDark = Color(0xFF1A2A1A);
-
-  static const Color cloudLight = Color(0xFFFFFFFF);
-  static const Color cloudDark = Color(0xFF1E2A3A);
+  static const Color skyGradientBottomDark = Color(0xFF1B263B);
+  static const Color cloudLight = Colors.white;
   static const Color cloudBorderDark = Color(0xFF2A3A4A);
 
   // ── Domain accent (not in ColorScheme) ──
   static const Color completedOrange = Color(0xFFE8802A);
 
   // ── ColorScheme source values (used only inside lightScheme/darkScheme) ──
-  static const Color _backgroundDark = Color(0xFF0F1A2A);
-  static const Color _surfaceLight = Color(0xFFFFFFFF);
+  static const Color _backgroundDark = Color(0xFF0F1A14);
   static const Color _errorLight = Color(0xFFBA1A1A);
   static const Color _errorDark = Color(0xFFFFB4AB);
   static const Color _onErrorLight = Color(0xFFFFFFFF);
@@ -324,25 +332,25 @@ class AppColors {
   static const Color _errorContainerDark = Color(0xFF93000A);
   static const Color _errorContainerLight = Color(0xFFFFDAD6);
   static const Color _onErrorContainerLight = Color(0xFF410002);
-  static const Color _surfaceContainerEarthHigh = Color(0xFF1E2E3A);
-  static const Color _surfaceContainerEarth = Color(0xFF182530);
-  static const Color _surfaceContainerEarthLow = Color(0xFF121E28);
+  static const Color _surfaceContainerForestHigh = Color(0xFF1A2E22);
+  static const Color _surfaceContainerForest = Color(0xFF142518);
+  static const Color _surfaceContainerForestLow = Color(0xFF101E14);
 
-  /// Light theme ColorScheme — "Habit Seeding" day scene.
+  /// Light theme ColorScheme — "Morning in the Garden".
   static const ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
-    // Primary (water blue — drives "+" button and primary actions)
-    primary: waterLight,
+    // Primary (sprout green — drives primary actions)
+    primary: sproutGreen,
     onPrimary: Colors.white,
-    primaryContainer: Color(0xFFE8D5B8),
-    onPrimaryContainer: Color(0xFF3A2518),
-    // Secondary (soil brown — accent)
-    secondary: soilLight,
+    primaryContainer: Color(0xFFDCEDC8),
+    onPrimaryContainer: forestDeep,
+    // Secondary (forest deep — grounded accent)
+    secondary: forestDeep,
     onSecondary: Colors.white,
-    secondaryContainer: Color(0xFFE8D5B8),
-    onSecondaryContainer: soilDark,
-    // Tertiary (gold accent — coins, sliders)
-    tertiary: gold,
+    secondaryContainer: Color(0xFFE8F5E9),
+    onSecondaryContainer: forestDeep,
+    // Tertiary (seed gold — coins, rewards)
+    tertiary: seedGold,
     onTertiary: Colors.white,
     tertiaryContainer: _tertiaryContainerLight,
     onTertiaryContainer: _tertiaryOnDark,
@@ -351,44 +359,44 @@ class AppColors {
     onError: _onErrorLight,
     errorContainer: _errorContainerLight,
     onErrorContainer: _onErrorContainerLight,
-    // Surface (white sky — app bar, scaffold)
-    surface: _surfaceLight,
-    onSurface: darkest,
-    onSurfaceVariant: Color(0xFF5C4033),
-    // Outline (seed tones — nav icons use outlineVariant)
-    outline: Color(0xFF8B7355),
-    outlineVariant: seedLight,
+    // Surface (sage mist — breathable background)
+    surface: mistBackground,
+    onSurface: forestDeep,
+    onSurfaceVariant: Color(0xFF414F45),
+    // Outline (neutral sage tones)
+    outline: Color(0xFF727972),
+    outlineVariant: Color(0xFFC2C9C2),
     // Shadow & Scrim
-    shadow: darkest,
-    scrim: darkest,
+    shadow: forestDeep,
+    scrim: forestDeep,
     // Inverse
-    inverseSurface: darkest,
-    onInverseSurface: Color(0xFFF5EDE3),
-    inversePrimary: Color(0xFF8ECBEE),
-    // Surface containers (subtle warm tints, close to white)
-    surfaceContainerHighest: Color(0xFFF5F0EB),
-    surfaceContainerHigh: Color(0xFFF8F4F0),
-    surfaceContainer: Color(0xFFFBF8F5),
-    surfaceContainerLow: Color(0xFFFDFBF9),
-    surfaceContainerLowest: _surfaceLight,
-    surfaceDim: Color(0xFFEDE8E3),
-    surfaceBright: _surfaceLight,
+    inverseSurface: forestDeep,
+    onInverseSurface: Color(0xFFE8F0EA),
+    inversePrimary: Color(0xFF80E27E),
+    // Surface containers (subtle sage tints, close to white)
+    surfaceContainerHighest: Color(0xFFECF0ED),
+    surfaceContainerHigh: Color(0xFFF0F4F1),
+    surfaceContainer: Color(0xFFF4F7F5),
+    surfaceContainerLow: Color(0xFFF8FAF8),
+    surfaceContainerLowest: cloudWhite,
+    surfaceDim: Color(0xFFE4E8E5),
+    surfaceBright: cloudWhite,
   );
 
-  /// Dark theme ColorScheme — "Habit Seeding" night scene.
+  /// Dark theme ColorScheme — "Night in the Greenhouse".
   static const ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    // Primary (moonlit water blue)
-    primary: waterDark,
-    onPrimary: Color(0xFF0A1A28),
-    primaryContainer: Color(0xFF3A2518),
-    onPrimaryContainer: seedDark,
-    // Secondary (pale seed — moonlit accent)
-    secondary: seedDark,
-    onSecondary: soilDark,
-    secondaryContainer: Color(0xFF4A3020),
-    onSecondaryContainer: Color(0xFFE8D5B8),
-    // Tertiary (gold accent — coins, sliders)
+    // Primary (sprout green — consistent brand)
+    primary: sproutGreen,
+    onPrimary: forestDeep,
+    primaryContainer: Color(0xFF2D5A27),
+    onPrimaryContainer: Color(0xFFDCEDC8),
+    // Secondary (pale green — moonlit foliage)
+    secondary: Color(0xFFD0E8D0),
+    onSecondary: forestDeep,
+    secondaryContainer: Color(0xFF2A4A30),
+    onSecondaryContainer: Color(0xFFE8F5E9),
+    // Tertiary (gold accent — coins, rewards)
     tertiary: _tertiaryGoldDark,
     onTertiary: _tertiaryOnDark,
     tertiaryContainer: _tertiaryContainerDark,
@@ -398,56 +406,53 @@ class AppColors {
     onError: _onErrorDark,
     errorContainer: _errorContainerDark,
     onErrorContainer: _errorContainerLight,
-    // Surface (deep night sky)
+    // Surface (deep organic dark)
     surface: _backgroundDark,
-    onSurface: Color(0xFFE8DDD0),
-    onSurfaceVariant: seedDark,
+    onSurface: Color(0xFFE1E3E1),
+    onSurfaceVariant: Color(0xFFC2C9C2),
     // Outline
-    outline: Color(0xFF7B6B5A),
-    outlineVariant: seedDark,
+    outline: Color(0xFF8B938B),
+    outlineVariant: Color(0xFF414F45),
     // Shadow & Scrim
     shadow: Colors.black,
     scrim: Colors.black,
     // Inverse
-    inverseSurface: Color(0xFFE8DDD0),
-    onInverseSurface: Color(0xFF1A2530),
-    inversePrimary: Color(0xFF3A8DB8),
-    // Surface containers (dark earth/navy tints)
-    surfaceContainerHighest: Color(0xFF2A3A4A),
-    surfaceContainerHigh: _surfaceContainerEarthHigh,
-    surfaceContainer: _surfaceContainerEarth,
-    surfaceContainerLow: _surfaceContainerEarthLow,
-    surfaceContainerLowest: Color(0xFF0A1015),
+    inverseSurface: Color(0xFFE1E3E1),
+    onInverseSurface: Color(0xFF1A2A1E),
+    inversePrimary: Color(0xFF2E7D32),
+    // Surface containers (dark forest tints)
+    surfaceContainerHighest: Color(0xFF253028),
+    surfaceContainerHigh: _surfaceContainerForestHigh,
+    surfaceContainer: _surfaceContainerForest,
+    surfaceContainerLow: _surfaceContainerForestLow,
+    surfaceContainerLowest: Color(0xFF0A120C),
     surfaceDim: _backgroundDark,
-    surfaceBright: Color(0xFF2A3A4A),
+    surfaceBright: Color(0xFF253028),
   );
 
-  /// Sky-to-land gradient for screen backgrounds.
+  /// Sky-to-Land Gradient for full-page backgrounds.
   static LinearGradient skyGradient({required bool isDark}) {
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: isDark
-          ? const [skyGradientTopDark, skyGradientBottomDark]
-          : const [skyGradientTopLight, skyGradientBottomLight],
+          ? const [Color(0xFF0D1B2A), Color(0xFF1B263B)]
+          : const [skyTopTint, mistBackground],
     );
   }
 
-  /// Cloud-style decoration for cards/widgets.
+  /// Puffy Cloud Decoration for cards/widgets.
   static BoxDecoration cloudDecoration({required bool isDark}) {
     return BoxDecoration(
-      color: isDark ? cloudDark : cloudLight,
-      borderRadius: BorderRadius.circular(20),
-      border: isDark
-          ? Border.all(color: cloudBorderDark, width: 0.5)
-          : null,
+      color: isDark ? cloudDark : cloudWhite,
+      borderRadius: BorderRadius.circular(24),
       boxShadow: [
         BoxShadow(
           color: isDark
-              ? Colors.black.withValues(alpha: 0.3)
-              : Colors.black.withValues(alpha: 0.08),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+              ? Colors.black.withValues(alpha: 0.4)
+              : forestDeep.withValues(alpha: 0.08),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
         ),
       ],
     );

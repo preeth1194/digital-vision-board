@@ -91,20 +91,20 @@ class DigitalVisionBoardApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: AppColors.lightScheme,
             useMaterial3: true,
-            scaffoldBackgroundColor: AppColors.skyGradientTopLight,
+            scaffoldBackgroundColor: AppColors.mistBackground,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.transparent,
-              foregroundColor: AppColors.darkest,
+              foregroundColor: AppColors.forestDeep,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
             ),
             cardTheme: CardThemeData(
-              color: AppColors.cloudLight,
+              color: AppColors.cloudWhite,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
               ),
-              shadowColor: Colors.black.withValues(alpha: 0.08),
+              shadowColor: AppColors.forestDeep.withValues(alpha: 0.08),
             ),
             textTheme: GoogleFonts.interTextTheme(
               const TextTheme(
@@ -117,14 +117,14 @@ class DigitalVisionBoardApp extends StatelessWidget {
                 labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ).apply(
-              bodyColor: AppColors.darkest,
-              displayColor: AppColors.darkest,
+              bodyColor: AppColors.forestDeep,
+              displayColor: AppColors.forestDeep,
             ),
           ),
           darkTheme: ThemeData(
             colorScheme: AppColors.darkScheme,
             useMaterial3: true,
-            scaffoldBackgroundColor: AppColors.skyGradientTopDark,
+            scaffoldBackgroundColor: const Color(0xFF0F1A14),
             appBarTheme: AppBarTheme(
               backgroundColor: Colors.transparent,
               foregroundColor: AppColors.darkScheme.onSurface,
@@ -135,11 +135,7 @@ class DigitalVisionBoardApp extends StatelessWidget {
               color: AppColors.cloudDark,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(
-                  color: AppColors.cloudBorderDark,
-                  width: 0.5,
-                ),
+                borderRadius: BorderRadius.circular(24),
               ),
               shadowColor: Colors.black.withValues(alpha: 0.3),
             ),

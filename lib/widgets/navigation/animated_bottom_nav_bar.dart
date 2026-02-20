@@ -178,8 +178,8 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
                             centerBtnCutoutCenterY: _centerCutoutCenterY,
                             centerBtnCutoutRadius: _centerCutoutRadius,
                             color: colorScheme.brightness == Brightness.dark
-                                ? AppColors.soilDark
-                                : AppColors.soilLight,
+                                ? AppColors.forestDeep
+                                : AppColors.forestDeep,
                             shadowColor: colorScheme.shadow,
                             borderRadius: 0,
                           ),
@@ -525,7 +525,7 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
                 width: _totalSize,
                 height: _totalSize,
                 decoration: BoxDecoration(
-                  color: cs.primary,
+                  color: cs.onPrimaryContainer,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: cs.surface,
@@ -534,7 +534,7 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
                   boxShadow: [
                     BoxShadow(
                       color:
-                          cs.primary.withOpacity(glowOpacity.clamp(0.0, 1.0)),
+                          cs.onPrimaryContainer.withValues(alpha: glowOpacity.clamp(0.0, 1.0)),
                       blurRadius: 14,
                       spreadRadius: 2,
                     ),
@@ -542,7 +542,7 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
                 ),
                 child: Icon(
                   Icons.add_rounded,
-                  color: cs.onPrimary,
+                  color: cs.primaryContainer,
                   size: _iconSize,
                 ),
               ),

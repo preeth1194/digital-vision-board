@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:image_picker/image_picker.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
 import '../utils/puzzle_image_splitter.dart';
 import '../services/puzzle_service.dart';
@@ -472,7 +474,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           IconButton(
             icon: const Icon(Icons.image_outlined),
             tooltip: _actionsLocked ? 'Locked during cooldown' : 'Change image',
-            onPressed: _actionsLocked ? null : _selectNewImage,
+            onPressed: _actionsLocked ? null : _pickFromGallery,
           ),
         ],
       ),
@@ -502,6 +504,31 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     );
   }
 
+  Future<void> _pickFromGallery() async {
+    final cropped = await ImageService.pickAndCropPuzzleImage(
+      context,
+      source: ImageSource.gallery,
+    );
+    if (cropped == null || !mounted) return;
+
+    final prefs = widget.prefs ?? await SharedPreferences.getInstance();
+    await PuzzleStateService.clearPuzzleState(
+      imagePath: widget.imagePath,
+      prefs: prefs,
+    );
+    await PuzzleService.setPuzzleImage(cropped, prefs: widget.prefs);
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PuzzleGameScreen(
+            imagePath: cropped,
+            prefs: widget.prefs,
+          ),
+        ),
+      );
+    }
+  }
+
   // ── Image missing state ────────────────────────────────────────────
 
   Widget _buildImageMissingView(ColorScheme scheme) {
@@ -529,7 +556,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: _selectNewImage,
+              onPressed: _pickFromGallery,
               icon: const Icon(Icons.image_outlined),
               label: const Text('Pick Image'),
             ),

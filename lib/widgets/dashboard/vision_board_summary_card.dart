@@ -132,7 +132,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Vision Board',
+                      'Manifest',
                       style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
@@ -173,7 +173,8 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                                   boardIconFromCodePoint(
                                       _activeBoard!.iconCodePoint),
                                   size: 36,
-                                  color: Color(_activeBoard!.tileColorValue),
+                                  color: colorScheme.onPrimaryContainer
+                                      .withValues(alpha: 0.5),
                                 ),
                               ),
                             ),
@@ -183,7 +184,8 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                         Icon(
                           boardIconFromCodePoint(_activeBoard!.iconCodePoint),
                           size: 36,
-                          color: Color(_activeBoard!.tileColorValue),
+                          color: colorScheme.onPrimaryContainer
+                              .withValues(alpha: 0.5),
                         ),
                       const SizedBox(height: 4),
                     ] else ...[

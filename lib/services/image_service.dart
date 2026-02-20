@@ -258,7 +258,7 @@ class ImageService {
     }
 
     try {
-      final res = await http.get(Uri.parse(u));
+      final res = await http.get(Uri.parse(u)).timeout(const Duration(seconds: 20));
       if (res.statusCode < 200 || res.statusCode >= 300) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -292,10 +292,11 @@ class ImageService {
       final persisted = await persistImageBytesToAppStorage(jpg, extension: 'jpg');
       if (persisted != null && persisted.trim().isNotEmpty) return persisted.trim();
       return null;
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ImageService] downloadResizeAndPersistJpegFromUrl error: $e\n$st');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not download image.')),
+          SnackBar(content: Text('Could not download image: $e')),
         );
       }
       return null;

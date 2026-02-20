@@ -710,7 +710,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                           width: _centerBtnSize + _centerBtnBorder * 2,
                           height: _centerBtnSize + _centerBtnBorder * 2,
                           decoration: BoxDecoration(
-                            color: colorScheme.primary,
+                            color: colorScheme.primaryContainer,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: colorScheme.surface,
@@ -718,7 +718,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: colorScheme.primary
+                                color: colorScheme.primaryContainer
                                     .withOpacity(glowOpacity.clamp(0.0, 1.0)),
                                 blurRadius: 14,
                                 spreadRadius: 2,
@@ -727,7 +727,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                           ),
                           child: Icon(
                             Icons.add_rounded,
-                            color: colorScheme.onPrimary,
+                            color: colorScheme.onPrimaryContainer,
                             size: 26,
                           ),
                         ),

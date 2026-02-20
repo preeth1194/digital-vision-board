@@ -752,6 +752,71 @@ class _AnimatedMascotState extends State<_AnimatedMascot>
 }
 
 // ---------------------------------------------------------------------------
+// Animated image — fades in, slides up, and gently scales on entrance
+// ---------------------------------------------------------------------------
+
+class _AnimatedImage extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+
+  const _AnimatedImage({
+    required this.child,
+    this.delay = const Duration(milliseconds: 500),
+  });
+
+  @override
+  State<_AnimatedImage> createState() => _AnimatedImageState();
+}
+
+class _AnimatedImageState extends State<_AnimatedImage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fadeAnim;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _scaleAnim = Tween<double>(begin: 0.94, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+
+    Future.delayed(widget.delay, () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slideAnim,
+      child: FadeTransition(
+        opacity: _fadeAnim,
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Slide 1 — Welcome
 // ---------------------------------------------------------------------------
 
@@ -846,11 +911,14 @@ class _ImageFeatureSlideView extends StatelessWidget {
           const SizedBox(height: 14),
           Expanded(
             flex: 5,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                slide.imagePath!,
-                fit: BoxFit.contain,
+            child: _AnimatedImage(
+              delay: const Duration(milliseconds: 500),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  slide.imagePath!,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
@@ -906,14 +974,16 @@ class _CardControlsSlideView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // Card controls illustration image
           Expanded(
             flex: 5,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/onboarding/card_controls.png',
-                fit: BoxFit.contain,
+            child: _AnimatedImage(
+              delay: const Duration(milliseconds: 500),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/onboarding/card_controls.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

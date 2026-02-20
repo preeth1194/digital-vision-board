@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -664,29 +665,52 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
   Widget _buildEmptyTimelineHint() {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.schedule_outlined, size: 40,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-          const SizedBox(height: 12),
-          Text('No habits yet',
-              style: AppTypography.body(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text('Tap an empty time slot to create a habit',
-              textAlign: TextAlign.center,
-              style: AppTypography.bodySmall(context).copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.7),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.schedule_outlined, size: 40,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              const SizedBox(height: 12),
+              Text('No habits yet',
+                  style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              Text('Tap an empty time slot to create a habit',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall(context).copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1079,30 +1103,44 @@ class _TimelineHabitCard extends StatelessWidget {
     final textColor = _getContrastColor(colorScheme, tileColor);
     final subtitleColor = textColor.withOpacity(0.65);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: height.clamp(54, 200),
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: EdgeInsets.symmetric(
-            horizontal: _compact ? 10 : 12,
-            vertical: _compact ? 6 : 8,
-          ),
-          decoration: BoxDecoration(
-            color: tileColor.withOpacity(isDark ? 0.9 : 1.0),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: tileColor.withOpacity(0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: height.clamp(54, 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: _compact ? 10 : 12,
+                  vertical: _compact ? 6 : 8,
+                ),
+                decoration: BoxDecoration(
+                  color: tileColor.withOpacity(isDark ? 0.7 : 0.75),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tileColor.withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _compact ? _buildCompactRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted) : _buildNormalRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted),
               ),
-            ],
+            ),
           ),
-          child: _compact ? _buildCompactRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted) : _buildNormalRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted),
         ),
       ),
     );

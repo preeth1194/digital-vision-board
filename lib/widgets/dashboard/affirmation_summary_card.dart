@@ -170,6 +170,7 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
       cardColor: colorScheme.surface,
       showPinIndicator: true,
       showCategory: false,
+      useGlass: true,
     );
   }
 }

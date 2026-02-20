@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -211,92 +213,134 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     final template = widget.template;
     final endDate = _startDate.add(Duration(days: template.durationDays - 1));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(template.name),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header card
-            _buildHeaderCard(colorScheme, isDark, template),
-            const SizedBox(height: 20),
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(template.name),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeaderCard(colorScheme, isDark, template),
+              const SizedBox(height: 20),
 
-            // Rules
-            Text('Challenge Rules', style: AppTypography.heading3(context)),
-            const SizedBox(height: 8),
-            ...template.rules.asMap().entries.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${e.key + 1}. ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
+              Text('Challenge Rules', style: AppTypography.heading3(context)),
+              const SizedBox(height: 8),
+              _glassContainer(
+                isDark: isDark,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: template.rules.asMap().entries.map((e) => Padding(
+                    padding: EdgeInsets.only(bottom: e.key < template.rules.length - 1 ? 8 : 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${e.key + 1}. ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          e.value,
-                          style: TextStyle(color: colorScheme.onSurface),
+                        Expanded(
+                          child: Text(
+                            e.value,
+                            style: TextStyle(color: colorScheme.onSurface),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                )),
-            const SizedBox(height: 24),
-
-            // Start date picker
-            Text('Start Date', style: AppTypography.heading3(context)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                leading: Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
-                title: Text(_formatDate(_startDate)),
-                subtitle: Text('Ends ${_formatDate(endDate)}'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: _pickStartDate,
+                      ],
+                    ),
+                  )).toList(),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Habit customization
-            Text('Customize Your Habits', style: AppTypography.heading3(context)),
-            const SizedBox(height: 4),
-            Text(
-              'Adjust names, times, and durations to fit your schedule.',
-              style: AppTypography.caption(context),
+              Text('Start Date', style: AppTypography.heading3(context)),
+              const SizedBox(height: 8),
+              _glassContainer(
+                isDark: isDark,
+                child: ListTile(
+                  leading: Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
+                  title: Text(_formatDate(_startDate)),
+                  subtitle: Text('Ends ${_formatDate(endDate)}'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: _pickStartDate,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Text('Customize Your Habits', style: AppTypography.heading3(context)),
+              const SizedBox(height: 4),
+              Text(
+                'Adjust names, times, and durations to fit your schedule.',
+                style: AppTypography.caption(context),
+              ),
+              const SizedBox(height: 12),
+              ..._habits.asMap().entries.map((entry) =>
+                  _buildHabitCard(entry.key, entry.value, colorScheme, isDark)),
+            ],
+          ),
+        ),
+        bottomSheet: _buildBottomBar(colorScheme, isDark),
+      ),
+    );
+  }
+
+  Widget _glassContainer({
+    required bool isDark,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    double radius = 16,
+    required Widget child,
+  }) {
+    final fillColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.7);
+
+    return Padding(
+      padding: margin ?? EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: fillColor,
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: borderColor, width: 1.0),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.25)
+                      : Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            ..._habits.asMap().entries.map((entry) =>
-                _buildHabitCard(entry.key, entry.value, colorScheme, isDark)),
-          ],
+            child: child,
+          ),
         ),
       ),
-      bottomSheet: _buildBottomBar(colorScheme),
     );
   }
 
   Widget _buildHeaderCard(ColorScheme colorScheme, bool isDark, ChallengeTemplate template) {
-    return Container(
+    return _glassContainer(
+      isDark: isDark,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
-              : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -394,152 +438,155 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     final bgColor = AppColors.categoryBgColor(habit.category, isDark);
     final iconColor = AppColors.categoryIconColor(habit.category, isDark);
 
-    return Card(
+    return _glassContainer(
+      isDark: isDark,
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row: icon + name field
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(iconData, color: iconColor, size: 22),
+      radius: 12,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: habit.nameController,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: colorScheme.outlineVariant),
-                      ),
+                child: Icon(iconData, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: habit.nameController,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: colorScheme.outlineVariant),
                     ),
                   ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          if (habit.description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 50, bottom: 6),
+              child: Text(
+                habit.description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+
+          Padding(
+            padding: const EdgeInsets.only(left: 50),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (habit.startTimeMinutes != null)
+                  ActionChip(
+                    avatar: Icon(Icons.schedule, size: 16, color: colorScheme.primary),
+                    label: Text(_formatTime(habit.startTimeMinutes!)),
+                    onPressed: () => _pickTime(index),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                if (habit.startTimeMinutes == null)
+                  ActionChip(
+                    avatar: Icon(Icons.add_alarm, size: 16, color: colorScheme.primary),
+                    label: const Text('Set time'),
+                    onPressed: () => _pickTime(index),
+                    visualDensity: VisualDensity.compact,
+                  ),
+
+                if (habit.timeBound != null)
+                  ActionChip(
+                    avatar: Icon(Icons.timer, size: 16, color: colorScheme.primary),
+                    label: Text('${habit.timeBound!.duration} min'),
+                    onPressed: () => _pickDuration(index),
+                    visualDensity: VisualDensity.compact,
+                  ),
+
+                if (habit.trackingSpec != null)
+                  Chip(
+                    avatar: Icon(Icons.track_changes, size: 16, color: colorScheme.primary),
+                    label: Text('Track in ${habit.trackingSpec!.unitLabel}'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+
+                Chip(
+                  label: Text(
+                    habit.category,
+                    style: TextStyle(fontSize: 12, color: iconColor),
+                  ),
+                  backgroundColor: bgColor.withValues(alpha: 0.5),
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide.none,
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-
-            // Description
-            if (habit.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 50, bottom: 6),
-                child: Text(
-                  habit.description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-
-            // Controls row
-            Padding(
-              padding: const EdgeInsets.only(left: 50),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  // Time chip
-                  if (habit.startTimeMinutes != null)
-                    ActionChip(
-                      avatar: Icon(Icons.schedule, size: 16, color: colorScheme.primary),
-                      label: Text(_formatTime(habit.startTimeMinutes!)),
-                      onPressed: () => _pickTime(index),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  if (habit.startTimeMinutes == null)
-                    ActionChip(
-                      avatar: Icon(Icons.add_alarm, size: 16, color: colorScheme.primary),
-                      label: const Text('Set time'),
-                      onPressed: () => _pickTime(index),
-                      visualDensity: VisualDensity.compact,
-                    ),
-
-                  // Duration chip (for timed habits)
-                  if (habit.timeBound != null)
-                    ActionChip(
-                      avatar: Icon(Icons.timer, size: 16, color: colorScheme.primary),
-                      label: Text('${habit.timeBound!.duration} min'),
-                      onPressed: () => _pickDuration(index),
-                      visualDensity: VisualDensity.compact,
-                    ),
-
-                  // Tracker chip
-                  if (habit.trackingSpec != null)
-                    Chip(
-                      avatar: Icon(Icons.track_changes, size: 16, color: colorScheme.primary),
-                      label: Text('Track in ${habit.trackingSpec!.unitLabel}'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-
-                  // Category chip
-                  Chip(
-                    label: Text(
-                      habit.category,
-                      style: TextStyle(fontSize: 12, color: iconColor),
-                    ),
-                    backgroundColor: bgColor.withValues(alpha: 0.5),
-                    visualDensity: VisualDensity.compact,
-                    side: BorderSide.none,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBottomBar(ColorScheme colorScheme) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        12 + MediaQuery.paddingOf(context).bottom,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-        ),
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 50,
-        child: FilledButton.icon(
-          onPressed: _saving ? null : _startChallenge,
-          icon: _saving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.rocket_launch_rounded),
-          label: Text(_saving ? 'Starting...' : 'Start Challenge'),
-          style: FilledButton.styleFrom(
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildBottomBar(ColorScheme colorScheme, bool isDark) {
+    final fillColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.7);
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            12 + MediaQuery.paddingOf(context).bottom,
+          ),
+          decoration: BoxDecoration(
+            color: fillColor,
+            border: Border(
+              top: BorderSide(color: borderColor, width: 1.0),
+            ),
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: _saving ? null : _startChallenge,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.rocket_launch_rounded),
+              label: Text(_saving ? 'Starting...' : 'Start Challenge'),
+              style: FilledButton.styleFrom(
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ),
         ),
       ),

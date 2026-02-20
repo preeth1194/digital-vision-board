@@ -217,7 +217,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(gradient: AppColors.skyGradient(isDark: isDark)),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

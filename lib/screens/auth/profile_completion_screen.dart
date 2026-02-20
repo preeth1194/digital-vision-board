@@ -207,9 +207,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDark),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -129,28 +131,39 @@ class _RewardAdCardState extends State<RewardAdCard>
         onTapUp: (_) => setState(() => _isPressed = false),
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: _onTap,
-        child: AnimatedContainer(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           transform: Matrix4.identity()
             ..setEntry(0, 0, _isPressed ? 0.98 : 1.0)
             ..setEntry(1, 1, _isPressed ? 0.98 : 1.0),
-          margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: _isComplete
                   ? AppColors.coinGold.withValues(alpha: 0.5)
-                  : colorScheme.primary.withValues(alpha: 0.3),
-              width: 1.5,
+                  : isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.white.withValues(alpha: 0.7),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: _isPressed ? 0.04 : 0.08),
-                blurRadius: _isPressed ? 4 : 12,
-                offset: Offset(0, _isPressed ? 1 : 3),
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: _isPressed ? 4 : 20,
+                offset: Offset(0, _isPressed ? 1 : 4),
               ),
             ],
           ),
@@ -262,6 +275,9 @@ class _RewardAdCardState extends State<RewardAdCard>
                 ],
               ),
             ],
+          ),
+              ),
+            ),
           ),
         ),
       ),

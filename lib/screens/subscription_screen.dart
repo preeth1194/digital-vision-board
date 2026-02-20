@@ -24,9 +24,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDark),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

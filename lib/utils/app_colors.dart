@@ -441,6 +441,30 @@ class AppColors {
     );
   }
 
+  /// Full-page background decoration.
+  /// Light mode uses the nature-themed pattern image; dark mode uses the
+  /// standard sky gradient.
+  static BoxDecoration skyDecoration({required bool isDark}) {
+    if (isDark) {
+      return const BoxDecoration(
+        color: _backgroundDark,
+        image: DecorationImage(
+          image: AssetImage('assets/backgrounds/dark_bg.png'),
+          fit: BoxFit.cover,
+          opacity: 0.20,
+        ),
+      );
+    }
+    return const BoxDecoration(
+      color: Color(0xFFE0F0EE),
+      image: DecorationImage(
+        image: AssetImage('assets/backgrounds/light_bg.png'),
+        fit: BoxFit.cover,
+        opacity: 0.20,
+      ),
+    );
+  }
+
   /// Puffy Cloud Decoration for cards/widgets.
   static BoxDecoration cloudDecoration({required bool isDark}) {
     return BoxDecoration(

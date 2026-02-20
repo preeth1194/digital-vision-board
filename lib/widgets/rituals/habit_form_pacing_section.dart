@@ -32,7 +32,7 @@ class Step5Pacing extends StatelessWidget {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

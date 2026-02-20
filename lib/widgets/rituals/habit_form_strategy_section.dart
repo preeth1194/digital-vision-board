@@ -232,7 +232,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

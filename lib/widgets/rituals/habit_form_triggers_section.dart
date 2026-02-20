@@ -638,7 +638,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

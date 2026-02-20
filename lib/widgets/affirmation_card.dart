@@ -258,6 +258,18 @@ class _AffirmationCardState extends State<AffirmationCard>
         ),
       ),
     );
+
+    if (glassMode) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: cardContent,
+        ),
+      );
+    }
+
+    return cardContent;
   }
 
   Widget _buildEmptyCard(Color cardColor, ColorScheme colorScheme, ThemeData theme) {

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../utils/app_typography.dart';
@@ -24,22 +25,36 @@ class DailyProgressHeader extends StatelessWidget {
         ? (completedCount / totalCount).clamp(0.0, 1.0)
         : 0.0;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.secondary.withValues(alpha: 0.4)
-            : colorScheme.outlineVariant.withValues(alpha: 0.18),
+    final glassFill = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55);
+    final glassBorder = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.7);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? colorScheme.outlineVariant.withValues(alpha: 0.10)
-              : colorScheme.outlineVariant.withValues(alpha: 0.45),
-          width: 1,
-        ),
-      ),
-      child: Row(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            decoration: BoxDecoration(
+              color: glassFill,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: glassBorder, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.25)
+                      : Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
         children: [
           // Text content
           Expanded(
@@ -79,6 +94,9 @@ class DailyProgressHeader extends StatelessWidget {
           // Progress ring
           _buildProgressRing(context, progress, isDark),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }

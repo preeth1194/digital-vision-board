@@ -253,9 +253,7 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDarkTheme),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDarkTheme),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

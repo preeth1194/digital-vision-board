@@ -202,9 +202,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isDark = scheme.brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDark),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(

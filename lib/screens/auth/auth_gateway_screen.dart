@@ -95,9 +95,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDark),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

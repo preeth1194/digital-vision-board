@@ -222,14 +222,38 @@ const List<MilestonePreset> kMilestonePresets = [
   MilestonePreset(id: 'none', days: null, label: '\u221E', subtitle: 'No End Date'),
 ];
 
-/// Theme-aware styling for CupertinoListSection.insetGrouped
-BoxDecoration habitSectionDecoration(ColorScheme colorScheme) => BoxDecoration(
-      color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(10),
-    );
+/// Theme-aware glass styling for CupertinoListSection.insetGrouped
+BoxDecoration habitSectionDecoration(ColorScheme colorScheme) {
+  final isDark = colorScheme.brightness == Brightness.dark;
+  return BoxDecoration(
+    color: isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55),
+    borderRadius: BorderRadius.circular(10),
+    border: Border.all(
+      color: isDark
+          ? Colors.white.withValues(alpha: 0.12)
+          : Colors.white.withValues(alpha: 0.7),
+      width: 1,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.2)
+            : Colors.black.withValues(alpha: 0.04),
+        blurRadius: 16,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+}
 
-Color habitSectionSeparatorColor(ColorScheme colorScheme) =>
-    colorScheme.outlineVariant.withValues(alpha: 0.5);
+Color habitSectionSeparatorColor(ColorScheme colorScheme) {
+  final isDark = colorScheme.brightness == Brightness.dark;
+  return isDark
+      ? Colors.white.withValues(alpha: 0.08)
+      : Colors.white.withValues(alpha: 0.5);
+}
 
 Color contrastColor(Color background) {
   return background.computeLuminance() > 0.5

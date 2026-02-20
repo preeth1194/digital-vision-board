@@ -1,13 +1,9 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 
-/// A floating bottom navigation bar with a curved notch that slides between
-/// tabs. The selected tab's icon pops up through the notch in a circular
-/// highlight, with its label shown inside the bar below.
-class AnimatedBottomNavBar extends StatefulWidget {
+class AnimatedBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final List<AnimatedNavItem> items;
@@ -23,119 +19,19 @@ class AnimatedBottomNavBar extends StatefulWidget {
     this.suppressHighlight = false,
   });
 
-  @override
-  State<AnimatedBottomNavBar> createState() => _AnimatedBottomNavBarState();
-}
-
-class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
-    with TickerProviderStateMixin {
-  late AnimationController _slideController;
-  late Animation<double> _slideAnimation;
-  late AnimationController _bounceController;
-  late Animation<double> _bounceAnimation;
-  int _previousIndex = 0;
-
   static const double _barHeight = 64.0;
-  static const double _circleSize = 48.0;
-  static const double _circleBorder = 4.0;
-  static const double _circleOverflow = 20.0;
-  static const double _totalHeight = _barHeight + _circleOverflow;
-  static const double _circleTotalRadius = (_circleSize + 2 * _circleBorder) / 2;
-  static const double _cutoutGap = 4.0;
-  static const double _cutoutRadius = _circleTotalRadius + _cutoutGap;
-  static const double _cutoutCenterY = _circleTotalRadius - _circleOverflow;
-
   static const double _centerBtnSize = 52.0;
   static const double _centerBtnBorder = 4.0;
-  static const double _centerBtnTotalRadius =
-      (_centerBtnSize + 2 * _centerBtnBorder) / 2;
-  static const double _centerCutoutRadius = _centerBtnTotalRadius + _cutoutGap;
-  static const double _centerCutoutCenterY =
-      _centerBtnTotalRadius - _circleOverflow;
-
-  @override
-  void initState() {
-    super.initState();
-    _previousIndex = widget.currentIndex;
-
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..value = 1.0;
-
-    _slideAnimation = CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    );
-
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-
-    _bounceAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(
-        tween: Tween(begin: 1.12, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 60,
-      ),
-    ]).animate(_bounceController);
-
-    _slideController.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted) {
-        _bounceController.forward(from: 0.0);
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(AnimatedBottomNavBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.currentIndex != oldWidget.currentIndex) {
-      if (oldWidget.suppressHighlight && !widget.suppressHighlight) {
-        _previousIndex = -1; // sentinel: animate from center "+"
-      } else {
-        _previousIndex = oldWidget.currentIndex;
-      }
-      _slideController.forward(from: 0.0);
-    } else if (oldWidget.suppressHighlight && !widget.suppressHighlight) {
-      _bounceController.forward(from: 0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _slideController.dispose();
-    _bounceController.dispose();
-    super.dispose();
-  }
-
-  int _tabToSlot(int tabIndex) {
-    final mid = widget.items.length ~/ 2;
-    if (widget.onCenterTap == null) return tabIndex;
-    return tabIndex < mid ? tabIndex : tabIndex + 1;
-  }
-
-  double _slotCenterX(int tabIndex, double totalWidth) {
-    final slotCount =
-        widget.items.length + (widget.onCenterTap != null ? 1 : 0);
-    final slotWidth = totalWidth / slotCount;
-    if (tabIndex == -1) {
-      final midSlot = widget.items.length ~/ 2;
-      return (midSlot + 0.5) * slotWidth;
-    }
-    final slot = _tabToSlot(tabIndex);
-    return (slot + 0.5) * slotWidth;
-  }
+  static const double _centerBtnTotalSize = _centerBtnSize + 2 * _centerBtnBorder;
+  static const double _centerBtnOverflow = 20.0;
+  static const double _totalHeight = _barHeight + _centerBtnOverflow;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasCenterButton = widget.onCenterTap != null;
-    final slotCount = widget.items.length + (hasCenterButton ? 1 : 0);
-    final midSlot = widget.items.length ~/ 2;
-
+    final hasCenterButton = onCenterTap != null;
+    final slotCount = items.length + (hasCenterButton ? 1 : 0);
+    final midSlot = items.length ~/ 2;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return SizedBox(
@@ -144,249 +40,158 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
         builder: (context, constraints) {
           final totalWidth = constraints.maxWidth;
           final slotWidth = totalWidth / slotCount;
-              final oldX = _slotCenterX(_previousIndex, totalWidth);
-              final newX = _slotCenterX(widget.currentIndex, totalWidth);
 
-              final centerSlotX = hasCenterButton
-                  ? (midSlot + 0.5) * slotWidth
-                  : null;
+          final centerSlotX = hasCenterButton
+              ? (midSlot + 0.5) * slotWidth
+              : null;
 
-              return AnimatedBuilder(
-                animation:
-                    Listenable.merge([_slideController, _bounceController]),
-                builder: (context, _) {
-                  final t = _slideAnimation.value;
-                  final currentX = ui.lerpDouble(oldX, newX, t)!;
-                  final bounceScale = _bounceAnimation.value;
-                  final currentItem = widget.items[widget.currentIndex];
-
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Bar body with dual cutouts (extends into safe area)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: _barHeight + bottomPadding,
-                        child: CustomPaint(
-                          painter: _NotchedBarPainter(
-                            notchCenterX: currentX,
-                            cutoutCenterY: _cutoutCenterY,
-                            cutoutRadius: widget.suppressHighlight ? 0 : _cutoutRadius,
-                            centerBtnX: centerSlotX,
-                            centerBtnCutoutCenterY: _centerCutoutCenterY,
-                            centerBtnCutoutRadius: _centerCutoutRadius,
-                            color: colorScheme.brightness == Brightness.dark
-                                ? AppColors.forestDeep
-                                : AppColors.forestDeep,
-                            shadowColor: colorScheme.shadow,
-                            borderRadius: 0,
-                          ),
-                          size: Size(totalWidth, _barHeight + bottomPadding),
-                        ),
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Bar background
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: _barHeight + bottomPadding,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.forestDeep,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
                       ),
-
-                      // Icon row (unselected icons only, center slot is empty)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: bottomPadding,
-                        height: _barHeight,
-                        child: Row(
-                          children: List.generate(slotCount, (slotIndex) {
-                            if (hasCenterButton && slotIndex == midSlot) {
-                              return SizedBox(width: slotWidth);
-                            }
-
-                            final tabIndex = hasCenterButton &&
-                                    slotIndex > midSlot
-                                ? slotIndex - 1
-                                : slotIndex;
-
-                            if (tabIndex < 0 ||
-                                tabIndex >= widget.items.length) {
-                              return SizedBox(width: slotWidth);
-                            }
-
-                            final isSelected =
-                                tabIndex == widget.currentIndex;
-                            final item = widget.items[tabIndex];
-
-                            final showIcon = !isSelected || widget.suppressHighlight;
-
-                            return SizedBox(
-                              width: slotWidth,
-                              child: GestureDetector(
-                                onTap: () => widget.onTap(tabIndex),
-                                behavior: HitTestBehavior.opaque,
-                                child: SizedBox(
-                                  height: _barHeight,
-                                  child: Stack(
-                                    children: [
-                                      Positioned(
-                                        top: 12,
-                                        left: 0,
-                                        right: 0,
-                                        child: AnimatedOpacity(
-                                          duration: const Duration(milliseconds: 200),
-                                          opacity: showIcon ? 1.0 : 0.0,
-                                          child: Icon(
-                                            item.icon,
-                                            color: colorScheme.outlineVariant,
-                                            size: 24,
-                                          ),
-                                        ),
-                                      ),
-                                      AnimatedPositioned(
-                                        duration: const Duration(milliseconds: 300),
-                                        curve: Curves.easeOutCubic,
-                                        top: showIcon ? 38.0 : 46.0,
-                                        left: 0,
-                                        right: 0,
-                                        child: Text(
-                                          item.label,
-                                          textAlign: TextAlign.center,
-                                          style: AppTypography.caption(context).copyWith(
-                                            color: colorScheme.outlineVariant,
-                                            fontSize: 11,
-                                            fontWeight: isSelected
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                            decoration: TextDecoration.none,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-
-                      // Elevated center "+" button
-                      if (hasCenterButton && centerSlotX != null)
-                        Positioned(
-                          left: centerSlotX - _centerBtnTotalRadius,
-                          top: 0,
-                          child: _AnimatedCenterButton(
-                            onTap: widget.onCenterTap!,
-                            colorScheme: colorScheme,
-                            isExpanded: widget.suppressHighlight,
-                          ),
-                        ),
-
-                      // Pop-up circle for selected tab
-                      if (!widget.suppressHighlight) ...[
-                        Positioned(
-                          left: currentX - _circleSize / 2 - _circleBorder,
-                          top: 0,
-                          child: Transform.scale(
-                            scale: bounceScale,
-                            child: Container(
-                              width: _circleSize + _circleBorder * 2,
-                              height: _circleSize + _circleBorder * 2,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primaryContainer,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: colorScheme.surface,
-                                  width: _circleBorder,
-                                ),
-                              ),
-                              child: Icon(
-                                currentItem.activeIcon,
-                                color: colorScheme.onPrimaryContainer,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      
                     ],
-                  );
-                },
-              );
-            },
-          ),
+                  ),
+                ),
+              ),
+
+              // Tab icons + labels
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomPadding,
+                height: _barHeight,
+                child: Row(
+                  children: List.generate(slotCount, (slotIndex) {
+                    if (hasCenterButton && slotIndex == midSlot) {
+                      return SizedBox(width: slotWidth);
+                    }
+
+                    final tabIndex = hasCenterButton && slotIndex > midSlot
+                        ? slotIndex - 1
+                        : slotIndex;
+
+                    if (tabIndex < 0 || tabIndex >= items.length) {
+                      return SizedBox(width: slotWidth);
+                    }
+
+                    final isSelected =
+                        tabIndex == currentIndex && !suppressHighlight;
+                    final item = items[tabIndex];
+
+                    return SizedBox(
+                      width: slotWidth,
+                      child: GestureDetector(
+                        onTap: () => onTap(tabIndex),
+                        behavior: HitTestBehavior.opaque,
+                        child: _NavTabItem(
+                          icon: isSelected ? item.activeIcon : item.icon,
+                          label: item.label,
+                          isSelected: isSelected,
+                          colorScheme: colorScheme,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
+              // Elevated center "+" button
+              if (hasCenterButton && centerSlotX != null)
+                Positioned(
+                  left: centerSlotX - _centerBtnTotalSize / 2,
+                  top: 0,
+                  child: _AnimatedCenterButton(
+                    onTap: onCenterTap!,
+                    colorScheme: colorScheme,
+                    isExpanded: suppressHighlight,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Notched bar painter — subtracts a circle cutout from a rounded bar
+// Individual nav tab — icon-only highlight with smooth transitions
 // ---------------------------------------------------------------------------
 
-class _NotchedBarPainter extends CustomPainter {
-  final double notchCenterX;
-  final double cutoutCenterY;
-  final double cutoutRadius;
-  final double? centerBtnX;
-  final double? centerBtnCutoutCenterY;
-  final double? centerBtnCutoutRadius;
-  final Color color;
-  final Color shadowColor;
-  final double borderRadius;
+class _NavTabItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final ColorScheme colorScheme;
 
-  _NotchedBarPainter({
-    required this.notchCenterX,
-    required this.cutoutCenterY,
-    required this.cutoutRadius,
-    this.centerBtnX,
-    this.centerBtnCutoutCenterY,
-    this.centerBtnCutoutRadius,
-    required this.color,
-    required this.shadowColor,
-    required this.borderRadius,
+  const _NavTabItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.colorScheme,
   });
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildPath(size);
-    canvas.drawShadow(path, shadowColor, 10.0, true);
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  Path _buildPath(Size size) {
-    final barPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        Radius.circular(borderRadius),
-      ));
-
-    final tabCutout = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(notchCenterX, cutoutCenterY),
-        radius: cutoutRadius,
-      ));
-
-    var result = Path.combine(PathOperation.difference, barPath, tabCutout);
-
-    if (centerBtnX != null) {
-      final centerCutout = Path()
-        ..addOval(Rect.fromCircle(
-          center: Offset(centerBtnX!, centerBtnCutoutCenterY!),
-          radius: centerBtnCutoutRadius!,
-        ));
-      result = Path.combine(PathOperation.difference, result, centerCutout);
-    }
-
-    return result;
-  }
+  static const Color _activeColor = AppColors.sproutGreen;
+  static const Color _inactiveColor = Color(0xFFAAB4AA);
 
   @override
-  bool shouldRepaint(_NotchedBarPainter oldDelegate) {
-    return oldDelegate.notchCenterX != notchCenterX ||
-        oldDelegate.cutoutCenterY != cutoutCenterY ||
-        oldDelegate.centerBtnX != centerBtnX ||
-        oldDelegate.color != color ||
-        oldDelegate.shadowColor != shadowColor;
+  Widget build(BuildContext context) {
+    final color = isSelected ? _activeColor : _inactiveColor;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedScale(
+          scale: isSelected ? 1.2 : 1.0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: Icon(
+              icon,
+              key: ValueKey<bool>(isSelected),
+              color: color,
+              size: 24,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          style: AppTypography.caption(context).copyWith(
+            color: color,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            decoration: TextDecoration.none,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -508,7 +313,9 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
       ]),
       builder: (context, child) {
         final isTapping = _tapController.isAnimating;
-        final scale = isTapping ? _tapScale.value : (widget.isExpanded ? 1.0 : _pulseScale.value);
+        final scale = isTapping
+            ? _tapScale.value
+            : (widget.isExpanded ? 1.0 : _pulseScale.value);
         final rotation = _expandRotation.value;
         final glowOpacity = widget.isExpanded
             ? 0.35
@@ -533,8 +340,8 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          cs.onPrimaryContainer.withValues(alpha: glowOpacity.clamp(0.0, 1.0)),
+                      color: cs.onPrimaryContainer
+                          .withValues(alpha: glowOpacity.clamp(0.0, 1.0)),
                       blurRadius: 14,
                       spreadRadius: 2,
                     ),

@@ -153,7 +153,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1359,9 +1360,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.skyGradient(isDark: isDark),
-      ),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Stack(
         children: [
           scaffold,
@@ -1384,6 +1383,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
     const panelContentHeight = 320.0;
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedBuilder(
       animation: _createPanelController,
@@ -1418,77 +1418,75 @@ class _DashboardScreenState extends State<DashboardScreen>
                       cutoutRadius: 34.0,
                       cutoutCenterOffset: 10.0,
                     ),
-                    child: Material(
-                      color: colorScheme.surface,
+                    child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(20),
                       ),
-                      child: SizedBox(
-                        height: panelContentHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16, bottom: 8),
-                                child: Text(
-                                  'Create New',
-                                  style: AppTypography.body(context).copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.onSurface,
-                                  ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: Material(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.white.withValues(alpha: 0.6),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          child: Container(
+                            height: panelContentHeight,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.12)
+                                      : Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
-                              Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.self_improvement_outlined,
-                                    color: colorScheme.primary,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 16, bottom: 8),
+                                    child: Text(
+                                      'Create New',
+                                      style: AppTypography.body(context).copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
                                   ),
-                                  title: const Text('New Habit'),
-                                  subtitle: const Text(
-                                    'Build a daily practice',
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.self_improvement_outlined,
+                                    title: 'New Habit',
+                                    subtitle: 'Build a daily practice',
+                                    onTap: () => _addHabitFromPanel(),
                                   ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => _addHabitFromPanel(),
-                                ),
+                                  const SizedBox(height: 4),
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.schedule_outlined,
+                                    title: 'New Routine',
+                                    subtitle: 'Habit with timer enabled',
+                                    onTap: () => _addHabitFromPanel(timerEnabled: true),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.military_tech_rounded,
+                                    title: '75 Hard Challenge',
+                                    subtitle: '75-day mental toughness program',
+                                    onTap: () {
+                                      _hideCreatePanel();
+                                      _openChallengeSetup();
+                                    },
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.schedule_outlined,
-                                    color: colorScheme.primary,
-                                  ),
-                                  title: const Text('New Routine'),
-                                  subtitle: const Text(
-                                    'Habit with timer enabled',
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => _addHabitFromPanel(timerEnabled: true),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.military_tech_rounded,
-                                    color: colorScheme.primary,
-                                  ),
-                                  title: const Text('75 Hard Challenge'),
-                                  subtitle: const Text(
-                                    '75-day mental toughness program',
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    _hideCreatePanel();
-                                    _openChallengeSetup();
-                                  },
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -1500,6 +1498,78 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildGlassMenuTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.transparent,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.white.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.6),
+                width: 1,
+              ),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(icon, color: colorScheme.primary, size: 24),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppTypography.body(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: AppTypography.caption(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

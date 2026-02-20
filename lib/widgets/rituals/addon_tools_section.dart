@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -45,13 +47,29 @@ class AddonToolsSection extends StatelessWidget {
         var localReminders = remindersAdded;
         var localTimer = timerAdded;
         var localTracker = trackerAdded;
+        final sheetIsDark = colorScheme.brightness == Brightness.dark;
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            return Container(
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
               decoration: BoxDecoration(
-                color: colorScheme.surface,
+                color: sheetIsDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.white.withValues(alpha: 0.7),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
+                ),
+                border: Border(
+                  top: BorderSide(
+                    color: sheetIsDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.8),
+                  ),
                 ),
               ),
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
@@ -146,6 +164,8 @@ class AddonToolsSection extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
             );
           },
         );
@@ -171,7 +191,7 @@ class AddonToolsSection extends StatelessWidget {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

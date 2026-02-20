@@ -12,6 +12,7 @@ import '../../services/logical_date_service.dart';
 import '../../utils/app_typography.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 import '../ads/challenge_reward_ad_card.dart';
+import 'glass_card.dart';
 
 /// Dashboard card showing the active challenge progress, today's task
 /// checklist, and day counter with a circular progress indicator.
@@ -155,8 +156,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
     final cs = Theme.of(context).colorScheme;
     final accent = cs.onPrimaryContainer;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return GlassCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -198,47 +198,44 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
   Widget _buildEmptyState(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: widget.onStartChallenge,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(
-                Icons.military_tech_rounded,
-                color: cs.onPrimaryContainer,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '75 Hard',
-                      style: AppTypography.heading3(context).copyWith(
-                        color: cs.onPrimaryContainer,
-                      ),
+    return GlassCard(
+      onTap: widget.onStartChallenge,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.military_tech_rounded,
+              color: cs.onPrimaryContainer,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '75 Hard',
+                    style: AppTypography.heading3(context).copyWith(
+                      color: cs.onPrimaryContainer,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Start a mental toughness challenge',
-                      style: AppTypography.caption(context).copyWith(
-                        color: cs.onPrimaryContainer.withValues(alpha: 0.6),
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Start a mental toughness challenge',
+                    style: AppTypography.caption(context).copyWith(
+                      color: cs.onPrimaryContainer.withValues(alpha: 0.6),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: cs.onPrimaryContainer.withValues(alpha: 0.6),
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: cs.onPrimaryContainer.withValues(alpha: 0.6),
+            ),
+          ],
         ),
       ),
     );
@@ -260,17 +257,14 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
     final allDoneToday = completedToday >= totalHabits && totalHabits > 0;
     final accent = cs.onPrimaryContainer;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: widget.onViewHabits,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row — matches Insights / Mood / Manifest cards
-              Row(
+    return GlassCard(
+      onTap: widget.onViewHabits,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
                 children: [
                   Icon(
                     Icons.military_tech_rounded,
@@ -434,8 +428,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
                 color: accent.withValues(alpha: 0.5),
               ),
             ),
-            ],
-          ),
+          ],
         ),
       ),
     );

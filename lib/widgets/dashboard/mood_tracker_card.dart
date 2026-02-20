@@ -4,6 +4,7 @@ import '../../models/mood_entry.dart';
 import '../../utils/app_typography.dart';
 import '../../screens/mood_detail_screen.dart';
 import '../../services/mood_storage_service.dart';
+import 'glass_card.dart';
 
 class MoodTrackerCard extends StatefulWidget {
   const MoodTrackerCard({super.key});
@@ -53,87 +54,84 @@ class _MoodTrackerCardState extends State<MoodTrackerCard> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _onCardTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.mood_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Mood',
-                      style: AppTypography.heading3(context).copyWith(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 14,
-                      ),
+    return GlassCard(
+      onTap: _onCardTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.mood_rounded,
+                  color: colorScheme.onPrimaryContainer,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Mood',
+                    style: AppTypography.heading3(context).copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 14,
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 15,
-                    color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
-                  ),
-                ],
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 15,
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (!_loaded)
+              SizedBox(
+                height: 4,
+                child: LinearProgressIndicator(
+                  backgroundColor:
+                      colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+                ),
+              )
+            else if (_todayMood != null) ...[
+              Image.asset(
+                assetForMood(_todayMood!),
+                width: 52,
+                height: 52,
               ),
-              const SizedBox(height: 14),
-              if (!_loaded)
-                SizedBox(
-                  height: 4,
-                  child: LinearProgressIndicator(
-                    backgroundColor:
-                        colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                  ),
-                )
-              else if (_todayMood != null) ...[
-                Image.asset(
-                  assetForMood(_todayMood!),
+              const SizedBox(height: 8),
+              Text(
+                labelForMood(_todayMood!),
+                style: AppTypography.heading3(context).copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+              Text(
+                "Today's mood",
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onPrimaryContainer
+                      .withValues(alpha: 0.7),
+                ),
+              ),
+            ] else ...[
+              Opacity(
+                opacity: 0.5,
+                child: Image.asset(
+                  'assets/moods/okay.png',
                   width: 52,
                   height: 52,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  labelForMood(_todayMood!),
-                  style: AppTypography.heading3(context).copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap to check in',
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                 ),
-                Text(
-                  "Today's mood",
-                  style: AppTypography.caption(context).copyWith(
-                    color: colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.7),
-                  ),
-                ),
-              ] else ...[
-                Opacity(
-                  opacity: 0.5,
-                  child: Image.asset(
-                    'assets/moods/okay.png',
-                    width: 52,
-                    height: 52,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tap to check in',
-                  style: AppTypography.bodySmall(context).copyWith(
-                    color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

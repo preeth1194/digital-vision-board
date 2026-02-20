@@ -8,6 +8,7 @@ import '../../screens/vision_boards_screen.dart';
 import '../../services/boards_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../utils/file_image_provider.dart';
+import 'glass_card.dart';
 
 class VisionBoardSummaryCard extends StatefulWidget {
   final VoidCallback onCreateBoard;
@@ -113,110 +114,107 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _openVisionBoards,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.dashboard_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Manifest',
-                      style: AppTypography.heading3(context).copyWith(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 14,
-                      ),
+    return GlassCard(
+      onTap: _openVisionBoards,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.dashboard_rounded,
+                  color: colorScheme.onPrimaryContainer,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Manifest',
+                    style: AppTypography.heading3(context).copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 14,
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 15,
-                    color: colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.6),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!_loaded)
-                      SizedBox(
-                        height: 4,
-                        child: LinearProgressIndicator(
-                          backgroundColor:
-                              colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                        ),
-                      )
-                    else if (_activeBoard != null) ...[
-                      if (_heroImage != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image(
-                                image: _heroImage!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                errorBuilder: (_, __, ___) => Icon(
-                                  boardIconFromCodePoint(
-                                      _activeBoard!.iconCodePoint),
-                                  size: 36,
-                                  color: colorScheme.onPrimaryContainer
-                                      .withValues(alpha: 0.5),
-                                ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 15,
+                  color: colorScheme.onPrimaryContainer
+                      .withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!_loaded)
+                    SizedBox(
+                      height: 4,
+                      child: LinearProgressIndicator(
+                        backgroundColor:
+                            colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+                      ),
+                    )
+                  else if (_activeBoard != null) ...[
+                    if (_heroImage != null)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image(
+                              image: _heroImage!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Icon(
+                                boardIconFromCodePoint(
+                                    _activeBoard!.iconCodePoint),
+                                size: 36,
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                           ),
-                        )
-                      else
-                        Icon(
-                          boardIconFromCodePoint(_activeBoard!.iconCodePoint),
-                          size: 36,
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.5),
                         ),
-                      const SizedBox(height: 4),
-                    ] else ...[
+                      )
+                    else
                       Icon(
-                        Icons.dashboard_outlined,
+                        boardIconFromCodePoint(_activeBoard!.iconCodePoint),
+                        size: 36,
                         color: colorScheme.onPrimaryContainer
                             .withValues(alpha: 0.5),
-                        size: 36,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No boards yet',
-                        style: AppTypography.bodySmall(context).copyWith(
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7),
-                        ),
+                    const SizedBox(height: 4),
+                  ] else ...[
+                    Icon(
+                      Icons.dashboard_outlined,
+                      color: colorScheme.onPrimaryContainer
+                          .withValues(alpha: 0.5),
+                      size: 36,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No boards yet',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onPrimaryContainer
+                            .withValues(alpha: 0.7),
                       ),
-                      Text(
-                        'Tap to create',
-                        style: AppTypography.caption(context).copyWith(
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.5),
-                        ),
+                    ),
+                    Text(
+                      'Tap to create',
+                      style: AppTypography.caption(context).copyWith(
+                        color: colorScheme.onPrimaryContainer
+                            .withValues(alpha: 0.5),
                       ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

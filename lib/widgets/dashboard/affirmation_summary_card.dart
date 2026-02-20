@@ -6,6 +6,7 @@ import '../../screens/affirmation_management_screen.dart';
 import '../../services/affirmation_service.dart';
 import '../../utils/app_typography.dart';
 import '../affirmation_card.dart';
+import 'glass_card.dart';
 
 class AffirmationSummaryCard extends StatefulWidget {
   const AffirmationSummaryCard({super.key});
@@ -118,46 +119,44 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
     if (!_loaded) {
       return SizedBox(
         height: 180,
-        child: Card(
+        child: GlassCard(
           child: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
     if (_affirmations.isEmpty) {
-      return Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: _openManagement,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  color: colorScheme.onPrimaryContainer,
-                  size: 28,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'Add your first affirmation',
-                    style: AppTypography.body(context).copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
+      return GlassCard(
+        onTap: _openManagement,
+        borderRadius: 16,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: colorScheme.onPrimaryContainer,
+                size: 28,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Add your first affirmation',
+                  style: AppTypography.body(context).copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-                FilledButton(
-                  onPressed: _openManagement,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    minimumSize: const Size(0, 36),
-                  ),
-                  child: const Text('Add'),
+              ),
+              FilledButton(
+                onPressed: _openManagement,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  minimumSize: const Size(0, 36),
                 ),
-              ],
-            ),
+                child: const Text('Add'),
+              ),
+            ],
           ),
         ),
       );

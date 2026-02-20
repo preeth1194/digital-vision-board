@@ -12,7 +12,7 @@ import '../../widgets/grid/image_source_sheet.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 
-/// Shown after phone sign-in when profile is incomplete. User must fill name and other details.
+/// Profile editing screen. User can fill/update name and other details.
 class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({super.key});
 

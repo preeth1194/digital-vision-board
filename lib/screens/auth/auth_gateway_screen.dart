@@ -11,10 +11,7 @@ import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
-import 'login_screen.dart';
 import 'profile_completion_screen.dart';
-import 'signup_screen.dart';
-import 'phone_auth_screen.dart';
 
 class AuthGatewayScreen extends StatefulWidget {
   final bool forced; // true when opened because guest expired
@@ -47,8 +44,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       final googleSignIn = GoogleSignIn.instance;
       await googleSignIn.initialize();
       final googleUser = await googleSignIn.authenticate();
-      if (googleUser == null) return; // cancelled
-      final auth = await googleUser.authentication;
+      final auth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: auth.idToken,
       );
@@ -62,21 +58,15 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
       if (!mounted) return;
       Navigator.of(context).pop(true);
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      if (e.code == GoogleSignInExceptionCode.canceled) return;
+      setState(() => _error = 'Google sign-in failed. Please try again.');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = 'Sign-in failed. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _continueWithPhone() async {
-    if (_loading) return;
-    final ok = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
-    );
-    if (ok == true && mounted) {
-      Navigator.of(context).pop(true);
     }
   }
 
@@ -92,18 +82,10 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = 'Could not continue as guest. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _openLogin() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
-  }
-
-  void _openSignup() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignupScreen()));
   }
 
   @override
@@ -212,9 +194,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                 : 'Signed in';
         final signInMethod = (identifier != null && identifier.contains('@'))
             ? 'Google'
-            : (identifier != null && identifier.isNotEmpty)
-                ? 'Phone'
-                : 'Account';
+            : 'Account';
         final initial = (displayName != null && displayName.isNotEmpty)
             ? displayName[0].toUpperCase()
             : (identifier != null && identifier.isNotEmpty)
@@ -411,12 +391,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           icon: const Icon(Icons.g_mobiledata),
           label: const Text('Continue with Google'),
         ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: _loading ? null : _continueWithPhone,
-          icon: const Icon(Icons.phone_android_outlined),
-          label: const Text('Continue with phone'),
-        ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _loading ? null : _continueAsGuest,
@@ -427,16 +401,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Continue as Guest'),
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton(
-          onPressed: _loading ? null : _openLogin,
-          child: const Text('Log In'),
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton(
-          onPressed: _loading ? null : _openSignup,
-          child: const Text('Sign Up'),
         ),
         const SizedBox(height: 18),
         ExpansionTile(

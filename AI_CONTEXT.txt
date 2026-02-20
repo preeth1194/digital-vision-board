@@ -247,7 +247,8 @@ Journal with editor:
 ### AuthGatewayScreen
 - **File**: `lib/screens/auth/auth_gateway_screen.dart`
 - Accessed from: drawer profile header
-- Sub-screens: `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`, `ProfileCompletionScreen`
+- Auth methods: Google Sign-In, Guest Sign-In
+- Sub-screens: `ProfileCompletionScreen` (profile editing)
 
 ### Auth Service
 - **File**: `lib/services/dv_auth_service.dart`

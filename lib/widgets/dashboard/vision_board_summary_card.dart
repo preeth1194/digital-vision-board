@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
+import '../../utils/app_typography.dart';
 import '../../models/grid_tile_model.dart';
 import '../../screens/vision_boards_screen.dart';
 import '../../services/boards_storage_service.dart';
@@ -113,9 +114,6 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _openVisionBoards,
@@ -135,9 +133,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                   Expanded(
                     child: Text(
                       'Vision Board',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -200,16 +196,14 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                       const SizedBox(height: 8),
                       Text(
                         'No boards yet',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
                         'Tap to create',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppTypography.caption(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.5),
                         ),

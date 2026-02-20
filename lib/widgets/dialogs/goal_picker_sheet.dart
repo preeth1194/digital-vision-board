@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/vision_components.dart';
 import '../../utils/component_label_utils.dart';
+import '../../utils/app_typography.dart';
 
 Future<VisionComponent?> showGoalPickerSheet(
   BuildContext context, {
@@ -68,7 +69,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
             alignment: Alignment.centerLeft,
             child: Text(
               widget.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: AppTypography.heading2(context),
             ),
           ),
           const SizedBox(height: 10),
@@ -85,7 +86,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
             child: filtered.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Center(child: Text('No goals found', style: TextStyle(color: colorScheme.onSurfaceVariant))),
+                    child: Center(child: Text('No goals found', style: AppTypography.secondary(context))),
                   )
                 : ListView.separated(
                     shrinkWrap: true,
@@ -98,7 +99,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
                       return ListTile(
                         title: Text(label),
                         subtitle: showIdSubtitle
-                            ? Text(c.id, style: TextStyle(color: colorScheme.onSurfaceVariant))
+                            ? Text(c.id, style: AppTypography.secondary(context))
                             : null,
                         onTap: () => Navigator.of(context).pop(c),
                       );

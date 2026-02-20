@@ -1,42 +1,65 @@
 import 'package:flutter/material.dart';
 
 /// Custom color palette for the Digital Vision Board app.
-/// "Organic Clarity" theme — white and light green aesthetic.
+/// "Habit Seeding" nature theme — soil, seed, water, sky & clouds.
 ///
-/// Named palette:
-/// - Darkest: #1A2E1A (deep forest-black)
-/// - Dark:    #2D5A3D (forestGreen)
-/// - Medium:  #4A7C59 (mossGreen)
-/// - Light:   #A8D5BA (mintGreen)
-/// - Lightest: #D4EBD4 (pale green tint)
+/// Metaphor mapping:
+/// - Bottom nav bar  → Soil (brown earth)
+/// - Nav icons       → Seed (golden-tan husk)
+/// - "+" button      → Water (clear blue)
+/// - Screen bg       → Sky-to-land gradient
+/// - Top app bar     → White sky / night sky
+/// - Widgets/cards   → Clouds (puffy, soft shadow)
 class AppColors {
   AppColors._();
 
-  // ── Primary palette (abstract names kept for backward-compat) ──
-  static const Color darkest = Color(0xFF1A2E1A);
-  static const Color dark = Color(0xFF2D5A3D);
-  static const Color medium = Color(0xFF4A7C59);
-  static const Color light = Color(0xFFA8D5BA);
-  static const Color lightest = Color(0xFFD4EBD4);
+  // ── Legacy palette (kept for backward-compat references) ──
+  static const Color darkest = Color(0xFF2C1810);
+  static const Color dark = Color(0xFF5C3D2E);
+  static const Color medium = Color(0xFF8B7355);
+  static const Color light = Color(0xFFC9A96E);
+  static const Color lightest = Color(0xFFE8D5B8);
 
-  // ── Semantic named colors ──
+  // ── Semantic named colors (kept for backward-compat) ──
   static const Color mintGreen = Color(0xFFA8D5BA);
   static const Color sageGreen = Color(0xFF8FBC8F);
   static const Color mossGreen = Color(0xFF4A7C59);
   static const Color forestGreen = Color(0xFF2D5A3D);
   static const Color gold = Color(0xFFD4A843);
 
+  // ═══════════════════════════════════════════════════════════════
+  // ── Nature Theme: Soil, Seed, Water, Sky, Cloud ──
+  // ═══════════════════════════════════════════════════════════════
+  static const Color soilLight = Color(0xFF5C3D2E);
+  static const Color soilDark = Color(0xFF2A1B12);
+  static const Color soilMedium = Color(0xFF7B5B4A);
+
+  static const Color seedLight = Color(0xFFC9A96E);
+  static const Color seedDark = Color(0xFFD4B896);
+  static const Color seedDeep = Color(0xFF8B6B3E);
+
+  static const Color waterLight = Color(0xFF4FA4D4);
+  static const Color waterDark = Color(0xFF6CB4D9);
+
+  static const Color skyGradientTopLight = Color(0xFFD6EEFF);
+  static const Color skyGradientBottomLight = Color(0xFFA8D8A8);
+  static const Color skyGradientTopDark = Color(0xFF0D1B2A);
+  static const Color skyGradientBottomDark = Color(0xFF1A2A1A);
+
+  static const Color cloudLight = Color(0xFFFFFFFF);
+  static const Color cloudDark = Color(0xFF1E2A3A);
+  static const Color cloudBorderDark = Color(0xFF2A3A4A);
+
   // ── Domain accent (not in ColorScheme) ──
   static const Color completedOrange = Color(0xFFE8802A);
 
   // ── ColorScheme source values (used only inside lightScheme/darkScheme) ──
-  static const Color _backgroundDark = Color(0xFF0F1A0F);
+  static const Color _backgroundDark = Color(0xFF0F1A2A);
   static const Color _surfaceLight = Color(0xFFFFFFFF);
   static const Color _errorLight = Color(0xFFBA1A1A);
   static const Color _errorDark = Color(0xFFFFB4AB);
   static const Color _onErrorLight = Color(0xFFFFFFFF);
   static const Color _onErrorDark = Color(0xFF690005);
-  static const Color _paleGreenTint = Color(0xFFE8F5E9);
 
   // ═══════════════════════════════════════════════════════════════
   // ── Group 2: Gold / Amber Gradient (coins, badges, dashboard) ──
@@ -49,52 +72,111 @@ class AppColors {
   static const Color coinGoldShadow = Color(0xFFFFA000);
 
   // ═══════════════════════════════════════════════════════════════
-  // ── Group 3: Habit Category Colors (bg + icon, light + dark) ──
+  // ── Unified Color Spectrum ──
+  // Shared across habit categories, journal covers, habit form
+  // presets, and badge accents. Organized by hue.
+  //
+  // Per-hue levels:
+  //   pastelLight / pastelDark   → category circle backgrounds
+  //   accentLight / accentDark   → category icon tints
+  //   vivid / vividDark          → habit form color picker
+  //   cover (int)                → journal book covers
   // ═══════════════════════════════════════════════════════════════
-  static const Color categoryHealthBgLight = Color(0xFFA8D5BA);
-  static const Color categoryHealthBgDark = Color(0xFF2E7D5B);
-  static const Color categoryHealthIconLight = Color(0xFF2E5E4A);
-  static const Color categoryHealthIconDark = Color(0xFFB8E6C8);
 
-  static const Color categoryFitnessBgLight = Color(0xFFB8E6C8);
-  static const Color categoryFitnessBgDark = Color(0xFF33805E);
-  static const Color categoryFitnessIconLight = Color(0xFF2A5E40);
-  static const Color categoryFitnessIconDark = Color(0xFFC0F0D0);
+  // ── Red / Coral ──
+  static const Color habitRedLight = Color(0xFFEF4444);
+  static const Color habitRedDark = Color(0xFFB91C1C);
+  static const int coverCoral = 0xFFE57373;
 
+  // ── Orange ──
+  static const Color habitOrangeLight = Color(0xFFF97316);
+  static const Color habitOrangeDark = Color(0xFFC2410C);
+  static const int coverOrange = 0xFFFFB74D;
   static const Color categoryMindfulnessBgLight = Color(0xFFF5C6AA);
   static const Color categoryMindfulnessBgDark = Color(0xFF8D5B3A);
   static const Color categoryMindfulnessIconLight = Color(0xFF5E3820);
   static const Color categoryMindfulnessIconDark = Color(0xFFFDD8B8);
 
-  static const Color categoryProductivityBgLight = Color(0xFFBBDEFB);
-  static const Color categoryProductivityBgDark = Color(0xFF3565A0);
-  static const Color categoryProductivityIconLight = Color(0xFF1A3A6A);
-  static const Color categoryProductivityIconDark = Color(0xFFCCE4FF);
-
-  static const Color categoryLearningBgLight = Color(0xFFD1C4E9);
-  static const Color categoryLearningBgDark = Color(0xFF5E4B8A);
-  static const Color categoryLearningIconLight = Color(0xFF3A2C60);
-  static const Color categoryLearningIconDark = Color(0xFFE0D4F0);
-
-  static const Color categoryRelationshipsBgLight = Color(0xFFF8BBD0);
-  static const Color categoryRelationshipsBgDark = Color(0xFF8A4466);
-  static const Color categoryRelationshipsIconLight = Color(0xFF6A2040);
-  static const Color categoryRelationshipsIconDark = Color(0xFFFDD0E0);
-
+  // ── Yellow ──
+  static const Color habitYellowLight = Color(0xFFEAB308);
+  static const Color habitYellowDark = Color(0xFFA16207);
+  static const int coverYellow = 0xFFFFF176;
   static const Color categoryFinanceBgLight = Color(0xFFFFF9C4);
   static const Color categoryFinanceBgDark = Color(0xFF8A7A30);
   static const Color categoryFinanceIconLight = Color(0xFF5A4A10);
   static const Color categoryFinanceIconDark = Color(0xFFFFF5A0);
 
+  // ── Green ──
+  static const Color habitGreenLight = Color(0xFF22C55E);
+  static const Color habitGreenDark = Color(0xFF15803D);
+  static const int coverLightGreen = 0xFFAED581;
+  static const Color categoryHealthBgLight = Color(0xFFA8D5BA);
+  static const Color categoryHealthBgDark = Color(0xFF2E7D5B);
+  static const Color categoryHealthIconLight = Color(0xFF2E5E4A);
+  static const Color categoryHealthIconDark = Color(0xFFB8E6C8);
+  static const Color categoryFitnessBgLight = Color(0xFFB8E6C8);
+  static const Color categoryFitnessBgDark = Color(0xFF33805E);
+  static const Color categoryFitnessIconLight = Color(0xFF2A5E40);
+  static const Color categoryFitnessIconDark = Color(0xFFC0F0D0);
+  static const Color categoryDefaultBgLight = Color(0xFFD5E8D4);
+  static const Color categoryDefaultBgDark = Color(0xFF4A635A);
+  static const Color categoryDefaultIconLight = Color(0xFF3A5040);
+  static const Color categoryDefaultIconDark = Color(0xFFD0E8D0);
+
+  // ── Teal ──
+  static const int coverTeal = 0xFF4DB6AC;
+
+  // ── Blue ──
+  static const Color habitBlueLight = Color(0xFF3B82F6);
+  static const Color habitBlueDark = Color(0xFF1D4ED8);
+  static const int coverBlue = 0xFF64B5F6;
+  static const Color categoryProductivityBgLight = Color(0xFFBBDEFB);
+  static const Color categoryProductivityBgDark = Color(0xFF3565A0);
+  static const Color categoryProductivityIconLight = Color(0xFF1A3A6A);
+  static const Color categoryProductivityIconDark = Color(0xFFCCE4FF);
+
+  // ── Indigo ──
+  static const Color habitIndigoLight = Color(0xFF6366F1);
+  static const Color habitIndigoDark = Color(0xFF4338CA);
+
+  // ── Violet / Purple ──
+  static const Color habitVioletLight = Color(0xFF8B5CF6);
+  static const Color habitVioletDark = Color(0xFF6D28D9);
+  static const int coverPurple = 0xFF9575CD;
+  static const Color categoryLearningBgLight = Color(0xFFD1C4E9);
+  static const Color categoryLearningBgDark = Color(0xFF5E4B8A);
+  static const Color categoryLearningIconLight = Color(0xFF3A2C60);
+  static const Color categoryLearningIconDark = Color(0xFFE0D4F0);
   static const Color categoryCreativityBgLight = Color(0xFFE1BEE7);
   static const Color categoryCreativityBgDark = Color(0xFF7B4A8A);
   static const Color categoryCreativityIconLight = Color(0xFF5A2A6A);
   static const Color categoryCreativityIconDark = Color(0xFFF0D0F8);
 
-  static const Color categoryDefaultBgLight = Color(0xFFD5E8D4);
-  static const Color categoryDefaultBgDark = Color(0xFF4A635A);
-  static const Color categoryDefaultIconLight = Color(0xFF3A5040);
-  static const Color categoryDefaultIconDark = Color(0xFFD0E8D0);
+  // ── Pink ──
+  static const int coverPink = 0xFFF06292;
+  static const Color categoryRelationshipsBgLight = Color(0xFFF8BBD0);
+  static const Color categoryRelationshipsBgDark = Color(0xFF8A4466);
+  static const Color categoryRelationshipsIconLight = Color(0xFF6A2040);
+  static const Color categoryRelationshipsIconDark = Color(0xFFFDD0E0);
+
+  // ── Brown / Grey (neutral covers) ──
+  static const int coverBrown = 0xFFA1887F;
+  static const int coverBlueGrey = 0xFF90A4AE;
+
+  // ── Hue stops (habit form color-wheel) ──
+  static const Color hueRed = Color(0xFFFF0000);
+  static const Color hueYellow = Color(0xFFFFFF00);
+  static const Color hueGreen = Color(0xFF00FF00);
+  static const Color hueCyan = Color(0xFF00FFFF);
+  static const Color hueBlue = Color(0xFF0000FF);
+  static const Color hueMagenta = Color(0xFFFF00FF);
+
+  // ── Special journal cover styles ──
+  static const int coverFijiPrimary = 0xFF4A7DFF;
+  static const int coverFijiSecondary = 0xFF2E5BDB;
+  static const int coverMidnightPrimary = 0xFF5C6BC0;
+  static const int coverMidnightSecondary = 0xFF3949AB;
+  static const int coverCustomGrey = 0xFF78909C;
 
   /// Returns the background color for a habit category's icon circle.
   static Color categoryBgColor(String? category, bool isDark) {
@@ -145,7 +227,7 @@ class AppColors {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // ── Group 4: Badge Colors ──
+  // ── Badge Colors ──
   // ═══════════════════════════════════════════════════════════════
   static const Color badgeGreen = Color(0xFF4CAF50);
   static const Color badgeOrangeRed = Color(0xFFFF7043);
@@ -158,7 +240,7 @@ class AppColors {
   static const Color badgePink = Color(0xFFEC407A);
 
   // ═══════════════════════════════════════════════════════════════
-  // ── Group 5: Mood Colors ──
+  // ── Mood Colors ──
   // ═══════════════════════════════════════════════════════════════
   static const Color moodAwful = Color(0xFFE57373);
   static const Color moodBad = Color(0xFFFFB74D);
@@ -167,7 +249,7 @@ class AppColors {
   static const Color moodGreat = Color(0xFF4DB6AC);
 
   // ═══════════════════════════════════════════════════════════════
-  // ── Group 6: Board / Tile Pastel Colors ──
+  // ── Board / Tile Pastel Colors ──
   // ═══════════════════════════════════════════════════════════════
   static const Color pastelGreen = Color(0xFFECFDF5);
   static const Color pastelBlue = Color(0xFFE0F2FE);
@@ -177,28 +259,7 @@ class AppColors {
   static const Color pastelIndigo = Color(0xFFEEF2FF);
 
   // ═══════════════════════════════════════════════════════════════
-  // ── Group 7: Journal Book Cover Colors ──
-  // ═══════════════════════════════════════════════════════════════
-  static const int coverCoral = 0xFFE57373;
-  static const int coverOrange = 0xFFFFB74D;
-  static const int coverYellow = 0xFFFFF176;
-  static const int coverLightGreen = 0xFFAED581;
-  static const int coverTeal = 0xFF4DB6AC;
-  static const int coverBlue = 0xFF64B5F6;
-  static const int coverPurple = 0xFF9575CD;
-  static const int coverPink = 0xFFF06292;
-  static const int coverBrown = 0xFFA1887F;
-  static const int coverBlueGrey = 0xFF90A4AE;
-
-  // Cover-only colors used in choose_cover_screen
-  static const int coverFijiPrimary = 0xFF4A7DFF;
-  static const int coverFijiSecondary = 0xFF2E5BDB;
-  static const int coverMidnightPrimary = 0xFF5C6BC0;
-  static const int coverMidnightSecondary = 0xFF3949AB;
-  static const int coverCustomGrey = 0xFF78909C;
-
-  // ═══════════════════════════════════════════════════════════════
-  // ── Group 8: Editor Background Colors ──
+  // ── Editor Background Colors ──
   // ═══════════════════════════════════════════════════════════════
   static const Color editorBgMist = Color(0xFFF7F7FA);
   static const Color editorBgDarkNavy = Color(0xFF111827);
@@ -207,31 +268,6 @@ class AppColors {
   static const Color editorBgAmber = Color(0xFFF59E0B);
   static const Color editorBgCrimson = Color(0xFFEF4444);
   static const Color editorBgViolet = Color(0xFF8B5CF6);
-
-  // ═══════════════════════════════════════════════════════════════
-  // ── Group 9: Habit Form Preset Colors ──
-  // ═══════════════════════════════════════════════════════════════
-  static const Color hueRed = Color(0xFFFF0000);
-  static const Color hueYellow = Color(0xFFFFFF00);
-  static const Color hueGreen = Color(0xFF00FF00);
-  static const Color hueCyan = Color(0xFF00FFFF);
-  static const Color hueBlue = Color(0xFF0000FF);
-  static const Color hueMagenta = Color(0xFFFF00FF);
-
-  static const Color habitRedLight = Color(0xFFEF4444);
-  static const Color habitRedDark = Color(0xFFB91C1C);
-  static const Color habitOrangeLight = Color(0xFFF97316);
-  static const Color habitOrangeDark = Color(0xFFC2410C);
-  static const Color habitYellowLight = Color(0xFFEAB308);
-  static const Color habitYellowDark = Color(0xFFA16207);
-  static const Color habitGreenLight = Color(0xFF22C55E);
-  static const Color habitGreenDark = Color(0xFF15803D);
-  static const Color habitBlueLight = Color(0xFF3B82F6);
-  static const Color habitBlueDark = Color(0xFF1D4ED8);
-  static const Color habitIndigoLight = Color(0xFF6366F1);
-  static const Color habitIndigoDark = Color(0xFF4338CA);
-  static const Color habitVioletLight = Color(0xFF8B5CF6);
-  static const Color habitVioletDark = Color(0xFF6D28D9);
 
   // ═══════════════════════════════════════════════════════════════
   // ── Group 10: Sun Times / Sky Colors ──
@@ -288,25 +324,23 @@ class AppColors {
   static const Color _errorContainerDark = Color(0xFF93000A);
   static const Color _errorContainerLight = Color(0xFFFFDAD6);
   static const Color _onErrorContainerLight = Color(0xFF410002);
-  static const Color _surfaceContainerGreenHigh = Color(0xFF1E3A1E);
-  static const Color _surfaceContainerGreen = Color(0xFF152B15);
-  static const Color _surfaceContainerGreenLow = Color(0xFF122412);
-  static const Color _surfaceContainerLightMid = Color(0xFFF0F7F0);
-  static const Color _surfaceContainerLightLow = Color(0xFFF5FAF5);
+  static const Color _surfaceContainerEarthHigh = Color(0xFF1E2E3A);
+  static const Color _surfaceContainerEarth = Color(0xFF182530);
+  static const Color _surfaceContainerEarthLow = Color(0xFF121E28);
 
-  /// Light theme ColorScheme
+  /// Light theme ColorScheme — "Habit Seeding" day scene.
   static const ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
-    // Primary
-    primary: mossGreen,
+    // Primary (water blue — drives "+" button and primary actions)
+    primary: waterLight,
     onPrimary: Colors.white,
-    primaryContainer: _paleGreenTint,
-    onPrimaryContainer: darkest,
-    // Secondary
-    secondary: forestGreen,
+    primaryContainer: Color(0xFFE8D5B8),
+    onPrimaryContainer: Color(0xFF3A2518),
+    // Secondary (soil brown — accent)
+    secondary: soilLight,
     onSecondary: Colors.white,
-    secondaryContainer: mintGreen,
-    onSecondaryContainer: darkest,
+    secondaryContainer: Color(0xFFE8D5B8),
+    onSecondaryContainer: soilDark,
     // Tertiary (gold accent — coins, sliders)
     tertiary: gold,
     onTertiary: Colors.white,
@@ -317,43 +351,43 @@ class AppColors {
     onError: _onErrorLight,
     errorContainer: _errorContainerLight,
     onErrorContainer: _onErrorContainerLight,
-    // Surface
+    // Surface (white sky — app bar, scaffold)
     surface: _surfaceLight,
     onSurface: darkest,
-    onSurfaceVariant: forestGreen,
-    // Outline
-    outline: mossGreen,
-    outlineVariant: mintGreen,
+    onSurfaceVariant: Color(0xFF5C4033),
+    // Outline (seed tones — nav icons use outlineVariant)
+    outline: Color(0xFF8B7355),
+    outlineVariant: seedLight,
     // Shadow & Scrim
     shadow: darkest,
     scrim: darkest,
     // Inverse
     inverseSurface: darkest,
-    onInverseSurface: lightest,
-    inversePrimary: mintGreen,
-    // Surface variants
-    surfaceContainerHighest: lightest,
-    surfaceContainerHigh: _paleGreenTint,
-    surfaceContainer: _surfaceContainerLightMid,
-    surfaceContainerLow: _surfaceContainerLightLow,
+    onInverseSurface: Color(0xFFF5EDE3),
+    inversePrimary: Color(0xFF8ECBEE),
+    // Surface containers (subtle warm tints, close to white)
+    surfaceContainerHighest: Color(0xFFF5F0EB),
+    surfaceContainerHigh: Color(0xFFF8F4F0),
+    surfaceContainer: Color(0xFFFBF8F5),
+    surfaceContainerLow: Color(0xFFFDFBF9),
     surfaceContainerLowest: _surfaceLight,
-    surfaceDim: mintGreen,
+    surfaceDim: Color(0xFFEDE8E3),
     surfaceBright: _surfaceLight,
   );
 
-  /// Dark theme ColorScheme
+  /// Dark theme ColorScheme — "Habit Seeding" night scene.
   static const ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    // Primary
-    primary: mintGreen,
-    onPrimary: darkest,
-    primaryContainer: forestGreen,
-    onPrimaryContainer: lightest,
-    // Secondary
-    secondary: lightest,
-    onSecondary: darkest,
-    secondaryContainer: forestGreen,
-    onSecondaryContainer: lightest,
+    // Primary (moonlit water blue)
+    primary: waterDark,
+    onPrimary: Color(0xFF0A1A28),
+    primaryContainer: Color(0xFF3A2518),
+    onPrimaryContainer: seedDark,
+    // Secondary (pale seed — moonlit accent)
+    secondary: seedDark,
+    onSecondary: soilDark,
+    secondaryContainer: Color(0xFF4A3020),
+    onSecondaryContainer: Color(0xFFE8D5B8),
     // Tertiary (gold accent — coins, sliders)
     tertiary: _tertiaryGoldDark,
     onTertiary: _tertiaryOnDark,
@@ -364,27 +398,58 @@ class AppColors {
     onError: _onErrorDark,
     errorContainer: _errorContainerDark,
     onErrorContainer: _errorContainerLight,
-    // Surface
-    surface: darkest,
-    onSurface: _paleGreenTint,
-    onSurfaceVariant: mintGreen,
+    // Surface (deep night sky)
+    surface: _backgroundDark,
+    onSurface: Color(0xFFE8DDD0),
+    onSurfaceVariant: seedDark,
     // Outline
-    outline: sageGreen,
-    outlineVariant: forestGreen,
+    outline: Color(0xFF7B6B5A),
+    outlineVariant: seedDark,
     // Shadow & Scrim
     shadow: Colors.black,
     scrim: Colors.black,
     // Inverse
-    inverseSurface: lightest,
-    onInverseSurface: darkest,
-    inversePrimary: mossGreen,
-    // Surface variants
-    surfaceContainerHighest: forestGreen,
-    surfaceContainerHigh: _surfaceContainerGreenHigh,
-    surfaceContainer: _surfaceContainerGreen,
-    surfaceContainerLow: _surfaceContainerGreenLow,
-    surfaceContainerLowest: _backgroundDark,
-    surfaceDim: darkest,
-    surfaceBright: forestGreen,
+    inverseSurface: Color(0xFFE8DDD0),
+    onInverseSurface: Color(0xFF1A2530),
+    inversePrimary: Color(0xFF3A8DB8),
+    // Surface containers (dark earth/navy tints)
+    surfaceContainerHighest: Color(0xFF2A3A4A),
+    surfaceContainerHigh: _surfaceContainerEarthHigh,
+    surfaceContainer: _surfaceContainerEarth,
+    surfaceContainerLow: _surfaceContainerEarthLow,
+    surfaceContainerLowest: Color(0xFF0A1015),
+    surfaceDim: _backgroundDark,
+    surfaceBright: Color(0xFF2A3A4A),
   );
+
+  /// Sky-to-land gradient for screen backgrounds.
+  static LinearGradient skyGradient({required bool isDark}) {
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: isDark
+          ? const [skyGradientTopDark, skyGradientBottomDark]
+          : const [skyGradientTopLight, skyGradientBottomLight],
+    );
+  }
+
+  /// Cloud-style decoration for cards/widgets.
+  static BoxDecoration cloudDecoration({required bool isDark}) {
+    return BoxDecoration(
+      color: isDark ? cloudDark : cloudLight,
+      borderRadius: BorderRadius.circular(20),
+      border: isDark
+          ? Border.all(color: cloudBorderDark, width: 0.5)
+          : null,
+      boxShadow: [
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.3)
+              : Colors.black.withValues(alpha: 0.08),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
 }

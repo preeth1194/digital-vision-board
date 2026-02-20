@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/habit_item.dart';
 import '../../services/coins_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 import '../../screens/journal/widgets/audio_embed.dart';
 import '../../services/journal_audio_storage_service.dart';
 import '../grid/image_source_sheet.dart';
@@ -32,7 +34,9 @@ class HabitCompletionResult {
   });
 }
 
-/// Shows a bottom sheet for completing a habit with optional mood and log.
+/// Shows an overlay panel for completing a habit with optional mood and log.
+/// Uses an [OverlayEntry] that slides up from behind the bottom nav bar,
+/// matching the dashboard's create-panel style.
 Future<HabitCompletionResult?> showHabitCompletionSheet(
   BuildContext context, {
   required HabitItem habit,
@@ -40,17 +44,38 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
   bool isFullHabit = true,
   List<String> preSelectedStepIds = const [],
 }) {
-  return showModalBottomSheet<HabitCompletionResult>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => _HabitCompletionSheet(
+  final completer = Completer<HabitCompletionResult?>();
+  late OverlayEntry entry;
+  final animController = AnimationController(
+    vsync: Navigator.of(context),
+    duration: const Duration(milliseconds: 300),
+  );
+
+  void remove([HabitCompletionResult? result]) {
+    animController.reverse().then((_) {
+      entry.remove();
+      entry.dispose();
+      animController.dispose();
+      if (!completer.isCompleted) completer.complete(result);
+    });
+  }
+
+  entry = OverlayEntry(
+    builder: (_) => _HabitCompletionOverlay(
+      animation: animController,
       habit: habit,
       baseCoins: baseCoins,
       isFullHabit: isFullHabit,
       preSelectedStepIds: preSelectedStepIds,
+      onDismiss: () => remove(null),
+      onComplete: (result) => remove(result),
     ),
   );
+
+  Overlay.of(context).insert(entry);
+  animController.forward();
+
+  return completer.future;
 }
 
 /// Mood option data.
@@ -101,27 +126,33 @@ const _moods = <_MoodOption>[
   ),
 ];
 
-class _HabitCompletionSheet extends StatefulWidget {
+// ─── Overlay panel ───────────────────────────────────────────────────────
+
+class _HabitCompletionOverlay extends StatefulWidget {
+  final AnimationController animation;
   final HabitItem habit;
   final int baseCoins;
   final bool isFullHabit;
   final List<String> preSelectedStepIds;
+  final VoidCallback onDismiss;
+  final ValueChanged<HabitCompletionResult> onComplete;
 
-  const _HabitCompletionSheet({
+  const _HabitCompletionOverlay({
+    required this.animation,
     required this.habit,
     required this.baseCoins,
     required this.isFullHabit,
-    this.preSelectedStepIds = const [],
+    required this.preSelectedStepIds,
+    required this.onDismiss,
+    required this.onComplete,
   });
 
   @override
-  State<_HabitCompletionSheet> createState() => _HabitCompletionSheetState();
+  State<_HabitCompletionOverlay> createState() =>
+      _HabitCompletionOverlayState();
 }
 
-class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
+class _HabitCompletionOverlayState extends State<_HabitCompletionOverlay> {
   int? _selectedMood;
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _trackingController = TextEditingController();
@@ -149,22 +180,10 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   void initState() {
     super.initState();
     _completedStepIds.addAll(widget.preSelectedStepIds);
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-
-    _scaleAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    );
-
-    _controller.forward();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _noteController.dispose();
     _trackingController.dispose();
     super.dispose();
@@ -189,7 +208,8 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   }
 
   Future<void> _openVoiceRecorder() async {
-    final entryId = 'habit_${widget.habit.id}_${DateTime.now().millisecondsSinceEpoch}';
+    final entryId =
+        'habit_${widget.habit.id}_${DateTime.now().millisecondsSinceEpoch}';
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -232,11 +252,10 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
 
     final noteText = _noteController.text.trim();
     final trackingText = _trackingController.text.trim();
-    final trackingVal = trackingText.isNotEmpty
-        ? double.tryParse(trackingText)
-        : null;
+    final trackingVal =
+        trackingText.isNotEmpty ? double.tryParse(trackingText) : null;
 
-    Navigator.of(context).pop(HabitCompletionResult(
+    widget.onComplete(HabitCompletionResult(
       coinsEarned: _totalCoins,
       mood: _selectedMood,
       note: noteText.isEmpty ? null : noteText,
@@ -250,263 +269,307 @@ class _HabitCompletionSheetState extends State<_HabitCompletionSheet>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
-    final keyboardInsets = MediaQuery.of(context).viewInsets.bottom;
-    final maxHeight = MediaQuery.of(context).size.height * 0.85;
+    final mq = MediaQuery.of(context);
+    final bottomPad = mq.padding.bottom;
+    const barHeight = 64.0;
+    const circleOverflow = 20.0;
+    final navTotalHeight = barHeight + circleOverflow + bottomPad;
+    final keyboardHeight = mq.viewInsets.bottom;
+
+    final maxPanelHeight =
+        mq.size.height - mq.padding.top - navTotalHeight - 16;
+    final panelBottom = navTotalHeight - circleOverflow + keyboardHeight;
 
     return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 0.8 + (_scaleAnimation.value.clamp(0.0, 1.0) * 0.2),
-          alignment: Alignment.bottomCenter,
-          child: Opacity(
-            opacity: _scaleAnimation.value.clamp(0.0, 1.0),
-            child: child,
-          ),
-        );
-      },
-      child: Padding(
-        padding: EdgeInsets.only(bottom: keyboardInsets),
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: EdgeInsets.only(bottom: bottomPadding),
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
+      animation: widget.animation,
+      builder: (context, _) {
+        final t = CurvedAnimation(
+          parent: widget.animation,
+          curve: Curves.easeOutCubic,
+        ).value;
+
+        return Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              // Scrim
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: widget.onDismiss,
+                  child: ColoredBox(
+                    color: Colors.black.withOpacity(0.35 * t),
+                  ),
+                ),
+              ),
+              // Panel sliding up from behind the nav bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: panelBottom,
+                child: Transform.translate(
+                  offset: Offset(0, (maxPanelHeight + panelBottom) * (1 - t)),
+                  child: Opacity(
+                    opacity: t,
+                    child: ClipPath(
+                      clipper: _NotchedBottomClipper(
+                        cutoutRadius: 34.0,
+                        cutoutCenterOffset: 10.0,
+                      ),
+                      child: Material(
+                        color: colorScheme.surface,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxHeight: maxPanelHeight),
+                          child: _buildContent(colorScheme),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Title
+          Text(
+            'How did it feel?',
+            style: AppTypography.heading1(context).copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.habit.name,
+            style: AppTypography.secondary(context),
+            textAlign: TextAlign.center,
+          ),
+
+          // Action steps checklist (full habit only)
+          if (_showSteps) ...[
+            const SizedBox(height: 20),
+            _ActionStepsChecklist(
+              steps: widget.habit.actionSteps,
+              completedIds: _completedStepIds,
+              onToggle: _toggleStep,
+            ),
+          ],
+
+          // Tracking value input
+          if (_hasTracking) ...[
+            const SizedBox(height: 20),
+            _TrackingValueInput(
+              controller: _trackingController,
+              unitLabel: widget.habit.trackingSpec!.unitLabel,
+              habitName: widget.habit.name,
+            ),
+          ],
+
+          const SizedBox(height: 24),
+          // Mood row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _moods.map((mood) {
+              final isSelected = _selectedMood == mood.value;
+              return _MoodButton(
+                mood: mood,
+                isSelected: isSelected,
+                onTap: () => _selectMood(mood.value),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          // Note text field with embedded media icons
+          TextField(
+            controller: _noteController,
+            maxLength: 500,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            maxLines: 3,
+            minLines: 1,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.sentences,
+            style: AppTypography.bodySmall(context)
+                .copyWith(color: colorScheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Write about how you feel...',
+              hintStyle: AppTypography.bodySmall(context).copyWith(
+                color:
+                    colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              filled: true,
+              fillColor: colorScheme.surfaceContainerHighest,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide(
+                  color: colorScheme.primary.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              contentPadding: const EdgeInsets.only(
+                left: 4,
+                right: 4,
+                top: 14,
+                bottom: 14,
+              ),
+              counterText: '',
+              prefixIcon: GestureDetector(
+                onTap: _pickImage,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8, right: 4),
+                  child: Icon(
+                    _imagePaths.isNotEmpty
+                        ? Icons.image
+                        : Icons.image_outlined,
+                    size: 22,
+                    color: _imagePaths.isNotEmpty
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 40,
+                minHeight: 40,
+              ),
+              suffixIcon: GestureDetector(
+                onTap: _openVoiceRecorder,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8, left: 4),
+                  child: Icon(
+                    _audioPath != null
+                        ? Icons.mic
+                        : Icons.mic_none_rounded,
+                    size: 22,
+                    color: _audioPath != null
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+              suffixIconConstraints: const BoxConstraints(
+                minWidth: 40,
+                minHeight: 40,
+              ),
+            ),
+          ),
+
+          // Media attachment previews
+          _MediaPreviews(
+            audioPath: _audioPath,
+            imagePaths: _imagePaths,
+            onRemoveAudio: _removeAudio,
+            onRemoveImage: _removeImage,
+          ),
+
+          const SizedBox(height: 24),
+          // Complete button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: FilledButton(
+              onPressed: _confirm,
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Drag handle
+                  Text(
+                    'Complete',
+                    style: AppTypography.button(context),
+                  ),
+                  const SizedBox(width: 8),
                   Container(
-                    width: 40,
-                    height: 4,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
+                          colorScheme.onPrimary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Title
-                  Text(
-                    'How did it feel?',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.habit.name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  // Action steps checklist (full habit only)
-                  if (_showSteps) ...[
-                    const SizedBox(height: 20),
-                    _ActionStepsChecklist(
-                      steps: widget.habit.actionSteps,
-                      completedIds: _completedStepIds,
-                      onToggle: _toggleStep,
-                    ),
-                  ],
-
-                  // Tracking value input
-                  if (_hasTracking) ...[
-                    const SizedBox(height: 20),
-                    _TrackingValueInput(
-                      controller: _trackingController,
-                      unitLabel: widget.habit.trackingSpec!.unitLabel,
-                      habitName: widget.habit.name,
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-                  // Mood row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _moods.map((mood) {
-                      final isSelected = _selectedMood == mood.value;
-                      return _MoodButton(
-                        mood: mood,
-                        isSelected: isSelected,
-                        onTap: () => _selectMood(mood.value),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  // Note text field with embedded media icons
-                  TextField(
-                    controller: _noteController,
-                    maxLength: 500,
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                    maxLines: 3,
-                    minLines: 1,
-                    textInputAction: TextInputAction.done,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Write about how you feel...',
-                      hintStyle: TextStyle(
-                        fontSize: 14,
-                        color:
-                            colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary.withValues(alpha: 0.5),
-                          width: 1.5,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.only(
-                        left: 4,
-                        right: 4,
-                        top: 14,
-                        bottom: 14,
-                      ),
-                      counterText: '',
-                      prefixIcon: GestureDetector(
-                        onTap: _pickImage,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 8, right: 4),
-                          child: Icon(
-                            _imagePaths.isNotEmpty
-                                ? Icons.image
-                                : Icons.image_outlined,
-                            size: 22,
-                            color: _imagePaths.isNotEmpty
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                      prefixIconConstraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      suffixIcon: GestureDetector(
-                        onTap: _openVoiceRecorder,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8, left: 4),
-                          child: Icon(
-                            _audioPath != null
-                                ? Icons.mic
-                                : Icons.mic_none_rounded,
-                            size: 22,
-                            color: _audioPath != null
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                      suffixIconConstraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                    ),
-                  ),
-
-                  // Media attachment previews
-                  _MediaPreviews(
-                    audioPath: _audioPath,
-                    imagePaths: _imagePaths,
-                    onRemoveAudio: _removeAudio,
-                    onRemoveImage: _removeImage,
-                  ),
-
-                  const SizedBox(height: 24),
-                  // Complete button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton(
-                      onPressed: _confirm,
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.onPrimary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.monetization_on,
-                                  size: 16,
-                                  color: AppColors.gold,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '+$_totalCoins',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.gold,
-                                  ),
-                                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.goldLight,
+                                AppColors.goldDark,
                               ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(
+                              color: AppColors.amberBorder,
+                              width: 1,
                             ),
                           ),
-                        ],
-                      ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.monetization_on_rounded,
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+$_totalCoins',
+                          style:
+                              AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -587,31 +650,32 @@ class _StepTile extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isChecked
-                    ? colorScheme.primary
-                    : Colors.transparent,
+                color:
+                    isChecked ? colorScheme.primary : Colors.transparent,
                 border: Border.all(
                   color: isChecked
                       ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      : colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.4),
                   width: 2,
                 ),
               ),
               child: isChecked
-                  ? Icon(Icons.check_rounded, size: 14, color: colorScheme.onPrimary)
+                  ? Icon(Icons.check_rounded,
+                      size: 14, color: colorScheme.onPrimary)
                   : null,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 step.title,
-                style: TextStyle(
-                  fontSize: 14,
+                style: AppTypography.bodySmall(context).copyWith(
                   fontWeight: FontWeight.w500,
                   color: isChecked
                       ? colorScheme.onSurface.withValues(alpha: 0.5)
                       : colorScheme.onSurface,
-                  decoration: isChecked ? TextDecoration.lineThrough : null,
+                  decoration:
+                      isChecked ? TextDecoration.lineThrough : null,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -651,23 +715,24 @@ class _MediaPreviews extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
-        // Audio chip
         if (audioPath != null)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+              color:
+                  colorScheme.primaryContainer.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.audiotrack_rounded, size: 16, color: colorScheme.primary),
+                Icon(Icons.audiotrack_rounded,
+                    size: 16, color: colorScheme.primary),
                 const SizedBox(width: 6),
                 Text(
                   'Voice note attached',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTypography.caption(context).copyWith(
                     fontWeight: FontWeight.w500,
                     color: colorScheme.primary,
                   ),
@@ -684,8 +749,6 @@ class _MediaPreviews extends StatelessWidget {
               ],
             ),
           ),
-
-        // Image thumbnails
         if (imagePaths.isNotEmpty) ...[
           if (audioPath != null) const SizedBox(height: 8),
           SizedBox(
@@ -827,19 +890,20 @@ class _MoodButtonState extends State<_MoodButton>
                   size: widget.isSelected ? 40 : 34,
                   color: widget.isSelected
                       ? widget.mood.color
-                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      : colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 widget.mood.label,
-                style: TextStyle(
-                  fontSize: 11,
+                style: AppTypography.caption(context).copyWith(
                   fontWeight:
                       widget.isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: widget.isSelected
                       ? widget.mood.color
-                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      : colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -889,17 +953,13 @@ class _TrackingValueInput extends StatelessWidget {
                 LengthLimitingTextInputFormatter(8),
               ],
               textInputAction: TextInputAction.done,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
+              style: AppTypography.heading3(context)
+                  .copyWith(color: colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: '0',
-                hintStyle: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                hintStyle: AppTypography.heading3(context).copyWith(
+                  color: colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.3),
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -910,8 +970,7 @@ class _TrackingValueInput extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             unitLabel,
-            style: TextStyle(
-              fontSize: 16,
+            style: AppTypography.body(context).copyWith(
               fontWeight: FontWeight.w500,
               color: colorScheme.primary,
             ),
@@ -920,4 +979,39 @@ class _TrackingValueInput extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Notched bottom clipper (same as dashboard) ──────────────────────────
+
+class _NotchedBottomClipper extends CustomClipper<Path> {
+  final double cutoutRadius;
+  final double cutoutCenterOffset;
+
+  _NotchedBottomClipper({
+    required this.cutoutRadius,
+    required this.cutoutCenterOffset,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final rect = Path()
+      ..addRRect(RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        topLeft: const Radius.circular(20),
+        topRight: const Radius.circular(20),
+      ));
+
+    final cutout = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+        radius: cutoutRadius,
+      ));
+
+    return Path.combine(PathOperation.difference, rect, cutout);
+  }
+
+  @override
+  bool shouldReclip(_NotchedBottomClipper oldClipper) =>
+      cutoutRadius != oldClipper.cutoutRadius ||
+      cutoutCenterOffset != oldClipper.cutoutCenterOffset;
 }

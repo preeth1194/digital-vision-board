@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/dv_auth_service.dart';
+import '../../utils/app_typography.dart';
 import 'profile_completion_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
@@ -144,7 +145,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         children: [
           Text(
             'Enter your phone number in international format.',
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            style: AppTypography.secondary(context),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -194,7 +195,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: theme.colorScheme.onErrorContainer,
+                ),
               ),
             ),
           ],

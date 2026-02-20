@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../screens/puzzle_game_screen.dart';
+import '../../utils/app_typography.dart';
 import '../../services/image_service.dart';
 import '../../services/puzzle_service.dart';
 import '../../services/puzzle_state_service.dart';
@@ -107,9 +108,6 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _openPuzzle,
@@ -129,9 +127,7 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                   Expanded(
                     child: Text(
                       'Puzzle',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -188,16 +184,14 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                       const SizedBox(height: 8),
                       Text(
                         'No puzzle yet',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
                         'Tap to start',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppTypography.caption(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.5),
                         ),

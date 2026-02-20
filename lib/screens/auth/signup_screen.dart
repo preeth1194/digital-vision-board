@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/app_typography.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -43,7 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
         children: [
           Text(
             'Template only (auth provider integration coming soon).',
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
+            style: AppTypography.secondary(context),
           ),
           const SizedBox(height: 12),
           TextField(

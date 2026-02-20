@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/habit_item.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
 
 /// A clean, modern habit card matching the ritual-timeline design.
@@ -266,8 +267,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                               opacity: _fadeAnim.value,
                               child: Text(
                                 widget.habit.name,
-                                style: TextStyle(
-                                  fontSize: 16,
+                                style: AppTypography.body(context).copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: textColor,
                                 ),
@@ -301,10 +301,8 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                     const SizedBox(height: 4),
                     Text(
                       streak > 0 ? 'Streak $streak days' : "Ready for day 1?",
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppTypography.caption(context).copyWith(
                         color: subtitleColor,
-                        fontWeight: FontWeight.w400,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -333,8 +331,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                     const SizedBox(height: 2),
                     Text(
                       '${widget.adWatchedCount}/${widget.adTotalRequired}',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.primary,
                       ),
@@ -366,8 +363,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                       const SizedBox(width: 4),
                       Text(
                         durationLabel,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           fontWeight: FontWeight.w600,
                           color: subtitleColor,
                         ),

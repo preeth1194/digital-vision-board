@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/google_drive_backup_service.dart';
+import '../../utils/app_colors.dart';
 import '../dashboard_screen.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed_v1';
@@ -126,8 +127,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
@@ -203,6 +210,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

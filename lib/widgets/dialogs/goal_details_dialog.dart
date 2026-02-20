@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/goal_metadata.dart';
+import '../../utils/app_typography.dart';
 
 Future<GoalMetadata?> showGoalDetailsDialog(
   BuildContext context, {
@@ -250,12 +251,12 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
             children: [
               Text(
                 'Goal details (optional)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                style: AppTypography.heading2(context),
               ),
               const SizedBox(height: 6),
               Text(
                 widget.goalTitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: AppTypography.secondary(context),
               ),
               const SizedBox(height: 16),
               Row(
@@ -283,7 +284,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text('Mindset & coping', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Mindset & coping', style: AppTypography.heading3(context)),
               const SizedBox(height: 8),
               TextField(
                 controller: _coreValue,
@@ -342,7 +343,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Obstacles', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text('Obstacles', style: AppTypography.heading3(context)),
                   TextButton.icon(
                     onPressed: _addObstacle,
                     icon: const Icon(Icons.add),
@@ -363,7 +364,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                   ),
                 ),
               const SizedBox(height: 16),
-              const Text('Action plan', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Action plan', style: AppTypography.heading3(context)),
               const SizedBox(height: 8),
               TextField(
                 controller: _microHabit,
@@ -405,7 +406,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               ),
               if (_frequency == 'Weekly') ...[
                 const SizedBox(height: 10),
-                const Text('Weekly days', style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('Weekly days', style: AppTypography.heading3(context)),
                 const SizedBox(height: 8),
                 _weeklyDaysPicker(),
               ],

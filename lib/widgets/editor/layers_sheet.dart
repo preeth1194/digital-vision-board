@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/vision_components.dart';
 import '../../utils/component_label_utils.dart';
+import '../../utils/app_typography.dart';
 
 Future<void> showLayersSheet(
   BuildContext context, {
@@ -86,7 +87,7 @@ class _LayersSheetState extends State<_LayersSheet> {
           padding: EdgeInsets.all(16),
           child: Text(
             allowReorder ? 'Layers (Drag to Reorder)' : 'Layers',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            style: AppTypography.heading3(context),
           ),
         ),
         Flexible(

@@ -402,8 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Text(
                   '$coins',
                   key: ValueKey(coins),
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppTypography.body(context).copyWith(
                     fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
                   ),
@@ -453,7 +452,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Text(
                         badgeCount > 99 ? '99+' : '$badgeCount',
-                        style: TextStyle(
+                        style: AppTypography.caption(context).copyWith(
                           color: Theme.of(context).colorScheme.onError,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -976,6 +975,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
 
     final scaffold = Scaffold(
+      backgroundColor: Colors.transparent,
       drawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.65,
         child: ListView(
@@ -1008,10 +1008,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           const SizedBox(height: 8),
                           Text(
                             displayName,
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: AppTypography.body(context).copyWith(
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1023,8 +1021,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             },
                             child: Text(
                               isGuest ? 'Sign In / Sign Up' : 'View Profile',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: AppTypography.secondary(context).copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1040,15 +1037,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             ValueListenableBuilder<bool>(
               valueListenable: SubscriptionService.isSubscribed,
               builder: (context, subscribed, _) {
+                final cs = Theme.of(context).colorScheme;
                 return ListTile(
                   leading: Icon(
                     Icons.workspace_premium_rounded,
-                    color: subscribed ? AppColors.coinGold : null,
+                    color: subscribed ? AppColors.coinGold : cs.onSurfaceVariant,
                   ),
-                  title: Text(subscribed ? 'Premium Active' : 'Go Premium'),
+                  title: Text(subscribed ? 'Premium Active' : 'Go Premium',
+                    style: AppTypography.body(context).copyWith(color: cs.onSurface)),
                   trailing: subscribed
                       ? Icon(Icons.check_circle_rounded,
-                          color: Theme.of(context).colorScheme.secondary, size: 20)
+                          color: cs.secondary, size: 20)
                       : null,
                   onTap: () {
                     Navigator.of(context).pop();
@@ -1068,12 +1067,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   builder: (context, linkSnap) {
                     final linked = linkSnap.data ?? false;
 
+                    final dcs = Theme.of(context).colorScheme;
                     if (!linked) {
                       return ListTile(
                         leading: Icon(Icons.cloud_off_outlined,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        title: const Text('Backup not set up'),
-                        subtitle: const Text('Tap to link Google account'),
+                            color: dcs.onSurfaceVariant),
+                        title: Text('Backup not set up',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Tap to link Google account',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                         onTap: () {
                           Navigator.of(context).pop();
                           Navigator.of(context).push(
@@ -1091,20 +1093,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: dcs.primary,
                           ),
                         ),
-                        title: const Text('Syncing...'),
-                        subtitle: const Text('Encrypting and uploading'),
+                        title: Text('Syncing...',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Encrypting and uploading',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                       );
                     }
 
                     if (syncState == SyncState.error) {
                       return ListTile(
                         leading: Icon(Icons.cloud_off_outlined,
-                            color: Theme.of(context).colorScheme.error),
-                        title: const Text('Sync failed'),
-                        subtitle: const Text('Tap sync to retry'),
+                            color: dcs.error),
+                        title: Text('Sync failed',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Tap sync to retry',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                         trailing: IconButton(
                           icon: const Icon(Icons.sync),
                           onPressed: () =>
@@ -1122,10 +1128,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                     return ListTile(
                       leading: Icon(Icons.cloud_done_outlined,
-                          color: Theme.of(context).colorScheme.primary),
-                      title: Text(AutoSyncService.lastSyncText),
+                          color: dcs.primary),
+                      title: Text(AutoSyncService.lastSyncText,
+                        style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
                       subtitle: AutoSyncService.nextSyncText.isNotEmpty
-                          ? Text(AutoSyncService.nextSyncText)
+                          ? Text(AutoSyncService.nextSyncText,
+                              style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant))
                           : null,
                       trailing: IconButton(
                         icon: const Icon(Icons.sync),
@@ -1145,8 +1153,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.widgets_outlined),
-              title: const Text('Widget Guide'),
+              leading: Icon(Icons.widgets_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('Widget Guide',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1155,8 +1164,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('App Tour'),
+              leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('App Tour',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1167,8 +1177,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Privacy Policy'),
+              leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('Privacy Policy',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1183,8 +1194,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 final id = (snap.data ?? '').trim();
                 if (id.isEmpty) return const SizedBox.shrink();
                 return ListTile(
-                  leading: const Icon(Icons.logout),
-                  title: const Text('Sign out'),
+                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  title: Text('Sign out',
+                    style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _signOut();
@@ -1200,8 +1212,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   Text(
                     'Habit Seeding',
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -1209,8 +1220,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 2),
                   Text(
                     'Seed your new habits',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTypography.caption(context).copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
                     ),
                   ),
@@ -1225,7 +1235,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       appBar: (_tabIndex == 6 || _tabIndex == 2) ? null : AppBar(
         toolbarHeight: 72,
         automaticallyImplyLeading: false,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         titleSpacing: 0,
@@ -1265,9 +1275,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       Text(
                         _getGreeting(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
+                        style: AppTypography.secondary(context).copyWith(
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
@@ -1330,17 +1338,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       ],
     );
 
-    return Stack(
-      children: [
-        scaffold,
-        if (_showCreatePanel) _buildCreatePanelOverlay(),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: navBar,
-        ),
-      ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Stack(
+        children: [
+          scaffold,
+          if (_showCreatePanel) _buildCreatePanelOverlay(),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: navBar,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1402,9 +1417,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 padding: const EdgeInsets.only(left: 16, bottom: 8),
                                 child: Text(
                                   'Create New',
-                                  style: TextStyle(
+                                  style: AppTypography.body(context).copyWith(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 16,
                                     color: colorScheme.onSurface,
                                   ),
                                 ),

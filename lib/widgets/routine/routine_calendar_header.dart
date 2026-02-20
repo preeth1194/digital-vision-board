@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../models/routine.dart';
+import '../../utils/app_typography.dart';
 
 /// Calendar header widget for the routine screen.
 /// Displays:
@@ -49,7 +51,7 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surface,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -102,8 +104,7 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
                     child: Text(
                       monthYearFormat.format(_displayedMonth),
                       key: ValueKey('${_displayedMonth.year}-${_displayedMonth.month}'),
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppTypography.bodySmall(context).copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
                       ),
@@ -126,11 +127,11 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Today',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTypography.caption(context).copyWith(
                 fontWeight: FontWeight.w600,
+                color: colorScheme.onPrimary,
               ),
             ),
           ),
@@ -324,7 +325,7 @@ class _DateItem extends StatelessWidget {
           children: [
             Text(
               _weekdays[date.weekday % 7],
-              style: TextStyle(
+              style: AppTypography.caption(context).copyWith(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 color: weekdayColor,
@@ -333,8 +334,7 @@ class _DateItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${date.day}',
-              style: TextStyle(
-                fontSize: 16,
+              style: AppTypography.body(context).copyWith(
                 fontWeight: FontWeight.w700,
                 color: textColor,
               ),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/affirmation.dart';
 import '../../screens/affirmation_management_screen.dart';
 import '../../services/affirmation_service.dart';
+import '../../utils/app_typography.dart';
 import '../affirmation_card.dart';
 
 class AffirmationSummaryCard extends StatefulWidget {
@@ -118,10 +119,6 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
       return SizedBox(
         height: 180,
         child: Card(
-          elevation: 2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          color: colorScheme.primaryContainer,
           child: const Center(child: CircularProgressIndicator()),
         ),
       );
@@ -129,9 +126,6 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
 
     if (_affirmations.isEmpty) {
       return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: colorScheme.primaryContainer,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: _openManagement,
@@ -148,8 +142,7 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
                 Expanded(
                   child: Text(
                     'Add your first affirmation',
-                    style: TextStyle(
-                      fontSize: 15,
+                    style: AppTypography.body(context).copyWith(
                       fontWeight: FontWeight.w500,
                       color: colorScheme.onPrimaryContainer,
                     ),
@@ -175,7 +168,7 @@ class _AffirmationSummaryCardState extends State<AffirmationSummaryCard>
       backAffirmation: _nextAffirmation,
       onFlip: _onFlip,
       onSettings: _openManagement,
-      cardColor: colorScheme.primaryContainer,
+      cardColor: colorScheme.surface,
       showPinIndicator: true,
       showCategory: false,
     );

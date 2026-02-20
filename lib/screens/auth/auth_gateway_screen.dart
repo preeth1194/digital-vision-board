@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/image_service.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
@@ -109,7 +110,14 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final forced = widget.forced;
-    return Scaffold(
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Account'),
         automaticallyImplyLeading: !forced,
@@ -124,6 +132,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           return _buildLoginView(context, theme, forced);
         },
       ),
+    ),
     );
   }
 
@@ -262,7 +271,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                 ),
               ),
               margin: EdgeInsets.zero,
-              backgroundColor: colorScheme.surface,
+              backgroundColor: Colors.transparent,
               decoration: habitSectionDecoration(colorScheme),
               separatorColor: habitSectionSeparatorColor(colorScheme),
               children: [
@@ -351,7 +360,9 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
                 ),
                 child: Text(
                   _error!,
-                  style: TextStyle(color: colorScheme.onErrorContainer),
+                  style: AppTypography.bodySmall(context).copyWith(
+                    color: colorScheme.onErrorContainer,
+                  ),
                 ),
               ),
             ],
@@ -388,7 +399,9 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
             ),
             child: Text(
               _error!,
-              style: TextStyle(color: colorScheme.onErrorContainer),
+              style: AppTypography.bodySmall(context).copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
             ),
           ),
         ],

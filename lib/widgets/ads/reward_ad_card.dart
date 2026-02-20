@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/ad_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 /// A card styled like [AnimatedHabitCard] that tracks reward-ad progress
 /// (X/5) for unlocking a new habit beyond the free limit.
@@ -194,8 +195,7 @@ class _RewardAdCardState extends State<RewardAdCard>
                       _isComplete
                           ? 'Habit Unlocked!'
                           : 'Watch Ads to Unlock Habit',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: AppTypography.body(context).copyWith(
                         fontWeight: FontWeight.w700,
                         color: textColor,
                         decoration: _isComplete
@@ -227,10 +227,7 @@ class _RewardAdCardState extends State<RewardAdCard>
                       _isComplete
                           ? 'All ads watched!'
                           : 'Tap to watch ad',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: subtitleColor,
-                      ),
+                      style: AppTypography.caption(context).copyWith(color: subtitleColor),
                     ),
                   ],
                 ),
@@ -255,8 +252,7 @@ class _RewardAdCardState extends State<RewardAdCard>
                   const SizedBox(height: 2),
                   Text(
                     '$watched/$total',
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: _isComplete
                           ? AppColors.coinGold

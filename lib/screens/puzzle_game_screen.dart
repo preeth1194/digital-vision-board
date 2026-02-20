@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/puzzle_image_splitter.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';
+import '../utils/puzzle_image_splitter.dart';
 import '../services/puzzle_service.dart';
 import '../services/puzzle_state_service.dart';
 import '../services/puzzle_widget_snapshot_service.dart';
@@ -112,17 +115,30 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     setState(() => _boards = boards);
   }
 
+  bool _imageMissing = false;
+
   Future<void> _loadPuzzle() async {
     setState(() {
       _loading = true;
       _isCompleted = false;
       _showingCompletionTile = false;
+      _imageMissing = false;
       _goalTitle = null;
       _piecePositions = List.filled(_totalPieces, null);
       _positionPieces = List.filled(_totalPieces, null);
     });
 
     try {
+      final isUrl = widget.imagePath.startsWith('http');
+      if (!isUrl && !File(widget.imagePath).existsSync()) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _imageMissing = true;
+        });
+        return;
+      }
+
       final prefs = widget.prefs ?? await SharedPreferences.getInstance();
 
       final savedState = await PuzzleStateService.loadPuzzleState(
@@ -325,11 +341,33 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.monetization_on, color: colorScheme.tertiary, size: 20),
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [AppColors.goldLight, AppColors.goldDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(
+                        color: AppColors.amberBorder,
+                        width: 1,
+                      ),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.monetization_on_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '+$earnedCoins coins earned!',
-                    style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                    style: AppTypography.bodySmall(ctx).copyWith(
                           color: colorScheme.tertiary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -339,7 +377,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               const SizedBox(height: 16),
               Text(
                 goalMessage,
-                style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                style: AppTypography.body(ctx).copyWith(
                       fontWeight: FontWeight.bold,
                       color: colorScheme.primary,
                     ),
@@ -348,7 +386,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  style: AppTypography.bodySmall(ctx).copyWith(
                         color: colorScheme.error,
                       ),
                 ),
@@ -420,7 +458,14 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Puzzle'),
         actions: [
@@ -437,17 +482,57 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _puzzlePieces == null
-                      ? const Center(child: Text('Failed to load puzzle'))
-                      : _showingCompletionTile
-                          ? _buildCompletionTile(scheme)
-                          : _showReference
-                              ? _buildReferenceView(scheme)
-                              : _buildBoardArea(scheme),
+                  : _imageMissing
+                      ? _buildImageMissingView(scheme)
+                      : _puzzlePieces == null
+                          ? const Center(child: Text('Failed to load puzzle'))
+                          : _showingCompletionTile
+                              ? _buildCompletionTile(scheme)
+                              : _showReference
+                                  ? _buildReferenceView(scheme)
+                                  : _buildBoardArea(scheme),
             ),
             _buildControlsBar(scheme),
             if (_actionsLocked)
               _buildCooldownBanner(scheme),
+          ],
+        ),
+      ),
+    ),
+    );
+  }
+
+  // ── Image missing state ────────────────────────────────────────────
+
+  Widget _buildImageMissingView(ColorScheme scheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.image_not_supported_outlined,
+                size: 64, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text(
+              'Puzzle image not found',
+              style: AppTypography.heading3(context),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The original image was removed. Pick a new image from your vision board to start a puzzle.',
+              style: AppTypography.bodySmall(context).copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _selectNewImage,
+              icon: const Icon(Icons.image_outlined),
+              label: const Text('Pick Image'),
+            ),
           ],
         ),
       ),
@@ -485,19 +570,12 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             const SizedBox(height: 16),
             Text(
               'Reference Image',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
+              style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
               'Tap the eye icon to return to the puzzle',
-              style: TextStyle(
-                fontSize: 13,
-                color: scheme.onSurfaceVariant,
-              ),
+              style: AppTypography.bodySmall(context).copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -675,7 +753,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                   child: Center(
                     child: Text(
                       '${CoinsService.puzzle4x4Coins}pts',
-                      style: TextStyle(
+                      style: AppTypography.caption(context).copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: ptsColor,
@@ -687,7 +765,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                   child: Center(
                     child: Text(
                       '${CoinsService.puzzle8x8Coins}pts',
-                      style: TextStyle(
+                      style: AppTypography.caption(context).copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: ptsColor,
@@ -786,7 +864,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: AppTypography.caption(context).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: color,
@@ -815,8 +893,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             const SizedBox(width: 8),
             Text(
               'Next puzzle in ${_formatCooldown(_cooldownRemaining)}',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTypography.bodySmall(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: scheme.onErrorContainer,
               ),
@@ -879,7 +956,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             Text(
               goalMessage,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: AppTypography.heading3(context).copyWith(
                     color: scheme.onSurface,
                     fontWeight: FontWeight.bold,
                     height: 1.4,
@@ -892,7 +969,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: AppTypography.body(context).copyWith(
                       color: scheme.onSurface.withValues(alpha: 0.7),
                     ),
               ),
@@ -910,7 +987,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             else
               Text(
                 'Next puzzle available in ${_formatCooldown(_cooldownRemaining)}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: AppTypography.body(context).copyWith(
                       color: scheme.error,
                     ),
               ),

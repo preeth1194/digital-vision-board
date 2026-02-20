@@ -699,7 +699,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                     ),
                     child: Text(
                       '${widget.stepNumber}',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: cs.onPrimary, height: 1),
+                      style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w700, color: cs.onPrimary, height: 1),
                     ),
                   ),
                 ),
@@ -714,7 +714,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
                 hintText: 'Step title...',
-                hintStyle: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
+                hintStyle: AppTypography.body(context).copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),

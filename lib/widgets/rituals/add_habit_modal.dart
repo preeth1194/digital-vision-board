@@ -1490,9 +1490,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       ),
                     ),
                     if (isRecommended)
-                      const TextSpan(
+                      TextSpan(
                         text: ' \u2B50',
-                        style: TextStyle(fontSize: 12),
+                        style: AppTypography.caption(context),
                       ),
                   ],
                 ),

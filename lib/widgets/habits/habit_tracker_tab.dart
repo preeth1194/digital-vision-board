@@ -8,6 +8,7 @@ import '../../models/habit_item.dart';
 import '../../screens/habit_timer_screen.dart';
 import '../../services/habit_timer_state_service.dart';
 import '../../services/logical_date_service.dart';
+import '../../utils/app_typography.dart';
 
 class HabitTrackerTab extends StatefulWidget {
   final List<HabitItem> habits;
@@ -261,7 +262,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
               padding: const EdgeInsets.all(32.0),
               child: Text(
                 'No habits yet. Add one above!',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: AppTypography.secondary(context),
               ),
             ),
           )
@@ -314,7 +315,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                         children: [
                           Text(
                             habit.name,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
                           ),
                           const SizedBox(height: 4),
                           Wrap(
@@ -325,9 +326,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                               if (!scheduledToday)
                                 Text(
                                   'Not scheduled today',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  style: AppTypography.caption(context),
                                 ),
                               if (streak > 0) ...[
                                 Icon(
@@ -337,28 +336,22 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                                 ),
                                 Text(
                                   '$streak $unit${streak != 1 ? 's' : ''} streak',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: AppTypography.caption(context),
                                 ),
                               ] else
                                 Text(
                                   'No streak yet',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  style: AppTypography.caption(context),
                                 ),
                               if ((weeklyDays ?? '').trim().isNotEmpty)
                                 Text(
                                   'Days $weeklyDays',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  style: AppTypography.caption(context),
                                 ),
                               if ((habit.deadline ?? '').trim().isNotEmpty)
                                 Text(
                                   'Due ${habit.deadline}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  style: AppTypography.caption(context),
                                 ),
                             ],
                           ),
@@ -372,16 +365,12 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                                 if (targetMs > 0)
                                   Text(
                                     '${_fmt(accMs)} / ${_fmt(targetMs)}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    style: AppTypography.caption(context),
                                   ),
                                 if (targetMs > 0 && !isTodayCompleted)
                                   Text(
                                     '• ${_fmt(remainingMs)} left',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    style: AppTypography.caption(context),
                                   ),
                               ],
                             ),
@@ -472,7 +461,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                                     },
                                     child: Text(
                                       'Delete',
-                                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                                      style: AppTypography.button(context).copyWith(color: Theme.of(context).colorScheme.error),
                                     ),
                                   ),
                                 ],

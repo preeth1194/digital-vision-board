@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../utils/app_typography.dart';
+
 class TextEditorResult {
   final String text;
   final TextStyle style;
@@ -162,7 +164,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                 initiallyExpanded: false,
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: const EdgeInsets.only(top: 8),
-                title: const Text('Formatting'),
+                title: Text('Formatting', style: AppTypography.heading3(context)),
                 children: [
                   SizedBox(
                     width: double.infinity,
@@ -269,7 +271,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
         child: Scaffold(
           resizeToAvoidBottomInset: true,
           appBar: AppBar(
-            title: const Text('Text Editor'),
+            title: Text('Text Editor', style: AppTypography.heading2(context)),
             leading: IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).pop(),

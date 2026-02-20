@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import '../../../utils/app_typography.dart';
 import '../models/journal_editor_models.dart';
 import 'editor_spacing.dart';
 import 'font_picker.dart';
@@ -70,7 +71,7 @@ class EditorAppBar extends StatelessWidget {
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-            child: _buildStatusIndicator(colorScheme),
+            child: _buildStatusIndicator(context, colorScheme),
           ),
           SizedBox(width: EditorSpacing.smallGap),
           // Action buttons in a pill container
@@ -129,7 +130,7 @@ class EditorAppBar extends StatelessWidget {
                           children: [
                             Text(
                               currentFontSize?.toString() ?? 'Aa',
-                              style: TextStyle(
+                              style: AppTypography.caption(context).copyWith(
                                 fontSize: 13,
                                 height: 1.0,
                                 fontWeight: currentFontSize != null ? FontWeight.w600 : FontWeight.w500,
@@ -174,7 +175,7 @@ class EditorAppBar extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIndicator(ColorScheme colorScheme) {
+  Widget _buildStatusIndicator(BuildContext context, ColorScheme colorScheme) {
     switch (saveStatus) {
       case SaveStatus.saving:
         return Row(
@@ -191,10 +192,7 @@ class EditorAppBar extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'Saving',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.caption(context),
             ),
           ],
         );
@@ -212,10 +210,7 @@ class EditorAppBar extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               'Saved',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: successColor,
-              ),
+              style: AppTypography.caption(context).copyWith(color: successColor),
             ),
           ],
         );
@@ -231,10 +226,7 @@ class EditorAppBar extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               'Error',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: colorScheme.error,
-              ),
+              style: AppTypography.caption(context).copyWith(color: colorScheme.error),
             ),
           ],
         );

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/goal_metadata.dart';
 import '../../models/habit_item.dart';
+import '../../utils/app_typography.dart';
 import '../dialogs/add_habit_dialog.dart';
 import '../dialogs/text_input_dialog.dart';
 
@@ -241,7 +242,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
                         item.text,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: AppTypography.body(context).copyWith(
                           decoration: item.isCompleted ? TextDecoration.lineThrough : null,
                         ),
                       ),

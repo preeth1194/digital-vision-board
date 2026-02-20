@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/habit_item.dart';
+import '../../utils/app_typography.dart';
 import '../../models/vision_components.dart';
 import '../../screens/global_insights_screen.dart';
 import '../../services/habit_storage_service.dart';
@@ -73,9 +74,6 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
     final rate = total > 0 ? completedToday / total : 0.0;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _openInsights,
@@ -95,9 +93,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                   Expanded(
                     child: Text(
                       'Insights',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -125,25 +121,22 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                     else if (total == 0)
                       Text(
                         'No habits tracked yet',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                         ),
                       )
                     else ...[
                       Text(
                         '${(rate * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(
+                        style: AppTypography.heading1(context).copyWith(
                           fontSize: 38,
-                          fontWeight: FontWeight.bold,
                           color: colorScheme.onPrimaryContainer,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       Text(
                         '$completedToday of $total done',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppTypography.caption(context).copyWith(
                           color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                         ),
                         textAlign: TextAlign.end,

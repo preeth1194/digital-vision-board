@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../utils/app_typography.dart';
+
 /// Header widget showing today's progress ring and streak info.
 class DailyProgressHeader extends StatelessWidget {
   final int completedCount;
@@ -46,8 +48,7 @@ class DailyProgressHeader extends StatelessWidget {
               children: [
                 Text(
                   "Today\u2019s Progress",
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: AppTypography.bodySmall(context).copyWith(
                     fontWeight: FontWeight.w500,
                     color: isDark
                         ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
@@ -58,9 +59,7 @@ class DailyProgressHeader extends StatelessWidget {
                 if (bestStreak > 0)
                   Text(
                     "You\u2019re on a $bestStreak-day streak! \uD83D\uDD25",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                    style: AppTypography.heading3(context).copyWith(
                       color: colorScheme.onSurface,
                       height: 1.2,
                     ),
@@ -68,9 +67,7 @@ class DailyProgressHeader extends StatelessWidget {
                 else
                   Text(
                     '$completedCount of $totalCount completed',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                    style: AppTypography.heading3(context).copyWith(
                       color: colorScheme.onSurface,
                       height: 1.2,
                     ),
@@ -128,8 +125,7 @@ class DailyProgressHeader extends StatelessWidget {
           // Percentage text
           Text(
             '$percentage%',
-            style: TextStyle(
-              fontSize: 13,
+            style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w800,
               color: colorScheme.onSurface,
             ),

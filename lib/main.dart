@@ -91,6 +91,21 @@ class DigitalVisionBoardApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: AppColors.lightScheme,
             useMaterial3: true,
+            scaffoldBackgroundColor: AppColors.skyGradientTopLight,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.transparent,
+              foregroundColor: AppColors.darkest,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+            ),
+            cardTheme: CardThemeData(
+              color: AppColors.cloudLight,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              shadowColor: Colors.black.withValues(alpha: 0.08),
+            ),
             textTheme: GoogleFonts.interTextTheme(
               const TextTheme(
                 displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -109,6 +124,25 @@ class DigitalVisionBoardApp extends StatelessWidget {
           darkTheme: ThemeData(
             colorScheme: AppColors.darkScheme,
             useMaterial3: true,
+            scaffoldBackgroundColor: AppColors.skyGradientTopDark,
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.transparent,
+              foregroundColor: AppColors.darkScheme.onSurface,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+            ),
+            cardTheme: CardThemeData(
+              color: AppColors.cloudDark,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(
+                  color: AppColors.cloudBorderDark,
+                  width: 0.5,
+                ),
+              ),
+              shadowColor: Colors.black.withValues(alpha: 0.3),
+            ),
             textTheme: GoogleFonts.interTextTheme(
               const TextTheme(
                 displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),

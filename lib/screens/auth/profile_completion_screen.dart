@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/image_service.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
@@ -205,7 +206,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    return Scaffold(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Complete your profile'),
         automaticallyImplyLeading: false,
@@ -263,12 +269,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.zero,
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                     child: TextField(
                       controller: _nameController,
                       style: AppTypography.body(context),
@@ -285,11 +287,23 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                         errorText: _nameError,
                         errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
                         filled: true,
-                        fillColor: Colors.transparent,
-                        border: UnderlineInputBorder(
-                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        fillColor: colorScheme.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary.withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
                       onChanged: (_) => setState(() => _nameError = null),
                     ),
@@ -324,10 +338,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 filled: true,
                                 fillColor: colorScheme.surfaceContainerHighest,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.primary.withValues(alpha: 0.5),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               ),
                               onChanged: (_) => setState(() {}),
                             ),
@@ -340,10 +365,14 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 filled: true,
                                 fillColor: colorScheme.surfaceContainerHighest,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               ),
                               items: const [
                                 DropdownMenuItem(value: 'kg', child: Text('kg')),
@@ -395,10 +424,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                   filled: true,
                                   fillColor: colorScheme.surfaceContainerHighest,
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary.withValues(alpha: 0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -425,10 +465,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                   filled: true,
                                   fillColor: colorScheme.surfaceContainerHighest,
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary.withValues(alpha: 0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -452,10 +503,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                   filled: true,
                                   fillColor: colorScheme.surfaceContainerHighest,
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary.withValues(alpha: 0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -527,6 +589,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+
 import '../../services/sun_times_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 /// Enhanced header widget showing sunrise/sunset with animated sun/moon arc visualization.
 /// Features:
@@ -242,6 +244,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
                 child: GestureDetector(
                 onTap: widget.onRefreshLocation,
                 child: _buildTimeLabel(
+                  context,
                   'Sunrise: ${SunTimesService.formatTime(widget.sunrise)}',
                   showRefreshHint: widget.onRefreshLocation != null,
                   colorScheme: colorScheme,
@@ -254,6 +257,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
               child: GestureDetector(
                 onTap: widget.onRefreshLocation,
                 child: _buildTimeLabel(
+                  context,
                   'Sunset: ${SunTimesService.formatTime(widget.sunset)}',
                   showRefreshHint: widget.onRefreshLocation != null,
                   colorScheme: colorScheme,
@@ -298,7 +302,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
     );
   }
 
-  Widget _buildTimeLabel(String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
+  Widget _buildTimeLabel(BuildContext context, String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -310,7 +314,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
         children: [
           Text(
             text,
-            style: TextStyle(
+            style: AppTypography.caption(context).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: Colors.white,

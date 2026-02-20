@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../models/mood_entry.dart';
+import '../../utils/app_typography.dart';
 import '../../screens/mood_detail_screen.dart';
 import '../../services/mood_storage_service.dart';
 
@@ -130,9 +131,6 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
 
     return Card(
       key: _cardKey,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _onCardTap,
@@ -152,9 +150,7 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                   Expanded(
                     child: Text(
                       'Mood',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -184,16 +180,13 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                 const SizedBox(height: 8),
                 Text(
                   labelForMood(_todayMood!),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  style: AppTypography.heading3(context).copyWith(
                     color: colorScheme.onPrimaryContainer,
                   ),
                 ),
                 Text(
                   "Today's mood",
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppTypography.caption(context).copyWith(
                     color: colorScheme.onPrimaryContainer
                         .withValues(alpha: 0.7),
                   ),
@@ -207,8 +200,7 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                 const SizedBox(height: 8),
                 Text(
                   'Tap to check in',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: AppTypography.bodySmall(context).copyWith(
                     color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                   ),
                 ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 Future<void> showBackgroundOptionsSheet(
   BuildContext context, {
@@ -30,9 +32,9 @@ Future<void> showBackgroundOptionsSheet(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Background',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: AppTypography.heading3(context),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(

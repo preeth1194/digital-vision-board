@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_components.dart';
+import '../utils/app_colors.dart';
 import '../services/boards_storage_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/image_persistence.dart';
@@ -221,7 +222,14 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
                 : 'Insights';
     final effectiveBgColor = _backgroundColor.value == 0xFFF8F9F4 ? colorScheme.surfaceContainerLowest : _backgroundColor;
 
-    return Scaffold(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.skyGradient(isDark: isDark),
+      ),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(title),
@@ -342,7 +350,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }
-

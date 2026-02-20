@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/habit_item.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 enum _ChartMode { activity, coins }
 
@@ -89,9 +90,9 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'Habit Trends',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: AppTypography.heading3(context),
                 ),
                 const Spacer(),
                 _buildModePills(colorScheme),
@@ -183,8 +184,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
         ),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 200),
-          style: TextStyle(
-            fontSize: 12,
+          style: AppTypography.caption(context).copyWith(
             fontWeight: FontWeight.w600,
             color: selected
                 ? colorScheme.onPrimary
@@ -215,7 +215,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
             selected: selected,
             onSelected: (_) => setState(() => _selectedRange = range),
             selectedColor: colorScheme.primary,
-            labelStyle: TextStyle(
+            labelStyle: AppTypography.caption(context).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: selected
@@ -278,7 +278,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                 const SizedBox(width: 4),
                 Text(
                   name,
-                  style: TextStyle(
+                  style: AppTypography.caption(context).copyWith(
                     fontSize: 11,
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -394,8 +394,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
       return Center(
         child: Text(
           'No data this year yet.',
-          style: TextStyle(
-            fontSize: 14,
+          style: AppTypography.bodySmall(context).copyWith(
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
         ),
@@ -461,10 +460,9 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                   : s.y.toInt().toString();
               return LineTooltipItem(
                 '$val completed',
-                TextStyle(
+                AppTypography.bodySmall(context).copyWith(
                   color: AppColors.mossGreen,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
                 ),
               );
             }).toList(),
@@ -644,8 +642,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
       return Center(
         child: Text(
           'No data this year yet.',
-          style: TextStyle(
-            fontSize: 14,
+          style: AppTypography.bodySmall(context).copyWith(
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
         ),
@@ -740,10 +737,9 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               final color = _colorForHabit(habitIdx);
               return LineTooltipItem(
                 '$habitName: ${s.y.toInt()} pts',
-                TextStyle(
+                AppTypography.caption(context).copyWith(
                   color: color,
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
                 ),
               );
             }).toList(),
@@ -779,7 +775,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               padding: const EdgeInsets.only(right: 6),
               child: Text(
                 value.toInt().toString(),
-                style: TextStyle(
+                style: AppTypography.caption(context).copyWith(
                   fontSize: 10,
                   color:
                       colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -806,7 +802,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 label,
-                style: TextStyle(
+                style: AppTypography.caption(context).copyWith(
                   fontSize: 11,
                   fontWeight: today ? FontWeight.w700 : FontWeight.w400,
                   color: today

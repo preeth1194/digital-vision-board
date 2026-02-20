@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 /// A floating bottom navigation bar with a curved notch that slides between
 /// tabs. The selected tab's icon pops up through the notch in a circular
@@ -175,7 +177,9 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
                             centerBtnX: centerSlotX,
                             centerBtnCutoutCenterY: _centerCutoutCenterY,
                             centerBtnCutoutRadius: _centerCutoutRadius,
-                            color: colorScheme.onSurface,
+                            color: colorScheme.brightness == Brightness.dark
+                                ? AppColors.soilDark
+                                : AppColors.soilLight,
                             shadowColor: colorScheme.shadow,
                             borderRadius: 0,
                           ),
@@ -243,7 +247,7 @@ class _AnimatedBottomNavBarState extends State<AnimatedBottomNavBar>
                                         child: Text(
                                           item.label,
                                           textAlign: TextAlign.center,
-                                          style: TextStyle(
+                                          style: AppTypography.caption(context).copyWith(
                                             color: colorScheme.outlineVariant,
                                             fontSize: 11,
                                             fontWeight: isSelected

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
+import '../utils/app_typography.dart';
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
@@ -385,7 +386,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
                   'Delete',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: AppTypography.error(context),
                 ),
               ),
             ],
@@ -451,16 +452,14 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
             const SizedBox(height: 16),
             Text(
               'No habits found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              style: AppTypography.heading3(context).copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add a habit to a goal to get started',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: AppTypography.secondary(context),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -505,9 +504,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   width: double.infinity,
                   child: Text(
                     displayTitle,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                    style: AppTypography.heading3(context).copyWith(
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
@@ -552,8 +549,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                           Expanded(
                                             child: Text(
                                               habit.name,
-                                              style: TextStyle(
-                                                fontSize: 16,
+                                              style: AppTypography.body(context).copyWith(
                                                 fontWeight: FontWeight.w700,
                                                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                                                 color: isCompleted
@@ -618,9 +614,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                           if (!scheduledToday)
                                             Text(
                                               'Not scheduled today',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                              style: AppTypography.caption(context),
                                             ),
                                           if (habit.currentStreak > 0) ...[
                                             Icon(
@@ -630,21 +624,17 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                             ),
                                             Text(
                                               '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
-                                              style: const TextStyle(fontSize: 12),
+                                              style: AppTypography.caption(context),
                                             ),
                                           ] else
                                             Text(
                                               'No streak yet',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                              style: AppTypography.caption(context),
                                             ),
                                           if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
                                             Text(
                                               'Due ${habit.deadline}',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                              style: AppTypography.caption(context),
                                             ),
                                         ],
                                       ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../services/stock_images_service.dart';
+import '../../utils/app_typography.dart';
 
 Future<String?> showPexelsSearchSheet(
   BuildContext context, {
@@ -95,7 +96,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Search from web (Pexels)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            Text('Search from web (Pexels)', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
             TextField(
               controller: _qC,
@@ -121,7 +122,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
             else if ((_error ?? '').trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(_error!, style: TextStyle(color: colorScheme.error)),
+                child: Text(_error!, style: AppTypography.error(context)),
               )
             else if (_urls.isEmpty && _qC.text.trim().isNotEmpty)
               const Padding(

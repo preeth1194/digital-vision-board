@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/grid_tile_model.dart';
+import '../../utils/app_typography.dart';
 import '../../models/journal_book.dart';
 import '../../models/journal_entry.dart';
 import '../../models/vision_board_info.dart';
@@ -478,13 +479,13 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + padBottom),
       children: [
-        const Text('Goal logs', style: TextStyle(fontWeight: FontWeight.w800)),
+        Text('Goal logs', style: AppTypography.heading2(context).copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         if (goalsWithNotes.isEmpty) const Text('No habit feedback logged yet.'),
         for (final g in goalsWithNotes)
           Card(
             child: ExpansionTile(
-              title: Text(g.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              title: Text(g.title, style: AppTypography.heading3(context)),
               subtitle: Text(
                 (g.whyImportant ?? '').trim().isEmpty
                     ? 'Why important: (not set)'
@@ -506,10 +507,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                             _fmtDateTime(n.at),
                             if ((n.subtitle ?? '').trim().isNotEmpty) n.subtitle!,
                           ].join(' • '),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
+                          style: AppTypography.caption(context),
                         ),
                       ],
                     ),

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../../../utils/app_typography.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import '../../../services/journal_book_storage_service.dart';
@@ -381,11 +381,7 @@ class _BookCover extends StatelessWidget {
                                     controller: titleController,
                                     focusNode: titleFocusNode,
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.merriweather(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
+                                    style: AppTypography.heading3(context).copyWith(color: Colors.white),
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       isDense: true,
@@ -398,9 +394,7 @@ class _BookCover extends StatelessWidget {
                                     child: Text(
                                       title,
                                       textAlign: TextAlign.center,
-                                      style: GoogleFonts.merriweather(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
+                                      style: AppTypography.heading3(context).copyWith(
                                         color: Colors.white,
                                         shadows: [
                                           Shadow(
@@ -417,9 +411,8 @@ class _BookCover extends StatelessWidget {
                           Text(
                             'Written by you',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
+                            style: AppTypography.caption(context).copyWith(
                               fontSize: 11,
-                              fontWeight: FontWeight.w400,
                               color: Colors.white.withOpacity(0.6),
                               letterSpacing: 1.2,
                             ),
@@ -437,8 +430,7 @@ class _BookCover extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 '$entryCount ${entryCount == 1 ? 'Page' : 'Pages'}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
+                                style: AppTypography.caption(context).copyWith(
                                   color: Colors.white.withOpacity(0.8),
                                   shadows: coverImagePath != null
                                       ? [
@@ -617,20 +609,15 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                       children: [
                         Text(
                           widget.bookName,
-                          style: GoogleFonts.merriweather(
-                            fontSize: 13,
+                          style: AppTypography.bodySmall(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            color: colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           '${widget.entries.length} ${widget.entries.length == 1 ? 'entry' : 'entries'}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: AppTypography.caption(context).copyWith(fontSize: 11),
                         ),
                       ],
                     ),
@@ -676,7 +663,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
             // Entries list or empty state
             Expanded(
               child: widget.entries.isEmpty
-                  ? _buildEmptyState(isDark, colorScheme)
+                  ? _buildEmptyState(context, isDark, colorScheme)
                   : _buildEntriesList(isDark, colorScheme),
             ),
           ],
@@ -685,7 +672,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
     );
   }
 
-  Widget _buildEmptyState(bool isDark, ColorScheme colorScheme) {
+  Widget _buildEmptyState(BuildContext context, bool isDark, ColorScheme colorScheme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -698,8 +685,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
           const SizedBox(height: 10),
           Text(
             'No entries yet',
-            style: GoogleFonts.inter(
-              fontSize: 13,
+            style: AppTypography.bodySmall(context).copyWith(
               fontWeight: FontWeight.w500,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -707,7 +693,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
           const SizedBox(height: 4),
           Text(
             'Tap + below to add your first entry',
-            style: GoogleFonts.inter(
+            style: AppTypography.caption(context).copyWith(
               fontSize: 11,
               color: colorScheme.outline,
             ),
@@ -832,8 +818,7 @@ class _EntryRowState extends State<_EntryRow> {
                 children: [
                   Text(
                     widget.entry.title ?? 'Untitled',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: widget.colorScheme.onSurface,
                     ),
@@ -843,10 +828,7 @@ class _EntryRowState extends State<_EntryRow> {
                   const SizedBox(height: 4),
                   Text(
                     widget.formattedDate,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: widget.colorScheme.onSurfaceVariant,
-                    ),
+                    style: AppTypography.caption(context),
                   ),
                 ],
               ),

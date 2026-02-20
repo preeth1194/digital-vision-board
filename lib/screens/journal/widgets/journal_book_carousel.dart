@@ -1,13 +1,28 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../../../utils/app_colors.dart';
+import '../../../utils/app_typography.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import '../../../services/journal_book_storage_service.dart';
 import 'book_action_bar.dart';
 import 'interactive_journal_book.dart';
+
+/// Gradient pairs matching the habit color system, aligned with
+/// [JournalBook.presetColors] order.
+const List<List<Color>> _coverGradients = [
+  [AppColors.habitRedLight, AppColors.habitRedDark],
+  [AppColors.habitOrangeLight, AppColors.habitOrangeDark],
+  [AppColors.habitYellowLight, AppColors.habitYellowDark],
+  [AppColors.habitGreenLight, AppColors.habitGreenDark],
+  [AppColors.habitBlueLight, AppColors.habitBlueDark],
+  [AppColors.habitIndigoLight, AppColors.habitIndigoDark],
+  [AppColors.habitVioletLight, AppColors.habitVioletDark],
+];
+
+enum _OverlayMode { colorPicker, deleteConfirm }
 
 /// A horizontal carousel of interactive journal books.
 class JournalBookCarousel extends StatefulWidget {
@@ -23,7 +38,7 @@ class JournalBookCarousel extends StatefulWidget {
   final void Function(String bookId) onDeleteBook;
   final void Function(String bookId, int color) onColorChanged;
   final void Function(String bookId, String newTitle) onTitleChanged;
-  final String? newBookId; // ID of newly created book to auto-focus title
+  final String? newBookId;
   final ValueChanged<bool>? onBookOpenChanged;
 
   const JournalBookCarousel({
@@ -48,7 +63,8 @@ class JournalBookCarousel extends StatefulWidget {
   State<JournalBookCarousel> createState() => _JournalBookCarouselState();
 }
 
-class _JournalBookCarouselState extends State<JournalBookCarousel> {
+class _JournalBookCarouselState extends State<JournalBookCarousel>
+    with SingleTickerProviderStateMixin {
   late PageController _pageController;
   int _currentPage = 0;
   bool _isBookOpen = false;
@@ -57,6 +73,9 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   static const double _closedViewportFraction = 0.65;
   static const double _openViewportFraction = 0.95;
 
+  late AnimationController _overlayController;
+  OverlayEntry? _overlayEntry;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +83,10 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
     _pageController = PageController(
       initialPage: _currentPage,
       viewportFraction: _closedViewportFraction,
+    );
+    _overlayController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -76,7 +99,6 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   @override
   void didUpdateWidget(JournalBookCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Scroll to new book when added
     if (widget.books.length > oldWidget.books.length && widget.newBookId != null) {
       final newIdx = widget.books.indexWhere((b) => b.id == widget.newBookId);
       if (newIdx >= 0 && _pageController.hasClients) {
@@ -93,6 +115,8 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
 
   @override
   void dispose() {
+    _removeOverlay();
+    _overlayController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -109,7 +133,6 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
       viewportFraction: isOpen ? _openViewportFraction : _closedViewportFraction,
     );
     if (isOpen) {
-      // Delay heading collapse so it stays visible while the book animates open
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted && _isBookOpen) {
           widget.onBookOpenChanged?.call(true);
@@ -120,48 +143,52 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
     }
   }
 
-  void _showColorPicker(JournalBook book) async {
-    final color = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _ColorPickerSheet(
-        currentColor: book.coverColor ?? JournalBook.defaultCoverColor,
+  // ─── Overlay helpers ─────────────────────────────────────────────────────
+
+  void _showOverlay(_OverlayMode mode, JournalBook book) {
+    _removeOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (_) => _JournalOverlayPanel(
+        animation: _overlayController,
+        mode: mode,
+        book: book,
+        entryCount: widget.entryCounts[book.id] ?? 0,
+        onDismiss: _hideOverlay,
+        onColorApplied: (color) {
+          widget.onColorChanged(book.id, color);
+          _hideOverlay();
+        },
+        onDeleteConfirmed: () {
+          _hideOverlay();
+          widget.onDeleteBook(book.id);
+        },
       ),
     );
-    if (color != null) {
-      widget.onColorChanged(book.id, color);
-    }
+    Overlay.of(context).insert(_overlayEntry!);
+    _overlayController.forward();
   }
+
+  void _hideOverlay() {
+    _overlayController.reverse().then((_) {
+      _removeOverlay();
+    });
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry?.dispose();
+    _overlayEntry = null;
+  }
+
+  void _showColorPicker(JournalBook book) =>
+      _showOverlay(_OverlayMode.colorPicker, book);
 
   void _confirmDeleteBook(JournalBook book) {
     if (book.id == JournalBookStorageService.goalLogsBookId) return;
-    final entryCount = widget.entryCounts[book.id] ?? 0;
-    final colorScheme = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Book?'),
-        content: Text(
-          'This will permanently delete "${book.name}" and all $entryCount ${entryCount == 1 ? 'entry' : 'entries'} in it. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              widget.onDeleteBook(book.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    _showOverlay(_OverlayMode.deleteConfirm, book);
   }
+
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +254,8 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
                       onDeleteEntry: widget.onDeleteEntry,
                       onDeleteAllEntries: () => _confirmDeleteBook(book),
                       onCustomizeColor: () => _showColorPicker(book),
-                      onTitleChanged: (title) => widget.onTitleChanged(book.id, title),
+                      onTitleChanged: (title) =>
+                          widget.onTitleChanged(book.id, title),
                       onOpenChanged: _onBookOpenChanged,
                       isActive: isActive,
                       isNewBook: isNewBook,
@@ -239,7 +267,6 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
           ),
         ),
         const SizedBox(height: 16),
-        // Action bar for current book – hidden when book is open (buttons are inside)
         if (_currentPage < widget.books.length)
           BookActionBar(
             onColor: () => _showColorPicker(widget.books[_currentPage]),
@@ -252,7 +279,248 @@ class _JournalBookCarouselState extends State<JournalBookCarousel> {
   }
 }
 
-/// Add book card that appears at the end of the carousel.
+// ─── Full-screen overlay panel (uses OverlayEntry) ───────────────────────
+
+class _JournalOverlayPanel extends StatefulWidget {
+  final AnimationController animation;
+  final _OverlayMode mode;
+  final JournalBook book;
+  final int entryCount;
+  final VoidCallback onDismiss;
+  final ValueChanged<int> onColorApplied;
+  final VoidCallback onDeleteConfirmed;
+
+  const _JournalOverlayPanel({
+    required this.animation,
+    required this.mode,
+    required this.book,
+    required this.entryCount,
+    required this.onDismiss,
+    required this.onColorApplied,
+    required this.onDeleteConfirmed,
+  });
+
+  @override
+  State<_JournalOverlayPanel> createState() => _JournalOverlayPanelState();
+}
+
+class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
+  late int _pickerSelectedColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickerSelectedColor =
+        widget.book.coverColor ?? JournalBook.defaultCoverColor;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    const barHeight = 64.0;
+    const circleOverflow = 20.0;
+    final navTotalHeight = barHeight + circleOverflow + bottomPad;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final panelHeight =
+        widget.mode == _OverlayMode.colorPicker ? 240.0 : 200.0;
+
+    return AnimatedBuilder(
+      animation: widget.animation,
+      builder: (context, _) {
+        final t = CurvedAnimation(
+          parent: widget.animation,
+          curve: Curves.easeOutCubic,
+        ).value;
+
+        return Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              // Scrim
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: widget.onDismiss,
+                  child: ColoredBox(
+                    color: Colors.black.withOpacity(0.35 * t),
+                  ),
+                ),
+              ),
+              // Panel sliding up from behind the nav bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: navTotalHeight - circleOverflow,
+                child: Transform.translate(
+                  offset: Offset(0, panelHeight * (1 - t)),
+                  child: Opacity(
+                    opacity: t,
+                    child: ClipPath(
+                      clipper: _NotchedBottomClipper(
+                        cutoutRadius: 34.0,
+                        cutoutCenterOffset: 10.0,
+                      ),
+                      child: Material(
+                        color: colorScheme.surface,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        child: SizedBox(
+                          height: panelHeight,
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                            child: widget.mode == _OverlayMode.colorPicker
+                                ? _buildColorPickerContent(colorScheme)
+                                : _buildDeleteConfirmContent(colorScheme),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildColorPickerContent(ColorScheme colorScheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Choose Cover Color',
+          style: AppTypography.heading3(context),
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          alignment: WrapAlignment.center,
+          children: List.generate(JournalBook.presetColors.length, (index) {
+            final colorValue = JournalBook.presetColors[index];
+            final gradientPair = index < _coverGradients.length
+                ? _coverGradients[index]
+                : [Color(colorValue), Color(colorValue)];
+            final isSelected = colorValue == _pickerSelectedColor;
+
+            return GestureDetector(
+              onTap: () => setState(() => _pickerSelectedColor = colorValue),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientPair,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.onSurface
+                        : Colors.transparent,
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientPair.first.withValues(alpha: 0.4),
+                      blurRadius: isSelected ? 12 : 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: isSelected
+                    ? Icon(Icons.check,
+                        color: colorScheme.onPrimary, size: 20)
+                    : null,
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: FilledButton(
+            onPressed: () => widget.onColorApplied(_pickerSelectedColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: Color(_pickerSelectedColor),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Apply',
+                style: AppTypography.button(context)
+                    .copyWith(color: Colors.white)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeleteConfirmContent(ColorScheme colorScheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.warning_amber_rounded,
+            size: 36, color: colorScheme.error),
+        const SizedBox(height: 12),
+        Text('Delete Book?', style: AppTypography.heading3(context)),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            'This will permanently delete "${widget.book.name}" and all '
+            '${widget.entryCount} '
+            '${widget.entryCount == 1 ? 'entry' : 'entries'} in it. '
+            'This cannot be undone.',
+            style: AppTypography.bodySmall(context).copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: widget.onDismiss,
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('Cancel',
+                    style: AppTypography.bodySmall(context)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: widget.onDeleteConfirmed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('Delete',
+                    style: AppTypography.button(context)
+                        .copyWith(color: colorScheme.onError)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Add book card ────────────────────────────────────────────────────────
+
 class _AddBookCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
@@ -300,7 +568,8 @@ class _AddBookCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+                    color:
+                        colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
                     offset: const Offset(4, 6),
                     blurRadius: 16,
                   ),
@@ -325,8 +594,7 @@ class _AddBookCard extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'New Book',
-                    style: GoogleFonts.merriweather(
-                      fontSize: 16,
+                    style: AppTypography.body(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -341,92 +609,37 @@ class _AddBookCard extends StatelessWidget {
   }
 }
 
-/// Simple color picker sheet.
-class _ColorPickerSheet extends StatefulWidget {
-  final int currentColor;
+// ─── Notched bottom clipper (same as dashboard) ──────────────────────────
 
-  const _ColorPickerSheet({required this.currentColor});
+class _NotchedBottomClipper extends CustomClipper<Path> {
+  final double cutoutRadius;
+  final double cutoutCenterOffset;
 
-  @override
-  State<_ColorPickerSheet> createState() => _ColorPickerSheetState();
-}
-
-class _ColorPickerSheetState extends State<_ColorPickerSheet> {
-  late int _selectedColor;
+  _NotchedBottomClipper({
+    required this.cutoutRadius,
+    required this.cutoutCenterOffset,
+  });
 
   @override
-  void initState() {
-    super.initState();
-    _selectedColor = widget.currentColor;
+  Path getClip(Size size) {
+    final rect = Path()
+      ..addRRect(RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        topLeft: const Radius.circular(20),
+        topRight: const Radius.circular(20),
+      ));
+
+    final cutout = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+        radius: cutoutRadius,
+      ));
+
+    return Path.combine(PathOperation.difference, rect, cutout);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Choose Cover Color',
-            style: GoogleFonts.merriweather(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: JournalBook.presetColors.map((color) {
-              final isSelected = color == _selectedColor;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedColor = color),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Color(color),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? colorScheme.onSurface : Colors.transparent,
-                      width: 3,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(color).withOpacity(0.4),
-                        blurRadius: isSelected ? 12 : 6,
-                      ),
-                    ],
-                  ),
-                  child: isSelected
-                      ? const Icon(Icons.check, color: Colors.white, size: 24)
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, _selectedColor),
-            style: FilledButton.styleFrom(
-              backgroundColor: Color(_selectedColor),
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: const Text('Apply', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+  bool shouldReclip(_NotchedBottomClipper oldClipper) =>
+      cutoutRadius != oldClipper.cutoutRadius ||
+      cutoutCenterOffset != oldClipper.cutoutCenterOffset;
 }

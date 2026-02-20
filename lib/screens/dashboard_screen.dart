@@ -1245,44 +1245,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                 );
               },
             ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/icon/app_icon.png',
-                      width: 36,
-                      height: 36,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Habit Seeding',
-                          style: AppTypography.bodySmall(context).copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Seed your new habits',
-                          style: AppTypography.caption(context).copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 16),
           ],
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import '../../../utils/app_typography.dart';
 
 /// Pinned header bar for the journal screen — title and add-book button.
 class JournalBrowseSection extends StatelessWidget {
@@ -17,18 +18,13 @@ class JournalBrowseSection extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 12, 20, 12),
-      color: colorScheme.surface,
+      color: Colors.transparent,
       child: Row(
         children: [
           Expanded(
             child: Text(
               'Journal',
-              style: GoogleFonts.merriweather(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-                letterSpacing: -0.3,
-              ),
+              style: AppTypography.heading1(context),
             ),
           ),
           if (onAddBook != null)
@@ -143,8 +139,7 @@ class _NeumorphicFilterChipState extends State<NeumorphicFilterChip>
           ),
           child: Text(
             widget.label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
+            style: AppTypography.bodySmall(context).copyWith(
               fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
               color: textColor,
             ),

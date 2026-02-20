@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/subscription_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -21,11 +23,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Go Premium'),
-        backgroundColor: colorScheme.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
       ),
@@ -38,6 +42,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           return _buildSubscriptionPicker(isDark, colorScheme);
         },
       ),
+    ),
     );
   }
 
@@ -73,20 +78,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 24),
             Text(
               'You\'re Premium!',
-              style: TextStyle(
-                fontSize: 24,
+              style: AppTypography.heading1(context).copyWith(
                 fontWeight: FontWeight.w800,
-                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Enjoy your ad-free experience and all premium features.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.bodySmall(context).copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 32),
             OutlinedButton.icon(
@@ -159,20 +159,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 const SizedBox(height: 20),
                 Text(
                   'Unlock Premium',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: colorScheme.onSurface,
-                  ),
+                  style: AppTypography.heading1(context),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Remove all ads and unlock unlimited habits',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: AppTypography.bodySmall(context).copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -238,10 +231,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                textStyle: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
+                textStyle: AppTypography.button(context),
               ),
               child: _purchasing
                   ? SizedBox(
@@ -275,10 +265,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               },
               child: Text(
                 'Restore Purchases',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: AppTypography.secondary(context),
               ),
             ),
           ),
@@ -293,8 +280,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   color: colorScheme.secondary),
               label: Text(
                 'Redeem Gift Code',
-                style: TextStyle(
-                  fontSize: 14,
+                style: AppTypography.secondary(context).copyWith(
                   fontWeight: FontWeight.w600,
                   color: colorScheme.secondary,
                 ),
@@ -312,8 +298,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               'Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. '
               'Manage subscriptions in your device settings.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
+              style: AppTypography.caption(context).copyWith(
                 color: colorScheme.onSurfaceVariant.withValues(
                     alpha: Theme.of(context).brightness == Brightness.dark
                         ? 0.35
@@ -557,8 +542,7 @@ class _BenefitRow extends StatelessWidget {
         const SizedBox(width: 14),
         Text(
           text,
-          style: TextStyle(
-            fontSize: 15,
+          style: AppTypography.bodySmall(context).copyWith(
             fontWeight: FontWeight.w500,
             color: colorScheme.onSurface,
           ),
@@ -659,11 +643,7 @@ class _PlanCard extends StatelessWidget {
                     children: [
                       Text(
                         plan.label,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSurface,
-                        ),
+                        style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
                       ),
                       if (hasSavings) ...[
                         const SizedBox(width: 8),
@@ -677,7 +657,7 @@ class _PlanCard extends StatelessWidget {
                           ),
                           child: Text(
                             plan.savings!,
-                            style: TextStyle(
+                            style: AppTypography.caption(context).copyWith(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: isDark
@@ -695,8 +675,7 @@ class _PlanCard extends StatelessWidget {
             // Price
             Text(
               storePrice,
-              style: TextStyle(
-                fontSize: 15,
+              style: AppTypography.bodySmall(context).copyWith(
                 fontWeight: FontWeight.w700,
                 color: isSelected
                     ? (isDark

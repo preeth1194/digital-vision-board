@@ -1,4 +1,5 @@
 import 'dart:math' show pi;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import '../../services/journal_storage_service.dart';
 import '../../services/ad_service.dart';
 import '../../services/ad_free_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 import '../../screens/routine_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
 import '../rituals/daily_progress_header.dart';
@@ -708,9 +710,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       const SizedBox(height: 16),
                       Text(
                         'No habits yet',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                        style: AppTypography.heading2(context).copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -718,8 +718,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       Text(
                         'Tap + to create your first habit\nand build your daily routine',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                       ),
@@ -1333,21 +1332,32 @@ class _CopingPlanFace extends StatelessWidget {
         isDark ? colorScheme.onSurface.withValues(alpha: 0.6) : colorScheme.onSurfaceVariant;
     final accentColor = AppColors.completedOrange;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: accentColor.withValues(alpha: 0.3),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.7),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1387,7 +1397,7 @@ class _CopingPlanFace extends StatelessWidget {
                               ),
                               child: Text(
                                 'IF',
-                                style: TextStyle(
+                                style: AppTypography.caption(context).copyWith(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   color: colorScheme.error,
@@ -1399,7 +1409,7 @@ class _CopingPlanFace extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cbt.predictedObstacle!,
-                                style: TextStyle(
+                                style: AppTypography.bodySmall(context).copyWith(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                   color: isCompleted
@@ -1433,7 +1443,7 @@ class _CopingPlanFace extends StatelessWidget {
                               ),
                               child: Text(
                                 'THEN',
-                                style: TextStyle(
+                                style: AppTypography.caption(context).copyWith(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   color: colorScheme.primary,
@@ -1445,7 +1455,7 @@ class _CopingPlanFace extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cbt.ifThenPlan!,
-                                style: TextStyle(
+                                style: AppTypography.bodySmall(context).copyWith(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                   color: isCompleted
@@ -1479,7 +1489,7 @@ class _CopingPlanFace extends StatelessWidget {
                     ),
                     child: Text(
                       'Micro',
-                      style: TextStyle(
+                      style: AppTypography.caption(context).copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: accentColor,
@@ -1499,8 +1509,7 @@ class _CopingPlanFace extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   'No coping plan set',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: AppTypography.bodySmall(context).copyWith(
                     fontWeight: FontWeight.w500,
                     color: subtitleColor,
                     fontStyle: FontStyle.italic,
@@ -1508,6 +1517,9 @@ class _CopingPlanFace extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
     );
   }
 }

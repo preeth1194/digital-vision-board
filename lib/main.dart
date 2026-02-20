@@ -14,7 +14,6 @@ import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
 import 'services/logical_date_service.dart';
 import 'services/habit_progress_widget_snapshot_service.dart';
-import 'services/puzzle_widget_snapshot_service.dart';
 import 'utils/app_colors.dart';
 import 'services/widget_deeplink_service.dart';
 import 'services/habit_progress_widget_action_queue_service.dart';
@@ -34,7 +33,6 @@ Future<void> main() async {
   await LogicalDateService.ensureInitialized(prefs: prefs);
   // Best-effort: keep home-screen widgets up-to-date (snapshot + deep-link toggles).
   unawaited(HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs));
-  unawaited(PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs));
   await WidgetDeepLinkService.start();
   HabitProgressWidgetActionQueueService.instance.start();
   try {
@@ -91,6 +89,21 @@ class DigitalVisionBoardApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: AppColors.lightScheme,
             useMaterial3: true,
+            scaffoldBackgroundColor: AppColors.mistBackground,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.transparent,
+              foregroundColor: AppColors.forestDeep,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+            ),
+            cardTheme: CardThemeData(
+              color: AppColors.cloudWhite,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              shadowColor: AppColors.forestDeep.withValues(alpha: 0.08),
+            ),
             textTheme: GoogleFonts.interTextTheme(
               const TextTheme(
                 displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -102,13 +115,28 @@ class DigitalVisionBoardApp extends StatelessWidget {
                 labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ).apply(
-              bodyColor: AppColors.darkest,
-              displayColor: AppColors.darkest,
+              bodyColor: AppColors.forestDeep,
+              displayColor: AppColors.forestDeep,
             ),
           ),
           darkTheme: ThemeData(
             colorScheme: AppColors.darkScheme,
             useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFF0F1A14),
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.transparent,
+              foregroundColor: AppColors.darkScheme.onSurface,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+            ),
+            cardTheme: CardThemeData(
+              color: AppColors.cloudDark,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              shadowColor: Colors.black.withValues(alpha: 0.3),
+            ),
             textTheme: GoogleFonts.interTextTheme(
               const TextTheme(
                 displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,10 +33,10 @@ import 'goal_canvas_viewer_screen.dart';
 import 'templates/template_gallery_screen.dart';
 import 'journal/journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
+import 'challenge_setup_screen.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
-import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'onboarding/onboarding_screen.dart';
@@ -48,6 +49,7 @@ import '../models/routine.dart';
 import '../models/vision_components.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/routine_storage_service.dart';
+import '../models/challenge_template.dart';
 import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
@@ -104,7 +106,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _init();
     _loadCoins();
     _startAutoRefreshReminders();
-    _checkPuzzleDeepLink();
   }
 
   Future<void> _loadProfileAvatar() async {
@@ -136,18 +137,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _loadCoins() async {
     final coins = await CoinsService.getTotalCoins();
     _coinNotifier.value = coins;
-  }
-
-  Future<void> _checkPuzzleDeepLink() async {
-    // Check if puzzle should be opened from widget deep link
-    final shouldOpen = await WidgetDeepLinkService.shouldOpenPuzzle(prefs: _prefs);
-    if (shouldOpen && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _openPuzzleGame();
-        }
-      });
-    }
   }
 
   @override
@@ -402,8 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Text(
                   '$coins',
                   key: ValueKey(coins),
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppTypography.body(context).copyWith(
                     fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
                   ),
@@ -453,7 +441,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Text(
                         badgeCount > 99 ? '99+' : '$badgeCount',
-                        style: TextStyle(
+                        style: AppTypography.caption(context).copyWith(
                           color: Theme.of(context).colorScheme.onError,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -669,6 +657,43 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _openChallengeSetup() async {
+    final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+
+    if (shouldShowAds) {
+      final existingSession = await AdService.getChallengeSession(prefs: _prefs);
+      if (existingSession != null) {
+        final complete = await AdService.isChallengeSessionComplete(
+          existingSession,
+          prefs: _prefs,
+        );
+        if (!complete) {
+          _boardDataVersion.value++;
+          return;
+        }
+      } else {
+        final sessionKey =
+            'challenge_75hard_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setChallengeSession(sessionKey, prefs: _prefs);
+        _boardDataVersion.value++;
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    final res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ChallengeSetupScreen(
+          template: ChallengeTemplates.seventyFiveHard,
+        ),
+      ),
+    );
+    if (mounted && res == true) {
+      _boardDataVersion.value++;
+      setState(() => _tabIndex = 7);
+    }
   }
 
   Future<void> _openPuzzleGame() async {
@@ -973,9 +998,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
       onDeleteBoard: _deleteBoard,
       onSwitchToRoutine: () => setState(() => _tabIndex = 6),
+      onStartChallenge: _openChallengeSetup,
+      onViewHabits: () => setState(() => _tabIndex = 7),
     );
 
     final scaffold = Scaffold(
+      backgroundColor: Colors.transparent,
       drawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.65,
         child: ListView(
@@ -1008,10 +1036,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           const SizedBox(height: 8),
                           Text(
                             displayName,
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: AppTypography.body(context).copyWith(
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1023,8 +1049,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             },
                             child: Text(
                               isGuest ? 'Sign In / Sign Up' : 'View Profile',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: AppTypography.secondary(context).copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1040,15 +1065,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             ValueListenableBuilder<bool>(
               valueListenable: SubscriptionService.isSubscribed,
               builder: (context, subscribed, _) {
+                final cs = Theme.of(context).colorScheme;
                 return ListTile(
                   leading: Icon(
                     Icons.workspace_premium_rounded,
-                    color: subscribed ? AppColors.coinGold : null,
+                    color: subscribed ? AppColors.coinGold : cs.onSurfaceVariant,
                   ),
-                  title: Text(subscribed ? 'Premium Active' : 'Go Premium'),
+                  title: Text(subscribed ? 'Premium Active' : 'Go Premium',
+                    style: AppTypography.body(context).copyWith(color: cs.onSurface)),
                   trailing: subscribed
                       ? Icon(Icons.check_circle_rounded,
-                          color: Theme.of(context).colorScheme.secondary, size: 20)
+                          color: cs.secondary, size: 20)
                       : null,
                   onTap: () {
                     Navigator.of(context).pop();
@@ -1068,12 +1095,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   builder: (context, linkSnap) {
                     final linked = linkSnap.data ?? false;
 
+                    final dcs = Theme.of(context).colorScheme;
                     if (!linked) {
                       return ListTile(
                         leading: Icon(Icons.cloud_off_outlined,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        title: const Text('Backup not set up'),
-                        subtitle: const Text('Tap to link Google account'),
+                            color: dcs.onSurfaceVariant),
+                        title: Text('Backup not set up',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Tap to link Google account',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                         onTap: () {
                           Navigator.of(context).pop();
                           Navigator.of(context).push(
@@ -1091,20 +1121,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: dcs.primary,
                           ),
                         ),
-                        title: const Text('Syncing...'),
-                        subtitle: const Text('Encrypting and uploading'),
+                        title: Text('Syncing...',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Encrypting and uploading',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                       );
                     }
 
                     if (syncState == SyncState.error) {
                       return ListTile(
                         leading: Icon(Icons.cloud_off_outlined,
-                            color: Theme.of(context).colorScheme.error),
-                        title: const Text('Sync failed'),
-                        subtitle: const Text('Tap sync to retry'),
+                            color: dcs.error),
+                        title: Text('Sync failed',
+                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                        subtitle: Text('Tap sync to retry',
+                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
                         trailing: IconButton(
                           icon: const Icon(Icons.sync),
                           onPressed: () =>
@@ -1122,10 +1156,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                     return ListTile(
                       leading: Icon(Icons.cloud_done_outlined,
-                          color: Theme.of(context).colorScheme.primary),
-                      title: Text(AutoSyncService.lastSyncText),
+                          color: dcs.primary),
+                      title: Text(AutoSyncService.lastSyncText,
+                        style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
                       subtitle: AutoSyncService.nextSyncText.isNotEmpty
-                          ? Text(AutoSyncService.nextSyncText)
+                          ? Text(AutoSyncService.nextSyncText,
+                              style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant))
                           : null,
                       trailing: IconButton(
                         icon: const Icon(Icons.sync),
@@ -1145,8 +1181,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.widgets_outlined),
-              title: const Text('Widget Guide'),
+              leading: Icon(Icons.widgets_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('Widget Guide',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1155,8 +1192,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('App Tour'),
+              leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('App Tour',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1167,8 +1205,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Privacy Policy'),
+              leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              title: Text('Privacy Policy',
+                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1183,39 +1222,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                 final id = (snap.data ?? '').trim();
                 if (id.isEmpty) return const SizedBox.shrink();
                 return ListTile(
-                  leading: const Icon(Icons.logout),
-                  title: const Text('Sign out'),
+                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  title: Text('Sign out',
+                    style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _signOut();
                   },
                 );
               },
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Habit Seeding',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Seed your new habits',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 16),
           ],
@@ -1225,7 +1240,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       appBar: (_tabIndex == 6 || _tabIndex == 2) ? null : AppBar(
         toolbarHeight: 72,
         automaticallyImplyLeading: false,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         titleSpacing: 0,
@@ -1265,9 +1280,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       Text(
                         _getGreeting(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
+                        style: AppTypography.secondary(context).copyWith(
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
@@ -1330,17 +1343,22 @@ class _DashboardScreenState extends State<DashboardScreen>
       ],
     );
 
-    return Stack(
-      children: [
-        scaffold,
-        if (_showCreatePanel) _buildCreatePanelOverlay(),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: navBar,
-        ),
-      ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: Stack(
+        children: [
+          scaffold,
+          if (_showCreatePanel) _buildCreatePanelOverlay(),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: navBar,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1349,8 +1367,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     const barHeight = 64.0;
     const circleOverflow = 20.0;
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
-    const panelContentHeight = 240.0;
+    const panelContentHeight = 320.0;
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedBuilder(
       animation: _createPanelController,
@@ -1385,60 +1404,75 @@ class _DashboardScreenState extends State<DashboardScreen>
                       cutoutRadius: 34.0,
                       cutoutCenterOffset: 10.0,
                     ),
-                    child: Material(
-                      color: colorScheme.surface,
+                    child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(20),
                       ),
-                      child: SizedBox(
-                        height: panelContentHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16, bottom: 8),
-                                child: Text(
-                                  'Create New',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: colorScheme.onSurface,
-                                  ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: Material(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.white.withValues(alpha: 0.6),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          child: Container(
+                            height: panelContentHeight,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.12)
+                                      : Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
-                              Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.self_improvement_outlined,
-                                    color: colorScheme.primary,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 16, bottom: 8),
+                                    child: Text(
+                                      'Create New',
+                                      style: AppTypography.body(context).copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
                                   ),
-                                  title: const Text('New Habit'),
-                                  subtitle: const Text(
-                                    'Build a daily practice',
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.self_improvement_outlined,
+                                    title: 'New Habit',
+                                    subtitle: 'Build a daily practice',
+                                    onTap: () => _addHabitFromPanel(),
                                   ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => _addHabitFromPanel(),
-                                ),
+                                  const SizedBox(height: 4),
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.schedule_outlined,
+                                    title: 'New Routine',
+                                    subtitle: 'Habit with timer enabled',
+                                    onTap: () => _addHabitFromPanel(timerEnabled: true),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildGlassMenuTile(
+                                    context: context,
+                                    icon: Icons.military_tech_rounded,
+                                    title: '75 Hard Challenge',
+                                    subtitle: '75-day mental toughness program',
+                                    onTap: () {
+                                      _hideCreatePanel();
+                                      _openChallengeSetup();
+                                    },
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.schedule_outlined,
-                                    color: colorScheme.primary,
-                                  ),
-                                  title: const Text('New Routine'),
-                                  subtitle: const Text(
-                                    'Habit with timer enabled',
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => _addHabitFromPanel(timerEnabled: true),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -1450,6 +1484,78 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildGlassMenuTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.transparent,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.white.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.6),
+                width: 1,
+              ),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(icon, color: colorScheme.primary, size: 24),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppTypography.body(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: AppTypography.caption(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

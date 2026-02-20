@@ -5,6 +5,7 @@ import '../models/habit_item.dart';
 import '../services/logical_date_service.dart';
 import '../services/ad_free_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 
 /// Definition of a single badge / achievement.
 class _BadgeDef {
@@ -249,11 +250,15 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final unlockedCount = _progress.where((p) => p.isUnlocked).length;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDarkTheme),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Achievements'),
-        backgroundColor: colorScheme.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
       ),
@@ -284,9 +289,7 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
               child: Text(
                 'Badges',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                style: AppTypography.heading2(context).copyWith(
                   color: colorScheme.onSurface,
                 ),
               ),
@@ -311,6 +314,7 @@ class _EarnBadgesScreenState extends State<EarnBadgesScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
+    ),
     );
   }
 }
@@ -398,7 +402,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   '$totalCoins coins',
-                  style: TextStyle(
+                  style: AppTypography.heading1(context).copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
@@ -407,10 +411,7 @@ class _SummaryCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '$unlockedCount of $totalCount badges earned',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: AppTypography.secondary(context),
                 ),
               ],
             ),
@@ -521,8 +522,7 @@ class _BadgeCard extends StatelessWidget {
           // Name
           Text(
             badge.name,
-            style: TextStyle(
-              fontSize: 14,
+            style: AppTypography.bodySmall(context).copyWith(
               fontWeight: FontWeight.w700,
               color: textColor,
             ),
@@ -534,7 +534,10 @@ class _BadgeCard extends StatelessWidget {
           // Description
           Text(
             badge.description,
-            style: TextStyle(fontSize: 11, color: subtitleColor),
+            style: AppTypography.caption(context).copyWith(
+              fontSize: 11,
+              color: subtitleColor,
+            ),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -558,7 +561,7 @@ class _BadgeCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${progress.current} / ${badge.target}',
-              style: TextStyle(
+              style: AppTypography.caption(context).copyWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: subtitleColor,
@@ -574,7 +577,7 @@ class _BadgeCard extends StatelessWidget {
               ),
               child: Text(
                 'Earned',
-                style: TextStyle(
+                style: AppTypography.caption(context).copyWith(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: badge.color,
@@ -695,8 +698,7 @@ class _GoAdFreeCard extends StatelessWidget {
                   isActiveToday
                       ? 'Ad-Free Active Today'
                       : 'Go Ad-Free Today!',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: AppTypography.body(context).copyWith(
                     fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface,
                   ),
@@ -706,7 +708,7 @@ class _GoAdFreeCard extends StatelessWidget {
                   isActiveToday
                       ? 'Enjoy your ad-free experience'
                       : 'Use ${AdFreeService.adFreeCoinCost} coins to remove ads for today',
-                  style: TextStyle(
+                  style: AppTypography.bodySmall(context).copyWith(
                     fontSize: 13,
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -740,8 +742,7 @@ class _GoAdFreeCard extends StatelessWidget {
               ),
               label: Text(
                 '${AdFreeService.adFreeCoinCost}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
+                style: AppTypography.button(context).copyWith(
                   color: canAfford
                       ? Colors.white
                       : colorScheme.onSurface.withValues(alpha: 0.4),

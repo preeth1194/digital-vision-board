@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
 import '../services/habit_timer_state_service.dart';
+import '../utils/app_typography.dart';
 import '../services/logical_date_service.dart';
 import '../widgets/circular_countdown_timer.dart';
 
@@ -200,10 +201,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
         ),
         title: Text(
           widget.habit.name,
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       body: Container(
@@ -246,7 +244,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
                 ),
                 label: Text(
                   _running ? 'Running' : 'Paused',
-                  style: TextStyle(
+                  style: AppTypography.bodySmall(context).copyWith(
                     fontWeight: FontWeight.w600,
                     color: _running ? scheme.primary : scheme.onSurfaceVariant,
                   ),
@@ -275,7 +273,7 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
                             icon: Icon(_running ? Icons.pause : Icons.play_arrow, size: 28),
                             label: Text(
                               _running ? 'Pause' : 'Start',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                              style: AppTypography.heading3(context),
                             ),
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -307,10 +305,9 @@ class _HabitTimerScreenState extends State<HabitTimerScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'Adjust time',
-                        style: TextStyle(
+                        style: AppTypography.bodySmall(context).copyWith(
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurfaceVariant,
-                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 8),

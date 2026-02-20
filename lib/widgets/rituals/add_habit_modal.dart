@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -836,57 +838,69 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final baseColor = colorScheme.onSurface;
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+      backgroundColor: isDark
+          ? colorScheme.surface
+          : colorScheme.surfaceContainerLowest,
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.white.withValues(alpha: 0.6),
+              border: Border(
+                top: BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              bottomPadding > 0 ? bottomPadding : 12,
+            ),
+            child: Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _handleCommit,
+                  icon: const Icon(Icons.check_rounded, size: 20),
+                  label: Text(
+                    widget.initialHabit != null ? 'Save Habit' : 'Create Habit',
+                    style: AppTypography.button(context)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          bottomPadding > 0 ? bottomPadding : 12,
-        ),
-        child: Row(
-          children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: _handleCommit,
-              icon: const Icon(Icons.check_rounded, size: 20),
-              label: Text(
-                widget.initialHabit != null ? 'Save Habit' : 'Create Habit',
-                style: AppTypography.button(context)
-                    .copyWith(fontWeight: FontWeight.w600),
-              ),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
       body: Container(
-        color: colorScheme.surface,
+        color: Colors.transparent,
         child: Column(
           children: [
             Expanded(
@@ -1207,7 +1221,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
@@ -1265,7 +1279,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
@@ -1490,9 +1504,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       ),
                     ),
                     if (isRecommended)
-                      const TextSpan(
+                      TextSpan(
                         text: ' \u2B50',
-                        style: TextStyle(fontSize: 12),
+                        style: AppTypography.caption(context),
                       ),
                   ],
                 ),
@@ -1519,7 +1533,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [

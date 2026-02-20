@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/goal_metadata.dart';
+import '../utils/app_typography.dart';
 
 Future<void> showGoalDetailsSheet(
   BuildContext context, {
@@ -20,16 +21,16 @@ class _GoalDetailsSheet extends StatelessWidget {
   final ValueChanged<GoalMetadata>? onEdit;
   const _GoalDetailsSheet({required this.goal, required this.onEdit});
 
-  Widget _kv(String label, String? value) {
+  Widget _kv(BuildContext context, String label, String? value) {
     if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(label, style: AppTypography.heading3(context)),
           const SizedBox(height: 4),
-          Text(value),
+          Text(value, style: AppTypography.body(context)),
         ],
       ),
     );
@@ -64,7 +65,7 @@ class _GoalDetailsSheet extends StatelessWidget {
               Expanded(
                 child: Text(
                   goal.title ?? 'Goal details',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                  style: AppTypography.heading2(context),
                 ),
               ),
               if (onEdit != null)
@@ -79,19 +80,19 @@ class _GoalDetailsSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _kv('Category', goal.category),
-          _kv('Deadline', goal.deadline),
+          _kv(context, 'Category', goal.category),
+          _kv(context, 'Deadline', goal.deadline),
           if (cbt != null) ...[
             const Divider(),
-            const Text('Mindset & coping', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Mindset & coping', style: AppTypography.heading3(context)),
             const SizedBox(height: 10),
-            _kv('Core value', cbt.coreValue),
-            _kv('Visualization', cbt.visualization),
-            _kv('Limiting belief', cbt.limitingBelief),
-            _kv('Reframed truth', cbt.reframedTruth),
+            _kv(context, 'Core value', cbt.coreValue),
+            _kv(context, 'Visualization', cbt.visualization),
+            _kv(context, 'Limiting belief', cbt.limitingBelief),
+            _kv(context, 'Reframed truth', cbt.reframedTruth),
             if (cbt.obstacles.isNotEmpty) ...[
               const SizedBox(height: 6),
-              const Text('Obstacles', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text('Obstacles', style: AppTypography.heading3(context)),
               const SizedBox(height: 8),
               ...cbt.obstacles.map(
                 (o) => Card(
@@ -101,9 +102,9 @@ class _GoalDetailsSheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(o.trigger, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text(o.trigger, style: AppTypography.heading3(context)),
                         const SizedBox(height: 6),
-                        Text(o.copingStrategy),
+                        Text(o.copingStrategy, style: AppTypography.body(context)),
                       ],
                     ),
                   ),
@@ -113,11 +114,11 @@ class _GoalDetailsSheet extends StatelessWidget {
           ],
           if (plan != null) ...[
             const Divider(),
-            const Text('Action plan', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Action plan', style: AppTypography.heading3(context)),
             const SizedBox(height: 10),
-            _kv('Micro habit', plan.microHabit),
-            _kv('Frequency', plan.frequency),
-            if ((weeklyDaysStr ?? '').trim().isNotEmpty) _kv('Weekly days', weeklyDaysStr),
+            _kv(context, 'Micro habit', plan.microHabit),
+            _kv(context, 'Frequency', plan.frequency),
+            if ((weeklyDaysStr ?? '').trim().isNotEmpty) _kv(context, 'Weekly days', weeklyDaysStr),
           ],
         ],
       ),

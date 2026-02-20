@@ -1,8 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/habit_item.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
 
 /// A clean, modern habit card matching the ritual-timeline design.
@@ -213,26 +216,41 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..setEntry(0, 0, _isPressed ? 0.98 : 1.0)
-            ..setEntry(1, 1, _isPressed ? 0.98 : 1.0),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: _isPressed ? 0.04 : 0.08),
-                blurRadius: _isPressed ? 4 : 12,
-                offset: Offset(0, _isPressed ? 1 : 3),
-              ),
-            ],
-          ),
-          child: Row(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+                transform: Matrix4.identity()
+                  ..setEntry(0, 0, _isPressed ? 0.98 : 1.0)
+                  ..setEntry(1, 1, _isPressed ? 0.98 : 1.0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.7),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.25)
+                          : Colors.black.withValues(alpha: 0.06),
+                      blurRadius: _isPressed ? 4 : 20,
+                      offset: Offset(0, _isPressed ? 1 : 4),
+                    ),
+                  ],
+                ),
+                child: Row(
             children: [
               // Category icon circle — tappable to flip the card
               GestureDetector(
@@ -266,8 +284,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                               opacity: _fadeAnim.value,
                               child: Text(
                                 widget.habit.name,
-                                style: TextStyle(
-                                  fontSize: 16,
+                                style: AppTypography.body(context).copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: textColor,
                                 ),
@@ -301,10 +318,8 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                     const SizedBox(height: 4),
                     Text(
                       streak > 0 ? 'Streak $streak days' : "Ready for day 1?",
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppTypography.caption(context).copyWith(
                         color: subtitleColor,
-                        fontWeight: FontWeight.w400,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -333,8 +348,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                     const SizedBox(height: 2),
                     Text(
                       '${widget.adWatchedCount}/${widget.adTotalRequired}',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.primary,
                       ),
@@ -366,8 +380,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                       const SizedBox(width: 4),
                       Text(
                         durationLabel,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           fontWeight: FontWeight.w600,
                           color: subtitleColor,
                         ),
@@ -377,6 +390,9 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                 ),
               ],
             ],
+          ),
+              ),
+            ),
           ),
         ),
       ),

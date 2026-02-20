@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/app_typography.dart';
+
 class TodayProgressCard extends StatelessWidget {
   final double completionRate;
   final int completedToday;
@@ -24,23 +26,23 @@ class TodayProgressCard extends StatelessWidget {
           children: [
             Text(
               'Today\'s Progress',
-              style: TextStyle(
-                fontSize: 16,
+              style: AppTypography.body(context).copyWith(
                 color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '${completionRate.toStringAsFixed(0)}%',
-              style: TextStyle(
+              style: AppTypography.heading1(context).copyWith(
                 fontSize: 48,
-                fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
             Text(
               '$completedToday of $totalHabits habits completed',
-              style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+              style: AppTypography.bodySmall(context).copyWith(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
             ),
             const SizedBox(height: 16),
             LinearProgressIndicator(

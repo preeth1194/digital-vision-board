@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/habit_item.dart';
 import '../models/goal_metadata.dart';
 import '../models/vision_components.dart';
+import '../utils/app_typography.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
@@ -315,7 +316,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
                         todo.text,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: AppTypography.body(context).copyWith(
                           decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
                         ),
                       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../utils/app_typography.dart';
+
 final class CompletionFeedbackResult {
   final int rating; // 1..5
   final String? note;
@@ -98,7 +100,7 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
           ),
           if ((widget.subtitle ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(widget.subtitle!, style: TextStyle(color: colorScheme.onSurfaceVariant)),
+            Text(widget.subtitle!, style: AppTypography.secondary(context)),
           ],
           const SizedBox(height: 12),
           Row(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import '../../../utils/app_typography.dart';
 
 /// Elegant tag chip for the editor
 class EditorTagChip extends StatelessWidget {
@@ -25,8 +26,7 @@ class EditorTagChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
+            style: AppTypography.bodySmall(context).copyWith(
               fontWeight: FontWeight.w500,
               color: colorScheme.onPrimaryContainer,
             ),

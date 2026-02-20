@@ -46,6 +46,22 @@ post_install do |installer|
     end
   end
 
+  # Fix WidgetKit + AppIntents + CocoaPods build cycle:
+  # Flutter's "Thin Binary" phase declares ${TARGET_BUILD_DIR}/${INFOPLIST_PATH}
+  # as an input, which makes Xcode create a directory-tree dependency on the
+  # entire .app bundle—including embedded WidgetKit extensions. When those
+  # extensions use AppIntents, ExtractAppIntentsMetadata feeds back into the
+  # same bundle, forming a cycle.  Clearing the input list is safe because
+  # the phase already sets alwaysOutOfDate = 1 (it always runs).
+  main_project = Xcodeproj::Project.open(File.join(__dir__, 'Runner.xcodeproj'))
+  runner_target = main_project.targets.find { |t| t.name == 'Runner' }
+  if runner_target
+    thin_binary = runner_target.shell_script_build_phases.find { |p| p.name == 'Thin Binary' }
+    thin_binary.input_paths = [] if thin_binary
+    main_project.save
+    puts "Cleared Thin Binary inputPaths to fix WidgetKit build cycle"
+  end
+
   # Fix WeScan Swift 6 / Xcode 16+ compatibility:
   # Remove @available(*, unavailable) stored properties which are now a compile error.
   wescan_file = File.join(installer.sandbox.root, 'WeScan', 'WeScan', 'ImageScannerController.swift')

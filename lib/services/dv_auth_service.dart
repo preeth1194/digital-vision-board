@@ -18,7 +18,6 @@ final class DvAuthService {
   static const _homeTimezoneKey = 'dv_home_timezone_v1';
   static const _genderKey = 'dv_gender_v1';
   static const _userIdKey = 'dv_canva_user_id_v1'; // kept for backward compat
-  static const _userPhoneKey = 'dv_user_phone_v1';
   static const _userEmailKey = 'dv_user_email_v1';
   static const _userDisplayNameKey = 'dv_user_display_name_v1';
   static const _userWeightKey = 'dv_user_weight_kg_v1';
@@ -46,27 +45,21 @@ final class DvAuthService {
     return (v != null && v.trim().isNotEmpty) ? v.trim() : null;
   }
 
-  /// Persist phone/email for display in user profile (e.g. after Firebase sign-in).
+  /// Persist email for display in user profile (e.g. after Google sign-in).
   static Future<void> setUserDisplayInfo({
-    String? phoneNumber,
     String? email,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final phone = (phoneNumber ?? '').trim();
     final em = (email ?? '').trim();
-    if (phone.isNotEmpty) await p.setString(_userPhoneKey, phone);
-    else await p.remove(_userPhoneKey);
     if (em.isNotEmpty) await p.setString(_userEmailKey, em);
     else await p.remove(_userEmailKey);
   }
 
-  /// Returns phone or email for display (whichever is set). Null if neither.
+  /// Returns email for display. Null if not set.
   static Future<String?> getUserDisplayIdentifier({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final phone = (p.getString(_userPhoneKey) ?? '').trim();
     final email = (p.getString(_userEmailKey) ?? '').trim();
-    if (phone.isNotEmpty) return phone;
     if (email.isNotEmpty) return email;
     return null;
   }
@@ -135,14 +128,11 @@ final class DvAuthService {
     else await p.remove(_userDobKey);
   }
 
-  /// For phone users: profile is complete if displayName is set. For Google: always true.
   static Future<bool> isProfileComplete({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final identifier = await getUserDisplayIdentifier(prefs: p);
     if (identifier == null || identifier.isEmpty) return true;
-    if (identifier.contains('@')) return true;
-    final name = await getDisplayName(prefs: p);
-    return name != null && name.isNotEmpty;
+    return true;
   }
 
   static Future<void> _setDvToken(
@@ -318,7 +308,6 @@ final class DvAuthService {
     await p.remove(_expiresAtMsKey);
     await p.remove(_userIdKey);
     await p.remove(_genderKey);
-    await p.remove(_userPhoneKey);
     await p.remove(_userEmailKey);
     await p.remove(_userDisplayNameKey);
     await p.remove(_userWeightKey);

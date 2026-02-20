@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/board_template.dart';
+import '../../utils/app_typography.dart';
 import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
 import '../../models/grid_tile_model.dart';
@@ -213,7 +214,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
                       ),
                       child: Text(
                         _error!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                        style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onErrorContainer),
                       ),
                     ),
                   if (_templates.isEmpty && (_error ?? '').trim().isEmpty)

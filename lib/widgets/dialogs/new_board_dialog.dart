@@ -5,6 +5,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../models/core_value.dart';
 import '../../models/grid_template.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 class NewBoardConfig {
   final String title;
@@ -34,8 +35,8 @@ Future<String?> showTemplatePickerSheet(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const ListTile(
-              title: Text('Choose a template', style: TextStyle(fontWeight: FontWeight.bold)),
+            ListTile(
+              title: Text('Choose a template', style: AppTypography.heading3(context)),
               subtitle: Text('Create your vision board'),
             ),
             Card(
@@ -68,14 +69,14 @@ Future<GridTemplate?> showGridTemplateSelectorSheet(BuildContext context) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Pick a layout',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: AppTypography.heading3(context),
               ),
               const SizedBox(height: 6),
               Text(
                 'Choose a template first, then fill in the blanks.',
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
+                style: AppTypography.secondary(context),
               ),
               const SizedBox(height: 12),
               Flexible(
@@ -108,15 +109,12 @@ Future<GridTemplate?> showGridTemplateSelectorSheet(BuildContext context) {
                                 children: [
                                   Text(
                                     template.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '${template.tiles.length} tiles',
-                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                    style: AppTypography.secondary(context),
                                   ),
                                 ],
                               ),
@@ -238,14 +236,14 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Core value',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: AppTypography.heading3(context),
             ),
             const SizedBox(height: 6),
             Text(
               'Pick one major focus for this board.',
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
+              style: AppTypography.secondary(context),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(

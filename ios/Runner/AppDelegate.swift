@@ -10,9 +10,6 @@ import MediaPlayer
   private let channelName = "dvb/habit_progress_widget"
   private let snapshotKey = "habit_progress_widget_snapshot_v1"
   private let actionQueueKey = "habit_progress_widget_action_queue_v1"
-  
-  private let puzzleChannelName = "dvb/puzzle_widget"
-  private let puzzleSnapshotKey = "puzzle_widget_snapshot_v1"
 
   override func application(
     _ application: UIApplication,
@@ -24,12 +21,8 @@ import MediaPlayer
 
   override func applicationDidFinishLaunching(_ application: UIApplication) {
     super.applicationDidFinishLaunching(application)
-    // Use FlutterPluginRegistry API instead of rootViewController (avoids flutter-launch-rootvc deprecation)
     if let registrar = registrar(forPlugin: "HabitProgressWidget") {
       _registerHabitProgressChannel(messenger: registrar.messenger())
-    }
-    if let registrar = registrar(forPlugin: "PuzzleWidget") {
-      _registerPuzzleChannel(messenger: registrar.messenger())
     }
   }
 
@@ -82,42 +75,6 @@ import MediaPlayer
           return out
         }
         result(mapped)
-      default:
-        result(FlutterMethodNotImplemented)
-      }
-    }
-  }
-
-  private func _registerPuzzleChannel(messenger: FlutterBinaryMessenger) {
-    let puzzleChannel = FlutterMethodChannel(name: puzzleChannelName, binaryMessenger: messenger)
-    puzzleChannel.setMethodCallHandler { [weak self] call, result in
-      guard let self = self else { return }
-      switch call.method {
-      case "updateWidgets":
-        #if canImport(WidgetKit)
-        if #available(iOS 14.0, *) {
-          WidgetCenter.shared.reloadAllTimelines()
-        }
-        #endif
-        result(nil)
-      case "writeSnapshotToAppGroup":
-        guard
-          let args = call.arguments as? [String: Any],
-          let snapshot = args["snapshot"] as? String
-        else {
-          result(nil)
-          return
-        }
-        let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
-        let ud = UserDefaults(suiteName: groupId)
-        ud?.set(snapshot, forKey: self.puzzleSnapshotKey)
-        ud?.synchronize()
-        #if canImport(WidgetKit)
-        if #available(iOS 14.0, *) {
-          WidgetCenter.shared.reloadAllTimelines()
-        }
-        #endif
-        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

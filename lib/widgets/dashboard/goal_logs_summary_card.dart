@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/journal_entry.dart';
+import '../../utils/app_typography.dart';
 import '../../screens/journal/journal_notes_screen.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
@@ -88,9 +89,6 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _openGoalLogs,
@@ -110,9 +108,7 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
                   Expanded(
                     child: Text(
                       'Goal Logs',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
                       ),
                     ),
@@ -142,9 +138,7 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
                         _recentEntry!.title ?? 'Goal Log',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                        style: AppTypography.heading3(context).copyWith(
                           color: colorScheme.onPrimaryContainer,
                         ),
                       ),
@@ -153,8 +147,7 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
                         _previewText(_recentEntry!),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppTypography.caption(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.7),
                         ),
@@ -162,8 +155,7 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
                       const SizedBox(height: 4),
                       Text(
                         _relativeTime(_recentEntry!.createdAt),
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: AppTypography.caption(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.5),
                         ),
@@ -178,8 +170,7 @@ class _GoalLogsSummaryCardState extends State<GoalLogsSummaryCard>
                       const SizedBox(height: 8),
                       Text(
                         'No goal logs yet',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.7),
                         ),

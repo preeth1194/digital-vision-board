@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -12,6 +14,7 @@ class AffirmationCard extends StatefulWidget {
   final Color? cardColor;
   final bool showPinIndicator;
   final bool showCategory;
+  final bool useGlass;
 
   const AffirmationCard({
     super.key,
@@ -22,6 +25,7 @@ class AffirmationCard extends StatefulWidget {
     this.cardColor,
     this.showPinIndicator = true,
     this.showCategory = true,
+    this.useGlass = false,
   });
 
   @override
@@ -129,20 +133,46 @@ class _AffirmationCardState extends State<AffirmationCard>
       return _buildEmptyCard(cardColor, colorScheme, theme);
     }
 
-    return Container(
+    final isDark = theme.brightness == Brightness.dark;
+    final glassMode = widget.useGlass;
+
+    final decoration = glassMode
+        ? BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.7),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          )
+        : BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          );
+
+    Widget cardContent = Container(
       width: double.infinity,
       height: 180,
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: decoration,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Material(
@@ -228,6 +258,18 @@ class _AffirmationCardState extends State<AffirmationCard>
         ),
       ),
     );
+
+    if (glassMode) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: cardContent,
+        ),
+      );
+    }
+
+    return cardContent;
   }
 
   Widget _buildEmptyCard(Color cardColor, ColorScheme colorScheme, ThemeData theme) {

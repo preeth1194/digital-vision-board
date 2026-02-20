@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../../../utils/app_typography.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import 'journal_book_carousel.dart';
@@ -131,13 +131,7 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                             child: Text(
                               'Here, your journal\ncomes to life',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.merriweather(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurface,
-                                height: 1.35,
-                                letterSpacing: -0.5,
-                              ),
+                              style: AppTypography.heading1(context).copyWith(height: 1.35),
                             ),
                           ),
                           const SizedBox(height: 32),

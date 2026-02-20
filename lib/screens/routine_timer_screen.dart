@@ -293,8 +293,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                           children: [
                             Text(
                               step.title.isEmpty ? 'Step ${index + 1}' : step.title,
-                              style: TextStyle(
-                                fontSize: 16,
+                              style: AppTypography.body(context).copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isCompleted
                                     ? scheme.onSurface.withValues(alpha: 0.6)
@@ -317,8 +316,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text('${index + 1}/$total',
-                                    style: TextStyle(
-                                        fontSize: 11,
+                                    style: AppTypography.caption(context).copyWith(
                                         fontWeight: FontWeight.w600,
                                         color: scheme.primary)),
                               ),
@@ -332,8 +330,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text('Done',
-                                      style: TextStyle(
-                                          fontSize: 11,
+                                      style: AppTypography.caption(context).copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: successColor)),
                                 ),
@@ -459,7 +456,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop()),
         title: Text(_habit.name,
-            style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600)),
+            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w600)),
       ),
       body: Container(
         decoration: BoxDecoration(

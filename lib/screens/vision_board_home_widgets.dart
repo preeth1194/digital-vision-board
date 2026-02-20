@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_tile_model.dart';
+import '../utils/app_typography.dart';
 import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
@@ -260,8 +261,8 @@ Future<VisionBoardInfo?> showBoardPickerSheet(
       child: ListView(
         shrinkWrap: true,
         children: [
-          const ListTile(
-            title: Text('Set default board', style: TextStyle(fontWeight: FontWeight.bold)),
+          ListTile(
+            title: Text('Set default board', style: AppTypography.body(ctx).copyWith(fontWeight: FontWeight.bold)),
           ),
           for (final b in boards)
             ListTile(
@@ -360,7 +361,7 @@ class _PreviewTile extends StatelessWidget {
           if (showCategoryLine)
             Text(
               category,
-              style: TextStyle(
+              style: AppTypography.caption(context).copyWith(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -386,7 +387,7 @@ class _PreviewTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             displayTitle,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -634,11 +635,11 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
                 'Select micro habit',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                style: AppTypography.heading3(context).copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             Flexible(
@@ -831,7 +832,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
               const SizedBox(height: 12),
               Text(
                 'No habits scheduled today',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                style: AppTypography.heading3(context).copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -922,7 +923,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                   Expanded(
                                     child: Text(
                                       it.microhabitText!,
-                                      style: TextStyle(
+                                      style: AppTypography.bodySmall(context).copyWith(
                                         fontWeight: FontWeight.w500,
                                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
@@ -959,7 +960,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                         Expanded(
                                           child: Text(
                                             it.habit.name,
-                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
                                             overflow: TextOverflow.ellipsis,
                                             maxLines: 2,
                                           ),

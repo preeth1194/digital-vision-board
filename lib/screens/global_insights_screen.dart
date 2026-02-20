@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../services/habit_storage_service.dart';
+import '../utils/app_typography.dart';
 import '../widgets/insights/stat_card.dart';
 import '../widgets/insights/today_progress_card.dart';
 import '../widgets/insights/weekly_activity_card.dart';
@@ -50,7 +51,9 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
             const SizedBox(height: 16),
             Text(
               'No activity to analyze yet',
-              style: TextStyle(fontSize: 18, color: colorScheme.onSurfaceVariant),
+              style: AppTypography.heading3(context).copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

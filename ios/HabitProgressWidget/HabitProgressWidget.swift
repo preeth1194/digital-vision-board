@@ -11,29 +11,24 @@ struct HabitProgressEntry: TimelineEntry {
 
 struct HabitProgressSnapshot: Codable {
   struct PendingItem: Codable, Identifiable {
-    let componentId: String
     let habitId: String
     let name: String
-    var id: String { "\(componentId):\(habitId)" }
-  }
+    var id: String { habitId }
 
-  struct TimerState: Codable {
-    let habitId: String
-    let songsRemaining: Int?
-    let currentSongTitle: String?
-    let totalSongs: Int?
+    init(from decoder: Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      habitId = (try? c.decode(String.self, forKey: .habitId)) ?? ""
+      name = (try? c.decode(String.self, forKey: .name)) ?? ""
+    }
   }
 
   let v: Int?
   let generatedAtMs: Int?
   let isoDate: String?
-  let boardId: String?
-  let boardTitle: String?
   let eligibleTotal: Int?
   let pendingTotal: Int?
   let pending: [PendingItem]?
   let allDone: Bool?
-  let timerStates: [TimerState]?
 }
 
 struct HabitProgressProvider: TimelineProvider {
@@ -47,7 +42,6 @@ struct HabitProgressProvider: TimelineProvider {
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<HabitProgressEntry>) -> Void) {
     let entry = HabitProgressEntry(date: Date(), snapshot: loadSnapshot())
-    // No periodic refresh; app will reload timelines when snapshot changes.
     completion(Timeline(entries: [entry], policy: .never))
   }
 
@@ -66,8 +60,8 @@ struct HabitProgressWidget: Widget {
     StaticConfiguration(kind: kind, provider: HabitProgressProvider()) { entry in
       HabitProgressWidgetView(entry: entry)
     }
-    .configurationDisplayName("Habit Progress")
-    .description("Shows up to 3 of today’s pending habits from your default board.")
+    .configurationDisplayName("Habits")
+    .description("Mark today's habits as done right from your home screen.")
     .supportedFamilies([.systemSmall, .systemMedium])
   }
 }
@@ -77,17 +71,13 @@ struct HabitProgressWidgetView: View {
 
   var body: some View {
     let snap = entry.snapshot
-    let title = (snap?.boardTitle?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
-      ? (snap?.boardTitle ?? "Today")
-      : "Today"
-    let boardId = snap?.boardId ?? ""
     let pending = snap?.pending ?? []
     let eligibleTotal = snap?.eligibleTotal ?? 0
     let pendingTotal = snap?.pendingTotal ?? pending.count
     let allDone = (snap?.allDone ?? false) || (eligibleTotal > 0 && pendingTotal == 0)
 
     VStack(alignment: .leading, spacing: 8) {
-      Text(title)
+      Text("Today")
         .font(.headline)
         .lineLimit(1)
 
@@ -99,8 +89,7 @@ struct HabitProgressWidgetView: View {
           .font(.body)
       } else {
         ForEach(pending.prefix(3)) { it in
-          let timerState = snap?.timerStates?.first(where: { $0.habitId == it.habitId })
-          HabitRow(boardId: boardId, item: it, timerState: timerState)
+          HabitRow(item: it)
         }
       }
 
@@ -112,35 +101,21 @@ struct HabitProgressWidgetView: View {
 }
 
 struct HabitRow: View {
-  let boardId: String
   let item: HabitProgressSnapshot.PendingItem
-  let timerState: HabitProgressSnapshot.TimerState?
 
   var body: some View {
-    let displayText: String
-    if let timer = timerState, let remaining = timer.songsRemaining, let total = timer.totalSongs {
-      if let songTitle = timer.currentSongTitle, !songTitle.isEmpty {
-        displayText = "\(item.name) (\(remaining)/\(total)) - \(songTitle)"
-      } else {
-        displayText = "\(item.name) (\(remaining)/\(total) songs)"
-      }
-    } else {
-      displayText = item.name
-    }
-
     if #available(iOS 17.0, *) {
-      Button(intent: ToggleHabitIntent(boardId: boardId, componentId: item.componentId, habitId: item.habitId)) {
-        Label(displayText, systemImage: "circle")
+      Button(intent: ToggleHabitIntent(habitId: item.habitId)) {
+        Label(item.name, systemImage: "circle")
           .labelStyle(.titleAndIcon)
           .font(.subheadline)
           .lineLimit(2)
       }
       .buttonStyle(.plain)
     } else {
-      // Fallback: opens the app to apply the toggle.
-      let url = URL(string: "dvb://widget/toggle?boardId=\(boardId)&componentId=\(item.componentId)&habitId=\(item.habitId)&t=\(Int(Date().timeIntervalSince1970*1000))")!
+      let url = URL(string: "dvb://widget/toggle?habitId=\(item.habitId)&t=\(Int(Date().timeIntervalSince1970*1000))")!
       Link(destination: url) {
-        Label(displayText, systemImage: "circle")
+        Label(item.name, systemImage: "circle")
           .labelStyle(.titleAndIcon)
           .font(.subheadline)
           .lineLimit(2)
@@ -159,4 +134,3 @@ private extension View {
     }
   }
 }
-

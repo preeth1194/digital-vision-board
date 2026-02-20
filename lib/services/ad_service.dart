@@ -189,6 +189,57 @@ class AdService {
   static const String _watchCountPrefix = 'reward_ads_watched_';
   static const int requiredAdsPerHabit = 5;
 
+  // ------------------------------------------------------------------
+  // Challenge unlock ad tracking (separate from habit unlock)
+  // ------------------------------------------------------------------
+  static const String _challengeWatchPrefix = 'challenge_ads_watched_';
+  static const String _challengeSessionKey = 'active_challenge_ad_session';
+  static const int requiredAdsForChallenge = 7;
+
+  static Future<String?> getChallengeSession(
+      {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    return p.getString(_challengeSessionKey);
+  }
+
+  static Future<void> setChallengeSession(String? sessionKey,
+      {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    if (sessionKey == null) {
+      await p.remove(_challengeSessionKey);
+    } else {
+      await p.setString(_challengeSessionKey, sessionKey);
+    }
+  }
+
+  static Future<int> getChallengeWatchedCount(String sessionKey,
+      {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    return p.getInt('$_challengeWatchPrefix$sessionKey') ?? 0;
+  }
+
+  static Future<int> incrementChallengeWatchedCount(String sessionKey,
+      {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final current = p.getInt('$_challengeWatchPrefix$sessionKey') ?? 0;
+    final next = current + 1;
+    await p.setInt('$_challengeWatchPrefix$sessionKey', next);
+    return next;
+  }
+
+  static Future<bool> isChallengeSessionComplete(String sessionKey,
+      {SharedPreferences? prefs}) async {
+    final count = await getChallengeWatchedCount(sessionKey, prefs: prefs);
+    return count >= requiredAdsForChallenge;
+  }
+
+  static Future<void> clearChallengeSession(String sessionKey,
+      {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.remove('$_challengeWatchPrefix$sessionKey');
+    await p.remove(_challengeSessionKey);
+  }
+
   /// Number of reward ads the user has watched for a given unlock session.
   static Future<int> getWatchedCount(String sessionKey,
       {SharedPreferences? prefs}) async {

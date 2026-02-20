@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/goal_metadata.dart';
+import '../../utils/app_typography.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
 import '../../utils/component_label_utils.dart';
@@ -83,7 +84,7 @@ class AllBoardsTodosTab extends StatelessWidget {
               row.todo.text,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: AppTypography.body(context).copyWith(
                 decoration: row.todo.isCompleted ? TextDecoration.lineThrough : null,
               ),
             ),

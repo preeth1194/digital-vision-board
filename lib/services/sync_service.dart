@@ -37,8 +37,7 @@ final class SyncService {
     SharedPreferences? prefs,
   }) async {
     Future<void>(() async {
-      await HabitProgressWidgetSnapshotService
-          .refreshIfAffectedBoardBestEffort(boardId, prefs: prefs);
+      await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
     });
   }
 

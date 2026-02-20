@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../utils/app_typography.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:image_picker/image_picker.dart';
 
@@ -650,7 +651,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Tag (optional)', style: TextStyle(fontWeight: FontWeight.w800)),
+                    Text('Tag (optional)', style: AppTypography.heading3(ctx)),
                     const SizedBox(height: 10),
                     TextField(
                       controller: q,
@@ -925,8 +926,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                 ),
                                 child: Text(
                                   _formatEntryDate(),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                  style: AppTypography.caption(context).copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: colorScheme.primary.withOpacity(0.7),
                                     letterSpacing: 0.5,
@@ -1252,7 +1252,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                               children: [
                                 Text(
                                   '$size',
-                                  style: TextStyle(
+                                  style: AppTypography.bodySmall(context).copyWith(
                                     fontSize: 15,
                                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                                     color: isSelected ? cs.primary : cs.onSurface,

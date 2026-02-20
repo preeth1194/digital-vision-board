@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+
+import '../../../utils/app_typography.dart';
 import 'editor_spacing.dart';
 
 /// Custom embed builder for rendering images inline in the Quill editor.
@@ -183,10 +184,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                           const SizedBox(height: 4),
                           Text(
                             'Image not found',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: AppTypography.caption(context),
                           ),
                         ],
                       ),
@@ -372,7 +370,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
               ListTile(
                 leading: Icon(Icons.fullscreen_rounded,
                     color: colorScheme.primary),
-                title: Text('View Full Size', style: GoogleFonts.inter()),
+                title: Text('View Full Size', style: AppTypography.body(context)),
                 onTap: () {
                   Navigator.pop(context);
                   _showFullImage();
@@ -383,7 +381,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                     color: colorScheme.error),
                 title: Text(
                   'Delete Image',
-                  style: GoogleFonts.inter(color: colorScheme.error),
+                  style: AppTypography.error(context),
                 ),
                 onTap: () {
                   Navigator.pop(context);

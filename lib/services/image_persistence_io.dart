@@ -1,14 +1,31 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+Directory? _cachedImagesDir;
+
 Future<Directory> _ensureImagesDir() async {
-  final baseDir = await getApplicationSupportDirectory();
+  if (_cachedImagesDir != null && await _cachedImagesDir!.exists()) {
+    return _cachedImagesDir!;
+  }
+  Directory baseDir;
+  try {
+    baseDir = await getApplicationSupportDirectory();
+  } catch (e) {
+    debugPrint('[ImagePersistence] getApplicationSupportDirectory failed, using HOME fallback: $e');
+    final home = Platform.environment['HOME'] ?? Platform.environment['TMPDIR'] ?? '/tmp';
+    baseDir = Directory(p.join(home, 'Library', 'Application Support'));
+    if (!await baseDir.exists()) {
+      await baseDir.create(recursive: true);
+    }
+  }
   final imagesDir = Directory(p.join(baseDir.path, 'vision_images'));
   if (!await imagesDir.exists()) {
     await imagesDir.create(recursive: true);
   }
+  _cachedImagesDir = imagesDir;
   return imagesDir;
 }
 

@@ -5,28 +5,31 @@ import 'package:intl/intl.dart';
 import '../models/mood_entry.dart';
 import '../services/mood_storage_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 
 // ─── Public mood helpers (used by dashboard summary card too) ────────────────
 
 class MoodOption {
   final int value;
   final IconData icon;
+  final String assetPath;
   final String label;
   final Color color;
   const MoodOption({
     required this.value,
     required this.icon,
+    required this.assetPath,
     required this.label,
     required this.color,
   });
 }
 
 const moodOptions = <MoodOption>[
-  MoodOption(value: 1, icon: Icons.sentiment_very_dissatisfied_rounded, label: 'AWFUL', color: AppColors.moodAwful),
-  MoodOption(value: 2, icon: Icons.sentiment_dissatisfied_rounded, label: 'BAD', color: AppColors.moodBad),
-  MoodOption(value: 3, icon: Icons.sentiment_neutral_rounded, label: 'OKAY', color: AppColors.moodNeutral),
-  MoodOption(value: 4, icon: Icons.sentiment_satisfied_rounded, label: 'GOOD', color: AppColors.moodGood),
-  MoodOption(value: 5, icon: Icons.sentiment_very_satisfied_rounded, label: 'GREAT', color: AppColors.moodGreat),
+  MoodOption(value: 1, icon: Icons.sentiment_very_dissatisfied_rounded, assetPath: 'assets/moods/awful.png', label: 'AWFUL', color: AppColors.moodAwful),
+  MoodOption(value: 2, icon: Icons.sentiment_dissatisfied_rounded, assetPath: 'assets/moods/bad.png', label: 'BAD', color: AppColors.moodBad),
+  MoodOption(value: 3, icon: Icons.sentiment_neutral_rounded, assetPath: 'assets/moods/okay.png', label: 'OKAY', color: AppColors.moodNeutral),
+  MoodOption(value: 4, icon: Icons.sentiment_satisfied_rounded, assetPath: 'assets/moods/good.png', label: 'GOOD', color: AppColors.moodGood),
+  MoodOption(value: 5, icon: Icons.sentiment_very_satisfied_rounded, assetPath: 'assets/moods/great.png', label: 'GREAT', color: AppColors.moodGreat),
 ];
 
 Color colorForMood(int value) =>
@@ -34,6 +37,9 @@ Color colorForMood(int value) =>
 
 IconData iconForMood(int value) =>
     moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).icon;
+
+String assetForMood(int value) =>
+    moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).assetPath;
 
 String labelForMood(int value) =>
     moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).label;
@@ -209,8 +215,15 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mood')),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('Mood'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -219,6 +232,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
           _buildAnalysisSection(colorScheme),
         ],
       ),
+    ),
     );
   }
 
@@ -237,8 +251,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
             if (_loaded)
               Text(
                 '$_ordinalCheckIn CHECK-IN',
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppTypography.caption(context).copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -247,10 +260,8 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
             const SizedBox(height: 8),
             Text(
               'How are you today?',
-              style: TextStyle(
+              style: AppTypography.heading1(context).copyWith(
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
@@ -281,22 +292,21 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: isSelected ? 48 : 42,
-              height: isSelected ? 48 : 42,
-              decoration: BoxDecoration(
-                color: mood.color.withValues(alpha: isSelected ? 1.0 : 0.75),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                mood.icon,
-                size: isSelected ? 30 : 26,
-                color: Colors.white,
+              width: isSelected ? 52 : 44,
+              height: isSelected ? 52 : 44,
+              child: Opacity(
+                opacity: isSelected ? 1.0 : 0.75,
+                child: Image.asset(
+                  mood.assetPath,
+                  width: isSelected ? 52 : 44,
+                  height: isSelected ? 52 : 44,
+                ),
               ),
             ),
             const SizedBox(height: 6),
             Text(
               mood.label,
-              style: TextStyle(
+              style: AppTypography.caption(context).copyWith(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? mood.color : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -323,11 +333,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
           children: [
             Text(
               'Mood Analysis',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+              style: AppTypography.heading2(context),
             ),
             const SizedBox(height: 14),
             _buildRangeSelector(colorScheme),
@@ -337,10 +343,8 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                 Expanded(
                   child: Text(
                     _periodLabel,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -383,7 +387,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
             selected: selected,
             onSelected: (_) => _onRangeChanged(range),
             selectedColor: colorScheme.primary,
-            labelStyle: TextStyle(
+            labelStyle: AppTypography.bodySmall(context).copyWith(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: selected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
@@ -602,7 +606,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
                     label,
-                    style: TextStyle(
+                    style: AppTypography.caption(context).copyWith(
                       fontSize: 11,
                       fontWeight: today ? FontWeight.w700 : FontWeight.w400,
                       color: today
@@ -624,7 +628,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
               final mood = moodOptions[moodIdx];
               return LineTooltipItem(
                 mood.label,
-                TextStyle(
+                AppTypography.bodySmall(context).copyWith(
                   color: mood.color,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -679,8 +683,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
       child: Text(
         '$message\nTap an emoji above to log how you feel!',
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
+        style: AppTypography.secondary(context).copyWith(
           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
         ),
       ),

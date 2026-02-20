@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+
+import '../../../utils/app_typography.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:record/record.dart';
 import '../../../services/journal_audio_storage_service.dart';
@@ -223,19 +224,11 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
                       children: [
                         Text(
                           _formatDuration(_position),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: AppTypography.caption(context),
                         ),
                         Text(
                           _formatDuration(_duration),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: AppTypography.caption(context),
                         ),
                       ],
                     ),
@@ -499,11 +492,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                     : _hasRecording
                         ? 'Recording Complete'
                         : 'Voice Note',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
+                style: AppTypography.heading3(context),
               ),
               const SizedBox(height: 24),
               // Duration display
@@ -558,9 +547,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                         const SizedBox(height: 4),
                         Text(
                           _formatDuration(_recordingDuration),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          style: AppTypography.button(context).copyWith(
                             color: _isRecording
                                 ? colorScheme.error
                                 : colorScheme.onSurface,
@@ -582,9 +569,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       onPressed: () => Navigator.pop(context),
                       child: Text(
                         'Cancel',
-                        style: GoogleFonts.inter(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppTypography.secondary(context),
                       ),
                     ),
                     const SizedBox(width: 24),
@@ -593,7 +578,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       icon: const Icon(Icons.mic_rounded),
                       label: Text(
                         'Start Recording',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        style: AppTypography.button(context),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.primary,
@@ -618,9 +603,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       onPressed: _cancelRecording,
                       child: Text(
                         'Cancel',
-                        style: GoogleFonts.inter(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppTypography.secondary(context),
                       ),
                     ),
                     const SizedBox(width: 24),
@@ -629,7 +612,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       icon: const Icon(Icons.stop_rounded),
                       label: Text(
                         'Stop',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        style: AppTypography.button(context),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.error,
@@ -656,9 +639,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       onPressed: _cancelRecording,
                       child: Text(
                         'Discard',
-                        style: GoogleFonts.inter(
-                          color: colorScheme.error,
-                        ),
+                        style: AppTypography.error(context),
                       ),
                     ),
                     OutlinedButton.icon(
@@ -666,7 +647,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       icon: const Icon(Icons.refresh_rounded, size: 18),
                       label: Text(
                         'Re-record',
-                        style: GoogleFonts.inter(),
+                        style: AppTypography.body(context),
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
@@ -683,7 +664,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                       icon: const Icon(Icons.check_rounded),
                       label: Text(
                         'Save',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        style: AppTypography.button(context),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.primary,

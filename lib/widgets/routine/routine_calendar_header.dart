@@ -1,6 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../models/routine.dart';
+import '../../utils/app_typography.dart';
 
 /// Calendar header widget for the routine screen.
 /// Displays:
@@ -49,7 +53,7 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surface,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -72,6 +76,7 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
 
   Widget _buildCalendarRow(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final monthYearFormat = DateFormat('MMMM yyyy');
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -82,34 +87,47 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
         children: [
           GestureDetector(
             onTap: () => _showMonthPicker(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.calendar_today_rounded,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      monthYearFormat.format(_displayedMonth),
-                      key: ValueKey('${_displayedMonth.year}-${_displayedMonth.month}'),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.white.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.7),
+                      width: 1,
                     ),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Text(
+                          monthYearFormat.format(_displayedMonth),
+                          key: ValueKey('${_displayedMonth.year}-${_displayedMonth.month}'),
+                          style: AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -126,11 +144,11 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Today',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTypography.caption(context).copyWith(
                 fontWeight: FontWeight.w600,
+                color: colorScheme.onPrimary,
               ),
             ),
           ),
@@ -324,7 +342,7 @@ class _DateItem extends StatelessWidget {
           children: [
             Text(
               _weekdays[date.weekday % 7],
-              style: TextStyle(
+              style: AppTypography.caption(context).copyWith(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 color: weekdayColor,
@@ -333,8 +351,7 @@ class _DateItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${date.day}',
-              style: TextStyle(
-                fontSize: 16,
+              style: AppTypography.body(context).copyWith(
                 fontWeight: FontWeight.w700,
                 color: textColor,
               ),

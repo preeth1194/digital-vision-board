@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 
 class WidgetGuideScreen extends StatelessWidget {
@@ -7,13 +8,17 @@ class WidgetGuideScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Widget Guide'),
-        backgroundColor: scheme.surface,
-        surfaceTintColor: Colors.transparent,
-      ),
+    return Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Widget Guide'),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+        ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
@@ -72,7 +77,9 @@ class WidgetGuideScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'If a widget doesn\'t update right away, open the app once to refresh.',
-                      style: TextStyle(color: scheme.onPrimaryContainer),
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: scheme.onPrimaryContainer,
+                      ),
                     ),
                   ),
                 ],
@@ -80,6 +87,7 @@ class WidgetGuideScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

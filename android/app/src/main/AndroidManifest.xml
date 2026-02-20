@@ -18,7 +18,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="com.android.vending.BILLING"/>
     <application
-        android:label="Seero: Habit Seeding"
+        android:label="Habit Seeding"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -58,12 +58,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="dvb" android:host="widget" android:pathPrefix="/toggle" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="dvb" android:host="puzzle" />
-            </intent-filter>
         </activity>
 
         <receiver
@@ -77,16 +71,6 @@
                 android:resource="@xml/habit_progress_widget_info" />
         </receiver>
 
-        <receiver
-            android:name=".PuzzleAppWidget"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/puzzle_widget_info" />
-        </receiver>
         <!-- AdMob App ID (replace with your real App ID for production) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

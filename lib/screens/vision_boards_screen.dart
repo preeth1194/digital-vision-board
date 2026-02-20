@@ -3,10 +3,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/vision_board_info.dart';
+import '../utils/app_typography.dart';
 import '../models/grid_tile_model.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
@@ -188,15 +188,13 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
             const SizedBox(height: 16),
             Text(
               'No Vision Boards Yet',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: AppTypography.heading1(context),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Create your first vision board to get started.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+              style: AppTypography.secondary(context),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -275,9 +273,9 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   _boards[_currentPage].id == _activeBoardId ? 'Active Board' : 'Tap to view',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      ),
+                  style: AppTypography.secondary(context).copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
                 ),
               ),
           ],
@@ -449,8 +447,7 @@ class _BoardCard extends StatelessWidget {
             board.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.merriweather(
-              fontSize: 16,
+            style: AppTypography.body(context).copyWith(
               fontWeight: FontWeight.w700,
               color: colorScheme.onSurface,
             ),
@@ -458,9 +455,9 @@ class _BoardCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${tiles.where((t) => t.type == 'image').length} images · ${tiles.length} tiles',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
+            style: AppTypography.secondary(context).copyWith(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -533,9 +530,7 @@ class _AddBoardCard extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'New Board',
-                    style: GoogleFonts.merriweather(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                    style: AppTypography.heading3(context).copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
@@ -715,7 +710,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                           width: _centerBtnSize + _centerBtnBorder * 2,
                           height: _centerBtnSize + _centerBtnBorder * 2,
                           decoration: BoxDecoration(
-                            color: colorScheme.primary,
+                            color: colorScheme.primaryContainer,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: colorScheme.surface,
@@ -723,7 +718,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: colorScheme.primary
+                                color: colorScheme.primaryContainer
                                     .withOpacity(glowOpacity.clamp(0.0, 1.0)),
                                 blurRadius: 14,
                                 spreadRadius: 2,
@@ -732,7 +727,7 @@ class _VisionBoardsBottomBarState extends State<_VisionBoardsBottomBar>
                           ),
                           child: Icon(
                             Icons.add_rounded,
-                            color: colorScheme.onPrimary,
+                            color: colorScheme.onPrimaryContainer,
                             size: 26,
                           ),
                         ),
@@ -774,7 +769,7 @@ class _BarIconButton extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: AppTypography.caption(context).copyWith(
               color: color,
               fontSize: 11,
               fontWeight: FontWeight.w500,

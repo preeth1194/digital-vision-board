@@ -5,16 +5,13 @@ import 'app_colors.dart';
 
 /// Standardized typography system for the app.
 /// All text styles use Inter font, theme-aware colors, and consistent sizing.
-/// Headings use forestGreen in light mode for a crisp organic look.
+/// Headings use the theme's onSurface (dark warm brown / cream) for readability.
 class AppTypography {
   AppTypography._();
 
-  /// Resolve the heading color: forestGreen in light mode, onSurface in dark.
+  /// Resolve the heading color from the theme's onSurface.
   static Color _headingColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? Theme.of(context).colorScheme.onSurface
-        : AppColors.forestGreen;
+    return Theme.of(context).colorScheme.onSurface;
   }
 
   /// Heading 1 - 24sp, bold

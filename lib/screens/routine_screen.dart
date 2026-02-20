@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,7 @@ import '../services/habit_storage_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sun_times_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 import '../widgets/ads/reward_ad_card.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 import '../widgets/rituals/habit_completion_sheet.dart';
@@ -663,28 +665,52 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
   Widget _buildEmptyTimelineHint() {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.schedule_outlined, size: 40,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-          const SizedBox(height: 12),
-          Text('No habits yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text('Tap an empty time slot to create a habit',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
-        ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.7),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.schedule_outlined, size: 40,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              const SizedBox(height: 12),
+              Text('No habits yet',
+                  style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              Text('Tap an empty time slot to create a habit',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall(context).copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -734,8 +760,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Text(hourLabel,
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: isCurrentHour ? FontWeight.w700 : FontWeight.w600,
                       color: isCurrentHour
                           ? colorScheme.primary
@@ -778,7 +803,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Text(halfLabel,
-                    style: TextStyle(
+                    style: AppTypography.caption(context).copyWith(
                       fontSize: 10,
                       fontWeight: FontWeight.w400,
                       color: isDark
@@ -1078,36 +1103,50 @@ class _TimelineHabitCard extends StatelessWidget {
     final textColor = _getContrastColor(colorScheme, tileColor);
     final subtitleColor = textColor.withOpacity(0.65);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: height.clamp(54, 200),
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: EdgeInsets.symmetric(
-            horizontal: _compact ? 10 : 12,
-            vertical: _compact ? 6 : 8,
-          ),
-          decoration: BoxDecoration(
-            color: tileColor.withOpacity(isDark ? 0.9 : 1.0),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: tileColor.withOpacity(0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: height.clamp(54, 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: _compact ? 10 : 12,
+                  vertical: _compact ? 6 : 8,
+                ),
+                decoration: BoxDecoration(
+                  color: tileColor.withOpacity(isDark ? 0.7 : 0.75),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tileColor.withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _compact ? _buildCompactRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted) : _buildNormalRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted),
               ),
-            ],
+            ),
           ),
-          child: _compact ? _buildCompactRow(iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted) : _buildNormalRow(iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted),
         ),
       ),
     );
   }
 
-  Widget _buildCompactRow(IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
+  Widget _buildCompactRow(BuildContext context, IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
     return Row(
       children: [
         Container(
@@ -1128,14 +1167,14 @@ class _TimelineHabitCard extends StatelessWidget {
             children: [
               Text(
                 habit.name,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+                style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
                 '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}  ·  ${_formatDuration(duration)}',
-                style: TextStyle(fontSize: 10, color: subtitleColor, fontWeight: FontWeight.w500),
+                style: AppTypography.caption(context).copyWith(fontSize: 10, color: subtitleColor, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -1148,7 +1187,7 @@ class _TimelineHabitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildNormalRow(IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
+  Widget _buildNormalRow(BuildContext context, IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
     return Row(
       children: [
         Container(
@@ -1169,7 +1208,7 @@ class _TimelineHabitCard extends StatelessWidget {
             children: [
               Text(
                 habit.name,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1178,11 +1217,11 @@ class _TimelineHabitCard extends StatelessWidget {
                 children: [
                   Text(
                     '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}',
-                    style: TextStyle(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.w500),
+                    style: AppTypography.caption(context).copyWith(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.w500),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text('·', style: TextStyle(color: subtitleColor, fontWeight: FontWeight.w700)),
+                    child: Text('·', style: AppTypography.caption(context).copyWith(color: subtitleColor, fontWeight: FontWeight.w700)),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1192,13 +1231,13 @@ class _TimelineHabitCard extends StatelessWidget {
                     ),
                     child: Text(
                       _formatDuration(duration),
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
+                      style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
                     ),
                   ),
                   if (habit.actionSteps.isNotEmpty) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('·', style: TextStyle(color: subtitleColor, fontWeight: FontWeight.w700)),
+                      child: Text('·', style: AppTypography.caption(context).copyWith(color: subtitleColor, fontWeight: FontWeight.w700)),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1208,7 +1247,7 @@ class _TimelineHabitCard extends StatelessWidget {
                       ),
                       child: Text(
                         '${habit.actionSteps.length} steps',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
+                        style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
                       ),
                     ),
                   ],
@@ -1257,12 +1296,12 @@ class _CompletionDetailsSheet extends StatelessWidget {
     required this.feedback,
   });
 
-  static const _moodData = <int, (IconData, String, Color)>{
-    1: (Icons.sentiment_very_dissatisfied_rounded, 'Awful', AppColors.moodAwful),
-    2: (Icons.sentiment_dissatisfied_rounded, 'Bad', AppColors.moodBad),
-    3: (Icons.sentiment_neutral_rounded, 'Neutral', AppColors.moodNeutral),
-    4: (Icons.sentiment_satisfied_rounded, 'Good', AppColors.moodGood),
-    5: (Icons.sentiment_very_satisfied_rounded, 'Great', AppColors.moodGreat),
+  static const _moodData = <int, (String, String, Color)>{
+    1: ('assets/moods/awful.png', 'Awful', AppColors.moodAwful),
+    2: ('assets/moods/bad.png', 'Bad', AppColors.moodBad),
+    3: ('assets/moods/okay.png', 'Neutral', AppColors.moodNeutral),
+    4: ('assets/moods/good.png', 'Good', AppColors.moodGood),
+    5: ('assets/moods/great.png', 'Great', AppColors.moodGreat),
   };
 
   @override
@@ -1331,11 +1370,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     children: [
                       Text(
                         habit.name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSurface,
-                        ),
+                        style: AppTypography.heading3(context),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1347,8 +1382,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             'Completed',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppTypography.caption(context).copyWith(
                               fontWeight: FontWeight.w600,
                               color: colorScheme.primary,
                             ),
@@ -1369,13 +1403,33 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.monetization_on,
-                            size: 16, color: AppColors.gold),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [AppColors.goldLight, AppColors.goldDark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(
+                              color: AppColors.amberBorder,
+                              width: 1,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.monetization_on_rounded,
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '+$coins',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: AppTypography.bodySmall(context).copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.gold,
                           ),
@@ -1401,9 +1455,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     if (mood != null &&
                         mood > 0 &&
                         _moodData.containsKey(mood))
-                      _buildDetailRow(
-                        icon: _moodData[mood]!.$1,
-                        iconColor: _moodData[mood]!.$3,
+                      _buildDetailRow(context,
+                        moodAsset: _moodData[mood]!.$1,
                         label: 'Mood',
                         value: _moodData[mood]!.$2,
                         valueColor: _moodData[mood]!.$3,
@@ -1412,7 +1465,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                         isLast: (note == null || note.isEmpty),
                       ),
                     if (note != null && note.isNotEmpty)
-                      _buildNoteRow(
+                      _buildNoteRow(context,
                         note: note,
                         colorScheme: colorScheme,
                         isFirst:
@@ -1427,8 +1480,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'No additional details recorded.',
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppTypography.bodySmall(context).copyWith(
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
@@ -1445,9 +1497,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Done',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: AppTypography.button(context),
                 ),
               ),
             ),
@@ -1457,9 +1509,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow({
-    required IconData icon,
-    required Color iconColor,
+  Widget _buildDetailRow(BuildContext context, {
+    required String moodAsset,
     required String label,
     required String value,
     required Color valueColor,
@@ -1476,15 +1527,11 @@ class _CompletionDetailsSheet extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: iconColor),
+          Image.asset(moodAsset, width: 22, height: 22),
           const SizedBox(width: 12),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: AppTypography.secondary(context).copyWith(fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Container(
@@ -1495,8 +1542,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
             ),
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTypography.bodySmall(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: valueColor,
               ),
@@ -1507,7 +1553,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildNoteRow({
+  Widget _buildNoteRow(BuildContext context, {
     required String note,
     required ColorScheme colorScheme,
     required bool isFirst,
@@ -1531,8 +1577,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
           Expanded(
             child: Text(
               note,
-              style: TextStyle(
-                fontSize: 14,
+              style: AppTypography.bodySmall(context).copyWith(
                 color: colorScheme.onSurface,
                 height: 1.4,
               ),

@@ -17,6 +17,7 @@ import '../services/image_service.dart';
 import '../services/stock_images_service.dart';
 import '../services/templates_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
 import '../widgets/dialogs/add_goal_dialog.dart';
@@ -694,7 +695,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                Text('Border Radius', style: Theme.of(ctx).textTheme.labelLarge),
+                Text('Border Radius', style: AppTypography.bodySmall(ctx)),
                 Row(
                   children: [
                     const Text('0'),
@@ -713,7 +714,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                Text('Tile Background', style: Theme.of(ctx).textTheme.labelLarge),
+                Text('Tile Background', style: AppTypography.bodySmall(ctx)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 10,
@@ -935,7 +936,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                     Text(
                       'Tap twice\nto add',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: AppTypography.caption(context).copyWith(
                         color: colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
@@ -965,7 +966,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: AppTypography.bodySmall(context).copyWith(
                 color: Theme.of(context).colorScheme.surface,
                 fontWeight: FontWeight.w700,
               ),
@@ -1026,7 +1027,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 }
               : null,
         ),
-        Text('${fontSize.round()}', style: Theme.of(context).textTheme.labelMedium),
+        Text('${fontSize.round()}', style: AppTypography.caption(context)),
         IconButton(
           tooltip: 'Increase size',
           icon: const Icon(Icons.text_increase),
@@ -1071,7 +1072,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 controller: _boardNameC,
                 maxLength: 100,
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: AppTypography.heading3(context),
                 decoration: const InputDecoration(
                   hintText: 'Name your board',
                   border: InputBorder.none,

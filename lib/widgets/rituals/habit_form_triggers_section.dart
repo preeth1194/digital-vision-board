@@ -638,7 +638,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
         ),
       ),
       margin: EdgeInsets.zero,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       decoration: habitSectionDecoration(colorScheme),
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
@@ -698,7 +698,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                               const SizedBox(height: 4),
                               Text(
                                 widget.timeConflictError!,
-                                style: TextStyle(color: colorScheme.error, fontSize: 12),
+                                style: AppTypography.caption(context).copyWith(color: colorScheme.error),
                               ),
                               if (widget.suggestedStartTime != null)
                                 Padding(
@@ -713,9 +713,8 @@ class _Step4TriggersState extends State<Step4Triggers> {
                                       ),
                                       child: Text(
                                         'Try ${widget.suggestedStartTime!.format(context)}',
-                                        style: TextStyle(
+                                        style: AppTypography.caption(context).copyWith(
                                           color: colorScheme.primary,
-                                          fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -732,9 +731,8 @@ class _Step4TriggersState extends State<Step4Triggers> {
                                   Flexible(
                                     child: Text(
                                       widget.slotAvailableInfo!,
-                                      style: TextStyle(
+                                      style: AppTypography.caption(context).copyWith(
                                         color: colorScheme.primary,
-                                        fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),

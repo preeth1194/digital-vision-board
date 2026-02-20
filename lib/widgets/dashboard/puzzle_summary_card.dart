@@ -3,10 +3,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../screens/puzzle_game_screen.dart';
+import '../../utils/app_typography.dart';
 import '../../services/image_service.dart';
 import '../../services/puzzle_service.dart';
 import '../../services/puzzle_state_service.dart';
 import '../../utils/file_image_provider.dart';
+import 'glass_card.dart';
 
 class PuzzleSummaryCard extends StatefulWidget {
   const PuzzleSummaryCard({super.key});
@@ -106,108 +108,99 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: colorScheme.primaryContainer,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _openPuzzle,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.extension_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Puzzle',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
+    return GlassCard(
+      onTap: _openPuzzle,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.extension_rounded,
+                  color: colorScheme.onPrimaryContainer,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Puzzle',
+                    style: AppTypography.heading3(context).copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontSize: 14,
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.6),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!_loaded)
-                      SizedBox(
-                        height: 4,
-                        child: LinearProgressIndicator(
-                          backgroundColor:
-                              colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                        ),
-                      )
-                    else if (_imagePath != null) ...[
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image(
-                              image: fileImageProviderFromPath(_imagePath!) ??
-                                  const AssetImage('assets/placeholder.png')
-                                      as ImageProvider,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (context, error, stack) => Icon(
-                                Icons.extension_rounded,
-                                size: 36,
-                                color: colorScheme.onPrimaryContainer
-                                    .withValues(alpha: 0.5),
-                              ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 15,
+                  color: colorScheme.onPrimaryContainer
+                      .withValues(alpha: 0.6),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!_loaded)
+                    SizedBox(
+                      height: 4,
+                      child: LinearProgressIndicator(
+                        backgroundColor:
+                            colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+                      ),
+                    )
+                  else if (_imagePath != null) ...[
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image(
+                            image: fileImageProviderFromPath(_imagePath!) ??
+                                const AssetImage('assets/placeholder.png')
+                                    as ImageProvider,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stack) => Icon(
+                              Icons.extension_rounded,
+                              size: 36,
+                              color: colorScheme.onPrimaryContainer
+                                  .withValues(alpha: 0.5),
                             ),
                           ),
                         ),
                       ),
-                    ] else ...[
-                      Icon(
-                        Icons.extension_outlined,
+                    ),
+                  ] else ...[
+                    Icon(
+                      Icons.extension_outlined,
+                      color: colorScheme.onPrimaryContainer
+                          .withValues(alpha: 0.5),
+                      size: 36,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No puzzle yet',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onPrimaryContainer
+                            .withValues(alpha: 0.7),
+                      ),
+                    ),
+                    Text(
+                      'Tap to start',
+                      style: AppTypography.caption(context).copyWith(
                         color: colorScheme.onPrimaryContainer
                             .withValues(alpha: 0.5),
-                        size: 36,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No puzzle yet',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7),
-                        ),
-                      ),
-                      Text(
-                        'Tap to start',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

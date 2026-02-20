@@ -1,5 +1,3 @@
-import '../utils/app_colors.dart';
-
 /// Represents a journal book that can contain multiple journal entries.
 final class JournalBook {
   /// Unique identifier for this book.
@@ -79,20 +77,18 @@ final class JournalBook {
     );
   }
 
-  /// Default cover color (coral red).
-  static const int defaultCoverColor = AppColors.coverCoral;
+  /// Default cover color (red).
+  static const int defaultCoverColor = 0xFFEF4444;
 
   /// Preset cover colors for the color picker.
+  /// Uses the same 7 colors as the habit system (light variants).
   static const List<int> presetColors = [
-    AppColors.coverCoral,
-    AppColors.coverOrange,
-    AppColors.coverYellow,
-    AppColors.coverLightGreen,
-    AppColors.coverTeal,
-    AppColors.coverBlue,
-    AppColors.coverPurple,
-    AppColors.coverPink,
-    AppColors.coverBrown,
-    AppColors.coverBlueGrey,
+    0xFFEF4444, // Red   (habitRedLight)
+    0xFFF97316, // Orange (habitOrangeLight)
+    0xFFEAB308, // Yellow (habitYellowLight)
+    0xFF22C55E, // Green  (habitGreenLight)
+    0xFF3B82F6, // Blue   (habitBlueLight)
+    0xFF6366F1, // Indigo (habitIndigoLight)
+    0xFF8B5CF6, // Violet (habitVioletLight)
   ];
 }

@@ -84,7 +84,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         'Link your Google account to back up your boards, journal, '
         'habits, and more to your personal Google Drive \u2014 '
         'encrypted and private.',
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+        style: AppTypography.body(context).copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.4,
             ),
@@ -99,7 +99,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       const SizedBox(height: 8),
       Text(
         'Estimated backup size: ${_formatBytes(_estimatedSize)}',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        style: AppTypography.bodySmall(context).copyWith(
               color: scheme.onSurfaceVariant,
             ),
         textAlign: TextAlign.center,
@@ -115,9 +115,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       const SizedBox(height: 24),
       if (_backups.isNotEmpty) ...[
         Text('Backups on Google Drive',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
+            style: AppTypography.heading3(context)),
         const SizedBox(height: 8),
         ..._backups.map((b) => _buildBackupTile(b, scheme)),
       ],
@@ -126,7 +124,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text('No backups yet.',
-                style: TextStyle(color: scheme.onSurfaceVariant)),
+                style: AppTypography.secondary(context)),
           ),
         ),
       const SizedBox(height: 24),
@@ -185,7 +183,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 : Icon(icon, color: iconColor),
             title: Text(title),
             subtitle: Text(subtitle,
-                style: TextStyle(color: scheme.onSurfaceVariant)),
+                style: AppTypography.secondary(context)),
           ),
         );
       },
@@ -245,16 +243,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('About backups',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
+            style: AppTypography.heading3(context)),
         const SizedBox(height: 8),
         Text(
           '\u2022 Backups are encrypted with AES-256 before upload\n'
           '\u2022 Auto-sync runs every 24 hours when you open the app\n'
           '\u2022 Last ${GoogleDriveBackupService.maxBackups} backups are kept\n'
           '\u2022 Estimated size: ${_formatBytes(_estimatedSize)}',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          style: AppTypography.bodySmall(context).copyWith(
                 color: scheme.onSurfaceVariant,
                 height: 1.5,
               ),

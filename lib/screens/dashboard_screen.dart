@@ -37,7 +37,6 @@ import 'challenge_setup_screen.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
-import '../services/widget_deeplink_service.dart';
 import 'widget_guide_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'onboarding/onboarding_screen.dart';
@@ -107,7 +106,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _init();
     _loadCoins();
     _startAutoRefreshReminders();
-    _checkPuzzleDeepLink();
   }
 
   Future<void> _loadProfileAvatar() async {
@@ -139,18 +137,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _loadCoins() async {
     final coins = await CoinsService.getTotalCoins();
     _coinNotifier.value = coins;
-  }
-
-  Future<void> _checkPuzzleDeepLink() async {
-    // Check if puzzle should be opened from widget deep link
-    final shouldOpen = await WidgetDeepLinkService.shouldOpenPuzzle(prefs: _prefs);
-    if (shouldOpen && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _openPuzzleGame();
-        }
-      });
-    }
   }
 
   @override

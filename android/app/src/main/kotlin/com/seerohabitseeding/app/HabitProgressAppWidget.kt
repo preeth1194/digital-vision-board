@@ -38,19 +38,14 @@ class HabitProgressAppWidget : AppWidgetProvider() {
         val prefs = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         val raw = prefs.getString(SNAPSHOT_KEY, null)
 
-        var boardId = ""
-        var boardTitle = "Today"
         var eligibleTotal = 0
         var pendingTotal = 0
         var allDone = false
         val pending = ArrayList<JSONObject>()
-        val timerStates = HashMap<String, JSONObject>()
 
         if (!raw.isNullOrBlank()) {
           try {
             val obj = JSONObject(raw)
-            boardId = obj.optString("boardId", "")
-            boardTitle = obj.optString("boardTitle", "Today")
             eligibleTotal = obj.optInt("eligibleTotal", 0)
             pendingTotal = obj.optInt("pendingTotal", 0)
             allDone = obj.optBoolean("allDone", false)
@@ -61,65 +56,26 @@ class HabitProgressAppWidget : AppWidgetProvider() {
                 pending.add(it)
               }
             }
-            val timerStatesArr = obj.optJSONArray("timerStates")
-            if (timerStatesArr != null) {
-              for (i in 0 until timerStatesArr.length()) {
-                val timerState = timerStatesArr.optJSONObject(i) ?: continue
-                val habitId = timerState.optString("habitId", "")
-                if (habitId.isNotBlank()) {
-                  timerStates[habitId] = timerState
-                }
-              }
-            }
-          } catch (_: Throwable) {
-            // ignore parse errors
-          }
+          } catch (_: Throwable) {}
         }
 
-        views.setTextViewText(R.id.header_text, boardTitle)
+        views.setTextViewText(R.id.header_text, "Today")
 
         val showAllDone = allDone || (eligibleTotal > 0 && pendingTotal == 0)
         views.setViewVisibility(R.id.all_done_container, if (showAllDone) View.VISIBLE else View.GONE)
         views.setViewVisibility(R.id.rows_container, if (showAllDone) View.GONE else View.VISIBLE)
 
         if (showAllDone) {
-          views.setTextViewText(R.id.all_done_text, "All done 🔥")
+          views.setTextViewText(R.id.all_done_text, "All done \uD83D\uDD25")
         } else if (eligibleTotal <= 0) {
           views.setTextViewText(R.id.all_done_text, "No habits today")
           views.setViewVisibility(R.id.all_done_container, View.VISIBLE)
           views.setViewVisibility(R.id.rows_container, View.GONE)
         }
 
-        bindRow(
-          context = context,
-          views = views,
-          rowId = R.id.row1,
-          cbId = R.id.cb1,
-          textId = R.id.text1,
-          item = pending.getOrNull(0),
-          boardId = boardId,
-          timerState = timerStates[pending.getOrNull(0)?.optString("habitId", "")],
-        )
-        bindRow(
-          context = context,
-          views = views,
-          rowId = R.id.row2,
-          cbId = R.id.cb2,
-          textId = R.id.text2,
-          item = pending.getOrNull(1),
-          boardId = boardId,
-          timerState = timerStates[pending.getOrNull(1)?.optString("habitId", "")],
-        )
-        bindRow(
-          context = context,
-          views = views,
-          rowId = R.id.row3,
-          cbId = R.id.cb3,
-          textId = R.id.text3,
-          item = pending.getOrNull(2),
-          boardId = boardId,
-          timerState = timerStates[pending.getOrNull(2)?.optString("habitId", "")],
-        )
+        bindRow(context, views, R.id.row1, R.id.cb1, R.id.text1, pending.getOrNull(0))
+        bindRow(context, views, R.id.row2, R.id.cb2, R.id.text2, pending.getOrNull(1))
+        bindRow(context, views, R.id.row3, R.id.cb3, R.id.text3, pending.getOrNull(2))
       } catch (_: Throwable) {
         views.setTextViewText(R.id.header_text, "Open app to load habits")
         views.setViewVisibility(R.id.all_done_container, View.GONE)
@@ -135,48 +91,30 @@ class HabitProgressAppWidget : AppWidgetProvider() {
       cbId: Int,
       textId: Int,
       item: JSONObject?,
-      boardId: String,
-      timerState: JSONObject? = null,
     ) {
       if (item == null) {
         views.setViewVisibility(rowId, View.GONE)
         return
       }
-      val componentId = item.optString("componentId", "")
       val habitId = item.optString("habitId", "")
       val name = item.optString("name", "")
-      if (boardId.isBlank() || componentId.isBlank() || habitId.isBlank()) {
+      if (habitId.isBlank()) {
         views.setViewVisibility(rowId, View.GONE)
         return
       }
 
       views.setViewVisibility(rowId, View.VISIBLE)
-      
-      // Display habit name with timer info if available
-      val displayText = if (timerState != null) {
-        val songsRemaining = timerState.optInt("songsRemaining", 0)
-        val totalSongs = timerState.optInt("totalSongs", 0)
-        val currentSong = timerState.optString("currentSongTitle", "")
-        if (currentSong.isNotBlank()) {
-          "$name ($songsRemaining/$totalSongs) - $currentSong"
-        } else {
-          "$name ($songsRemaining/$totalSongs songs)"
-        }
-      } else {
-        name
-      }
-      views.setTextViewText(textId, displayText)
+      views.setTextViewText(textId, name)
       views.setBoolean(cbId, "setChecked", false)
 
       val uri = Uri.parse(
-        "dvb://widget/toggle?boardId=${Uri.encode(boardId)}&componentId=${Uri.encode(componentId)}&habitId=${Uri.encode(habitId)}&t=${System.currentTimeMillis()}"
+        "dvb://widget/toggle?habitId=${Uri.encode(habitId)}&t=${System.currentTimeMillis()}"
       )
       val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-        // Ensure it resolves to this app.
         setPackage(context.packageName)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       }
-      val requestCode = (boardId + ":" + componentId + ":" + habitId).hashCode()
+      val requestCode = habitId.hashCode()
       val pi = PendingIntent.getActivity(
         context,
         requestCode,

@@ -9,7 +9,7 @@ import 'habit_progress_widget_snapshot_service.dart';
 import 'logical_date_service.dart';
 
 /// iOS 17+ WidgetKit AppIntents can't directly invoke Flutter code, so they
-/// can enqueue actions into the app group. The app consumes them on startup/resume.
+/// enqueue actions into the app group. The app consumes them on startup/resume.
 final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
   HabitProgressWidgetActionQueueService._();
 
@@ -21,7 +21,6 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
     if (_started) return;
     _started = true;
     WidgetsBinding.instance.addObserver(this);
-    // Drain once at startup (best-effort).
     unawaited(drainOnceBestEffort());
   }
 
@@ -46,13 +45,9 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
       for (final a in actions) {
         final kind = (a['kind'] ?? '').trim();
         if (kind != 'toggle') continue;
-        final boardId = (a['boardId'] ?? '').trim();
-        final componentId = (a['componentId'] ?? '').trim();
         final habitId = (a['habitId'] ?? '').trim();
-        if (boardId.isEmpty || componentId.isEmpty || habitId.isEmpty) continue;
+        if (habitId.isEmpty) continue;
         await HabitCompletionApplier.toggleForToday(
-          boardId: boardId,
-          componentId: componentId,
           habitId: habitId,
           logicalDateIso: iso,
           prefs: prefs,
@@ -67,4 +62,3 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
     }
   }
 }
-

@@ -19,9 +19,13 @@ final class HabitCompletionApplier {
   }
 
   /// Toggle completion for the current logical day and enqueue sync.
+  ///
+  /// [boardId] and [componentId] are optional. When omitted they are read from
+  /// the persisted [HabitItem] itself (handy for widget-triggered toggles that
+  /// only carry a habitId).
   static Future<bool> toggleForToday({
-    required String boardId,
-    required String componentId,
+    String? boardId,
+    String? componentId,
     required String habitId,
     required String logicalDateIso,
     SharedPreferences? prefs,
@@ -43,8 +47,8 @@ final class HabitCompletionApplier {
     await HabitStorageService.saveAll(all, prefs: p);
 
     await SyncService.enqueueHabitCompletion(
-      boardId: boardId,
-      componentId: componentId,
+      boardId: boardId ?? habit.boardId ?? '',
+      componentId: componentId ?? habit.componentId ?? '',
       habitId: habitId,
       logicalDate: logicalDateIso,
       deleted: wasCompleted,

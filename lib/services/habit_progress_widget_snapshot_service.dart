@@ -2,19 +2,14 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/vision_board_info.dart';
-import '../services/boards_storage_service.dart';
 import '../services/habit_progress_widget_native_bridge.dart';
 import '../services/habit_storage_service.dart';
 import '../services/habit_timer_state_service.dart';
 import '../services/logical_date_service.dart';
 
-/// Builds and stores a compact JSON snapshot for the native home-screen widgets.
+/// Builds and stores a compact JSON snapshot for the native home-screen widget.
 ///
-/// Data source:
-/// - "default/active" board (falls back to first board if active id is missing)
-/// - today's eligible habits
-/// - excludes any habit with a time target (timer-based or location-bound dwell/arrival)
+/// Loads ALL habits across every board; excludes timer/location-bound habits.
 final class HabitProgressWidgetSnapshotService {
   HabitProgressWidgetSnapshotService._();
 
@@ -27,7 +22,6 @@ final class HabitProgressWidgetSnapshotService {
       final json = await _buildSnapshotJson(prefs: p);
       if (json == null) return;
       await p.setString(snapshotPrefsKey, json);
-      // iOS widgets can't read FlutterSharedPreferences; mirror into App Group (best-effort).
       await HabitProgressWidgetNativeBridge.writeSnapshotToAppGroupBestEffort(json);
       await HabitProgressWidgetNativeBridge.updateWidgetsBestEffort();
     } catch (_) {
@@ -35,34 +29,7 @@ final class HabitProgressWidgetSnapshotService {
     }
   }
 
-  /// Only refresh if [affectedBoardId] matches the active board id (or the implicit default board when active is unset).
-  static Future<void> refreshIfAffectedBoardBestEffort(
-    String affectedBoardId, {
-    SharedPreferences? prefs,
-  }) async {
-    final p = prefs ?? await SharedPreferences.getInstance();
-    try {
-      final active = await _loadActiveBoard(prefs: p);
-      if (active == null) return;
-      if (active.id != affectedBoardId) return;
-      await refreshBestEffort(prefs: p);
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  static Future<VisionBoardInfo?> _loadActiveBoard({required SharedPreferences prefs}) async {
-    final boards = await BoardsStorageService.loadBoards(prefs: prefs);
-    if (boards.isEmpty) return null;
-    final activeId = (await BoardsStorageService.loadActiveBoardId(prefs: prefs) ?? '').trim();
-    if (activeId.isEmpty) return boards.first;
-    return boards.cast<VisionBoardInfo?>().firstWhere((b) => b?.id == activeId, orElse: () => null) ?? boards.first;
-  }
-
   static Future<String?> _buildSnapshotJson({required SharedPreferences prefs}) async {
-    final board = await _loadActiveBoard(prefs: prefs);
-    if (board == null) return null;
-
     final now = LogicalDateService.now();
     final iso = LogicalDateService.toIsoDate(now);
 
@@ -70,15 +37,13 @@ final class HabitProgressWidgetSnapshotService {
     int eligibleTotal = 0;
 
     final allHabits = await HabitStorageService.loadAll(prefs: prefs);
-    final boardHabits = allHabits.where((h) => h.boardId == board.id).toList();
 
-    for (final h in boardHabits) {
+    for (final h in allHabits) {
       if (!h.isScheduledOnDate(now)) continue;
       if (HabitTimerStateService.targetMsForHabit(h) > 0) continue;
       eligibleTotal++;
       if (!h.isCompletedForCurrentPeriod(now)) {
         pending.add({
-          'componentId': h.componentId,
           'habitId': h.id,
           'name': h.name,
         });
@@ -89,11 +54,9 @@ final class HabitProgressWidgetSnapshotService {
     final allDone = eligibleTotal > 0 && pending.isEmpty;
 
     final snap = <String, dynamic>{
-      'v': 1,
+      'v': 2,
       'generatedAtMs': DateTime.now().millisecondsSinceEpoch,
       'isoDate': iso,
-      'boardId': board.id,
-      'boardTitle': board.title,
       'eligibleTotal': eligibleTotal,
       'pendingTotal': pending.length,
       'pending': top3,
@@ -103,4 +66,3 @@ final class HabitProgressWidgetSnapshotService {
     return jsonEncode(snap);
   }
 }
-

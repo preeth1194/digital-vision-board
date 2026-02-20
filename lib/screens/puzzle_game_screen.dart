@@ -12,7 +12,6 @@ import '../utils/file_image_provider.dart';
 import '../utils/puzzle_image_splitter.dart';
 import '../services/puzzle_service.dart';
 import '../services/puzzle_state_service.dart';
-import '../services/puzzle_widget_snapshot_service.dart';
 import '../services/coins_service.dart';
 import '../services/subscription_service.dart';
 import '../widgets/dialogs/puzzle_image_selector_sheet.dart';
@@ -225,7 +224,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
       isCompleted: _isCompleted,
       prefs: prefs,
     );
-    await PuzzleWidgetSnapshotService.refreshBestEffort(prefs: prefs);
+    // Widget snapshot refresh removed (puzzle widget removed).
   }
 
   Future<void> _shufflePuzzle() async {

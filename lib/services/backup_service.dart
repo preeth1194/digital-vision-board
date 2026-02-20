@@ -48,7 +48,6 @@ class BackupService {
     'puzzle_image_path',
     'puzzle_last_rotation_ms',
     'puzzle_cooldown_end_ms',
-    'puzzle_widget_snapshot_v1',
     'habit_progress_widget_snapshot_v1',
     'sun_times_lat',
     'sun_times_lng',

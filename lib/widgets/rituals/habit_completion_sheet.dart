@@ -34,9 +34,7 @@ class HabitCompletionResult {
   });
 }
 
-/// Shows an overlay panel for completing a habit with optional mood and log.
-/// Uses an [OverlayEntry] that slides up from behind the bottom nav bar,
-/// matching the dashboard's create-panel style.
+/// Shows a bottom-sheet panel for completing a habit with optional mood and log.
 Future<HabitCompletionResult?> showHabitCompletionSheet(
   BuildContext context, {
   required HabitItem habit,
@@ -44,38 +42,18 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
   bool isFullHabit = true,
   List<String> preSelectedStepIds = const [],
 }) {
-  final completer = Completer<HabitCompletionResult?>();
-  late OverlayEntry entry;
-  final animController = AnimationController(
-    vsync: Navigator.of(context),
-    duration: const Duration(milliseconds: 300),
-  );
-
-  void remove([HabitCompletionResult? result]) {
-    animController.reverse().then((_) {
-      entry.remove();
-      entry.dispose();
-      animController.dispose();
-      if (!completer.isCompleted) completer.complete(result);
-    });
-  }
-
-  entry = OverlayEntry(
-    builder: (_) => _HabitCompletionOverlay(
-      animation: animController,
+  return showModalBottomSheet<HabitCompletionResult?>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(0.35),
+    builder: (ctx) => _HabitCompletionSheetContent(
       habit: habit,
       baseCoins: baseCoins,
       isFullHabit: isFullHabit,
       preSelectedStepIds: preSelectedStepIds,
-      onDismiss: () => remove(null),
-      onComplete: (result) => remove(result),
     ),
   );
-
-  Overlay.of(context).insert(entry);
-  animController.forward();
-
-  return completer.future;
 }
 
 /// Mood option data.
@@ -133,33 +111,27 @@ const _moods = <_MoodOption>[
   ),
 ];
 
-// ─── Overlay panel ───────────────────────────────────────────────────────
+// ─── Bottom sheet content ────────────────────────────────────────────────
 
-class _HabitCompletionOverlay extends StatefulWidget {
-  final AnimationController animation;
+class _HabitCompletionSheetContent extends StatefulWidget {
   final HabitItem habit;
   final int baseCoins;
   final bool isFullHabit;
   final List<String> preSelectedStepIds;
-  final VoidCallback onDismiss;
-  final ValueChanged<HabitCompletionResult> onComplete;
 
-  const _HabitCompletionOverlay({
-    required this.animation,
+  const _HabitCompletionSheetContent({
     required this.habit,
     required this.baseCoins,
     required this.isFullHabit,
     required this.preSelectedStepIds,
-    required this.onDismiss,
-    required this.onComplete,
   });
 
   @override
-  State<_HabitCompletionOverlay> createState() =>
-      _HabitCompletionOverlayState();
+  State<_HabitCompletionSheetContent> createState() =>
+      _HabitCompletionSheetContentState();
 }
 
-class _HabitCompletionOverlayState extends State<_HabitCompletionOverlay> {
+class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetContent> {
   int? _selectedMood;
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _trackingController = TextEditingController();
@@ -262,7 +234,7 @@ class _HabitCompletionOverlayState extends State<_HabitCompletionOverlay> {
     final trackingVal =
         trackingText.isNotEmpty ? double.tryParse(trackingText) : null;
 
-    widget.onComplete(HabitCompletionResult(
+    Navigator.of(context).pop(HabitCompletionResult(
       coinsEarned: _totalCoins,
       mood: _selectedMood,
       note: noteText.isEmpty ? null : noteText,
@@ -277,70 +249,17 @@ class _HabitCompletionOverlayState extends State<_HabitCompletionOverlay> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final mq = MediaQuery.of(context);
-    final bottomPad = mq.padding.bottom;
-    const barHeight = 64.0;
-    const circleOverflow = 20.0;
-    final navTotalHeight = barHeight + circleOverflow + bottomPad;
-    final keyboardHeight = mq.viewInsets.bottom;
+    final maxPanelHeight = mq.size.height * 0.85;
 
-    final maxPanelHeight =
-        mq.size.height - mq.padding.top - navTotalHeight - 16;
-    final panelBottom = navTotalHeight - circleOverflow + keyboardHeight;
-
-    return AnimatedBuilder(
-      animation: widget.animation,
-      builder: (context, _) {
-        final t = CurvedAnimation(
-          parent: widget.animation,
-          curve: Curves.easeOutCubic,
-        ).value;
-
-        return Material(
-          color: Colors.transparent,
-          child: Stack(
-            children: [
-              // Scrim
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: widget.onDismiss,
-                  child: ColoredBox(
-                    color: Colors.black.withOpacity(0.35 * t),
-                  ),
-                ),
-              ),
-              // Panel sliding up from behind the nav bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: panelBottom,
-                child: Transform.translate(
-                  offset: Offset(0, (maxPanelHeight + panelBottom) * (1 - t)),
-                  child: Opacity(
-                    opacity: t,
-                    child: ClipPath(
-                      clipper: _NotchedBottomClipper(
-                        cutoutRadius: 34.0,
-                        cutoutCenterOffset: 10.0,
-                      ),
-                      child: Material(
-                        color: colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        child: ConstrainedBox(
-                          constraints:
-                              BoxConstraints(maxHeight: maxPanelHeight),
-                          child: _buildContent(colorScheme),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxPanelHeight),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      child: _buildContent(colorScheme),
     );
   }
 
@@ -574,6 +493,26 @@ class _HabitCompletionOverlayState extends State<_HabitCompletionOverlay> {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Cancel button
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cancel_outlined,
+                    size: 18,
+                    color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text(
+                  'Cancel',
+                  style: AppTypography.body(context).copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -990,37 +929,3 @@ class _TrackingValueInput extends StatelessWidget {
   }
 }
 
-// ─── Notched bottom clipper (same as dashboard) ──────────────────────────
-
-class _NotchedBottomClipper extends CustomClipper<Path> {
-  final double cutoutRadius;
-  final double cutoutCenterOffset;
-
-  _NotchedBottomClipper({
-    required this.cutoutRadius,
-    required this.cutoutCenterOffset,
-  });
-
-  @override
-  Path getClip(Size size) {
-    final rect = Path()
-      ..addRRect(RRect.fromRectAndCorners(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        topLeft: const Radius.circular(20),
-        topRight: const Radius.circular(20),
-      ));
-
-    final cutout = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
-        radius: cutoutRadius,
-      ));
-
-    return Path.combine(PathOperation.difference, rect, cutout);
-  }
-
-  @override
-  bool shouldReclip(_NotchedBottomClipper oldClipper) =>
-      cutoutRadius != oldClipper.cutoutRadius ||
-      cutoutCenterOffset != oldClipper.cutoutCenterOffset;
-}

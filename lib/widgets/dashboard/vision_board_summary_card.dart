@@ -127,20 +127,21 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                   Icon(
                     Icons.dashboard_rounded,
                     color: colorScheme.onPrimaryContainer,
-                    size: 22,
+                    size: 16,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Manifest',
                       style: AppTypography.heading3(context).copyWith(
                         color: colorScheme.onPrimaryContainer,
+                        fontSize: 14,
                       ),
                     ),
                   ),
                   Icon(
                     Icons.chevron_right_rounded,
-                    size: 20,
+                    size: 15,
                     color: colorScheme.onPrimaryContainer
                         .withValues(alpha: 0.6),
                   ),

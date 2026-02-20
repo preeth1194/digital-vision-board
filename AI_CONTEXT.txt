@@ -1,817 +1,485 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
-Last updated: 2026-02-18
-Updated: Removed references to unused/moved screens and widgets (routine_editor, wizard steps 3-4, puzzle_widget, vision_board_preview_card, coins_header, lottie_coin_overlay, hotspot files); Updated renamed files (task_item→task_and_checklist_models, habit_tracker_tracker_tab→habit_tracker_tab).
+Last updated: 2026-02-20
+Updated: Rewrote to only include features that are actually visible/reachable in the current UI. Removed references to unreachable screens (VisionBoardHomeScreen flip-card landing, Reminders sheet, Affirmation tab, Todos tab, old wizard steps). Added new visible features: 75 Hard Challenge, Subscription, Backup/Restore, Onboarding, Mood tracking, Earn Badges, Ads system.
 
-This document is optimized for AI + human onboarding. It explains what the app does, where data lives, and how the main workflows are implemented in code.
+This document is optimized for AI + human onboarding. It describes only features that are visible and reachable in the current build.
 
 ---
 
 ## 1) What the app does (product mental model)
 
-Digital Vision Board lets users create “boards” and attach “goals” to them. Each goal can have:
-- Habits (daily/weekly scheduled completion tracking)
-- Tasks (each task has a checklist; checklist items can be completed per-day and can store completion feedback)
+Digital Vision Board is a habit-tracking and personal growth app. Users create habits, track completions with gamified coins, run timed routines, journal, solve puzzles from goal images, and visualize progress on vision boards.
 
 Daily loop:
-- Open a board
-- Open a goal
-- Check off habits/tasks (optionally leave a rating + note)
-- Review progress/insights
+- Open the app → Dashboard (Home tab)
+- Complete habits (earn coins)
+- Run routines (timed step-by-step workflows)
+- Journal, review insights, do puzzles
 
 ---
 
-## 1.5) Feature visibility and entry points (what the user sees → code)
+## 2) App entry and navigation structure
 
-### App entry and home
-- **Entry**: `lib/main.dart` → `VisionBoardHomeScreen` (`lib/screens/vision_board_home_screen.dart`)
-- **Home**: If no boards → navigate to Dashboard. If boards exist → flip-card view of active board; tap "All boards" → Dashboard.
+### Entry
+- `lib/main.dart` → `home:` is `OnboardingScreen` (new users) or `DashboardScreen` (existing users)
+- No named routes; all navigation is push-based (`MaterialPageRoute`)
 
 ### Dashboard screen (main hub)
 - **Screen**: `lib/screens/dashboard_screen.dart`
-- **Body**: `lib/widgets/dashboard/dashboard_body.dart` switches by tab index.
+- **Body**: `lib/widgets/dashboard/dashboard_body.dart` switches content by tab index
 
-**Bottom navigation (tabs):**
-| Tab        | Label       | Content |
-|-----------|-------------|---------|
-| tabIndex 1 | Dashboard  | `DashboardTab`: board list, routines, FAB (create board / create routine) |
-| tabIndex 2 | Journal    | `JournalNotesScreen` (embedded) |
-| tabIndex 3 | Affirmations | `AffirmationScreen` |
-| tabIndex 4 | Insights   | `GlobalInsightsScreen` (per-board or all boards) |
-| tabIndex 6 | Routines   | `RoutineScreen`: sun times header, date selector, routine timeline |
-| tabIndex 7 | Rituals    | `AllBoardsHabitsTab`: coins header, animated habit cards, gamified habit tracking |
+### Bottom navigation (4 tabs + center FAB)
 
-**Drawer (hamburger):**
-- User profile → `AuthGatewayScreen`
-- Notifications → Reminders sheet (from `ReminderSummaryService`)
-- Puzzle Game → `PuzzleGameScreen`
-- Widget Guide → `WidgetGuideScreen`
+| Nav index | Tab index | Label   | Content |
+|-----------|-----------|---------|---------|
+| 0         | 1         | Home    | `DashboardTab` — summary cards grid |
+| 1         | 7         | Habits  | `AllBoardsHabitsTab` — gamified habit list with coins |
+| 2         | 6         | Routine | `RoutineScreen` — sun times, date selector, routine timeline |
+| 3         | 2         | Journal | `JournalNotesScreen(embedded: true)` — journal entries |
 
-**Create board flow:** FAB or "New" → template picker sheet → either:
-- Browse templates → `TemplateGalleryScreen`
-- Create with wizard → `CreateBoardWizardScreen`
-- Or direct → `showNewBoardDialog` then `GoalCanvasEditorScreen` / `GridEditorScreen` (by layout type)
+- `visibleTabIndices = [1, 7, 6, 2]` (line 996 of dashboard_screen.dart)
+- Nav bar: `lib/widgets/navigation/animated_bottom_nav_bar.dart`
 
-**Open board:** Tap board card → `_openBoard()`: routes by layout and components to Grid editor or Goal canvas viewer/editor.
+### Center FAB "+" → Create panel
+Slides up from bottom, shows three options:
+- **New Habit** → `showAddHabitModal()` (4-step wizard)
+- **New Routine** → `showAddHabitModal(initialTimerEnabled: true)`
+- **75 Hard Challenge** → `ChallengeSetupScreen` (ad-gated)
 
-**Routines:** Shown on Dashboard tab; open → `RoutineTimerScreen`.
+### App bar
+- **Left**: Profile avatar → opens drawer
+- **Center**: User name + time-of-day greeting
+- **Right**: Coin badge (tap → `EarnBadgesScreen`)
 
-### Other visible screens (from drawer or navigation)
-- Auth: `AuthGatewayScreen`, `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`
-- Templates: `TemplateGalleryScreen`
-- Wizard: `CreateBoardWizardScreen` + step screens in `lib/screens/wizard/`
-- Puzzle: `PuzzleGameScreen` (also deep link from home)
-- Widget guide: `WidgetGuideScreen`
-- Journal: `JournalNotesScreen`; Affirmations: `AffirmationScreen`; Insights: `GlobalInsightsScreen`
-- Per-board habits/todos lists: `HabitsListScreen`, `TodosListScreen` (opened from dashboard when a board is selected; tab 5 in body is used for todos/insights with board context)
-
-### Platform / web-safe file access
-- **File paths and images (web + mobile):** Use `lib/utils/file_image_provider.dart`:
-  - `fileExists(String path)` — platform-safe; on web returns false.
-  - `fileImageProviderFromPath(String path)` — returns `FileImage` on io, `NetworkImage` for URLs, null for file paths on web.
-- Vision board editor and grid flows use these so the same code compiles on web and mobile without `dart:io`/`dart:html` File conflicts.
+### Drawer (hamburger)
+| Item | Screen | File |
+|------|--------|------|
+| Profile header | `AuthGatewayScreen` | `lib/screens/auth/auth_gateway_screen.dart` |
+| Go Premium | `SubscriptionScreen` | `lib/screens/subscription_screen.dart` |
+| Backup | `BackupRestoreScreen` | `lib/screens/backup_restore_screen.dart` |
+| Widget Guide | `WidgetGuideScreen` | `lib/screens/widget_guide_screen.dart` |
+| App Tour | `OnboardingScreen(replayMode: true)` | `lib/screens/onboarding/onboarding_screen.dart` |
+| Privacy Policy | `PrivacyPolicyScreen` | `lib/screens/privacy_policy_screen.dart` |
+| Sign out | Signs out, creates guest session | (only shown for non-guest users) |
 
 ---
 
-## 2) Board types (UIs) and how they map to storage
+## 3) Home tab (DashboardTab) — summary cards
 
-There are multiple board “canvas” experiences. They differ in how goals are represented and how they are stored.
+**File**: `lib/widgets/dashboard/dashboard_tab.dart`
 
-### A) Goal Canvas (freeform layers over optional background)
+Layout: scrollable column of cards:
+
+| Card | File | Tap action |
+|------|------|------------|
+| ChallengeProgressCard | `challenge_progress_card.dart` | Empty: → `ChallengeSetupScreen`; Active: → switch to Habits tab |
+| InsightsSummaryCard | `insights_summary_card.dart` | → `GlobalInsightsScreen` (wrapped in Scaffold) |
+| MoodTrackerCard | `mood_tracker_card.dart` | → `MoodDetailScreen` |
+| VisionBoardSummaryCard | `vision_board_summary_card.dart` | → `VisionBoardsScreen` (board carousel) |
+| PuzzleSummaryCard | `puzzle_summary_card.dart` | → `PuzzleGameScreen` (picks image if none) |
+| AffirmationSummaryCard | `affirmation_summary_card.dart` | → `AffirmationManagementScreen`; flips between affirmations when they exist |
+
+All card files are in `lib/widgets/dashboard/`.
+
+---
+
+## 4) Vision Boards flow
+
+### VisionBoardsScreen (from Manifest card on Home tab)
+- **File**: `lib/screens/vision_boards_screen.dart`
+- Board carousel with swipe navigation
+- Actions: Tap board → open viewer; Edit button → open editor; Delete; "+" → `CreateBoardWizardScreen`
+
+### Board types
+
+**A) Grid Board (structured tile layout)**
+- Editor: `lib/screens/grid_board_editor.dart` (exported via `lib/screens/grid_editor.dart`)
+- Tap tile → `GridGoalViewerScreen` → full-screen `HabitTrackerSheet`
+- Storage: `lib/services/grid_tiles_storage_service.dart`
+
+**B) Goal Canvas (freeform layers over background)**
 - Viewer: `lib/screens/goal_canvas_viewer_screen.dart`
 - Editor: `lib/screens/goal_canvas_editor_screen.dart`
+- Tap goal → opens `HabitTrackerSheet` as bottom sheet
 - Storage: `lib/services/vision_board_components_storage_service.dart`
-- Supports “Layers” UI via `showLayersSheet` (see section 6)
+- Layers UI: `lib/widgets/editor/layers_sheet.dart` → `showLayersSheet()`
 
-### B) Grid Board (structured tile layout)
-- Editor: `lib/screens/grid_board_editor.dart`
-- Storage: `lib/services/grid_tiles_storage_service.dart` (tiles keyed by boardId)
-- Single “goal” viewer: `lib/screens/grid_goal_viewer_screen.dart`
+### Create board flow
+- `CreateBoardWizardScreen` (`lib/screens/wizard/create_board_wizard_screen.dart`)
+  - Creates a board with a single "Hero" grid tile, optionally preloads Pexels image
+  - Immediately pushes `GridEditorScreen` for the new board
 
----
-
-## 3) Core data model (what “goal”, “habit”, “task” mean in code)
-
-### VisionComponent (core “node”)
-`VisionComponent` is the base type for nodes on freeform canvases.
-- Location/size/z-index exist for visuals.
-- It also owns the tracker data:
-  - `habits: List<HabitItem>`
-  - `tasks: List<TaskItem>`
-
-Key files:
-- `lib/models/vision_component.dart` (base)
-- `lib/models/vision_component_factory.dart` (JSON deserialization)
-- `lib/models/vision_components.dart` (exports concrete components)
-- `lib/models/image_component.dart` (image goal layer; often has `goal` metadata)
-
-### GridTileModel
-Grid boards don’t store `VisionComponent`s directly. They store tiles:
-- `lib/models/grid_tile_model.dart`
-- Each tile can have: `goal`, `habits`, `tasks`
-
-For tracking UI, `GridGoalViewerScreen` converts a tile into an `ImageComponent` (see section 5).
-
-### HabitItem
-`lib/models/habit_item.dart`
-- Tracks completion dates / streaks
-- Supports weekly schedule gating (`isScheduledOnDate`)
-- Stores per-day completion feedback (see below)
-- Optional `timeBound: HabitTimeBoundSpec` for timer-based habits
-  - Supports time-based mode: `'time'`; `duration` is target minutes
-
-### TaskItem + ChecklistItem
-`lib/models/task_and_checklist_models.dart`
-- `TaskItem` owns:
-  - `checklist: List<ChecklistItem>`
-  - optional task-level completion feedback by date (`completionFeedbackByDate`)
-- `ChecklistItem` owns:
-  - `completedOn` (YYYY-MM-DD) when checked
-  - `feedbackByDate` (per-day checklist-item completion feedback)
-  - optional `dueDate` and optional CBT enhancements
-
-Important bug fix: `ChecklistItem.copyWith` uses a sentinel so callers can explicitly clear nullable fields like `completedOn` (unchecking).
+### HabitTrackerSheet (per-goal tracker)
+- **File**: `lib/widgets/habit_tracker_sheet.dart`
+- Tabs: Tracker (habits), Tasks (tasks + checklists), Insights
+- Used as bottom sheet from GoalCanvasViewerScreen, full-screen body in GridGoalViewerScreen
 
 ---
 
-## 4) Persistence (where data is saved)
+## 5) Habits tab (AllBoardsHabitsTab)
 
-### Boards list + board metadata
-- `lib/services/boards_storage_service.dart`
+**File**: `lib/widgets/dashboard/all_boards_habits_tab.dart`
 
-### Components (goal canvas boards)
-- `lib/services/vision_board_components_storage_service.dart`
-- Components are JSON encoded and stored keyed by `boardId`.
+Shows all habits across all boards with gamified UI:
+- `DailyProgressHeader` — daily progress + coin balance
+- `AnimatedHabitCard` — gradient cards with coin badge, streak indicator, weekly progress
+- Habit completion → `HabitCompletionSheet` → choose coping plan (5 coins) or full habit (10 coins)
+- Coin animation overlay on completion
+- Ad unlock flow for free users (3+ habits gated)
 
-### Grid tiles
-- `lib/services/grid_tiles_storage_service.dart`
-- Tiles are JSON encoded and stored keyed by `boardId`.
+### Coins/Gamification System
+- **Service**: `lib/services/coins_service.dart`
+- Awards: 5 coins (coping plan), 10 coins (full habit), 25 coins (7-day streak bonus)
+- UI: `lib/widgets/rituals/daily_progress_header.dart`, `animated_habit_card.dart`, `coin_animation_overlay.dart`, `habit_completion_sheet.dart`
 
----
-
-## 5) The tracker UI: HabitTrackerSheet
-
-Main tracker UI:
-- `lib/widgets/habit_tracker_sheet.dart`
-
-Usage patterns:
-- Shown as a bottom sheet from viewers (Goal canvas viewer).
-- Embedded full-screen in `GridGoalViewerScreen` as the whole page body.
-
-Tabs:
-- Tracker (habits list)
-- Tasks (tasks list + checklist)
-- Insights (activity/streak summaries)
-
-It emits updated `VisionComponent` back to the caller via `onComponentUpdated`, and callers persist the updated component list/tile.
+### EarnBadgesScreen
+- **File**: `lib/screens/earn_badges_screen.dart`
+- Accessed from: coin badge in Dashboard app bar
+- Shows: coin balance, badge grid, "Go Ad-Free" redemption card
 
 ---
 
-## 6) Layers UI (showLayersSheet)
-
-Shared “Layers” bottom sheet:
-- `lib/widgets/editor/layers_sheet.dart` → `showLayersSheet(...)`
-
-Where it’s used:
-- Goal canvas viewer: `GoalCanvasViewerScreen._showLayers` (AppBar button on Canvas tab)
-- Grid goal viewer: `GridGoalViewerScreen._showLayers` (top-right overlay button)
-  - used to jump between tile-goals without backing out
-
-Selection behavior:
-- Selecting a layer updates the viewer’s selected id (highlights it visually).
-
----
-
-## 7) Habit Timer (Time-Based)
-
-The app supports a time-based timer for habits:
-
-- Traditional timer that tracks accumulated time
-- Uses `HabitTimerStateService` for state persistence
-- UI: `lib/screens/habit_timer_screen.dart`
-- When target time is reached, automatically marks habit as complete
-
----
-
-## 8) Completion semantics and feedback prompts (unified behavior)
-
-### Habit completion
-- Weekly scheduled habits can only be toggled on scheduled dates.
-- When toggled ON and feedback is missing for today, prompt for feedback.
-
-### Checklist item completion
-- When a checklist item is checked ON:
-  - If item feedback missing for today → prompt for feedback.
-- If that check causes the task to become fully complete:
-  - If task-level feedback missing for today → prompt for task-level feedback.
-- Special case: if the task has exactly 1 checklist item, do NOT show two prompts back-to-back.
-  - In that case, skip item-level feedback and only ask the task-level “Task completed” feedback.
-
-Shared helpers:
-- Completion application: `lib/services/habit_completion_applier.dart`
-- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
-
-Where completion+feedback is implemented (must stay consistent):
-- `lib/widgets/habit_tracker_sheet.dart`
-- `lib/screens/tasks_list_screen.dart`
-- `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-- Habits equivalents:
-  - `lib/screens/habits_list_screen.dart`
-  - `lib/widgets/dashboard/all_boards_habits_tab.dart`
-
----
-
-## 9) Add flows (goal picker + creation dialogs)
-
-Goal picker (select goal to attach habit/task to):
-- `lib/widgets/dialogs/goal_picker_sheet.dart`
-
-Add/edit dialogs (shared, reused across screens):
-- **Goals**: `lib/widgets/dialogs/add_goal_dialog.dart` - Unified dialog for adding/editing goals
-  - Used in grid editor for consistent goal creation UI
-  - Supports name, category, why important, and deadline fields
-  - Provides consistent styling and theme-aware colors
-- **Habits**: `lib/widgets/dialogs/add_habit_dialog.dart`
-  - Compact layout is bounded below the status bar (prevents dialog covering notification bar).
-- **Tasks / todos**: In-sheet add via `lib/widgets/todos/goal_todo_tab.dart` (inline text field + dialogs); full-screen lists use `lib/widgets/dialogs/text_input_dialog.dart` for simple title prompt (`showTextInputDialog`). Task/checklist structure is managed in `TaskItem`/`ChecklistItem`; add-habit flow uses `add_habit_dialog.dart`.
-
-Global aggregation screens:
-- Per-board lists:
-  - `lib/screens/habits_list_screen.dart`
-  - `lib/screens/tasks_list_screen.dart` (supports adding checklist items inside tasks)
-- All-boards dashboard tabs:
-  - `lib/widgets/dashboard/all_boards_habits_tab.dart` (Add habit = pick board → pick goal → dialog → save)
-  - `lib/widgets/dashboard/all_boards_tasks_tab.dart` (Add task + Add checklist item; same pattern)
-
----
-
-## 9.5) Wizard flow (create board with recommended goals)
-
-The wizard helps users create boards with recommended goals:
-- Entry: `lib/screens/wizard/create_board_wizard_screen.dart`
-- Steps:
-  1. Board setup: `lib/screens/wizard/wizard_step1_board_setup.dart`
-  2. Goals for core values: `lib/screens/wizard/wizard_step_goals_for_core_value.dart`
-
-### Recommended Goals with Default Images
-- When users add recommended goals in step 2, they can select from AI-generated recommendations via `WizardRecommendationsService`
-- `WizardBoardBuilderService` (`lib/services/wizard_board_builder.dart`):
-  - Accepts optional `defaultImageUrlsByGoalId: Map<String, String>?` parameter
-  - When creating grid tiles for goals, uses the provided default image URL if available
-  - Default images are stored as URLs (not downloaded/persisted initially) for fast board creation
-- Grid editor (`lib/screens/grid_board_editor.dart`):
-  - Displays default images (URLs) using `NetworkImage` via `fileImageProviderFromPath()`
-  - Users can still search Pexels to replace default images (see section D below)
-
-### Image Services
-- `CategoryImagesService` (`lib/services/category_images_service.dart`): Fetches curated images by core value + category from backend
-- `StockImagesService` (`lib/services/stock_images_service.dart`): Searches Pexels API for images
-- Both return image URLs that can be displayed directly or downloaded/persisted later
-
----
-
-## 10) Viewer-specific behaviors and UX constraints
-
-### GridGoalViewerScreen
-- The entire screen is a `HabitTrackerSheet` bound to a single `GridTileModel`.
-- Uses a `ValueKey(tile.id)` when switching tiles so the sheet remounts cleanly.
-
----
-
-## 12) Stability / “gotchas” (important for AI edits)
-
-### A) TextEditingController + dialogs
-Avoid creating a controller outside a dialog and disposing it immediately after `await showDialog(...)`.
-This can crash during route pop animations on some devices (“used after being disposed”).
-
-Example fix:
-- `lib/screens/tasks_list_screen.dart` add-task dialog returns a string without an external controller.
-
-### B) Checklist uncheck bug
-If you see “can’t uncheck checklist items”, check `ChecklistItem.copyWith` semantics:
-- Clearing `completedOn` requires allowing `null` to be passed through (sentinel pattern).
-- File: `lib/models/task_and_checklist_models.dart`
-
-### C) Avoid duplicate symbol definitions
-Keep shared dialogs/services single-defined. Some files previously contained duplicated class definitions; those were deduped.
-
-### D) Web vs. file system (File type)
-Code that runs on both web and mobile must not use `dart:io` File directly when compiled for web (web uses `dart:html`, and `File`/`exists()`/`FileImage` differ). Use `lib/utils/file_image_provider.dart`: `fileExists(path)` and `fileImageProviderFromPath(path)` so the same screen compiles on all platforms.
-
----
-
-## 11) Quick entry points (if you’re new)
-
-- App entry: `lib/main.dart`
-- Home: `lib/screens/vision_board_home_screen.dart`
-- Main dashboard: `lib/screens/dashboard_screen.dart`; body: `lib/widgets/dashboard/dashboard_body.dart`
-- Tracker: `lib/widgets/habit_tracker_sheet.dart`
-- Completion/feedback: `lib/services/habit_completion_applier.dart`, `lib/widgets/dialogs/completion_feedback_sheet.dart`
-- File/image (web-safe): `lib/utils/file_image_provider.dart` (`fileExists`, `fileImageProviderFromPath`)
-- Habit Timer: `lib/screens/habit_timer_screen.dart`
-- Wizard (create board with recommended goals): `lib/screens/wizard/create_board_wizard_screen.dart`, `lib/services/wizard_board_builder.dart`
-- Image services: `lib/services/category_images_service.dart`, `lib/services/stock_images_service.dart`
-- Puzzle Game: `lib/services/puzzle_service.dart`, `lib/screens/puzzle_game_screen.dart`
-- “All boards” tabs: `lib/widgets/dashboard/*`
-- Goal canvas viewer/editor: `lib/screens/goal_canvas_*`
-- Grid board editor + goal viewer: `lib/screens/grid_editor.dart` (exports `grid_board_editor.dart`), `lib/screens/grid_goal_viewer_screen.dart`
-- Journal / Affirmations / Insights: `lib/screens/journal_notes_screen.dart`, `lib/screens/affirmation_screen.dart`, `lib/screens/global_insights_screen.dart`
-- Routines: `lib/screens/routine_screen.dart`, `lib/screens/routine_timer_screen.dart`, `lib/models/routine.dart`
-- Coins/Gamification: `lib/services/coins_service.dart`, `lib/widgets/rituals/daily_progress_header.dart`, `lib/widgets/rituals/animated_habit_card.dart`
-- Sun Times: `lib/services/sun_times_service.dart`, `lib/widgets/routine/sun_times_header.dart`
-- Celebrations: `lib/widgets/routine/confetti_overlay.dart`, `lib/widgets/rituals/coin_animation_overlay.dart`
-
----
-
-## 13) Dashboard Visualization
-
-### Dashboard Tab
-- **File**: `lib/widgets/dashboard/dashboard_tab.dart`
-- Displays board list with callbacks (`onOpenEditor`, `onOpenViewer`, `onDeleteBoard`)
-- Preserves empty state handling and "New" button
-
----
-
-## 15) Puzzle Widget and Game Feature
-
-The app includes a puzzle game feature that turns goal images into interactive 4x4 puzzles (16 pieces).
-
-### Puzzle Service
-- **File**: `lib/services/puzzle_service.dart`
-- Manages puzzle state and image selection
-- Handles automatic 4-hour rotation of puzzle images
-- Provides methods to:
-  - Get current puzzle image (auto-rotates if 4 hours have passed)
-  - Get all available goal images from all boards
-  - Manually set puzzle image
-  - Get time until next automatic rotation
-- Storage: Uses SharedPreferences to persist current image path and last rotation timestamp
-
-### Puzzle Game Screen
-- **File**: `lib/screens/puzzle_game_screen.dart`
-- Full-screen puzzle solving interface
-- Features:
-  - Drag-and-drop puzzle pieces (Flutter's `Draggable` and `DragTarget`)
-  - 4x4 grid layout (16 pieces)
-  - Completion detection with celebration dialog showing solve time
-  - Reference image toggle (show/hide original image as overlay)
-  - Shuffle button to reshuffle pieces
-  - Image selection button to change puzzle image
-  - Visual feedback for correct piece placement (highlighted borders)
-  - **Animation fix**: Completion tile animation uses clamped opacity values (0.0-1.0) to prevent assertion errors with `Curves.easeOutBack` overshoot
-
-### Puzzle Image Splitter
-- **File**: `lib/utils/puzzle_image_splitter.dart`
-- Utility to split images into puzzle pieces
-- Uses `image` package (`package:image/image.dart`) for image manipulation
-- Supports both local file paths and network URLs
-- Splits image into 4x4 grid (16 equal pieces)
-- Provides shuffle functionality for piece indices
-
-### Puzzle Image Selector
-- **File**: `lib/widgets/dialogs/puzzle_image_selector_sheet.dart`
-- Bottom sheet dialog for manually selecting puzzle image
-- Shows all available goal images from all boards in a grid
-- Displays current puzzle image with checkmark indicator
-- Images are loaded from:
-  - Grid boards: `GridTilesStorageService` (image tiles)
-  - Other boards: `VisionBoardComponentsStorageService` (ImageComponent instances)
-
-### Integration Points
-- **Dashboard Drawer**: `lib/screens/dashboard_screen.dart`
-  - "Puzzle Game" menu item added to drawer (after Settings)
-  - Opens puzzle game with current puzzle image
-  - Shows snackbar if no images are available
-
-### Data Flow
-1. Service checks if 4 hours have passed since last rotation
-2. If yes, automatically selects random image from available goal images
-3. Image is split into 16 pieces using `PuzzleImageSplitter`
-4. User can drag and drop pieces to solve puzzle
-5. Completion is detected when all pieces are in correct positions
-
-### Key Implementation Details
-- Puzzle pieces are stored as `Uint8List` (PNG-encoded image bytes)
-- Uses Flutter's built-in drag-and-drop APIs (`Draggable`, `DragTarget`)
-- Puzzle state (piece positions) is managed in widget state
-- Completion detection checks if `piecePositions[i] == i` for all pieces
-- Timer tracks solve time from puzzle start to completion
-- Images are loaded using `fileImageProviderFromPath()` utility (handles URLs and local paths)
-
----
-
-## 14) User journeys (end-to-end flows with code entry points)
-
-These are the most common “click paths” and what files implement them.
-
-### A) Create a new board from the dashboard
-- Start: `lib/screens/dashboard_screen.dart`
-- Create/import: `lib/widgets/dialogs/new_board_dialog.dart`
-- Storage for board list/metadata: `lib/services/boards_storage_service.dart`
-
-### B) Goal canvas: open a goal and track habits/tasks
-- Viewer screen: `lib/screens/goal_canvas_viewer_screen.dart`
-- Tap a goal layer → opens tracker:
-  - `GoalCanvasViewerScreen._openHabitTracker` → `HabitTrackerSheet`
-- Persist updates:
-  - `GoalCanvasViewerScreen._saveComponents` → `VisionBoardComponentsStorageService`
-
-### C) Grid board: open a tile-goal and track
-- Grid editor: `lib/screens/grid_board_editor.dart`
-  - Supports adding images via: local picker, Pexels search (`showPexelsSearchSheet`), or text
-  - Images can be URLs (from default images or Pexels) or local file paths (after download/persist)
-  - `fileImageProviderFromPath()` handles both URLs (returns `NetworkImage`) and local paths (returns `FileImage`)
-- Tile-goal viewer: `lib/screens/grid_goal_viewer_screen.dart`
-  - Converts `GridTileModel` → `ImageComponent` for `HabitTrackerSheet`
-  - Persists updates back into the tile via `GridTilesStorageService`
-
-### I) Wizard: create board with recommended goals
-- Start: `lib/screens/wizard/create_board_wizard_screen.dart`
-- Step 2: Add goals (`wizard_step_goals_for_core_value.dart`)
-  - Users can add recommended goals from `WizardRecommendationsService`
-  - Recommended goals come with pre-filled habits and metadata
-
-### J) Puzzle Game: solve puzzles from goal images
-- Game screen: `lib/screens/puzzle_game_screen.dart` (full puzzle solving interface)
-- Service: `lib/services/puzzle_service.dart` (manages image selection and 4-hour rotation)
-- Image splitter: `lib/utils/puzzle_image_splitter.dart` (splits images into 4x4 pieces)
-- Access points:
-  - Drawer menu: "Puzzle Game" menu item
-- Image selection: `lib/widgets/dialogs/puzzle_image_selector_sheet.dart` (manual image picker)
-- Puzzle automatically rotates to new random image every 4 hours
-- Users can manually select which goal image to use for puzzle
-
-### E) Add a habit/task from global lists (single-board)
-- All habits: `lib/screens/habits_list_screen.dart`
-  - Flow: goal picker (`goal_picker_sheet.dart`) → `add_habit_dialog.dart` → persist via callback
-- All tasks: `lib/screens/tasks_list_screen.dart`
-  - Add task: goal picker → simple title prompt → persist via callback
-  - Add checklist item inside a task: inline “Add checklist item”
-
-### F) Add a habit/task from “All boards” dashboard tabs
-- All boards habits tab: `lib/widgets/dashboard/all_boards_habits_tab.dart`
-  - Flow: pick board → goal picker → `add_habit_dialog.dart` → `onSaveBoardComponents(boardId, updated)`
-- All boards tasks tab: `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-  - Flow: pick board → goal picker → add task/todo (text input or in-sheet via `GoalTodoTab`) → `onSaveBoardComponents(boardId, updated)`
-  - Add checklist item / todo inside a task: inline in tracker or list screens (`goal_todo_tab.dart`, `text_input_dialog.dart`)
-
-### G) Completion + feedback prompts (shared semantics)
-- Completion application: `lib/services/habit_completion_applier.dart`
-- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart` (`showCompletionFeedbackSheet`)
-- Implemented consistently across:
-  - `lib/widgets/habit_tracker_sheet.dart`
-  - `lib/screens/tasks_list_screen.dart`
-  - `lib/widgets/dashboard/all_boards_tasks_tab.dart`
-  - (habits) `lib/screens/habits_list_screen.dart`, `lib/widgets/dashboard/all_boards_habits_tab.dart`
-  - Home widgets: `lib/screens/vision_board_home_widgets.dart`
-
-### H) Habit Timer: time-based habit completion
-- Timer screen: `lib/screens/habit_timer_screen.dart`
-- Integrated in: `lib/widgets/habits/habit_tracker_tab.dart` (timer button opens screen)
-- When target time is reached, triggers habit completion → mood rating screen
-
-### K) Routines: create and execute timed workflows
-- Main screen: `lib/screens/routine_screen.dart` (tab index 6)
-- Timer: `lib/screens/routine_timer_screen.dart` (execute routine with step-by-step timer)
-- Models: `lib/models/routine.dart`, `lib/models/routine_todo_item.dart`
-- Storage: `lib/services/routine_storage_service.dart`
-- Flow: Dashboard → Routines tab → Create/Open routine → Editor/Timer → Complete steps → Confetti celebration
-- Schedule types: Daily, specific weekdays, custom interval
-- Timer modes: "Flexible Flow" (overall duration) or "Guided Steps" (per-step timers)
-
-### L) Rituals/Coins: gamified habit tracking
-- Rituals tab: `lib/widgets/dashboard/all_boards_habits_tab.dart` (tab index 7)
-- Coins service: `lib/services/coins_service.dart`
-- UI components: `lib/widgets/rituals/daily_progress_header.dart`, `lib/widgets/rituals/animated_habit_card.dart`
-- Animations: `lib/widgets/rituals/coin_animation_overlay.dart`
-- Completion sheet: `lib/widgets/rituals/habit_completion_sheet.dart`
-- Flow: View habits → Complete habit → Choose coping plan (5 coins) or full habit (10 coins) → Coin animation → Balance updated
-- Streak bonuses: 25 coins every 7-day streak
-
----
-
-## 16) Typography and Theme System
-
-### Typography System
-The app uses a standardized typography system defined in `lib/utils/app_typography.dart`:
-- `AppTypography.heading1(context)` - 24sp, bold - Main screen titles
-- `AppTypography.heading2(context)` - 20sp, semi-bold - Section titles
-- `AppTypography.heading3(context)` - 18sp, semi-bold - Subsection titles and card titles
-- `AppTypography.body(context)` - 16sp, regular - Main content text
-- `AppTypography.bodySmall(context)` - 14sp, regular - Secondary content
-- `AppTypography.caption(context)` - 12sp, regular - Captions, hints, metadata
-- `AppTypography.button(context)` - 16sp, medium - Button text
-- `AppTypography.secondary(context)` - 14sp, regular - Less prominent text (uses onSurfaceVariant)
-- `AppTypography.error(context)` - 14sp, regular - Error text (uses error color)
-
-All typography styles use theme-aware colors that adapt to light/dark mode.
-
-### Theme Colors Guidelines
-The app uses Material 3 theming with proper light/dark mode support:
-- **Never use hardcoded colors** like `Colors.black54`, `Colors.grey`, `Colors.white`, etc.
-- **Always use theme colors** from `Theme.of(context).colorScheme`:
-  - `colorScheme.onSurface` - Primary text color
-  - `colorScheme.onSurfaceVariant` - Secondary text color (replaces `Colors.grey`, `Colors.black54`)
-  - `colorScheme.outline.withOpacity(0.12)` - Borders and dividers (replaces `Colors.black12`)
-  - `colorScheme.error` - Error states (replaces `Colors.red`)
-  - `colorScheme.primary` - Primary actions and highlights
-  - `colorScheme.surface` - Background surfaces
-  - `colorScheme.tertiary` / `colorScheme.tertiaryContainer` - Accent colors (replaces `Colors.orange`, `Colors.green.shade200`)
-
-### Text Alignment
-- Use consistent text alignment across screens
-- Dialog titles and content should be left-aligned by default
-- Center alignment should be used sparingly (e.g., empty states, centered buttons)
-- Form fields should be left-aligned with proper labels
-
-### Theme Configuration
-Theme is configured in `lib/main.dart` with:
-- Light theme: `ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.light)`
-- Dark theme: `ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark)`
-- Text theme with standardized font sizes and weights
-- Material 3 enabled for modern UI components
-
----
-
-## 18) Build Configuration and Environment Variables
-
-### Build Configuration
-- **Icon Tree-Shaking**: Build uses `--no-tree-shake-icons` flag to support dynamic IconData instances
-  - Helper function: `IconService.iconFromCodePoint()` in `lib/services/icon_service.dart`
-  - Used in: `routine_timer_screen.dart`
-  - Reason: Routines/todos store icon code points dynamically, so Flutter can't tree-shake at compile time
-
-### Environment Variables
-Backend requires these environment variables (see `ENV_SETUP.md` for full list):
-- **Core**: `PORT`, `BASE_URL`
-- **Database**: `DATABASE_URL` (optional, uses JSON file storage if not set)
-- **Other**: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON` (all optional)
-
-### Privacy Policy
-- **Backend route**: `GET /privacy-policy` - Serves a standalone HTML privacy policy page
-- **Purpose**: Required by Google Play Console for apps using sensitive permissions (CAMERA, LOCATION, etc.)
-- **Content**: Explains data collection, storage, permissions, and user rights
-- **Location**: `backend/src/server.js` - Privacy policy route serves HTML with styling
-
----
-
-## 19) Backend API and app integration
-
-The Flutter app talks to a Node/Express backend. Base URL and auth are provided by `DvAuthService`; all authenticated requests use `Authorization: Bearer <dvToken>`.
-
-### Backend overview
-- **Entry**: `backend/src/server.js` (Express app). Vercel serverless: `backend/api/index.js` exports the same app.
-- **Auth middleware**: `backend/src/auth.js` — `requireDvAuth()` (validates Bearer token, sets `req.dvUser`).
-- **Base URL (app)**: `DvAuthService.backendBaseUrl()` — from `BACKEND_BASE_URL` (compile-time, default `https://digital-vision-board.onrender.com`).
-
-### Auth and token
-- **dvToken**: Backend-issued token stored in SharedPreferences (`dv_auth_token_v1`). Used as `Authorization: Bearer <dvToken>` on protected routes.
-- **Guest tokens**: Expire in 10 days; backend returns `expired_auth` when expired; app shows auth gateway on 401.
-- **Obtaining a token**: Guest (`POST /auth/guest`) or Firebase exchange (`POST /auth/firebase/exchange`).
-
-### API endpoints (current) and app usage
-
-| Method | Path | Auth | Purpose | App integration |
-|--------|------|------|---------|-----------------|
-| GET | `/` | — | Info text | — |
-| GET | `/health` | — | Health check | — |
-| GET | `/privacy-policy` | — | HTML privacy page | External link |
-| GET | `/stock/pexels/search` | — | Pexels search proxy (query, perPage) | `StockImagesService.searchPexelsUrls()` — grid Pexels search |
-| GET | `/stock/category-images` | — | Category images by coreValueId + category (DB cache) | `CategoryImagesService.getCategoryImages()` — wizard default images |
-| GET | `/wizard/defaults` | — | Core values + categories | `WizardDefaultsService` — wizard step 1 defaults (cached) |
-| GET | `/wizard/recommendations` | — | Goals for coreValueId + category + gender | `WizardRecommendationsService.get()` — wizard step 2 recommendations |
-| POST | `/wizard/recommendations/generate` | — | Generate recommendations (Gemini) | `WizardRecommendationsService.generate()` / `getOrGenerate()` |
-| POST | `/auth/guest` | — | Create guest session (body: home_timezone, gender) | `DvAuthService.continueAsGuest()` |
-| POST | `/auth/firebase/exchange` | — | Exchange Firebase idToken for dvToken | `DvAuthService.exchangeFirebaseIdTokenForDvToken()` |
-| GET | `/templates` | dvAuth | List templates | `TemplatesService.listTemplates()` |
-| GET | `/templates/:id` | dvAuth | Get template by id | `TemplatesService.getTemplate()` |
-| GET | `/template-images/:id` | — | Template image (public) | `TemplatesService` image URL helper |
-| GET | `/sync/bootstrap` | dvAuth | Bootstrap empty app (boards, settings) | `SyncService.bootstrapIfNeeded()` |
-| POST | `/sync/push` | dvAuth | Push outbox (boards, habitCompletions, userSettings) | `SyncService.flush()` |
-| PUT | `/user/settings` | dvAuth | Update home_timezone, gender | `DvAuthService.putUserSettings()` |
-| GET | `/api/affirmations` | dvAuth | List affirmations (query: limit, offset) | `AffirmationService.loadAffirmations()` |
-| POST | `/api/affirmations` | dvAuth | Create affirmation | `AffirmationService.createAffirmation()` |
-| PUT | `/api/affirmations/:id` | dvAuth | Update affirmation | `AffirmationService.updateAffirmation()` |
-| DELETE | `/api/affirmations/:id` | dvAuth | Delete affirmation | `AffirmationService.deleteAffirmation()` |
-| PUT | `/api/affirmations/:id/pin` | dvAuth | Pin/unpin affirmation | `AffirmationService.togglePin()` |
-
-### App-side API usage summary
-- **Auth**: `lib/services/dv_auth_service.dart` — guest, Firebase exchange; stores dvToken; `putUserSettings()` → `PUT /user/settings`.
-- **Sync**: `lib/services/sync_service.dart` — `GET /sync/bootstrap`, `POST /sync/push`; 401 sets `SyncService.authExpired`.
-- **Wizard**: `WizardDefaultsService` → `GET /wizard/defaults`; `WizardRecommendationsService` → `GET /wizard/recommendations`, `POST /wizard/recommendations/generate`.
-- **Stock images**: `StockImagesService` → `GET /stock/pexels/search`; `CategoryImagesService` → `GET /stock/category-images` (no auth).
-- **Templates**: `TemplatesService` → `/templates`, `/templates/:id`, `/template-images/:id`.
-- **Affirmations**: `AffirmationService` — CRUD and pin via `/api/affirmations*` with Bearer token.
-
-### Flow notes
-- **Guest**: App calls `POST /auth/guest` (optional body: home_timezone, gender), stores dvToken and expiresAt; subsequent requests use Bearer token until expiry; then app shows auth gateway.
-- **Sync**: On empty local boards, app calls `GET /sync/bootstrap` to seed boards/settings; after local changes, `SyncService` enqueues and calls `POST /sync/push` (best-effort, skipped on web when backend unreachable).
-- **Wizard**: Defaults and recommendations are public (no auth); category images and Pexels are also public; wizard steps use these to build the board locally.
-
----
-
-## 20) Coins / Gamification System
-
-The app includes a gamification system that rewards users with coins for habit completions.
-
-### Coins Service
-- **File**: `lib/services/coins_service.dart`
-- Manages user coin balance (stored in SharedPreferences as `user_total_coins`)
-- Coin awards:
-  - Coping plan completion: 5 coins
-  - Full habit completion: 10 coins
-  - Streak bonus (every 7 days): 25 coins
-- Streak bonuses are tracked per-habit to prevent duplicate awards
-
-### UI Components
-
-**DailyProgressHeader** (`lib/widgets/rituals/daily_progress_header.dart`):
-- Displays at top of Rituals tab
-- Shows daily progress and coin balance
-
-**AnimatedHabitCard** (`lib/widgets/rituals/animated_habit_card.dart`):
-- Animated habit cards with gradient backgrounds (theme-aware)
-- Coin badge showing reward amount (+X coins)
-- Streak indicator (🔥X)
-- Weekly progress bar
-- Staggered entrance animations
-
-**Coin Animations**:
-- `CoinAnimationOverlay` (`lib/widgets/rituals/coin_animation_overlay.dart`): Flying coin particles with quadratic bezier curves (8 coins by default)
-
-**HabitCompletionSheet** (`lib/widgets/rituals/habit_completion_sheet.dart`):
-- Bottom sheet for choosing completion type (coping plan vs full habit)
-- Shows coin rewards for each option
-- Triggers appropriate animations on selection
-
-### Completion Flow
-1. User completes habit → `showHabitCompletionSheet()`
-2. User chooses coping plan (5 coins) or full habit (10 coins)
-3. Flying coins animate to header
-5. Coins added to balance via `CoinsService.addCoins()`
-6. Streak bonus checked and awarded if applicable
-
-### Integration Points
-- Used in `AllBoardsHabitsTab` (`lib/widgets/dashboard/all_boards_habits_tab.dart`)
-- Integrated with `HabitCompletionApplier` service
-- Coins awarded across all habit completion flows in the app
-
----
-
-## 21) Routine System
-
-Routines allow users to create sequential multi-step workflows with timers, scheduling, and completion tracking.
+## 6) Routine tab (RoutineScreen)
+
+**File**: `lib/screens/routine_screen.dart` (tab index 6)
+
+- Sun times header with sunrise/sunset arc visualization
+- Date selector to view routines by date
+- Timeline view of routines sorted by start time
+- Tap routine → `RoutineTimerScreen`
+
+### RoutineTimerScreen
+- **File**: `lib/screens/routine_timer_screen.dart`
+- Circular countdown timer, PageView for steps
+- Per-step completion with confetti
+- Timer modes: "Flexible Flow" (overall) or "Guided Steps" (per-step)
 
 ### Data Models
+- `Routine` (`lib/models/routine.dart`): title, icon, todos, timeMode, schedule
+- `RoutineTodoItem` (`lib/models/routine_todo_item.dart`): step with duration, reminder, completion dates
+- Storage: `lib/services/routine_storage_service.dart`
 
-**Routine** (`lib/models/routine.dart`):
-- `id`, `title`, `createdAtMs`
-- `iconCodePoint`, `tileColorValue` (customization)
-- `todos: List<RoutineTodoItem>` (sequential steps)
-- `timeMode`: `'overall'` (single timer) or `'per_todo'` (individual timers)
-- `overallDurationMinutes`, `overallTimerType` (for overall mode)
-- `occurrenceType`: `'daily'` | `'weekdays'` | `'interval'`
-- `weekdays`, `intervalDays`, `startDate` (for scheduling)
-- Helper: `occursOnDate(date)` checks if routine runs on given date
+### Sun Times
+- **Service**: `lib/services/sun_times_service.dart` (NOAA calculator, geolocator)
+- **Widget**: `lib/widgets/routine/sun_times_header.dart` (arc visualization)
 
-**RoutineTodoItem** (`lib/models/routine_todo_item.dart`):
-- `id`, `title`, `order`
-- `iconCodePoint` (auto-detected from title)
-- `durationMinutes` (for per_todo mode)
-- `reminderMinutes` (scheduled start time)
-- `reminderEnabled`
-- `completionDates` (per-date completion tracking as ISO strings)
-- Helper: `isCompletedOnDate(date)`
+---
 
-### Key Screens
+## 7) Journal tab
 
-**RoutineTimerScreen** (`lib/screens/routine_timer_screen.dart`):
-- Timer screen with step-by-step execution
-- Large circular countdown timer (`CircularCountdownTimer`)
-- PageView for swiping between steps
-- Timer controls: Start/Pause, Reset, +/- time adjustments
-- Per-step completion with confetti animation
-- Auto-advance to next incomplete step
-- Visual feedback: Completed steps show checkmark, green background
+**File**: `lib/screens/journal/journal_notes_screen.dart` (embedded mode, tab index 2)
 
-**RoutineScreen** (`lib/screens/routine_screen.dart`):
-- Main routine list screen (tab index 6)
-- Sun times header integration (see section 22)
-- Date selector to view routines for specific dates
-- Timeline view showing routines sorted by start time
-- Pull-to-refresh support
+Journal with editor:
+- `lib/screens/journal/journal_editor_screen.dart`
+- Supporting widgets in `lib/screens/journal/widgets/`: book carousel, hero section, action bar, editor components, image/audio embeds, font picker, cover chooser
+
+---
+
+## 8) 75 Hard Challenge
+
+### ChallengeSetupScreen
+- **File**: `lib/screens/challenge_setup_screen.dart`
+- Preview challenge template, set start date, customize habit names/times/durations
+- "Start Challenge" creates habits and challenge record
+- Ad-gated for free users
+
+### ChallengeProgressCard
+- **File**: `lib/widgets/dashboard/challenge_progress_card.dart`
+- Shows on Home tab: progress when active, start prompt when inactive
+- Active challenge tap → switch to Habits tab
 
 ### Storage
-- **File**: `lib/services/routine_storage_service.dart`
-- Persistence via SharedPreferences as JSON
-- Active routine ID tracked for widget support
-
-### Navigation
-- Dashboard tab index 6 → `RoutineScreen`
-- Open: Tap routine → `RoutineTimerScreen`
+- `ChallengeStorageService` — challenge records
+- `HabitStorageService` — habits created by challenge
 
 ---
 
-## 22) Sun Times Feature
+## 9) Puzzle Game
 
-Calculates and displays sunrise/sunset times based on user location with visual day progress.
+### PuzzleGameScreen
+- **File**: `lib/screens/puzzle_game_screen.dart`
+- 4x4 drag-and-drop puzzle from goal images
+- Completion detection, solve timer, reference image toggle, shuffle
+- Image selector: `lib/widgets/dialogs/puzzle_image_selector_sheet.dart`
 
-### SunTimesService (`lib/services/sun_times_service.dart`)
-- Location management via `geolocator` package
-- Caches location in SharedPreferences
-- Requests location permissions if needed
-- Falls back to defaults (6:00 AM / 6:00 PM) if unavailable
-- Calculation algorithm based on NOAA Solar Calculator
-- Methods:
-  - `getSunTimes(date)`: Returns sunrise/sunset for date
-  - `getDefaultSunTimes()`: Fallback times
-  - `formatTime(dateTime)`: Formats as "6:45 AM"
-  - `getDayProgress()`: Returns 0.0-1.0 progress between sunrise/sunset
+### PuzzleService
+- **File**: `lib/services/puzzle_service.dart`
+- Auto-rotates puzzle image every 4 hours
+- Falls back to gallery picker if no goal images exist
 
-### SunTimesHeader Widget (`lib/widgets/routine/sun_times_header.dart`)
-- Visual display with sunrise/sunset times and icons
-- Arc visualization showing sun position throughout day
-- Animated sun indicator moving along 180-degree arc
-- Progress arc fills as day progresses
-- Custom painter (`_SunArcPainter`) with theme-aware colors
-- Horizon line and time markers (6AM, 12PM, 6PM)
-
-### Integration
-- Used in `RoutineScreen` above routine timeline
-- Updates every minute to show current sun position
-- Loads sun times when date changes
-- Location cached for performance
+### Image Splitter
+- **File**: `lib/utils/puzzle_image_splitter.dart` (splits into 16 pieces)
 
 ---
 
-## 23) Confetti and Celebration Animations
+## 10) Affirmations
 
-### Confetti Overlay (`lib/widgets/routine/confetti_overlay.dart`)
-- Custom particle system for routine step completion
-- Features:
-  - 50 particles by default (configurable)
-  - Random colors (gold, green, blue, pink, orange, purple)
-  - Two shapes: circles and rectangles
-  - Random sizes, angles, speeds, rotation speeds
-- Physics:
-  - Particles fly outward from center
-  - Gravity effect (particles fall)
-  - Fade out and scale down as animation progresses
-- Animation: 1.5s duration, haptic feedback on start
-- Used in `RoutineTimerScreen` when marking todo complete
+### AffirmationManagementScreen
+- **File**: `lib/screens/affirmation_management_screen.dart`
+- Accessed from: AffirmationSummaryCard on Home tab
+- CRUD for affirmations, pin/unpin
 
-### Additional Animation Components
-- `AnimatedCheckmark`: Elastic scale animation for completion checkmarks
-- `CelebrationController`: Controller for managing celebration state
+### AffirmationService
+- **File**: `lib/services/affirmation_service.dart`
+- Backend API: `/api/affirmations` (CRUD + pin, requires dvAuth)
 
 ---
 
-## 24) Add Habit Modal (Enhanced)
+## 11) Mood Tracking
+
+### MoodDetailScreen
+- **File**: `lib/screens/mood_detail_screen.dart`
+- Accessed from: MoodTrackerCard on Home tab
+
+---
+
+## 12) Insights
+
+### GlobalInsightsScreen
+- **File**: `lib/screens/global_insights_screen.dart`
+- Accessed from: InsightsSummaryCard on Home tab
+- Per-board or all-boards activity/streak summaries
+
+---
+
+## 13) Auth and Account
+
+### AuthGatewayScreen
+- **File**: `lib/screens/auth/auth_gateway_screen.dart`
+- Accessed from: drawer profile header
+- Sub-screens: `LoginScreen`, `SignupScreen`, `PhoneAuthScreen`, `ProfileCompletionScreen`
+
+### Auth Service
+- **File**: `lib/services/dv_auth_service.dart`
+- Guest tokens (10-day expiry), Firebase exchange
+- Backend: `POST /auth/guest`, `POST /auth/firebase/exchange`
+
+---
+
+## 14) Subscription and Ads
+
+### SubscriptionScreen
+- **File**: `lib/screens/subscription_screen.dart`
+- Accessed from: drawer "Go Premium"
+
+### Ad System
+- `AdService` / `AdFreeService` — gates habit creation (3+ free limit) and challenge setup
+- Free users see ad cards on Habits tab; watch 5 ads to unlock habit slot
+- Premium users bypass all ad gates
+
+---
+
+## 15) Backup and Restore
+
+### BackupRestoreScreen
+- **File**: `lib/screens/backup_restore_screen.dart`
+- Accessed from: drawer "Backup"
+- Google Drive backup with encryption
+- `GoogleDriveBackupService`, `AutoSyncService`
+
+---
+
+## 16) Onboarding
+
+### OnboardingScreen
+- **File**: `lib/screens/onboarding/onboarding_screen.dart`
+- Shown on first launch; replayable from drawer "App Tour"
+
+---
+
+## 17) Core data model
+
+### HabitItem
+- **File**: `lib/models/habit_item.dart`
+- Completion dates, streaks, weekly schedule, time-bound specs, location triggers, habit anchoring
+
+### Standalone Habit Storage
+- **File**: `lib/services/habit_storage_service.dart`
+- Habits stored independently (not on board components) for the Habits tab
+- Synced with board component habits via `syncComponentsHabits()`
+
+### VisionComponent / ImageComponent
+- **Files**: `lib/models/vision_component.dart`, `lib/models/image_component.dart`, `lib/models/vision_components.dart`
+- Nodes on freeform canvases; own habits and tasks lists
+
+### GridTileModel
+- **File**: `lib/models/grid_tile_model.dart`
+- Grid board tiles; own goal, habits, tasks
+
+### TaskItem + ChecklistItem
+- **File**: `lib/models/task_and_checklist_models.dart`
+- Tasks with checklists; per-day completion feedback
+
+### VisionBoardInfo
+- **File**: `lib/models/vision_board_info.dart`
+- Board metadata (id, title, layoutType, coreValueId, templateId)
+
+### Routine + RoutineTodoItem
+- **Files**: `lib/models/routine.dart`, `lib/models/routine_todo_item.dart`
+
+---
+
+## 18) Persistence
+
+| Data | Service | Storage |
+|------|---------|---------|
+| Boards list | `BoardsStorageService` | SharedPreferences |
+| Grid tiles | `GridTilesStorageService` | SharedPreferences (by boardId) |
+| Canvas components | `VisionBoardComponentsStorageService` | SharedPreferences (by boardId) |
+| Standalone habits | `HabitStorageService` | SharedPreferences |
+| Routines | `RoutineStorageService` | SharedPreferences |
+| Coins | `CoinsService` | SharedPreferences (`user_total_coins`) |
+| Challenges | `ChallengeStorageService` | SharedPreferences |
+| Puzzle state | `PuzzleService` | SharedPreferences |
+| Auth tokens | `DvAuthService` | SharedPreferences (`dv_auth_token_v1`) |
+
+---
+
+## 19) Completion semantics and feedback
+
+### Habit completion
+- Weekly scheduled habits can only be toggled on scheduled dates
+- Completion → feedback prompt (mood rating + note)
+
+### Checklist item completion
+- Check item → prompt for feedback if missing today
+- If that check completes the task → prompt for task-level feedback
+- Single-item tasks: skip item-level feedback, only show task-level
+
+### Shared implementation
+- Completion applier: `lib/services/habit_completion_applier.dart`
+- Feedback UI: `lib/widgets/dialogs/completion_feedback_sheet.dart`
+- Implemented consistently in: `habit_tracker_sheet.dart`, `tasks_list_screen.dart`, `all_boards_habits_tab.dart`, `habits_list_screen.dart`, `all_boards_tasks_tab.dart`
+
+---
+
+## 20) Add Habit Modal (4-step wizard)
 
 **File**: `lib/widgets/rituals/add_habit_modal.dart`
 
-Multi-step wizard for creating habits with advanced options:
+Steps:
+1. Name & Icon (text input + icon picker)
+2. Color (gradient color picker)
+3. Schedule (occurrence, weekdays, interval, time, reminders)
+4. Advanced (duration/timer, habit anchoring, location triggers, CBT)
 
-### 4-Step Wizard
-1. **Name & Icon**: Text input + icon picker (16 predefined icons)
-2. **Color**: Gradient color picker (10 color schemes)
-3. **Schedule**: Occurrence type, weekday picker, interval stepper, time picker, reminders
-4. **Advanced Options**: Duration/timer settings, habit anchoring, location triggers
-
-### Advanced Features
-- **Time-bound habits**: Duration with unit (minutes)
-- **Habit anchoring**: Chain habits together ("After X habit", "Before Y habit")
-- **Location triggers**: Geofencing with arrival/dwell modes, radius selection
-- **CBT enhancements**: Optional cognitive behavioral therapy fields
-
-### UI/UX
-- Slide-in animation from right
-- Step indicator at top
-- Modern Material 3 design
-- Theme-aware colors
-- Returns `HabitCreateRequest` object with all settings
-
-### Usage
-- Called via `showAddHabitModal()`
-- Integrates with existing habit creation flows
+Called via `showAddHabitModal()` from create panel and other flows.
 
 ---
 
-## 17) Glossary (UI term → code type)
+## 21) Typography and Theme System
 
-- Board:
-  - `VisionBoardInfo` (`lib/models/vision_board_info.dart`) + persisted via `BoardsStorageService`
-- Goal (general concept: something you attach habits/tasks to):
-  - Goal canvas: usually an `ImageComponent` with `goal` metadata
-  - Grid: `GridTileModel` (converted to `ImageComponent` for tracker UI)
-- Layer:
-  - A `VisionComponent` entry in the board’s components list (ordered by `zIndex`)
-  - Managed via `showLayersSheet` in `lib/widgets/editor/layers_sheet.dart`
-- Habit:
-  - `HabitItem` (`lib/models/habit_item.dart`) stored on a goal’s component/tile
-- Task:
-  - `TaskItem` (`lib/models/task_and_checklist_models.dart`) stored on a goal’s component/tile
-- Checklist item:
-  - `ChecklistItem` (`lib/models/task_and_checklist_models.dart`)
-  - Completion stored in `completedOn` (YYYY-MM-DD) and per-day feedback in `feedbackByDate`
-- “Tracker”:
-  - The per-goal tracking UI: `HabitTrackerSheet` (`lib/widgets/habit_tracker_sheet.dart`)
+### Typography
+- **File**: `lib/utils/app_typography.dart`
+- `AppTypography.heading1/2/3`, `body`, `bodySmall`, `caption`, `button`, `secondary`, `error`
+- All styles are theme-aware (adapt to light/dark)
+
+### Theme Colors
+- Material 3 with `ColorScheme.fromSeed(seedColor: Colors.deepPurple)`
+- Never use hardcoded colors; always use `Theme.of(context).colorScheme.*`
+- Key mappings: `onSurface` (primary text), `onSurfaceVariant` (secondary text), `outline` (borders), `primary` (actions)
+
+### App Colors
+- **File**: `lib/utils/app_colors.dart`
+- `AppColors.skyGradient()` for dashboard background, `AppColors.coinGold` for coin UI
+
+---
+
+## 22) Platform / web-safe file access
+
+- **File**: `lib/utils/file_image_provider.dart`
+- `fileExists(path)` — platform-safe; returns false on web
+- `fileImageProviderFromPath(path)` — returns `FileImage` on mobile, `NetworkImage` for URLs, null for file paths on web
+- Used throughout board editors and viewers for cross-platform image display
+
+---
+
+## 23) Backend API
+
+Base URL: `DvAuthService.backendBaseUrl()` (default `https://digital-vision-board.onrender.com`)
+Auth: `Authorization: Bearer <dvToken>` for protected routes
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/health` | — | Health check |
+| GET | `/privacy-policy` | — | HTML privacy page |
+| GET | `/stock/pexels/search` | — | Pexels image proxy |
+| GET | `/stock/category-images` | — | Category images (DB cache) |
+| GET | `/wizard/defaults` | — | Core values + categories |
+| GET | `/wizard/recommendations` | — | Goal recommendations |
+| POST | `/wizard/recommendations/generate` | — | Generate recommendations (Gemini) |
+| POST | `/auth/guest` | — | Create guest session |
+| POST | `/auth/firebase/exchange` | — | Firebase → dvToken |
+| GET | `/templates` | dvAuth | List templates |
+| GET | `/templates/:id` | dvAuth | Get template |
+| GET | `/sync/bootstrap` | dvAuth | Bootstrap empty app |
+| POST | `/sync/push` | dvAuth | Push local changes |
+| PUT | `/user/settings` | dvAuth | Update timezone/gender |
+| GET | `/api/affirmations` | dvAuth | List affirmations |
+| POST | `/api/affirmations` | dvAuth | Create affirmation |
+| PUT | `/api/affirmations/:id` | dvAuth | Update affirmation |
+| DELETE | `/api/affirmations/:id` | dvAuth | Delete affirmation |
+| PUT | `/api/affirmations/:id/pin` | dvAuth | Pin/unpin |
+
+---
+
+## 24) Build Configuration
+
+- **Icon Tree-Shaking**: Uses `--no-tree-shake-icons` for dynamic IconData
+- **Environment Variables**: See `ENV_SETUP.md` (GEMINI_API_KEY, PEXELS_API_KEY, etc.)
+
+---
+
+## 25) Stability gotchas
+
+### A) TextEditingController + dialogs
+Don't create a controller outside a dialog and dispose after `await showDialog`. Return values via dialog result instead.
+
+### B) Checklist uncheck bug
+`ChecklistItem.copyWith` uses sentinel pattern to allow explicitly clearing `completedOn` (null pass-through).
+
+### C) Avoid duplicate symbols
+Keep shared dialogs/services single-defined.
+
+### D) Web vs. file system
+Use `lib/utils/file_image_provider.dart` helpers instead of `dart:io` File directly.
+
+---
+
+## 26) Quick entry points
+
+- App entry: `lib/main.dart`
+- Dashboard: `lib/screens/dashboard_screen.dart`; body: `lib/widgets/dashboard/dashboard_body.dart`
+- Home tab cards: `lib/widgets/dashboard/dashboard_tab.dart`
+- Habits tab: `lib/widgets/dashboard/all_boards_habits_tab.dart`
+- Routine tab: `lib/screens/routine_screen.dart`; timer: `lib/screens/routine_timer_screen.dart`
+- Journal tab: `lib/screens/journal/journal_notes_screen.dart`
+- Vision boards: `lib/screens/vision_boards_screen.dart`
+- Grid board: `lib/screens/grid_board_editor.dart`, `lib/screens/grid_goal_viewer_screen.dart` (not a standalone file — is `GridGoalViewerScreen` in the grid editor)
+- Goal canvas: `lib/screens/goal_canvas_viewer_screen.dart`, `lib/screens/goal_canvas_editor_screen.dart`
+- Tracker: `lib/widgets/habit_tracker_sheet.dart`
+- Habit modal: `lib/widgets/rituals/add_habit_modal.dart`
+- Puzzle: `lib/screens/puzzle_game_screen.dart`
+- Challenge: `lib/screens/challenge_setup_screen.dart`
+- Affirmations: `lib/screens/affirmation_management_screen.dart`
+- Mood: `lib/screens/mood_detail_screen.dart`
+- Insights: `lib/screens/global_insights_screen.dart`
+- Badges: `lib/screens/earn_badges_screen.dart`
+- Auth: `lib/screens/auth/auth_gateway_screen.dart`
+- Subscription: `lib/screens/subscription_screen.dart`
+- Backup: `lib/screens/backup_restore_screen.dart`
+- Onboarding: `lib/screens/onboarding/onboarding_screen.dart`
+- Create board wizard: `lib/screens/wizard/create_board_wizard_screen.dart`
+
+---
+
+## 27) Glossary
+
+- **Board**: `VisionBoardInfo` — a vision board with goals
+- **Goal**: Metadata on an ImageComponent or GridTileModel
+- **Habit**: `HabitItem` — daily/weekly trackable; stored standalone or on goals
+- **Task**: `TaskItem` with `ChecklistItem` children
+- **Routine**: `Routine` with `RoutineTodoItem` steps — timed workflows
+- **Challenge**: 75 Hard program — creates habits with specific schedule
+- **Coins**: Gamification currency earned from habit completions
+- **Tracker**: `HabitTrackerSheet` — per-goal habit/task/insights UI

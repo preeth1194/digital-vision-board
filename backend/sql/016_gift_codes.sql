@@ -23,3 +23,7 @@ CREATE TABLE IF NOT EXISTS dv_gift_code_redemptions (
 INSERT INTO dv_gift_codes (code, plan_id, duration_days, max_uses)
 VALUES ('PREETH111294', 'dvb_premium_1year', 365, 999)
 ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO dv_gift_codes (code, plan_id, duration_days, max_uses)
+VALUES ('THANKS', 'dvb_premium_1year', 365, 999)
+ON CONFLICT (code) DO NOTHING;

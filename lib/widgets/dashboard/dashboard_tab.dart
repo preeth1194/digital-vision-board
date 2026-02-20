@@ -16,11 +16,13 @@ class DashboardTab extends StatelessWidget {
   final List<Routine> routines;
   final String? activeRoutineId;
   final SharedPreferences? prefs;
+  final int dataVersion;
   final VoidCallback onCreateBoard;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
   final VoidCallback? onStartChallenge;
+  final VoidCallback? onViewHabits;
 
   const DashboardTab({
     super.key,
@@ -29,11 +31,13 @@ class DashboardTab extends StatelessWidget {
     required this.routines,
     required this.activeRoutineId,
     this.prefs,
+    this.dataVersion = 0,
     required this.onCreateBoard,
     required this.onOpenEditor,
     required this.onOpenViewer,
     required this.onDeleteBoard,
     this.onStartChallenge,
+    this.onViewHabits,
   });
 
   @override
@@ -45,7 +49,7 @@ class DashboardTab extends StatelessWidget {
           // Challenge progress (or start prompt)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ChallengeProgressCard(onStartChallenge: onStartChallenge),
+            child: ChallengeProgressCard(dataVersion: dataVersion, onStartChallenge: onStartChallenge, onViewHabits: onViewHabits),
           ),
           const SizedBox(height: 12),
           // Row 1: Insights | Mood

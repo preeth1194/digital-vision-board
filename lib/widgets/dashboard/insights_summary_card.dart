@@ -108,7 +108,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (!_loaded)
                       SizedBox(

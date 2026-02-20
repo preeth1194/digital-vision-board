@@ -34,6 +34,7 @@ class DashboardBody extends StatelessWidget {
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
   final VoidCallback? onSwitchToRoutine;
   final VoidCallback? onStartChallenge;
+  final VoidCallback? onViewHabits;
 
   const DashboardBody({
     super.key,
@@ -52,6 +53,7 @@ class DashboardBody extends StatelessWidget {
     required this.onDeleteBoard,
     this.onSwitchToRoutine,
     this.onStartChallenge,
+    this.onViewHabits,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -136,7 +138,7 @@ class DashboardBody extends StatelessWidget {
     // Force reload of board components across tabs whenever board data changes.
     return ValueListenableBuilder<int>(
       valueListenable: boardDataVersion,
-      builder: (context, _, __) {
+      builder: (context, version, __) {
         final child = KeyedSubtree(
           key: ValueKey<int>(tabIndex),
           child: switch (tabIndex) {
@@ -146,11 +148,13 @@ class DashboardBody extends StatelessWidget {
           routines: routines,
           activeRoutineId: activeRoutineId,
           prefs: prefs,
+          dataVersion: version,
           onCreateBoard: onCreateBoard,
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
           onStartChallenge: onStartChallenge,
+          onViewHabits: onViewHabits,
         ),
       6 => RoutineScreen(dataVersion: boardDataVersion),
       7 => FutureBuilder<Map<String, List<VisionComponent>>>(

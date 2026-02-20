@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../models/mood_entry.dart';
@@ -14,30 +12,14 @@ class MoodTrackerCard extends StatefulWidget {
   State<MoodTrackerCard> createState() => _MoodTrackerCardState();
 }
 
-class _MoodTrackerCardState extends State<MoodTrackerCard>
-    with SingleTickerProviderStateMixin {
+class _MoodTrackerCardState extends State<MoodTrackerCard> {
   int? _todayMood;
   bool _loaded = false;
-
-  final _cardKey = GlobalKey();
-  OverlayEntry? _pickerOverlay;
-  late AnimationController _pickerAnim;
 
   @override
   void initState() {
     super.initState();
-    _pickerAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
     _load();
-  }
-
-  @override
-  void dispose() {
-    _removeOverlay();
-    _pickerAnim.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -56,20 +38,6 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
     }
   }
 
-  Future<void> _onMoodSelected(int value) async {
-    final now = DateTime.now();
-    final entry = MoodEntry(
-      id: 'mood_${now.millisecondsSinceEpoch}',
-      date: DateTime(now.year, now.month, now.day),
-      value: value,
-    );
-    await MoodStorageService.saveMood(entry);
-    _removeOverlay();
-    if (mounted) {
-      setState(() => _todayMood = value);
-    }
-  }
-
   void _openMoodDetail() async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const MoodDetailScreen()),
@@ -78,59 +46,14 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
   }
 
   void _onCardTap() {
-    if (_todayMood != null) {
-      _openMoodDetail();
-    } else {
-      _showPicker();
-    }
+    _openMoodDetail();
   }
-
-  // ─── Semi-circle overlay ──────────────────────────────────────────────────
-
-  void _showPicker() {
-    if (_pickerOverlay != null) {
-      _removeOverlay();
-      return;
-    }
-
-    final renderBox =
-        _cardKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final cardSize = renderBox.size;
-    final cardPos = renderBox.localToGlobal(Offset.zero);
-
-    final centerX = cardPos.dx + cardSize.width / 2;
-    final anchorY = cardPos.dy;
-
-    _pickerOverlay = OverlayEntry(
-      builder: (context) => _SemiCirclePickerOverlay(
-        centerX: centerX,
-        anchorY: anchorY,
-        animation: _pickerAnim,
-        onMoodSelected: _onMoodSelected,
-        onDismiss: _removeOverlay,
-      ),
-    );
-
-    Overlay.of(context).insert(_pickerOverlay!);
-    _pickerAnim.forward(from: 0);
-  }
-
-  void _removeOverlay() {
-    _pickerOverlay?.remove();
-    _pickerOverlay = null;
-    if (_pickerAnim.isAnimating) _pickerAnim.stop();
-  }
-
-  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      key: _cardKey,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _onCardTap,
@@ -172,10 +95,10 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                   ),
                 )
               else if (_todayMood != null) ...[
-                Icon(
-                  iconForMood(_todayMood!),
-                  size: 52,
-                  color: colorForMood(_todayMood!),
+                Image.asset(
+                  assetForMood(_todayMood!),
+                  width: 52,
+                  height: 52,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -192,10 +115,13 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
                   ),
                 ),
               ] else ...[
-                Icon(
-                  Icons.mood_rounded,
-                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
-                  size: 52,
+                Opacity(
+                  opacity: 0.5,
+                  child: Image.asset(
+                    'assets/moods/okay.png',
+                    width: 52,
+                    height: 52,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -209,98 +135,6 @@ class _MoodTrackerCardState extends State<MoodTrackerCard>
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─── Semi-circle picker overlay widget ──────────────────────────────────────
-
-class _SemiCirclePickerOverlay extends StatelessWidget {
-  final double centerX;
-  final double anchorY;
-  final Animation<double> animation;
-  final ValueChanged<int> onMoodSelected;
-  final VoidCallback onDismiss;
-
-  const _SemiCirclePickerOverlay({
-    required this.centerX,
-    required this.anchorY,
-    required this.animation,
-    required this.onMoodSelected,
-    required this.onDismiss,
-  });
-
-  static const _radius = 90.0;
-  static const _emojiSize = 44.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: onDismiss,
-            behavior: HitTestBehavior.opaque,
-            child: const ColoredBox(color: Colors.transparent),
-          ),
-        ),
-        ...List.generate(moodOptions.length, (i) {
-          final mood = moodOptions[i];
-          // Spread 5 items evenly across the top half arc (pi to 0)
-          final angle =
-              math.pi - (i * math.pi / (moodOptions.length - 1));
-          final dx = centerX + _radius * math.cos(angle) - _emojiSize / 2;
-          final dy = anchorY - _radius * math.sin(angle) - _emojiSize / 2 - 8;
-
-          final staggerStart = i * 0.1;
-          final staggerEnd = (staggerStart + 0.6).clamp(0.0, 1.0);
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Interval(staggerStart, staggerEnd, curve: Curves.elasticOut),
-          );
-
-          return Positioned(
-            left: dx,
-            top: dy,
-            child: AnimatedBuilder(
-              animation: curved,
-              builder: (context, child) {
-                final scale = curved.value;
-                return Transform.scale(
-                  scale: scale,
-                  child: Opacity(
-                    opacity: scale.clamp(0.0, 1.0),
-                    child: child,
-                  ),
-                );
-              },
-              child: GestureDetector(
-                onTap: () => onMoodSelected(mood.value),
-                child: Container(
-                  width: _emojiSize,
-                  height: _emojiSize,
-                  decoration: BoxDecoration(
-                    color: mood.color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: mood.color.withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    mood.icon,
-                    size: 26,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ],
     );
   }
 }

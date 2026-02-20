@@ -6,6 +6,7 @@ import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import 'boards_storage_service.dart';
+import 'challenge_storage_service.dart';
 import 'grid_tiles_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 
@@ -84,6 +85,27 @@ class HabitStorageService {
     final all = await loadAll(prefs: p);
     all.removeWhere((h) => h.id == id);
     await saveAll(all, prefs: p);
+
+    // If this habit belongs to a challenge, delete the challenge so the
+    // user can start fresh (e.g. 75 Hard reset).
+    final challenges = await ChallengeStorageService.loadAll(prefs: p);
+    for (final c in challenges) {
+      if (c.habitIds.contains(id)) {
+        // Delete all remaining habits from this challenge
+        for (final hId in c.habitIds) {
+          if (hId != id) {
+            final remaining = await loadAll(prefs: p);
+            remaining.removeWhere((h) => h.id == hId);
+            await saveAll(remaining, prefs: p);
+          }
+        }
+        await ChallengeStorageService.deleteChallenge(c.id, prefs: p);
+        final activeId = await ChallengeStorageService.loadActiveChallengeId(prefs: p);
+        if (activeId == c.id) {
+          await ChallengeStorageService.clearActiveChallengeId(prefs: p);
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -673,6 +673,29 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openChallengeSetup() async {
+    final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+
+    if (shouldShowAds) {
+      final existingSession = await AdService.getChallengeSession(prefs: _prefs);
+      if (existingSession != null) {
+        final complete = await AdService.isChallengeSessionComplete(
+          existingSession,
+          prefs: _prefs,
+        );
+        if (!complete) {
+          _boardDataVersion.value++;
+          return;
+        }
+      } else {
+        final sessionKey =
+            'challenge_75hard_${DateTime.now().millisecondsSinceEpoch}';
+        await AdService.setChallengeSession(sessionKey, prefs: _prefs);
+        _boardDataVersion.value++;
+        return;
+      }
+    }
+
+    if (!mounted) return;
     final res = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ChallengeSetupScreen(
@@ -682,6 +705,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     if (mounted && res == true) {
       _boardDataVersion.value++;
+      setState(() => _tabIndex = 7);
     }
   }
 
@@ -988,6 +1012,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       onDeleteBoard: _deleteBoard,
       onSwitchToRoutine: () => setState(() => _tabIndex = 6),
       onStartChallenge: _openChallengeSetup,
+      onViewHabits: () => setState(() => _tabIndex = 7),
     );
 
     final scaffold = Scaffold(
@@ -1223,21 +1248,36 @@ class _DashboardScreenState extends State<DashboardScreen>
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    'Habit Seeding',
-                    style: AppTypography.bodySmall(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 36,
+                      height: 36,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Seed your new habits',
-                    style: AppTypography.caption(context).copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Habit Seeding',
+                          style: AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Seed your new habits',
+                          style: AppTypography.caption(context).copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -82,12 +82,14 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
 class _MoodOption {
   final int value;
   final IconData icon;
+  final String assetPath;
   final String label;
   final Color color;
 
   const _MoodOption({
     required this.value,
     required this.icon,
+    required this.assetPath,
     required this.label,
     required this.color,
   });
@@ -97,30 +99,35 @@ const _moods = <_MoodOption>[
   _MoodOption(
     value: 1,
     icon: Icons.sentiment_very_dissatisfied_rounded,
+    assetPath: 'assets/moods/awful.png',
     label: 'Awful',
     color: AppColors.moodAwful,
   ),
   _MoodOption(
     value: 2,
     icon: Icons.sentiment_dissatisfied_rounded,
+    assetPath: 'assets/moods/bad.png',
     label: 'Bad',
     color: AppColors.moodBad,
   ),
   _MoodOption(
     value: 3,
     icon: Icons.sentiment_neutral_rounded,
+    assetPath: 'assets/moods/okay.png',
     label: 'Neutral',
     color: AppColors.moodNeutral,
   ),
   _MoodOption(
     value: 4,
     icon: Icons.sentiment_satisfied_rounded,
+    assetPath: 'assets/moods/good.png',
     label: 'Good',
     color: AppColors.moodGood,
   ),
   _MoodOption(
     value: 5,
     icon: Icons.sentiment_very_satisfied_rounded,
+    assetPath: 'assets/moods/great.png',
     label: 'Great',
     color: AppColors.moodGreat,
   ),
@@ -885,13 +892,15 @@ class _MoodButtonState extends State<_MoodButton>
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  widget.mood.icon,
-                  size: widget.isSelected ? 40 : 34,
-                  color: widget.isSelected
-                      ? widget.mood.color
-                      : colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.6),
+                width: widget.isSelected ? 40 : 34,
+                height: widget.isSelected ? 40 : 34,
+                child: Opacity(
+                  opacity: widget.isSelected ? 1.0 : 0.6,
+                  child: Image.asset(
+                    widget.mood.assetPath,
+                    width: widget.isSelected ? 40 : 34,
+                    height: widget.isSelected ? 40 : 34,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),

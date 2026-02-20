@@ -1258,12 +1258,12 @@ class _CompletionDetailsSheet extends StatelessWidget {
     required this.feedback,
   });
 
-  static const _moodData = <int, (IconData, String, Color)>{
-    1: (Icons.sentiment_very_dissatisfied_rounded, 'Awful', AppColors.moodAwful),
-    2: (Icons.sentiment_dissatisfied_rounded, 'Bad', AppColors.moodBad),
-    3: (Icons.sentiment_neutral_rounded, 'Neutral', AppColors.moodNeutral),
-    4: (Icons.sentiment_satisfied_rounded, 'Good', AppColors.moodGood),
-    5: (Icons.sentiment_very_satisfied_rounded, 'Great', AppColors.moodGreat),
+  static const _moodData = <int, (String, String, Color)>{
+    1: ('assets/moods/awful.png', 'Awful', AppColors.moodAwful),
+    2: ('assets/moods/bad.png', 'Bad', AppColors.moodBad),
+    3: ('assets/moods/okay.png', 'Neutral', AppColors.moodNeutral),
+    4: ('assets/moods/good.png', 'Good', AppColors.moodGood),
+    5: ('assets/moods/great.png', 'Great', AppColors.moodGreat),
   };
 
   @override
@@ -1418,8 +1418,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                         mood > 0 &&
                         _moodData.containsKey(mood))
                       _buildDetailRow(context,
-                        icon: _moodData[mood]!.$1,
-                        iconColor: _moodData[mood]!.$3,
+                        moodAsset: _moodData[mood]!.$1,
                         label: 'Mood',
                         value: _moodData[mood]!.$2,
                         valueColor: _moodData[mood]!.$3,
@@ -1473,8 +1472,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
   }
 
   Widget _buildDetailRow(BuildContext context, {
-    required IconData icon,
-    required Color iconColor,
+    required String moodAsset,
     required String label,
     required String value,
     required Color valueColor,
@@ -1491,7 +1489,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: iconColor),
+          Image.asset(moodAsset, width: 22, height: 22),
           const SizedBox(width: 12),
           Text(
             label,

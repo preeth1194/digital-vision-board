@@ -12,22 +12,24 @@ import '../utils/app_typography.dart';
 class MoodOption {
   final int value;
   final IconData icon;
+  final String assetPath;
   final String label;
   final Color color;
   const MoodOption({
     required this.value,
     required this.icon,
+    required this.assetPath,
     required this.label,
     required this.color,
   });
 }
 
 const moodOptions = <MoodOption>[
-  MoodOption(value: 1, icon: Icons.sentiment_very_dissatisfied_rounded, label: 'AWFUL', color: AppColors.moodAwful),
-  MoodOption(value: 2, icon: Icons.sentiment_dissatisfied_rounded, label: 'BAD', color: AppColors.moodBad),
-  MoodOption(value: 3, icon: Icons.sentiment_neutral_rounded, label: 'OKAY', color: AppColors.moodNeutral),
-  MoodOption(value: 4, icon: Icons.sentiment_satisfied_rounded, label: 'GOOD', color: AppColors.moodGood),
-  MoodOption(value: 5, icon: Icons.sentiment_very_satisfied_rounded, label: 'GREAT', color: AppColors.moodGreat),
+  MoodOption(value: 1, icon: Icons.sentiment_very_dissatisfied_rounded, assetPath: 'assets/moods/awful.png', label: 'AWFUL', color: AppColors.moodAwful),
+  MoodOption(value: 2, icon: Icons.sentiment_dissatisfied_rounded, assetPath: 'assets/moods/bad.png', label: 'BAD', color: AppColors.moodBad),
+  MoodOption(value: 3, icon: Icons.sentiment_neutral_rounded, assetPath: 'assets/moods/okay.png', label: 'OKAY', color: AppColors.moodNeutral),
+  MoodOption(value: 4, icon: Icons.sentiment_satisfied_rounded, assetPath: 'assets/moods/good.png', label: 'GOOD', color: AppColors.moodGood),
+  MoodOption(value: 5, icon: Icons.sentiment_very_satisfied_rounded, assetPath: 'assets/moods/great.png', label: 'GREAT', color: AppColors.moodGreat),
 ];
 
 Color colorForMood(int value) =>
@@ -35,6 +37,9 @@ Color colorForMood(int value) =>
 
 IconData iconForMood(int value) =>
     moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).icon;
+
+String assetForMood(int value) =>
+    moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).assetPath;
 
 String labelForMood(int value) =>
     moodOptions.firstWhere((m) => m.value == value, orElse: () => moodOptions[2]).label;
@@ -210,8 +215,15 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mood')),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(gradient: AppColors.skyGradient(isDark: isDark)),
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('Mood'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -220,6 +232,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
           _buildAnalysisSection(colorScheme),
         ],
       ),
+    ),
     );
   }
 
@@ -279,16 +292,15 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: isSelected ? 48 : 42,
-              height: isSelected ? 48 : 42,
-              decoration: BoxDecoration(
-                color: mood.color.withValues(alpha: isSelected ? 1.0 : 0.75),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                mood.icon,
-                size: isSelected ? 30 : 26,
-                color: Colors.white,
+              width: isSelected ? 52 : 44,
+              height: isSelected ? 52 : 44,
+              child: Opacity(
+                opacity: isSelected ? 1.0 : 0.75,
+                child: Image.asset(
+                  mood.assetPath,
+                  width: isSelected ? 52 : 44,
+                  height: isSelected ? 52 : 44,
+                ),
               ),
             ),
             const SizedBox(height: 6),

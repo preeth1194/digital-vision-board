@@ -1142,5 +1142,26 @@
       { "label": "6 Months", "duration": "semi-annual", "price": "$19.99/6mo", "savings": "Save 33%" },
       { "label": "1 Year", "duration": "annual", "price": "$34.99/yr", "savings": "Best Value - Save 42%" }
     ]
+  },
+  "challenge_setup_screen": {
+    "appBarTitle": "Challenge Setup",
+    "labels": [
+      "Challenge Rules",
+      "Start Date",
+      "Customize Your Habits",
+      "Adjust names, times, and durations to fit your schedule.",
+      "Start Challenge",
+      "Starting...",
+      "All done today!",
+      "Today's Tasks"
+    ],
+    "challenge_progress_card": {
+      "emptyTitle": "Start a Challenge",
+      "emptySubtitle": "Try 75 Hard or other mental toughness programs",
+      "restartedSuffix": "x restarted",
+      "allDoneToday": "All done today!",
+      "todaysTasks": "Today's Tasks",
+      "tasksCompletedToday": "{completed} of {total} tasks completed today"
+    }
   }
 }

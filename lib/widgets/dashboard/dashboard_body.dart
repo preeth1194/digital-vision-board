@@ -33,6 +33,7 @@ class DashboardBody extends StatelessWidget {
   final ValueChanged<VisionBoardInfo> onOpenViewer;
   final ValueChanged<VisionBoardInfo> onDeleteBoard;
   final VoidCallback? onSwitchToRoutine;
+  final VoidCallback? onStartChallenge;
 
   const DashboardBody({
     super.key,
@@ -50,6 +51,7 @@ class DashboardBody extends StatelessWidget {
     required this.onOpenViewer,
     required this.onDeleteBoard,
     this.onSwitchToRoutine,
+    this.onStartChallenge,
   });
 
   VisionBoardInfo? _boardById(String id) {
@@ -148,6 +150,7 @@ class DashboardBody extends StatelessWidget {
           onOpenEditor: onOpenEditor,
           onOpenViewer: onOpenViewer,
           onDeleteBoard: onDeleteBoard,
+          onStartChallenge: onStartChallenge,
         ),
       6 => RoutineScreen(dataVersion: boardDataVersion),
       7 => FutureBuilder<Map<String, List<VisionComponent>>>(

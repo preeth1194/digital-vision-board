@@ -800,7 +800,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       actionSteps: filteredSteps,
       startTimeMinutes: startTimeMinutes,
     );
-
     Navigator.of(context).pop(request);
   }
 

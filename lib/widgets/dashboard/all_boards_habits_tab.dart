@@ -26,6 +26,9 @@ import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
+import '../habits/off_schedule_completion_dialog.dart';
+
+enum _HabitQuickFilter { all, today, upcoming, weekly, timer, location, completed }
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
@@ -56,8 +59,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   bool _isSaving = false;
   final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   double _scrollOffset = 0;
   Offset? _confettiOrigin;
+  String _searchQuery = '';
+  _HabitQuickFilter _activeFilter = _HabitQuickFilter.all;
+  bool _isFilterExpanded = false;
 
   // Ad-related state
   static const int _freeHabitLimit = 3;
@@ -100,8 +107,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
   
   void _onScroll() {
+    final nextOffset = _scrollController.offset;
+    if ((nextOffset - _scrollOffset).abs() < 12) return;
+    if (!mounted) return;
     setState(() {
-      _scrollOffset = _scrollController.offset;
+      _scrollOffset = nextOffset;
     });
   }
 
@@ -120,6 +130,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -238,7 +249,24 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     required bool isFlipped,
   }) async {
     final now = LogicalDateService.now();
-    if (!habit.isScheduledOnDate(now)) return;
+    if (!habit.isScheduledOnDate(now)) {
+      final choice = await showOffScheduleCompletionDialog(
+        context: context,
+        habit: habit,
+      );
+      if (!mounted) return;
+      if (choice == OffScheduleCompletionChoice.cancel) return;
+      if (choice == OffScheduleCompletionChoice.changeSchedule) {
+        await _editHabit(
+          _HabitEntry(
+            boardId: habit.boardId ?? '',
+            boardTitle: _boardTitle(habit.boardId),
+            habit: habit,
+          ),
+        );
+        return;
+      }
+    }
     
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
     
@@ -651,6 +679,297 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     });
   }
 
+  Widget _buildSectionLabel(String label) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Text(
+        label,
+        style: AppTypography.bodySmall(context).copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  bool _matchesQuery(_HabitEntry entry) {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final habit = entry.habit;
+    final name = habit.name.toLowerCase();
+    final category = (habit.category ?? '').toLowerCase();
+    final board = entry.boardTitle.toLowerCase();
+    return name.contains(q) || category.contains(q) || board.contains(q);
+  }
+
+  bool _matchesFilter(_HabitEntry entry, DateTime now) {
+    final habit = entry.habit;
+    switch (_activeFilter) {
+      case _HabitQuickFilter.all:
+        return true;
+      case _HabitQuickFilter.today:
+        return habit.isScheduledOnDate(now);
+      case _HabitQuickFilter.upcoming:
+        return !habit.isScheduledOnDate(now);
+      case _HabitQuickFilter.weekly:
+        return habit.isWeekly;
+      case _HabitQuickFilter.timer:
+        return habit.timeBound?.enabled == true;
+      case _HabitQuickFilter.location:
+        return habit.locationBound?.enabled == true;
+      case _HabitQuickFilter.completed:
+        return habit.isCompletedForCurrentPeriod(now);
+    }
+  }
+
+  String _filterLabel(_HabitQuickFilter filter) {
+    switch (filter) {
+      case _HabitQuickFilter.all:
+        return 'All';
+      case _HabitQuickFilter.today:
+        return 'Today';
+      case _HabitQuickFilter.upcoming:
+        return 'Upcoming';
+      case _HabitQuickFilter.weekly:
+        return 'Weekly';
+      case _HabitQuickFilter.timer:
+        return 'Timer';
+      case _HabitQuickFilter.location:
+        return 'Location';
+      case _HabitQuickFilter.completed:
+        return 'Completed';
+    }
+  }
+
+  void _resetSearchAndFilters() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _activeFilter = _HabitQuickFilter.all;
+      _isFilterExpanded = false;
+    });
+  }
+
+  List<_HabitQuickFilter> _filterOptions() {
+    return const <_HabitQuickFilter>[
+      _HabitQuickFilter.today,
+      _HabitQuickFilter.upcoming,
+      _HabitQuickFilter.weekly,
+      _HabitQuickFilter.timer,
+      _HabitQuickFilter.location,
+      _HabitQuickFilter.completed,
+    ];
+  }
+
+  Widget _buildPinnedControlsRow() {
+    final hasFilter = _activeFilter != _HabitQuickFilter.all;
+    final showClear = _searchQuery.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'Search habits',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showClear)
+                      IconButton(
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                    IconButton(
+                      tooltip: _isFilterExpanded ? 'Hide filters' : 'Show filters',
+                      onPressed: () {
+                        setState(() {
+                          _isFilterExpanded = !_isFilterExpanded;
+                        });
+                      },
+                      icon: Badge(
+                        isLabelVisible: hasFilter,
+                        label: const Text('1'),
+                        child: Icon(
+                          _isFilterExpanded ? Icons.expand_less : Icons.tune,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterStrip() {
+    final options = <_HabitQuickFilter>[
+      _HabitQuickFilter.all,
+      ..._filterOptions(),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: options
+              .map(
+                (filter) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(_filterLabel(filter)),
+                    selected: _activeFilter == filter,
+                    onSelected: (_) {
+                      setState(() {
+                        _activeFilter = filter;
+                        _isFilterExpanded = false;
+                      });
+                    },
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlsSummaryRow() {
+    final hasSearch = _searchQuery.trim().isNotEmpty;
+    final hasFilter = _activeFilter != _HabitQuickFilter.all;
+    final hasActiveControls = hasSearch || hasFilter;
+    if (!hasActiveControls) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              hasSearch && hasFilter
+                  ? 'Search + ${_filterLabel(_activeFilter)} filter active'
+                  : hasSearch
+                      ? 'Search active'
+                      : '${_filterLabel(_activeFilter)} filter active',
+              style: AppTypography.bodySmall(context),
+            ),
+          ),
+          TextButton(
+            onPressed: _resetSearchAndFilters,
+            child: const Text('Clear all'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHabitTimelineRow({
+    required _HabitEntry entry,
+    required int index,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    final now = LogicalDateService.now();
+    final scheduledToday = entry.habit.isScheduledOnDate(now);
+    final isCompleted = entry.habit.isCompletedForCurrentPeriod(now);
+    final swipeKey = _swipeKeys.putIfAbsent(
+      entry.habit.id,
+      () => GlobalKey<_SwipeableHabitCardState>(),
+    );
+    return _ScrollAnimatedItem(
+      index: index,
+      scrollOffset: _scrollOffset,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: isFirst ? const SizedBox() : const _TimelineDash(),
+                    ),
+                    _TimelineCheckpoint(
+                      isCompleted: isCompleted,
+                      onTap: () => _handleHabitTap(
+                        habit: entry.habit,
+                        cardKey: swipeKey,
+                        isFlipped: swipeKey.currentState?.isFlipped ?? false,
+                      ),
+                    ),
+                    Expanded(
+                      child: isLast ? const SizedBox() : const _TimelineDash(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: _SwipeableHabitCard(
+                  key: swipeKey,
+                  entry: entry,
+                  onEdit: () => _editHabit(entry),
+                  onDelete: () => _deleteHabit(entry),
+                  child: AnimatedHabitCard(
+                    key: ValueKey(entry.habit.id),
+                    habit: entry.habit,
+                    boardTitle: entry.boardTitle,
+                    isCompleted: isCompleted,
+                    isScheduledToday: scheduledToday,
+                    coinsOnComplete: CoinsService.habitCompletionCoins,
+                    index: index,
+                    onTap: () => swipeKey.currentState?.toggleFlip(),
+                    onIconTap: () => swipeKey.currentState?.toggleFlip(),
+                    onLongPress: () => _openTimerForHabit(entry),
+                    onDurationTap: () => _openTimerForHabit(entry),
+                    adWatchedCount: null,
+                    adTotalRequired: null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -664,6 +983,18 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         habit: habit,
       );
     }).toList();
+    final visibleHabits = allHabits
+        .where(_matchesQuery)
+        .where((e) => _matchesFilter(e, now))
+        .toList();
+    final hasActiveSearchOrFilter =
+        _searchQuery.trim().isNotEmpty || _activeFilter != _HabitQuickFilter.all;
+    final todayHabits = visibleHabits
+        .where((e) => e.habit.isScheduledOnDate(now))
+        .toList();
+    final upcomingHabits = visibleHabits
+        .where((e) => !e.habit.isScheduledOnDate(now))
+        .toList();
 
     // Calculate progress stats for today
     final scheduledToday = allHabits.where((e) => e.habit.isScheduledOnDate(now)).toList();
@@ -687,11 +1018,15 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           ),
           slivers: [
             // Progress header
-            SliverToBoxAdapter(
-              child: DailyProgressHeader(
-                completedCount: completedToday,
-                totalCount: totalScheduledToday,
-                bestStreak: bestStreak,
+            SliverSafeArea(
+              top: true,
+              bottom: false,
+              sliver: SliverToBoxAdapter(
+                child: DailyProgressHeader(
+                  completedCount: completedToday,
+                  totalCount: totalScheduledToday,
+                  bestStreak: bestStreak,
+                ),
               ),
             ),
             // Empty state
@@ -741,98 +1076,95 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
-            // Habits list with timeline
             if (allHabits.isNotEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.only(top: 8, bottom: 100),
-                sliver: SliverList(
+              SliverToBoxAdapter(
+                child: _buildPinnedControlsRow(),
+              ),
+            if (allHabits.isNotEmpty && _isFilterExpanded)
+              SliverToBoxAdapter(
+                child: _buildFilterStrip(),
+              ),
+            if (allHabits.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildControlsSummaryRow(),
+              ),
+            // Habits list with timeline
+            if (allHabits.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: _buildSectionLabel('Today'),
+              ),
+              if (todayHabits.isNotEmpty)
+                SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final entry = allHabits[index];
-                      final now = LogicalDateService.now();
-                      final scheduledToday = entry.habit.isScheduledOnDate(now);
-                      final isCompleted = scheduledToday && 
-                          entry.habit.isCompletedForCurrentPeriod(now);
-                      final swipeKey = _swipeKeys.putIfAbsent(
-                        entry.habit.id,
-                        () => GlobalKey<_SwipeableHabitCardState>(),
-                      );
-                      final isFirst = index == 0;
-                      final isLast = index == allHabits.length - 1;
-                      
-                      return _ScrollAnimatedItem(
+                      final entry = todayHabits[index];
+                      return _buildHabitTimelineRow(
+                        entry: entry,
                         index: index,
-                        scrollOffset: _scrollOffset,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Timeline column
-                                SizedBox(
-                                  width: 40,
-                                  child: Column(
-                                    children: [
-                                      // Top dashed line
-                                      Expanded(
-                                        child: isFirst
-                                            ? const SizedBox()
-                                            : const _TimelineDash(),
-                                      ),
-                                      // Checkpoint circle — opens completion sheet
-                                      _TimelineCheckpoint(
-                                        isCompleted: isCompleted,
-                                        onTap: () => _handleHabitTap(
-                                          habit: entry.habit,
-                                          cardKey: swipeKey,
-                                          isFlipped: swipeKey.currentState?.isFlipped ?? false,
-                                        ),
-                                      ),
-                                      // Bottom dashed line
-                                      Expanded(
-                                        child: isLast
-                                            ? const SizedBox()
-                                            : const _TimelineDash(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                // Card
-                                Expanded(
-                                  child: _SwipeableHabitCard(
-                                    key: swipeKey,
-                                    entry: entry,
-                                    onEdit: () => _editHabit(entry),
-                                    onDelete: () => _deleteHabit(entry),
-                                    child: AnimatedHabitCard(
-                                      key: ValueKey(entry.habit.id),
-                                      habit: entry.habit,
-                                      boardTitle: entry.boardTitle,
-                                      isCompleted: isCompleted,
-                                      isScheduledToday: scheduledToday,
-                                      coinsOnComplete: CoinsService.habitCompletionCoins,
-                                      index: index,
-                                      onTap: () => swipeKey.currentState?.toggleFlip(),
-                                      onIconTap: () => swipeKey.currentState?.toggleFlip(),
-                                      onLongPress: () => _openTimerForHabit(entry),
-                                      onDurationTap: () => _openTimerForHabit(entry),
-                                      adWatchedCount: null,
-                                      adTotalRequired: null,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        isFirst: index == 0,
+                        isLast: index == todayHabits.length - 1,
                       );
                     },
-                    childCount: allHabits.length,
+                    childCount: todayHabits.length,
+                  ),
+                )
+              else if (!hasActiveSearchOrFilter)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text('No habits scheduled for today.'),
                   ),
                 ),
+              if (upcomingHabits.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _buildSectionLabel('Upcoming'),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final entry = upcomingHabits[index];
+                      return _buildHabitTimelineRow(
+                        entry: entry,
+                        index: todayHabits.length + index,
+                        isFirst: index == 0,
+                        isLast: index == upcomingHabits.length - 1,
+                      );
+                    },
+                    childCount: upcomingHabits.length,
+                  ),
+                ),
+              ],
+              if (visibleHabits.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search_off),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'No habits match your search or filters.',
+                                style: AppTypography.bodySmall(context),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _resetSearchAndFilters,
+                              child: const Text('Reset'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 100),
               ),
+            ],
           ],
         ),
         // Simple confetti burst anchored to the completed card

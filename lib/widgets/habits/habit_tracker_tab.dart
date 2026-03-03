@@ -222,6 +222,231 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
 
   @override
   Widget build(BuildContext context) {
+    final now = LogicalDateService.now();
+    final todayHabits = widget.habits.where((h) => h.isScheduledOnDate(now)).toList();
+    final otherHabits = widget.habits.where((h) => !h.isScheduledOnDate(now)).toList();
+
+    Widget sectionLabel(String text) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+        child: Text(
+          text,
+          style: AppTypography.bodySmall(context).copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    Widget buildHabitCard(HabitItem habit) {
+      final scheduledToday = habit.isScheduledOnDate(now);
+      final isTodayCompleted = habit.isCompletedForCurrentPeriod(now);
+      final streak = habit.currentStreak;
+      final unit = habit.isWeekly ? 'week' : 'day';
+      final weeklyDays = habit.hasWeeklySchedule
+          ? habit.weeklyDays
+              .map((d) => const {
+                    DateTime.monday: 'Mon',
+                    DateTime.tuesday: 'Tue',
+                    DateTime.wednesday: 'Wed',
+                    DateTime.thursday: 'Thu',
+                    DateTime.friday: 'Fri',
+                    DateTime.saturday: 'Sat',
+                    DateTime.sunday: 'Sun',
+                  }[d])
+              .whereType<String>()
+              .join(', ')
+          : null;
+
+      final isTimerHabit = _isTimerOrLocationHabit(habit);
+      final targetMs = isTimerHabit ? HabitTimerStateService.targetMsForHabit(habit) : 0;
+      final accMs = isTimerHabit ? (_accumulatedMs[habit.id] ?? 0) : 0;
+      final running = isTimerHabit ? (_isRunning[habit.id] ?? false) : false;
+      final remainingMs = (targetMs <= 0) ? 0 : (targetMs - accMs).clamp(0, targetMs);
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        color: (habit.locationBound?.enabled == true)
+            ? Theme.of(context).colorScheme.tertiaryContainer
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Checkbox(
+                value: isTodayCompleted,
+                onChanged: (_) => widget.onToggleHabit(habit),
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      habit.name,
+                      style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (!scheduledToday)
+                          Text(
+                            'Not scheduled today',
+                            style: AppTypography.caption(context),
+                          ),
+                        if (streak > 0) ...[
+                          Icon(
+                            Icons.local_fire_department,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                          Text(
+                            '$streak $unit${streak != 1 ? 's' : ''} streak',
+                            style: AppTypography.caption(context),
+                          ),
+                        ] else
+                          Text(
+                            'No streak yet',
+                            style: AppTypography.caption(context),
+                          ),
+                        if ((weeklyDays ?? '').trim().isNotEmpty)
+                          Text(
+                            'Days $weeklyDays',
+                            style: AppTypography.caption(context),
+                          ),
+                        if ((habit.deadline ?? '').trim().isNotEmpty)
+                          Text(
+                            'Due ${habit.deadline}',
+                            style: AppTypography.caption(context),
+                          ),
+                      ],
+                    ),
+                    if (isTimerHabit) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (targetMs > 0)
+                            Text(
+                              '${_fmt(accMs)} / ${_fmt(targetMs)}',
+                              style: AppTypography.caption(context),
+                            ),
+                          if (targetMs > 0 && !isTodayCompleted)
+                            Text(
+                              '• ${_fmt(remainingMs)} left',
+                              style: AppTypography.caption(context),
+                            ),
+                        ],
+                      ),
+                      if (scheduledToday && !isTodayCompleted && targetMs > 0) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!running)
+                              FilledButton.tonalIcon(
+                                onPressed: () => _startOrResume(habit),
+                                icon: const Icon(Icons.play_arrow),
+                                label: Text(accMs > 0 ? 'Resume' : 'Start'),
+                              )
+                            else
+                              FilledButton.tonalIcon(
+                                onPressed: () => _pause(habit),
+                                icon: const Icon(Icons.pause),
+                                label: const Text('Pause'),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _getHabitTypeIcon(habit),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
+                    IconButton(
+                      tooltip: 'Timer',
+                      icon: const Icon(Icons.timer_outlined),
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => HabitTimerScreen(
+                              habit: habit,
+                              onMarkCompleted: () async {
+                                final current = widget.habits
+                                    .where((h) => h.id == habit.id)
+                                    .cast<HabitItem?>()
+                                    .firstWhere((_) => true, orElse: () => null);
+                                final h = current ?? habit;
+                                final currentNow = LogicalDateService.now();
+                                if (h.isCompletedForCurrentPeriod(currentNow)) return;
+                                widget.onToggleHabit(h);
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'Edit habit',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => widget.onEditHabit(habit),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    onPressed: () {
+                      showDialog<void>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Habit'),
+                          content: Text('Delete "${habit.name}"?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                widget.onDeleteHabit(habit);
+                              },
+                              child: Text(
+                                'Delete',
+                                style: AppTypography.button(context).copyWith(color: Theme.of(context).colorScheme.error),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -266,216 +491,16 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
               ),
             ),
           )
-        else
-          ...widget.habits.map((habit) {
-            final now = LogicalDateService.now();
-            final scheduledToday = habit.isScheduledOnDate(now);
-            final isTodayCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
-            final streak = habit.currentStreak;
-            final unit = habit.isWeekly ? 'week' : 'day';
-            final weeklyDays = habit.hasWeeklySchedule
-                ? habit.weeklyDays
-                    .map((d) => const {
-                          DateTime.monday: 'Mon',
-                          DateTime.tuesday: 'Tue',
-                          DateTime.wednesday: 'Wed',
-                          DateTime.thursday: 'Thu',
-                          DateTime.friday: 'Fri',
-                          DateTime.saturday: 'Sat',
-                          DateTime.sunday: 'Sun',
-                        }[d])
-                    .whereType<String>()
-                    .join(', ')
-                : null;
-
-            final isTimerHabit = _isTimerOrLocationHabit(habit);
-            final targetMs = isTimerHabit ? HabitTimerStateService.targetMsForHabit(habit) : 0;
-            final accMs = isTimerHabit ? (_accumulatedMs[habit.id] ?? 0) : 0;
-            final running = isTimerHabit ? (_isRunning[habit.id] ?? false) : false;
-            final remainingMs = (targetMs <= 0) ? 0 : (targetMs - accMs).clamp(0, targetMs);
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              color: (habit.locationBound?.enabled == true)
-                  ? Theme.of(context).colorScheme.tertiaryContainer
-                  : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: isTodayCompleted,
-                      onChanged: scheduledToday ? (_) => widget.onToggleHabit(habit) : null,
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            habit.name,
-                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (!scheduledToday)
-                                Text(
-                                  'Not scheduled today',
-                                  style: AppTypography.caption(context),
-                                ),
-                              if (streak > 0) ...[
-                                Icon(
-                                  Icons.local_fire_department,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.tertiary,
-                                ),
-                                Text(
-                                  '$streak $unit${streak != 1 ? 's' : ''} streak',
-                                  style: AppTypography.caption(context),
-                                ),
-                              ] else
-                                Text(
-                                  'No streak yet',
-                                  style: AppTypography.caption(context),
-                                ),
-                              if ((weeklyDays ?? '').trim().isNotEmpty)
-                                Text(
-                                  'Days $weeklyDays',
-                                  style: AppTypography.caption(context),
-                                ),
-                              if ((habit.deadline ?? '').trim().isNotEmpty)
-                                Text(
-                                  'Due ${habit.deadline}',
-                                  style: AppTypography.caption(context),
-                                ),
-                            ],
-                          ),
-                          if (isTimerHabit) ...[
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                if (targetMs > 0)
-                                  Text(
-                                    '${_fmt(accMs)} / ${_fmt(targetMs)}',
-                                    style: AppTypography.caption(context),
-                                  ),
-                                if (targetMs > 0 && !isTodayCompleted)
-                                  Text(
-                                    '• ${_fmt(remainingMs)} left',
-                                    style: AppTypography.caption(context),
-                                  ),
-                              ],
-                            ),
-                            if (scheduledToday && !isTodayCompleted && targetMs > 0) ...[
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (!running)
-                                    FilledButton.tonalIcon(
-                                      onPressed: () => _startOrResume(habit),
-                                      icon: const Icon(Icons.play_arrow),
-                                      label: Text(accMs > 0 ? 'Resume' : 'Start'),
-                                    )
-                                  else
-                                    FilledButton.tonalIcon(
-                                      onPressed: () => _pause(habit),
-                                      icon: const Icon(Icons.pause),
-                                      label: const Text('Pause'),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: _getHabitTypeIcon(habit),
-                      ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
-                          IconButton(
-                            tooltip: 'Timer',
-                            icon: const Icon(Icons.timer_outlined),
-                            onPressed: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => HabitTimerScreen(
-                                    habit: habit,
-                                    onMarkCompleted: () async {
-                                      final now = LogicalDateService.now();
-                                      final current = widget.habits
-                                          .where((h) => h.id == habit.id)
-                                          .cast<HabitItem?>()
-                                          .firstWhere((_) => true, orElse: () => null);
-                                      final h = current ?? habit;
-                                      if (!h.isScheduledOnDate(now)) return;
-                                      if (h.isCompletedForCurrentPeriod(now)) return;
-                                      widget.onToggleHabit(h);
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        IconButton(
-                          tooltip: 'Edit habit',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => widget.onEditHabit(habit),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          onPressed: () {
-                            showDialog<void>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Habit'),
-                                content: Text('Delete "${habit.name}"?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      widget.onDeleteHabit(habit);
-                                    },
-                                    child: Text(
-                                      'Delete',
-                                      style: AppTypography.button(context).copyWith(color: Theme.of(context).colorScheme.error),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
+        else ...[
+          if (todayHabits.isNotEmpty) ...[
+            sectionLabel('Today'),
+            ...todayHabits.map(buildHabitCard),
+          ],
+          if (otherHabits.isNotEmpty) ...[
+            sectionLabel('Upcoming'),
+            ...otherHabits.map(buildHabitCard),
+          ],
+        ],
       ],
     );
   }

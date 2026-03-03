@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +10,7 @@ import '../../services/image_service.dart';
 import '../../services/puzzle_service.dart';
 import '../../services/puzzle_state_service.dart';
 import '../../utils/file_image_provider.dart';
+import '../../utils/puzzle_image_splitter.dart';
 import 'glass_card.dart';
 
 class PuzzleSummaryCard extends StatefulWidget {
@@ -23,6 +26,9 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
   bool _isCompleted = false;
   bool _loaded = false;
   SharedPreferences? _prefs;
+  List<Uint8List>? _previewPieces;
+  List<int?> _previewPositionPieces = const [];
+  int _previewGridSize = 0;
 
   @override
   void initState() {
@@ -55,21 +61,51 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
     final imagePath = await PuzzleService.getCurrentPuzzleImage(prefs: prefs);
 
     bool completed = false;
+    List<Uint8List>? previewPieces;
+    List<int?> previewPositionPieces = const [];
+    int previewGridSize = 0;
+
     if (imagePath != null && imagePath.isNotEmpty) {
       final puzzleState = await PuzzleStateService.loadPuzzleState(
         imagePath: imagePath,
         prefs: prefs,
       );
       completed = puzzleState?.isCompleted ?? false;
+
+      if (puzzleState != null &&
+          !completed &&
+          puzzleState.positionPieces.isNotEmpty) {
+        final inferredGridSize = _inferGridSize(puzzleState.positionPieces.length);
+        if (inferredGridSize > 1) {
+          try {
+            previewPieces = await PuzzleImageSplitter.splitImage(
+              imagePath,
+              inferredGridSize,
+            );
+            previewPositionPieces = puzzleState.positionPieces;
+            previewGridSize = inferredGridSize;
+          } catch (_) {}
+        }
+      }
     }
 
     if (mounted) {
       setState(() {
         _imagePath = imagePath;
         _isCompleted = completed;
+        _previewPieces = previewPieces;
+        _previewPositionPieces = previewPositionPieces;
+        _previewGridSize = previewGridSize;
         _loaded = true;
       });
     }
+  }
+
+  int _inferGridSize(int count) {
+    if (count <= 0) return 0;
+    final root = math.sqrt(count).round();
+    if (root * root != count) return 0;
+    return root;
   }
 
   Future<void> _openPuzzle() async {
@@ -156,24 +192,42 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image(
-                            image: fileImageProviderFromPath(_imagePath!) ??
-                                const AssetImage('assets/placeholder.png')
-                                    as ImageProvider,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (context, error, stack) => Icon(
-                              Icons.extension_rounded,
-                              size: 36,
-                              color: colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.5),
+                        child: (_previewPieces != null &&
+                                _previewPositionPieces.isNotEmpty &&
+                                !_isCompleted)
+                            ? _buildPuzzleBoardPreview(colorScheme)
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  color: colorScheme.surface.withValues(alpha: 0.35),
+                                  child: Image(
+                                    image: fileImageProviderFromPath(_imagePath!) ??
+                                        const AssetImage('assets/placeholder.png')
+                                            as ImageProvider,
+                                    fit: BoxFit.contain,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stack) => Icon(
+                                      Icons.extension_rounded,
+                                      size: 36,
+                                      color: colorScheme.onPrimaryContainer
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
                             ),
-                          ),
-                        ),
                       ),
                     ),
+                    if (_previewPieces != null &&
+                        _previewPositionPieces.isNotEmpty &&
+                        !_isCompleted) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'In progress',
+                        style: AppTypography.caption(context).copyWith(
+                          color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
                   ] else ...[
                     Icon(
                       Icons.extension_outlined,
@@ -201,6 +255,52 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPuzzleBoardPreview(ColorScheme colorScheme) {
+    final pieces = _previewPieces!;
+    final gridSize = _previewGridSize;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        color: colorScheme.surface.withValues(alpha: 0.35),
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(4),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: gridSize,
+            crossAxisSpacing: 1.5,
+            mainAxisSpacing: 1.5,
+          ),
+          itemCount: _previewPositionPieces.length,
+          itemBuilder: (context, position) {
+            final pieceIndex = _previewPositionPieces[position];
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2),
+                color: colorScheme.surfaceContainerHighest,
+              ),
+              child: (pieceIndex != null &&
+                      pieceIndex >= 0 &&
+                      pieceIndex < pieces.length)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: Image.memory(
+                        pieces[pieceIndex],
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Icon(
+                      Icons.extension_outlined,
+                      size: 10,
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                    ),
+            );
+          },
         ),
       ),
     );

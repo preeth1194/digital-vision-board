@@ -1,8 +1,8 @@
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../utils/app_typography.dart';
+import '../../utils/progress_growth_image.dart';
 
 /// Header widget showing today's progress ring and streak info.
 class DailyProgressHeader extends StatelessWidget {
@@ -91,8 +91,8 @@ class DailyProgressHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Progress ring
-          _buildProgressRing(context, progress, isDark),
+          // Percent growth image
+          _buildProgressImage(context, progress),
         ],
       ),
           ),
@@ -101,93 +101,45 @@ class DailyProgressHeader extends StatelessWidget {
     );
   }
 
-  static Widget _buildProgressRing(BuildContext context, double progress, bool isDark) {
+  static Widget _buildProgressImage(BuildContext context, double progress) {
     final colorScheme = Theme.of(context).colorScheme;
-    final progressColor = colorScheme.primary;
-    final trackColor = isDark
-        ? colorScheme.onSurface.withValues(alpha: 0.15)
-        : colorScheme.onSurfaceVariant.withValues(alpha: 0.20);
     final percentage = (progress * 100).round();
+    final assetPath = ProgressGrowthImage.assetForProgress(progress);
 
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: 84,
+      height: 86,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Background track
-          CustomPaint(
-            size: const Size(56, 56),
-            painter: _ProgressRingPainter(
-              progress: 1.0,
-              color: trackColor,
-              strokeWidth: 6,
+          Positioned(
+            top: 0,
+            child: Image.asset(
+              assetPath,
+              width: 72,
+              height: 72,
+              fit: BoxFit.contain,
             ),
           ),
-          // Progress arc
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: progress),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return CustomPaint(
-                size: const Size(56, 56),
-                painter: _ProgressRingPainter(
-                  progress: value,
-                  color: progressColor,
-                  strokeWidth: 6,
+          Positioned(
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$percentage%',
+                style: AppTypography.caption(context).copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: colorScheme.onSurface,
                 ),
-              );
-            },
-          ),
-          // Percentage text
-          Text(
-            '$percentage%',
-            style: AppTypography.caption(context).copyWith(
-              fontWeight: FontWeight.w800,
-              color: colorScheme.onSurface,
+              ),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _ProgressRingPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  final double strokeWidth;
-
-  _ProgressRingPainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final sweepAngle = 2 * math.pi * progress;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      sweepAngle,
-      false,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ProgressRingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

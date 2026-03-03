@@ -12,6 +12,7 @@ import 'habits/habit_tracker_tab.dart';
 import 'dialogs/add_habit_dialog.dart';
 import 'dialogs/completion_feedback_sheet.dart';
 import 'todos/goal_todo_tab.dart';
+import 'habits/off_schedule_completion_dialog.dart';
 
 /// Modal bottom sheet for tracking habits associated with a canvas component.
 class HabitTrackerSheet extends StatefulWidget {
@@ -135,10 +136,21 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     });
   }
 
-  void _toggleHabitCompletion(HabitItem habit) {
+  Future<void> _toggleHabitCompletion(HabitItem habit) async {
     // If this is a scheduled weekly habit and today is not scheduled, ignore toggles.
     final now = LogicalDateService.now();
-    if (habit.hasWeeklySchedule && !habit.isScheduledOnDate(now)) return;
+    if (habit.hasWeeklySchedule && !habit.isScheduledOnDate(now)) {
+      final choice = await showOffScheduleCompletionDialog(
+        context: context,
+        habit: habit,
+      );
+      if (!mounted) return;
+      if (choice == OffScheduleCompletionChoice.cancel) return;
+      if (choice == OffScheduleCompletionChoice.changeSchedule) {
+        await _editHabit(habit);
+        return;
+      }
+    }
     final wasDone = habit.isCompletedForCurrentPeriod(now);
     setState(() {
       final int index = _habits.indexWhere((h) => h.id == habit.id);

@@ -5,12 +5,15 @@ import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
 import 'affirmation_summary_card.dart';
 import 'challenge_progress_card.dart';
+import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
 import 'mood_tracker_card.dart';
 import 'vision_board_summary_card.dart';
 
 class DashboardTab extends StatelessWidget {
+  static const bool _showManifestCard = false;
+
   final List<VisionBoardInfo> boards;
   final String? activeBoardId;
   final List<Routine> routines;
@@ -49,7 +52,21 @@ class DashboardTab extends StatelessWidget {
           // Challenge progress (or start prompt)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ChallengeProgressCard(dataVersion: dataVersion, onStartChallenge: onStartChallenge, onViewHabits: onViewHabits),
+            child: ChallengeProgressCard(
+              dataVersion: dataVersion,
+              onStartChallenge: onStartChallenge,
+              onViewHabits: onViewHabits,
+              hideWhenActive: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Habit progress completion
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: HabitProgressCompletionCard(
+              onTap: onViewHabits,
+              onStartChallenge: onStartChallenge,
+            ),
           ),
           const SizedBox(height: 12),
           // Row 1: Insights | Mood
@@ -67,26 +84,28 @@ class DashboardTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Row 2: Vision Board | Puzzle
+          // Row 2: Puzzle (Manifest card temporarily hidden)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
-              height: 200,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: VisionBoardSummaryCard(
-                      onCreateBoard: onCreateBoard,
-                      onOpenEditor: onOpenEditor,
-                      onOpenViewer: onOpenViewer,
-                      onDeleteBoard: onDeleteBoard,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(child: PuzzleSummaryCard()),
-                ],
-              ),
+              height: 280,
+              child: _showManifestCard
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: VisionBoardSummaryCard(
+                            onCreateBoard: onCreateBoard,
+                            onOpenEditor: onOpenEditor,
+                            onOpenViewer: onOpenViewer,
+                            onDeleteBoard: onDeleteBoard,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(child: PuzzleSummaryCard()),
+                      ],
+                    )
+                  : const PuzzleSummaryCard(),
             ),
           ),
           const SizedBox(height: 12),

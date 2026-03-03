@@ -312,7 +312,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    '${challenge.name} Active',
+                    'Day ${challenge.currentDay}/${challenge.totalDays}',
                     style: AppTypography.caption(context).copyWith(
                       color: cs.primary,
                       fontWeight: FontWeight.w700,
@@ -331,8 +331,8 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                     child: _buildGrowthIndicator(
                       context,
                       progress: challenge.progress,
-                      title: '${(challenge.progress * 100).round()}%',
-                      subtitle: '${challenge.currentDay}/${challenge.totalDays}',
+                      title: '',
+                      subtitle: '',
                       textColor: accent,
                       subtitleColor: accent.withValues(alpha: 0.6),
                     ),
@@ -441,8 +441,9 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
     required Color subtitleColor,
   }) {
     final assetPath = ProgressGrowthImage.assetForProgress(progress);
+    final showTitle = title.trim().isNotEmpty;
     final showSubtitle = subtitle.trim().isNotEmpty;
-    final imageSize = showSubtitle ? 64.0 : 76.0;
+    final imageSize = showTitle || showSubtitle ? 64.0 : 76.0;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -454,14 +455,16 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          title,
-          style: AppTypography.bodySmall(context).copyWith(
-            fontWeight: FontWeight.w800,
-            color: textColor,
+        if (showTitle) ...[
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: AppTypography.bodySmall(context).copyWith(
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
           ),
-        ),
+        ],
         if (showSubtitle)
           Text(
             subtitle,

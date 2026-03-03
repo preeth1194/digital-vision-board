@@ -61,23 +61,38 @@ class DailyProgressHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Today\u2019s Progress",
-                  style: AppTypography.bodySmall(context).copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
-                        : colorScheme.secondary.withValues(alpha: 0.65),
-                  ),
-                ),
-                const SizedBox(height: 6),
                 if (bestStreak > 0)
-                  Text(
-                    "You\u2019re on a $bestStreak-day streak! \uD83D\uDD25",
-                    style: AppTypography.heading3(context).copyWith(
-                      color: colorScheme.onSurface,
-                      height: 1.2,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "You\u2019re on a",
+                        style: AppTypography.bodySmall(context).copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$bestStreak-day streak!',
+                            style: AppTypography.heading3(context).copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            '\uD83D\uDD25',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    ],
                   )
                 else
                   Text(
@@ -114,11 +129,23 @@ class DailyProgressHeader extends StatelessWidget {
         children: [
           Positioned(
             top: 0,
-            child: Image.asset(
-              assetPath,
-              width: 72,
-              height: 72,
-              fit: BoxFit.contain,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 320),
+              switchInCurve: Curves.linear,
+              switchOutCurve: Curves.linear,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              child: Image.asset(
+                assetPath,
+                key: ValueKey<String>(assetPath),
+                width: 72,
+                height: 72,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           Positioned(

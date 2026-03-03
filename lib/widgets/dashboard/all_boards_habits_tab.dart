@@ -1007,6 +1007,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       final s = e.habit.currentStreak;
       if (s > bestStreak) bestStreak = s;
     }
+    final topPadding = MediaQuery.paddingOf(context).top;
 
     return Stack(
       children: [
@@ -1017,16 +1018,15 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
-            // Progress header
-            SliverSafeArea(
-              top: true,
-              bottom: false,
-              sliver: SliverToBoxAdapter(
-                child: DailyProgressHeader(
-                  completedCount: completedToday,
-                  totalCount: totalScheduledToday,
-                  bestStreak: bestStreak,
-                ),
+            // Sticky daily progress header
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _DailyProgressHeaderDelegate(
+                completedCount: completedToday,
+                totalCount: totalScheduledToday,
+                bestStreak: bestStreak,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                topPadding: topPadding,
               ),
             ),
             // Empty state
@@ -1220,6 +1220,59 @@ class _PendingCoinAnimation {
     required this.target,
     required this.coins,
   });
+}
+
+class _DailyProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final int completedCount;
+  final int totalCount;
+  final int bestStreak;
+  final Color backgroundColor;
+  final double topPadding;
+
+  const _DailyProgressHeaderDelegate({
+    required this.completedCount,
+    required this.totalCount,
+    required this.bestStreak,
+    required this.backgroundColor,
+    required this.topPadding,
+  });
+
+  static const double _contentHeight = 146;
+
+  @override
+  double get minExtent => _contentHeight + topPadding;
+
+  @override
+  double get maxExtent => _contentHeight + topPadding;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: DailyProgressHeader(
+          completedCount: completedCount,
+          totalCount: totalCount,
+          bestStreak: bestStreak,
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _DailyProgressHeaderDelegate oldDelegate) {
+    return completedCount != oldDelegate.completedCount ||
+        totalCount != oldDelegate.totalCount ||
+        bestStreak != oldDelegate.bestStreak ||
+        backgroundColor != oldDelegate.backgroundColor ||
+        topPadding != oldDelegate.topPadding;
+  }
 }
 
 /// Widget that applies scroll-based micro-animations to list items

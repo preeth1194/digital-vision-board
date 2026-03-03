@@ -7,7 +7,7 @@ import '../../services/challenge_storage_service.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/logical_date_service.dart';
 import '../../utils/app_typography.dart';
-import '../../utils/progress_growth_image.dart';
+import '../rituals/interactive_progress_growth_image.dart';
 import '../rituals/habit_form_constants.dart';
 import 'glass_card.dart';
 
@@ -440,7 +440,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
     required Color textColor,
     required Color subtitleColor,
   }) {
-    final assetPath = ProgressGrowthImage.assetForProgress(progress);
     final showTitle = title.trim().isNotEmpty;
     final showSubtitle = subtitle.trim().isNotEmpty;
     final imageSize = showTitle || showSubtitle ? 64.0 : 76.0;
@@ -450,8 +449,10 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
         SizedBox(
           width: imageSize,
           height: imageSize,
-          child: Image.asset(
-            assetPath,
+          child: InteractiveProgressGrowthImage(
+            progress: progress,
+            width: imageSize,
+            height: imageSize,
             fit: BoxFit.contain,
           ),
         ),

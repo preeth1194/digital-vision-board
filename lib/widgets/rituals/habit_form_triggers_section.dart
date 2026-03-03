@@ -621,9 +621,9 @@ class _Step4TriggersState extends State<Step4Triggers> {
 
     final String sectionTitle;
     if (widget.showReminderFields && widget.showDurationField) {
-      sectionTitle = "Timer & Location";
+      sectionTitle = "Notification Alert & Location";
     } else if (widget.showDurationField) {
-      sectionTitle = "Timer";
+      sectionTitle = "Notification Alert";
     } else {
       sectionTitle = "Location";
     }

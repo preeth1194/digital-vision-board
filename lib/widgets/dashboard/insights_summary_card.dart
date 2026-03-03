@@ -69,9 +69,10 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
 
     final now = LogicalDateService.now();
     final today = DateTime(now.year, now.month, now.day);
+    final todaysHabits = _habits.where((h) => h.isScheduledOnDate(today)).toList();
     final completedToday =
-        _habits.where((h) => h.isCompletedOnDate(today)).length;
-    final total = _habits.length;
+        todaysHabits.where((h) => h.isCompletedOnDate(today)).length;
+    final total = todaysHabits.length;
     final rate = total > 0 ? completedToday / total : 0.0;
 
     return GlassCard(
@@ -120,7 +121,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                     )
                   else if (total == 0)
                     Text(
-                      'No habits tracked yet',
+                      _habits.isEmpty ? 'No habits tracked yet' : 'No habits today',
                       style: AppTypography.bodySmall(context).copyWith(
                         color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                       ),

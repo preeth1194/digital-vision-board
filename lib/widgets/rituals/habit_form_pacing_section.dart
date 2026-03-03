@@ -42,13 +42,14 @@ class Step5Pacing extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
-              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-              final selected = weekdays.contains(index);
+              final weekdayIndex =
+                  kSundayFirstToMondayBasedWeekdayIndex[index];
+              final selected = weekdays.contains(weekdayIndex);
               return AnimatedDayChip(
-                label: days[index],
+                label: kWeekdayLabelsSundayFirst[index],
                 isSelected: selected,
                 accentColor: habitColor,
-                onTap: () => onWeekdayToggled(index),
+                onTap: () => onWeekdayToggled(weekdayIndex),
               );
             }),
           ),

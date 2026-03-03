@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/habit_item.dart';
 import '../models/vision_components.dart';
 import '../services/habit_storage_service.dart';
+import '../services/logical_date_service.dart';
 import '../utils/app_typography.dart';
 import '../widgets/insights/stat_card.dart';
 import '../widgets/insights/today_progress_card.dart';
@@ -60,10 +61,14 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
       );
     }
 
-    final now = DateTime.now();
+    final now = LogicalDateService.now();
     final today = DateTime(now.year, now.month, now.day);
-    final completedHabitsToday = allHabits.where((h) => h.isCompletedOnDate(today)).length;
-    final completionRate = allHabits.isNotEmpty ? (completedHabitsToday / allHabits.length * 100) : 0.0;
+    final todaysHabits = allHabits.where((h) => h.isScheduledOnDate(today)).toList();
+    final completedHabitsToday =
+        todaysHabits.where((h) => h.isCompletedOnDate(today)).length;
+    final completionRate = todaysHabits.isNotEmpty
+        ? (completedHabitsToday / todaysHabits.length * 100)
+        : 0.0;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -71,7 +76,7 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
         TodayProgressCard(
           completionRate: completionRate,
           completedToday: completedHabitsToday,
-          totalHabits: allHabits.length,
+          totalHabits: todaysHabits.length,
         ),
         const SizedBox(height: 24),
         HabitTrendsChart(habits: allHabits),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/progress_growth_image.dart';
+import 'interactive_progress_growth_image.dart';
 
 /// Header widget showing today's progress ring and streak info.
 class DailyProgressHeader extends StatelessWidget {
@@ -131,9 +132,9 @@ class DailyProgressHeader extends StatelessWidget {
                   child: child,
                 );
               },
-              child: Image.asset(
-                assetPath,
+              child: InteractiveProgressGrowthImage(
                 key: ValueKey<String>(assetPath),
+                progress: progress,
                 width: 72,
                 height: 72,
                 fit: BoxFit.contain,

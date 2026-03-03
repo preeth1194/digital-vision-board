@@ -2,6 +2,9 @@ final class ProgressGrowthImage {
   ProgressGrowthImage._();
 
   static const String _basePath = 'assets/progress_growth';
+  static const List<int> _orderedBuckets = [0, 15, 30, 45, 60, 75, 100];
+
+  static List<int> orderedBuckets() => List<int>.from(_orderedBuckets);
 
   static int bucketForPercent(int percent) {
     final p = percent.clamp(0, 100);
@@ -23,8 +26,24 @@ final class ProgressGrowthImage {
     return '$_basePath/progress_$bucket.png';
   }
 
+  static String gifAssetForPercent(int percent) {
+    final bucket = bucketForPercent(percent);
+    return '$_basePath/progress_$bucket.gif';
+  }
+
   static String assetForProgress(double progress) {
     final percent = percentFromProgress(progress);
     return assetForPercent(percent);
+  }
+
+  static String gifAssetForProgress(double progress) {
+    final percent = percentFromProgress(progress);
+    return gifAssetForPercent(percent);
+  }
+
+  static List<String> animationFrameAssets() {
+    return _orderedBuckets
+        .map((bucket) => '$_basePath/progress_$bucket.png')
+        .toList(growable: false);
   }
 }

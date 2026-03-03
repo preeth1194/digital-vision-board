@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
@@ -37,6 +38,8 @@ class AllBoardsHabitsTab extends StatefulWidget {
   final ValueNotifier<int>? coinNotifier;
   final GlobalKey? coinTargetKey;
   final VoidCallback? onSwitchToRoutine;
+  final bool showCalendarMode;
+  final ValueChanged<bool>? onCalendarModeChanged;
 
   const AllBoardsHabitsTab({
     super.key,
@@ -46,13 +49,17 @@ class AllBoardsHabitsTab extends StatefulWidget {
     this.coinNotifier,
     this.coinTargetKey,
     this.onSwitchToRoutine,
+    this.showCalendarMode = false,
+    this.onCalendarModeChanged,
   });
 
   @override
   State<AllBoardsHabitsTab> createState() => _AllBoardsHabitsTabState();
 }
 
-class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
+class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
+    with SingleTickerProviderStateMixin {
+  static const double _dailyProgressHeaderHeight = 132;
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
   List<HabitItem> _habits = [];
@@ -60,8 +67,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  AnimationController? _viewTogglePulseController;
   double _scrollOffset = 0;
   Offset? _confettiOrigin;
+  DateTime _selectedCalendarDate = LogicalDateService.now();
   String _searchQuery = '';
   _HabitQuickFilter _activeFilter = _HabitQuickFilter.all;
   bool _isFilterExpanded = false;
@@ -76,9 +85,21 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
+    _ensureViewTogglePulseController();
     _scrollController.addListener(_onScroll);
     _loadHabits();
     _loadAdState();
+  }
+
+  AnimationController _ensureViewTogglePulseController() {
+    final existing = _viewTogglePulseController;
+    if (existing != null) return existing;
+    final created = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _viewTogglePulseController = created;
+    return created;
   }
 
   Future<void> _loadAdState() async {
@@ -128,6 +149,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   
   @override
   void dispose() {
+    _viewTogglePulseController?.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
@@ -524,8 +546,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
 
-    final isCompleted = habit.isCompletedForCurrentPeriod(LogicalDateService.now());
-    if (isCompleted) return;
+    final referenceDate =
+        widget.showCalendarMode ? _selectedCalendarDate : LogicalDateService.now();
+    final isCompleted = habit.isCompletedForCurrentPeriod(referenceDate);
+    if (isCompleted) {
+      _showTimelineCompletionDetails(habit, referenceDate);
+      return;
+    }
 
     Navigator.of(context).push<List<String>>(
       MaterialPageRoute(
@@ -540,6 +567,100 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         await _handleTimerCompletion(habit, completedStepIds);
       }
     });
+  }
+
+  void _showTimelineCompletionDetails(HabitItem habit, DateTime selectedDate) {
+    final iso =
+        '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+    final feedback = habit.feedbackByDate[iso];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _TimelineCompletionDetailsSheet(
+        habit: habit,
+        feedback: feedback,
+      ),
+    );
+  }
+
+  void _handleTimelineSlotTap(int minutesFromMidnight) {
+    final currentCount = _habits.length;
+    if (currentCount >= _freeHabitLimit && _shouldShowAds) {
+      if (_activeAdSession == null) {
+        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        AdService.setActiveSession(sessionKey);
+        setState(() {
+          _activeAdSession = sessionKey;
+          _adWatchedCount = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Watch 5 ads to unlock a new habit slot!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
+        final remaining = AdService.requiredAdsPerHabit - _adWatchedCount;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Watch $remaining more ad(s) to unlock a new habit.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+    final hour = (minutesFromMidnight ~/ 60).clamp(0, 23);
+    final minute = minutesFromMidnight % 60;
+    _openAddHabitAtTime(TimeOfDay(hour: hour, minute: minute));
+  }
+
+  Future<void> _openAddHabitAtTime(TimeOfDay time) async {
+    final req = await showAddHabitModal(
+      context,
+      existingHabits: _habits,
+      initialStartTime: time,
+      initialDurationMinutes: 30,
+    );
+    if (req == null || !mounted) return;
+
+    final newHabit = HabitItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: req.name,
+      category: req.category,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
+      iconIndex: req.iconIndex,
+      completedDates: const [],
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
+    );
+
+    await HabitStorageService.addHabit(newHabit);
+    await _loadHabits();
+
+    if (_activeAdSession != null) {
+      await AdService.clearSession(_activeAdSession!);
+      await AdService.setActiveSession(null);
+      setState(() {
+        _activeAdSession = null;
+        _adWatchedCount = 0;
+      });
+    }
   }
 
   Future<void> _handleTimerCompletion(HabitItem habit, List<String> completedStepIds) async {
@@ -765,6 +886,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   Widget _buildPinnedControlsRow() {
     final hasFilter = _activeFilter != _HabitQuickFilter.all;
     final showClear = _searchQuery.isNotEmpty;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final monthYear = DateFormat('MMMM yyyy').format(_selectedCalendarDate);
+    final selectedDate = DateFormat('EEE, MMM d').format(_selectedCalendarDate);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ClipRRect(
@@ -779,56 +904,159 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                 color: Colors.white.withValues(alpha: 0.35),
               ),
             ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: InputDecoration(
-                hintText: 'Search habits',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showClear)
-                      IconButton(
-                        tooltip: 'Clear search',
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
-                    IconButton(
-                      tooltip: _isFilterExpanded ? 'Hide filters' : 'Show filters',
-                      onPressed: () {
-                        setState(() {
-                          _isFilterExpanded = !_isFilterExpanded;
-                        });
-                      },
-                      icon: Badge(
-                        isLabelVisible: hasFilter,
-                        label: const Text('1'),
-                        child: Icon(
-                          _isFilterExpanded ? Icons.expand_less : Icons.tune,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: 'Search habits',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showClear)
+                          IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                        IconButton(
+                          tooltip:
+                              _isFilterExpanded ? 'Hide filters' : 'Show filters',
+                          onPressed: () {
+                            setState(() {
+                              _isFilterExpanded = !_isFilterExpanded;
+                            });
+                          },
+                          icon: Badge(
+                            isLabelVisible: hasFilter,
+                            label: const Text('1'),
+                            child: Icon(
+                              _isFilterExpanded ? Icons.expand_less : Icons.tune,
+                            ),
+                          ),
                         ),
+                    IconButton(
+                      tooltip: widget.showCalendarMode
+                          ? 'Switch to list view'
+                          : 'Switch to timeline view',
+                      onPressed: () {
+                        widget.onCalendarModeChanged
+                            ?.call(!widget.showCalendarMode);
+                      },
+                      icon: AnimatedBuilder(
+                        animation: _ensureViewTogglePulseController(),
+                        builder: (context, child) {
+                          final t = _ensureViewTogglePulseController().value;
+                          final scale = 1.0 + (0.06 * t);
+                          final glowOpacity = 0.18 + (0.18 * t);
+                          final color = Theme.of(context).colorScheme.primary;
+                          return Transform.scale(
+                            scale: scale,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color.withValues(
+                                      alpha: glowOpacity.clamp(0.0, 0.36),
+                                    ),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                widget.showCalendarMode
+                                    ? Icons.view_list_rounded
+                                    : Icons.timeline_rounded,
+                                color: color,
+                                size: 20,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ],
+                      ],
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
+                if (widget.showCalendarMode)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: _openCalendarDatePicker,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.white.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 14,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  monthYear,
+                                  style: AppTypography.bodySmall(context)
+                                      .copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          selectedDate,
+                          style: AppTypography.bodySmall(context).copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -891,6 +1119,485 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             onPressed: _resetSearchAndFilters,
             child: const Text('Clear all'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _setSelectedCalendarDate(DateTime date) {
+    setState(() {
+      _selectedCalendarDate = DateTime(date.year, date.month, date.day);
+    });
+  }
+
+  Future<void> _openCalendarDatePicker() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedCalendarDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+    if (picked == null || !mounted) return;
+    _setSelectedCalendarDate(picked);
+  }
+
+  bool _isTimedHabit(HabitItem habit) {
+    if (habit.startTimeMinutes == null) return false;
+    final tb = habit.timeBound;
+    return tb != null && tb.enabled && tb.durationMinutes > 0;
+  }
+
+  int _habitDurationMinutes(HabitItem habit) {
+    final tb = habit.timeBound;
+    if (tb == null || !tb.enabled) return 0;
+    return tb.durationMinutes;
+  }
+
+  String _formatMinutesLabel(int minutes) {
+    final clamped = minutes.clamp(0, 23 * 60 + 59);
+    final hour = clamped ~/ 60;
+    final minute = clamped % 60;
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    return '$hour12:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  String _formatHourLabel(int hour) {
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    return '$hour12 $period';
+  }
+
+  Future<int?> _showDurationPickerDialog() {
+    const options = <int>[15, 30, 45, 60, 90, 120];
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set duration'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: options
+              .map(
+                (minutes) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(minutes >= 60
+                      ? '${(minutes / 60).toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hr'
+                      : '$minutes min'),
+                  onTap: () => Navigator.of(ctx).pop(minutes),
+                ),
+              )
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasTimelineConflict({
+    required HabitItem movingHabit,
+    required int startMinutes,
+    required int durationMinutes,
+    required DateTime selectedDate,
+  }) {
+    final endMinutes = startMinutes + durationMinutes;
+    for (final h in _habits) {
+      if (h.id == movingHabit.id) continue;
+      if (!h.isScheduledOnDate(selectedDate)) continue;
+      if (!_isTimedHabit(h)) continue;
+      final otherStart = h.startTimeMinutes ?? 0;
+      final otherEnd = otherStart + _habitDurationMinutes(h);
+      if (startMinutes < otherEnd && endMinutes > otherStart) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _handleFlexibleDrop(
+    _FlexibleHabitDragData data,
+    int startMinutes,
+  ) async {
+    final pickedDuration = await _showDurationPickerDialog();
+    if (pickedDuration == null || !mounted) return;
+
+    if (_hasTimelineConflict(
+      movingHabit: data.habit,
+      startMinutes: startMinutes,
+      durationMinutes: pickedDuration,
+      selectedDate: _selectedCalendarDate,
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This time overlaps with another time-bound habit.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final existingTimeBound = data.habit.timeBound;
+    final nextTimeBound = existingTimeBound == null
+        ? HabitTimeBoundSpec(
+            enabled: true,
+            duration: pickedDuration,
+            unit: 'minutes',
+          )
+        : existingTimeBound.copyWith(
+            enabled: true,
+            duration: pickedDuration,
+            unit: 'minutes',
+          );
+    final updatedHabit = data.habit.copyWith(
+      startTimeMinutes: startMinutes,
+      timeBound: nextTimeBound,
+    );
+
+    await HabitStorageService.updateHabit(updatedHabit);
+    await _loadHabits();
+
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${updatedHabit.name} scheduled at ${_formatMinutesLabel(startMinutes)}',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildTimelineHabitChip(_HabitEntry entry) {
+    final habit = entry.habit;
+    final colorScheme = Theme.of(context).colorScheme;
+    final duration = _habitDurationMinutes(habit);
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.25)),
+      ),
+      child: InkWell(
+        onTap: () => _openTimerForHabit(entry),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.schedule_rounded, size: 14, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  habit.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${duration}m',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlexibleHabitCard(_HabitEntry entry) {
+    final habit = entry.habit;
+    final now = LogicalDateService.now();
+    final isCompleted = habit.isCompletedForCurrentPeriod(now);
+    final cardKey = GlobalKey();
+    final colorScheme = Theme.of(context).colorScheme;
+    Widget buildCard({required bool attachAnchorKey, required bool interactive}) {
+      return Row(
+        key: attachAnchorKey ? cardKey : null,
+        children: [
+          _TimelineCheckpoint(
+            isCompleted: isCompleted,
+            onTap: interactive
+                ? () => _handleHabitTap(
+                      habit: habit,
+                      cardKey: cardKey,
+                      isFlipped: false,
+                    )
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.drag_indicator_rounded,
+                      color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      habit.name,
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: FontWeight.w600,
+                        decoration:
+                            isCompleted ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Flexible',
+                    style: AppTypography.caption(context).copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Draggable<_FlexibleHabitDragData>(
+      data: _FlexibleHabitDragData(habit),
+      feedback: Material(
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 260),
+          child: buildCard(attachAnchorKey: false, interactive: false),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: buildCard(attachAnchorKey: false, interactive: false),
+      ),
+      child: buildCard(attachAnchorKey: true, interactive: true),
+    );
+  }
+
+  Widget _buildCalendarTimeline({
+    required List<_HabitEntry> timedHabits,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const leftLabelWidth = 52.0;
+    const contentLeft = 60.0;
+    const rightPad = 16.0;
+    const hourHeight = 80.0;
+    const minCardHeight = 54.0;
+    const cardGap = 6.0;
+    final totalHeight = 24 * hourHeight;
+
+    final sortedHabits = [...timedHabits]
+      ..sort((a, b) =>
+          (a.habit.startTimeMinutes ?? 0).compareTo(b.habit.startTimeMinutes ?? 0));
+    final positionedCards = <_TimelineCardLayout>[];
+    double nextMinTop = 0;
+    for (final entry in sortedHabits) {
+      final start = (entry.habit.startTimeMinutes ?? 0).clamp(0, 23 * 60 + 59);
+      final duration = _habitDurationMinutes(entry.habit).clamp(15, 180);
+      final naturalTop = (start / 60.0) * hourHeight;
+      final top = naturalTop < nextMinTop ? nextMinTop : naturalTop;
+      final height = ((duration / 60.0) * hourHeight).clamp(minCardHeight, 220.0);
+      nextMinTop = top + height + cardGap;
+      positionedCards.add(_TimelineCardLayout(entry: entry, top: top, height: height));
+    }
+
+    return SizedBox(
+      height: totalHeight,
+      child: Stack(
+        children: [
+            Positioned(
+              top: 0,
+              bottom: 0,
+              left: leftLabelWidth,
+              width: 2,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? colorScheme.onSurface.withValues(alpha: 0.24)
+                      : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+            ),
+            ...List.generate(24, (hour) {
+              final y = hour * hourHeight;
+              final slotStart = hour * 60;
+              final halfLabel = '${(hour % 12 == 0 ? 12 : hour % 12)}:30';
+              return Stack(
+                children: [
+                  Positioned(
+                    top: y,
+                    left: 0,
+                    right: 0,
+                    height: hourHeight,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: leftLabelWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 2, top: 1),
+                            child: Text(
+                              _formatHourLabel(hour),
+                              style: AppTypography.bodySmall(context).copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8, right: 8),
+                            child: Container(
+                              height: 1,
+                              color: isDark
+                                  ? colorScheme.onSurface.withValues(alpha: 0.24)
+                                  : colorScheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: y + (hourHeight / 2),
+                    left: 0,
+                    right: 0,
+                    height: 16,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: leftLabelWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 6, top: 1),
+                            child: Text(
+                              halfLabel,
+                              textAlign: TextAlign.left,
+                              style: AppTypography.caption(context).copyWith(
+                                fontSize: 10,
+                                color: colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Container(
+                              height: 1,
+                              color: colorScheme.outlineVariant
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: y,
+                    left: contentLeft,
+                    right: rightPad,
+                    height: hourHeight,
+                    child: DragTarget<_FlexibleHabitDragData>(
+                      onWillAcceptWithDetails: (_) => true,
+                      onAcceptWithDetails: (details) {
+                        _handleFlexibleDrop(details.data, slotStart);
+                      },
+                      builder: (context, candidates, rejected) {
+                        final isHovered = candidates.isNotEmpty;
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) {
+                            final localY = details.localPosition.dy.clamp(0.0, hourHeight);
+                            final minuteOffset = ((localY / hourHeight) * 60).toInt();
+                            final snapped = ((minuteOffset / 15).round() * 15).clamp(0, 59);
+                            final tappedMinute = slotStart + snapped;
+                            _handleTimelineSlotTap(tappedMinute);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 140),
+                            decoration: BoxDecoration(
+                              color: isHovered
+                                  ? colorScheme.primary.withValues(alpha: 0.1)
+                                  : Colors.transparent,
+                              border: isHovered
+                                  ? Border.all(
+                                      color: colorScheme.primary
+                                          .withValues(alpha: 0.45),
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: isHovered
+                                ? Center(
+                                    child: Text(
+                                      'Drop at ${_formatMinutesLabel(slotStart)}',
+                                      style:
+                                          AppTypography.caption(context).copyWith(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }),
+            if (timedHabits.isEmpty)
+              Positioned(
+                top: hourHeight * 7,
+                left: contentLeft,
+                right: rightPad,
+                child: Text(
+                  'Drop flexible habits into a time slot',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall(context).copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ...positionedCards.map(
+              (item) => Positioned(
+                top: item.top,
+                left: contentLeft + 4,
+                right: rightPad + 4,
+                height: item.height,
+                child: _buildTimelineHabitChip(item.entry),
+              ),
+            ),
         ],
       ),
     );
@@ -970,6 +1677,148 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
+  Widget _buildCalendarModeContent({
+    required List<_HabitEntry> flexibleHabits,
+    required List<_HabitEntry> timedHabits,
+    required List<_HabitEntry> visibleHabits,
+    required ColorScheme colorScheme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionLabel('Flexible Habits'),
+        if (flexibleHabits.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Column(
+              children: flexibleHabits
+                  .map((entry) => _buildFlexibleHabitCard(entry))
+                  .toList(),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'No flexible habits for this date.',
+              style: AppTypography.bodySmall(context).copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        _buildSectionLabel('Timeline Habits'),
+        _buildCalendarTimeline(
+          timedHabits: timedHabits,
+        ),
+        if (timedHabits.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'No time-bound habits for this date. Drag a flexible habit into the timeline.',
+              style: AppTypography.bodySmall(context).copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        if (visibleHabits.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search_off),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No habits match your search or filters.',
+                        style: AppTypography.bodySmall(context),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _resetSearchAndFilters,
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+
+  Widget _buildDefaultModeContent({
+    required List<_HabitEntry> todayHabits,
+    required List<_HabitEntry> upcomingHabits,
+    required List<_HabitEntry> visibleHabits,
+    required bool hasActiveSearchOrFilter,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionLabel('Today'),
+        if (todayHabits.isNotEmpty)
+          ...todayHabits.asMap().entries.map((entry) {
+            final index = entry.key;
+            final habitEntry = entry.value;
+            return _buildHabitTimelineRow(
+              entry: habitEntry,
+              index: index,
+              isFirst: index == 0,
+              isLast: index == todayHabits.length - 1,
+            );
+          })
+        else if (!hasActiveSearchOrFilter)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text('No habits scheduled for today.'),
+          ),
+        if (upcomingHabits.isNotEmpty) ...[
+          _buildSectionLabel('Upcoming'),
+          ...upcomingHabits.asMap().entries.map((entry) {
+            final index = entry.key;
+            final habitEntry = entry.value;
+            return _buildHabitTimelineRow(
+              entry: habitEntry,
+              index: todayHabits.length + index,
+              isFirst: index == 0,
+              isLast: index == upcomingHabits.length - 1,
+            );
+          }),
+        ],
+        if (visibleHabits.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search_off),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No habits match your search or filters.',
+                        style: AppTypography.bodySmall(context),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _resetSearchAndFilters,
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -983,9 +1832,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         habit: habit,
       );
     }).toList();
+    final filterDate = widget.showCalendarMode ? _selectedCalendarDate : now;
     final visibleHabits = allHabits
         .where(_matchesQuery)
-        .where((e) => _matchesFilter(e, now))
+        .where((e) => _matchesFilter(e, filterDate))
         .toList();
     final hasActiveSearchOrFilter =
         _searchQuery.trim().isNotEmpty || _activeFilter != _HabitQuickFilter.all;
@@ -994,6 +1844,17 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         .toList();
     final upcomingHabits = visibleHabits
         .where((e) => !e.habit.isScheduledOnDate(now))
+        .toList();
+    final calendarDateHabits = visibleHabits
+        .where((e) => e.habit.isScheduledOnDate(_selectedCalendarDate))
+        .toList();
+    final timedHabits = calendarDateHabits
+        .where((e) => _isTimedHabit(e.habit))
+        .toList()
+      ..sort((a, b) =>
+          (a.habit.startTimeMinutes ?? 0).compareTo(b.habit.startTimeMinutes ?? 0));
+    final flexibleHabits = calendarDateHabits
+        .where((e) => !_isTimedHabit(e.habit))
         .toList();
 
     // Calculate progress stats for today
@@ -1007,7 +1868,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       final s = e.habit.currentStreak;
       if (s > bestStreak) bestStreak = s;
     }
-    final topPadding = MediaQuery.paddingOf(context).top;
 
     return Stack(
       children: [
@@ -1018,15 +1878,56 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
+            // Reward ad card (shown when user needs to watch ads for new habit)
+            if (_activeAdSession != null &&
+                _shouldShowAds &&
+                _adWatchedCount < AdService.requiredAdsPerHabit)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16)
+                      .copyWith(top: 8),
+                  child: RewardAdCard(
+                    sessionKey: _activeAdSession!,
+                    watchedCount: _adWatchedCount,
+                    onAdWatched: _onRewardAdWatched,
+                    onAllAdsWatched: _onAllAdsWatched,
+                  ),
+                ),
+              ),
+            if (allHabits.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildPinnedControlsRow(),
+              ),
+            if (allHabits.isNotEmpty && _isFilterExpanded)
+              SliverToBoxAdapter(
+                child: _buildFilterStrip(),
+              ),
+            if (allHabits.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildControlsSummaryRow(),
+              ),
             // Sticky daily progress header
-            SliverPersistentHeader(
+            SliverAppBar(
+              primary: false,
               pinned: true,
-              delegate: _DailyProgressHeaderDelegate(
-                completedCount: completedToday,
-                totalCount: totalScheduledToday,
-                bestStreak: bestStreak,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                topPadding: topPadding,
+              automaticallyImplyLeading: false,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              toolbarHeight: _dailyProgressHeaderHeight,
+              collapsedHeight: _dailyProgressHeaderHeight,
+              expandedHeight: _dailyProgressHeaderHeight,
+              flexibleSpace: Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: _dailyProgressHeaderHeight,
+                  child: DailyProgressHeader(
+                    completedCount: completedToday,
+                    totalCount: totalScheduledToday,
+                    bestStreak: bestStreak,
+                  ),
+                ),
               ),
             ),
             // Empty state
@@ -1062,109 +1963,44 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
-            // Reward ad card (shown when user needs to watch ads for new habit)
-            if (_activeAdSession != null && _shouldShowAds)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16)
-                      .copyWith(top: 8),
-                  child: RewardAdCard(
-                    sessionKey: _activeAdSession!,
-                    watchedCount: _adWatchedCount,
-                    onAdWatched: _onRewardAdWatched,
-                    onAllAdsWatched: _onAllAdsWatched,
-                  ),
-                ),
-              ),
+            // Habits content with smooth mode transition
             if (allHabits.isNotEmpty)
               SliverToBoxAdapter(
-                child: _buildPinnedControlsRow(),
-              ),
-            if (allHabits.isNotEmpty && _isFilterExpanded)
-              SliverToBoxAdapter(
-                child: _buildFilterStrip(),
-              ),
-            if (allHabits.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildControlsSummaryRow(),
-              ),
-            // Habits list with timeline
-            if (allHabits.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: _buildSectionLabel('Today'),
-              ),
-              if (todayHabits.isNotEmpty)
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final entry = todayHabits[index];
-                      return _buildHabitTimelineRow(
-                        entry: entry,
-                        index: index,
-                        isFirst: index == 0,
-                        isLast: index == todayHabits.length - 1,
-                      );
-                    },
-                    childCount: todayHabits.length,
-                  ),
-                )
-              else if (!hasActiveSearchOrFilter)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text('No habits scheduled for today.'),
-                  ),
-                ),
-              if (upcomingHabits.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: _buildSectionLabel('Upcoming'),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final entry = upcomingHabits[index];
-                      return _buildHabitTimelineRow(
-                        entry: entry,
-                        index: todayHabits.length + index,
-                        isFirst: index == 0,
-                        isLast: index == upcomingHabits.length - 1,
-                      );
-                    },
-                    childCount: upcomingHabits.length,
-                  ),
-                ),
-              ],
-              if (visibleHabits.isEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search_off),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'No habits match your search or filters.',
-                                style: AppTypography.bodySmall(context),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _resetSearchAndFilters,
-                              child: const Text('Reset'),
-                            ),
-                          ],
-                        ),
-                      ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 520),
+                  reverseDuration: const Duration(milliseconds: 420),
+                  switchInCurve: Curves.easeInOutCubicEmphasized,
+                  switchOutCurve: Curves.easeInOutCubic,
+                  transitionBuilder: (child, animation) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0, 0.035),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<String>(
+                      widget.showCalendarMode ? 'calendar-mode' : 'list-mode',
                     ),
+                    child: widget.showCalendarMode
+                        ? _buildCalendarModeContent(
+                            flexibleHabits: flexibleHabits,
+                            timedHabits: timedHabits,
+                            visibleHabits: visibleHabits,
+                            colorScheme: colorScheme,
+                          )
+                        : _buildDefaultModeContent(
+                            todayHabits: todayHabits,
+                            upcomingHabits: upcomingHabits,
+                            visibleHabits: visibleHabits,
+                            hasActiveSearchOrFilter: hasActiveSearchOrFilter,
+                          ),
                   ),
                 ),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 100),
               ),
-            ],
           ],
         ),
         // Simple confetti burst anchored to the completed card
@@ -1222,56 +2058,355 @@ class _PendingCoinAnimation {
   });
 }
 
-class _DailyProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final int completedCount;
-  final int totalCount;
-  final int bestStreak;
-  final Color backgroundColor;
-  final double topPadding;
+class _FlexibleHabitDragData {
+  final HabitItem habit;
 
-  const _DailyProgressHeaderDelegate({
-    required this.completedCount,
-    required this.totalCount,
-    required this.bestStreak,
-    required this.backgroundColor,
-    required this.topPadding,
+  const _FlexibleHabitDragData(this.habit);
+}
+
+class _TimelineCardLayout {
+  final _HabitEntry entry;
+  final double top;
+  final double height;
+
+  const _TimelineCardLayout({
+    required this.entry,
+    required this.top,
+    required this.height,
+  });
+}
+
+class _TimelineCompletionDetailsSheet extends StatelessWidget {
+  final HabitItem habit;
+  final HabitCompletionFeedback? feedback;
+
+  const _TimelineCompletionDetailsSheet({
+    required this.habit,
+    required this.feedback,
   });
 
-  static const double _contentHeight = 146;
+  static const _moodData = <int, (String, String, Color)>{
+    1: ('assets/moods/awful.png', 'Awful', AppColors.moodAwful),
+    2: ('assets/moods/bad.png', 'Bad', AppColors.moodBad),
+    3: ('assets/moods/okay.png', 'Neutral', AppColors.moodNeutral),
+    4: ('assets/moods/good.png', 'Good', AppColors.moodGood),
+    5: ('assets/moods/great.png', 'Great', AppColors.moodGreat),
+  };
 
   @override
-  double get minExtent => _contentHeight + topPadding;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final mood = feedback?.rating;
+    final note = feedback?.note;
+    final coins = feedback?.coinsEarned;
+    final hasDetails = feedback != null &&
+        ((mood != null && mood > 0 && _moodData.containsKey(mood)) ||
+            (note != null && note.isNotEmpty));
 
-  @override
-  double get maxExtent => _contentHeight + topPadding;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return ColoredBox(
-      color: backgroundColor,
-      child: SafeArea(
-        top: true,
-        bottom: false,
-        child: DailyProgressHeader(
-          completedCount: completedCount,
-          totalCount: totalCount,
-          bestStreak: bestStreak,
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.task_alt_rounded,
+                    size: 24,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        habit.name,
+                        style: AppTypography.heading3(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 14,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Completed',
+                            style: AppTypography.caption(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (coins != null && coins > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [AppColors.goldLight, AppColors.goldDark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(
+                              color: AppColors.amberBorder,
+                              width: 1,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.monetization_on_rounded,
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+$coins',
+                          style: AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            if (hasDetails) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    if (mood != null &&
+                        mood > 0 &&
+                        _moodData.containsKey(mood))
+                      _buildDetailRow(
+                        context,
+                        moodAsset: _moodData[mood]!.$1,
+                        label: 'Mood',
+                        value: _moodData[mood]!.$2,
+                        valueColor: _moodData[mood]!.$3,
+                        colorScheme: colorScheme,
+                        isFirst: true,
+                        isLast: (note == null || note.isEmpty),
+                      ),
+                    if (note != null && note.isNotEmpty)
+                      _buildNoteRow(
+                        context,
+                        note: note,
+                        colorScheme: colorScheme,
+                        isFirst:
+                            mood == null || mood <= 0 || !_moodData.containsKey(mood),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            if (!hasDetails) ...[
+              const SizedBox(height: 24),
+              Text(
+                'No additional details recorded.',
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  'Done',
+                  style: AppTypography.button(context),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  @override
-  bool shouldRebuild(covariant _DailyProgressHeaderDelegate oldDelegate) {
-    return completedCount != oldDelegate.completedCount ||
-        totalCount != oldDelegate.totalCount ||
-        bestStreak != oldDelegate.bestStreak ||
-        backgroundColor != oldDelegate.backgroundColor ||
-        topPadding != oldDelegate.topPadding;
+  Widget _buildDetailRow(
+    BuildContext context, {
+    required String moodAsset,
+    required String label,
+    required String value,
+    required Color valueColor,
+    required ColorScheme colorScheme,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: isFirst ? 14 : 0,
+        bottom: isLast ? 14 : 0,
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Image.asset(
+                moodAsset,
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: AppTypography.bodySmall(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: valueColor,
+                ),
+              ),
+            ],
+          ),
+          if (!isLast) ...[
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoteRow(
+    BuildContext context, {
+    required String note,
+    required ColorScheme colorScheme,
+    required bool isFirst,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: isFirst ? 14 : 0,
+        bottom: 14,
+      ),
+      child: Column(
+        children: [
+          if (!isFirst) ...[
+            Divider(
+              height: 1,
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.notes_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Note',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      note,
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../utils/progress_growth_image.dart';
 
@@ -33,13 +34,13 @@ class DailyProgressHeader extends StatelessWidget {
         : Colors.white.withValues(alpha: 0.7);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
               color: glassFill,
               borderRadius: BorderRadius.circular(20),
@@ -55,61 +56,52 @@ class DailyProgressHeader extends StatelessWidget {
               ],
             ),
             child: Row(
-        children: [
-          // Text content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (bestStreak > 0)
-                  Column(
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        "You\u2019re on a",
-                        style: AppTypography.bodySmall(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
                       Row(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
-                            '$bestStreak-day streak!',
-                            style: AppTypography.heading3(context).copyWith(
-                              color: colorScheme.onSurface,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
+                            "You're on a",
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            '\uD83D\uDD25',
-                            style: TextStyle(fontSize: 18),
-                          ),
+                          const _AnimatedFireIcon(),
                         ],
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$bestStreak-day streak!',
+                        style: AppTypography.heading2(context).copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$completedCount/$totalCount done today',
+                        style: AppTypography.bodySmall(context).copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
-                  )
-                else
-                  Text(
-                    '$completedCount of $totalCount completed',
-                    style: AppTypography.heading3(context).copyWith(
-                      color: colorScheme.onSurface,
-                      height: 1.2,
-                    ),
                   ),
+                ),
+                const SizedBox(width: 16),
+                _buildProgressImage(context, progress),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          // Percent growth image
-          _buildProgressImage(context, progress),
-        ],
-      ),
           ),
         ),
       ),
@@ -169,4 +161,48 @@ class DailyProgressHeader extends StatelessWidget {
       ),
     );
   }
+
+}
+
+class _AnimatedFireIcon extends StatefulWidget {
+  const _AnimatedFireIcon();
+
+  @override
+  State<_AnimatedFireIcon> createState() => _AnimatedFireIconState();
+}
+
+class _AnimatedFireIconState extends State<_AnimatedFireIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1050),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.95, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: const Text(
+        '\uD83D\uDD25',
+        style: TextStyle(fontSize: 22),
+      ),
+    );
+  }
+
 }

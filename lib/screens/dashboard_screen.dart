@@ -68,6 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
   int _tabIndex = 1;
   bool _loading = true;
+  bool _showHabitsCalendarMode = false;
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
   bool _checkedMandatoryLogin = false;
@@ -993,6 +994,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       boardDataVersion: _boardDataVersion,
       coinNotifier: _coinNotifier,
       coinTargetKey: _coinTargetKey,
+      showHabitsCalendarMode: _showHabitsCalendarMode,
+      onHabitsCalendarModeChanged: (value) {
+        setState(() => _showHabitsCalendarMode = value);
+      },
       onCreateBoard: _toggleCreatePanel,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),

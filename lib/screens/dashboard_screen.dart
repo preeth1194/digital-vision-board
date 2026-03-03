@@ -981,7 +981,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 7, 6, 2]; // Dashboard, Rituals, Routine, Journal
+    const visibleTabIndices = <int>[1, 7, 6, 2]; // Dashboard, Rituals, Planner, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -1241,8 +1241,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
-      // Hide app bar for routine screen (tabIndex == 6) since it has its own header
-      appBar: (_tabIndex == 6 || _tabIndex == 2) ? null : AppBar(
+      // Hide app bar only for journal screen (tabIndex == 2)
+      appBar: (_tabIndex == 2) ? null : AppBar(
         toolbarHeight: 72,
         automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
@@ -1338,7 +1338,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         AnimatedNavItem(
           icon: Icons.schedule_outlined,
           activeIcon: Icons.schedule_rounded,
-          label: 'Routine',
+          label: 'Planner',
         ),
         AnimatedNavItem(
           icon: Icons.book_outlined,

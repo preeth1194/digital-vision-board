@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -11,14 +10,12 @@ import '../services/ad_service.dart';
 import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/logical_date_service.dart';
-import '../services/sun_times_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../widgets/ads/reward_ad_card.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 import '../widgets/rituals/habit_completion_sheet.dart';
 import '../widgets/routine/routine_calendar_header.dart';
-import '../widgets/routine/sun_times_header.dart';
 import '../widgets/rituals/habit_form_constants.dart';
 import 'routine_timer_screen.dart';
 
@@ -43,11 +40,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   SharedPreferences? _prefs;
   List<HabitItem> _habits = [];
   late DateTime _selectedDate;
-
-  DateTime? _sunrise;
-  DateTime? _sunset;
-  Timer? _currentTimeTimer;
-  DateTime _currentTime = DateTime.now();
 
   late ScrollController _timelineScrollController;
   DateTime? _timelinePreviewTime;
@@ -91,10 +83,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
-    _currentTimeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() => _currentTime = DateTime.now());
-    });
-
     widget.dataVersion?.addListener(_onDataVersionChanged);
   }
 
@@ -119,7 +107,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   @override
   void dispose() {
     widget.dataVersion?.removeListener(_onDataVersionChanged);
-    _currentTimeTimer?.cancel();
     _timelineScrollController.removeListener(_onTimelineScroll);
     _timelineScrollController.dispose();
     _currentTimeIndicatorController.dispose();
@@ -160,7 +147,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     await _loadHabits();
-    await _loadSunTimes();
     await _loadAdState();
     if (mounted) setState(() => _loading = false);
   }
@@ -186,52 +172,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     if (mounted) setState(() => _habits = all);
   }
 
-  Future<void> _loadSunTimes() async {
-    final sunTimes = await SunTimesService.getSunTimes(date: _selectedDate, prefs: _prefs);
-    if (sunTimes != null && mounted) {
-      setState(() {
-        _sunrise = sunTimes.sunrise;
-        _sunset = sunTimes.sunset;
-      });
-    } else if (mounted) {
-      final defaults = SunTimesService.getDefaultSunTimes(_selectedDate);
-      setState(() {
-        _sunrise = defaults.sunrise;
-        _sunset = defaults.sunset;
-      });
-    }
-  }
-
-  bool _isRefreshingLocation = false;
-
-  Future<void> _refreshLocation() async {
-    if (_isRefreshingLocation) return;
-    setState(() => _isRefreshingLocation = true);
-    try {
-      final sunTimes = await SunTimesService.refreshLocationAndGetSunTimes(
-          date: _selectedDate, prefs: _prefs);
-      if (mounted) {
-        if (sunTimes != null) {
-          setState(() {
-            _sunrise = sunTimes.sunrise;
-            _sunset = sunTimes.sunset;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Location updated'), duration: Duration(seconds: 2)));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Could not get location. Check permissions.'),
-              duration: Duration(seconds: 3)));
-        }
-      }
-    } finally {
-      if (mounted) setState(() => _isRefreshingLocation = false);
-    }
-  }
-
   void _onDateSelected(DateTime date) {
     setState(() => _selectedDate = DateTime(date.year, date.month, date.day));
-    _loadSunTimes();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToRelevantTime());
   }
 
@@ -557,14 +499,6 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
           onDateSelected: _onDateSelected,
           routines: const [],
         ),
-        if (_sunrise != null && _sunset != null)
-          SunTimesHeader(
-            sunrise: _sunrise!,
-            sunset: _sunset!,
-            currentTime: _currentTime,
-            previewTime: _timelinePreviewTime,
-            onRefreshLocation: _refreshLocation,
-          ),
         if (_activeAdSession != null && _shouldShowAds)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -576,22 +510,47 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
             ),
           ),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _viewportHeight = constraints.maxHeight;
-              if (_lastCrossedHour == -1) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_timelineScrollController.hasClients &&
-                      _lastCrossedHour == -1) {
-                    _scrollToRelevantTime(animate: false);
-                  }
-                });
-              }
-              return _build24HourTimeline();
-            },
-          ),
+          child: _buildPlannerList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildPlannerList() {
+    final habitsForDate = _timedHabitsForDate;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return RefreshIndicator(
+      onRefresh: _loadHabits,
+      child: habitsForDate.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+              children: [
+                _buildEmptyTimelineHint(),
+              ],
+            )
+          : ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+              itemCount: habitsForDate.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final habit = habitsForDate[index];
+                return _TimelineHabitCard(
+                  habit: habit,
+                  selectedDate: _selectedDate,
+                  height: 78,
+                  onTap: () => _openHabitTimer(habit),
+                  isDark: isDark,
+                );
+              },
+            ),
     );
   }
 

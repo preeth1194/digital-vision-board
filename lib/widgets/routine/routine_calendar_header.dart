@@ -59,7 +59,6 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
             _buildCalendarRow(context),
             const SizedBox(height: 8),
             _WeekDaySelector(

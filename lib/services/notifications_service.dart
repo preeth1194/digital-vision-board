@@ -116,6 +116,23 @@ class NotificationsService {
     }
   }
 
+  static const List<String> _habitReminderNudges = <String>[
+    'Small steps today build big wins tomorrow.',
+    'Your future self will thank you for this one.',
+    'You have got this. Start now.',
+    'One focused session is enough to make progress.',
+    'Show up for yourself right now.',
+  ];
+
+  static String _habitReminderBody(HabitItem habit) {
+    final cleanName = habit.name.trim();
+    final base = cleanName.isEmpty ? 'your habit' : cleanName;
+    final daySeed = DateTime.now();
+    final key = '${habit.id}:${daySeed.year}-${daySeed.month}-${daySeed.day}';
+    final quote = _habitReminderNudges[_stableId(key) % _habitReminderNudges.length];
+    return 'Hey, ready to do $base? $quote';
+  }
+
   static AndroidNotificationDetails _getAndroidChannel({
     String? customSoundPath,
     String? vibrationType,
@@ -169,14 +186,15 @@ class NotificationsService {
   }
 
   static tz.TZDateTime _nextInstanceForTimeTodayOrTomorrow(TimeOfDay time) {
+    final effectiveTime = _effectiveTimeForLocalWallClock(time);
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
       now.day,
-      time.hour,
-      time.minute,
+      effectiveTime.hour,
+      effectiveTime.minute,
     );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
@@ -185,6 +203,7 @@ class NotificationsService {
   }
 
   static tz.TZDateTime _nextInstanceForWeekday(TimeOfDay time, int weekday) {
+    final effectiveTime = _effectiveTimeForLocalWallClock(time);
     // weekday: DateTime.monday..DateTime.sunday
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(
@@ -192,13 +211,28 @@ class NotificationsService {
       now.year,
       now.month,
       now.day,
-      time.hour,
-      time.minute,
+      effectiveTime.hour,
+      effectiveTime.minute,
     );
     while (scheduled.weekday != weekday || scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
     return scheduled;
+  }
+
+  static TimeOfDay _effectiveTimeForLocalWallClock(TimeOfDay intendedLocalTime) {
+    // Fallback for environments where timezone package local zone remains UTC:
+    // convert local wall-clock reminder time to UTC wall-clock before schedule.
+    if (tz.local.name == 'UTC') {
+      final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
+      if (offsetMinutes != 0) {
+        final intendedMinutes = intendedLocalTime.hour * 60 + intendedLocalTime.minute;
+        final adjusted = (intendedMinutes - offsetMinutes) % (24 * 60);
+        final normalized = adjusted < 0 ? adjusted + (24 * 60) : adjusted;
+        return TimeOfDay(hour: normalized ~/ 60, minute: normalized % 60);
+      }
+    }
+    return intendedLocalTime;
   }
 
   static Future<void> cancelHabitReminders(HabitItem habit) async {
@@ -215,14 +249,12 @@ class NotificationsService {
   /// True when either a manual reminder is enabled, or the timer addon has a
   /// start time (notification sound != 'none').
   static bool shouldSchedule(HabitItem habit) {
-    if (habit.reminderEnabled && habit.reminderMinutes != null) return true;
-    if (habit.startTimeMinutes != null &&
+    final reminderRoute = habit.reminderEnabled && habit.reminderMinutes != null;
+    final timerRoute = habit.startTimeMinutes != null &&
         habit.timeBound != null &&
         habit.timeBound!.enabled &&
-        habit.timeBound!.notificationSound != 'none') {
-      return true;
-    }
-    return false;
+        habit.timeBound!.notificationSound != 'none';
+    return reminderRoute || timerRoute;
   }
 
   static Future<void> scheduleHabitReminders(HabitItem habit) async {
@@ -245,6 +277,7 @@ class NotificationsService {
       return;
     }
     final time = TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+    final notificationBody = _habitReminderBody(habit);
 
     // Clear any older schedules first
     await cancelHabitReminders(habit);
@@ -263,7 +296,7 @@ class NotificationsService {
         await _plugin.zonedSchedule(
           id: _habitReminderId(habit, weekday: wd),
           title: 'Habit reminder',
-          body: habit.name,
+          body: notificationBody,
           scheduledDate: when,
           notificationDetails: platformDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -278,7 +311,7 @@ class NotificationsService {
     await _plugin.zonedSchedule(
       id: _habitReminderId(habit),
       title: 'Habit reminder',
-      body: habit.name,
+      body: notificationBody,
       scheduledDate: when,
       notificationDetails: platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -309,7 +342,7 @@ class NotificationsService {
     await _plugin.zonedSchedule(
       id: _habitSnoozeId(habit, iso),
       title: 'Habit reminder',
-      body: habit.name,
+      body: _habitReminderBody(habit),
       scheduledDate: when,
       notificationDetails: platformDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,

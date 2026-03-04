@@ -12,11 +12,14 @@ import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/notifications_service.dart';
 import '../services/sync_service.dart';
 import '../services/micro_habit_storage_service.dart';
 import '../services/overall_streak_storage_service.dart';
 import 'habit_timer_screen.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
+import '../widgets/dialogs/add_habit_dialog.dart';
+import '../widgets/habits/off_schedule_completion_dialog.dart';
 import '../widgets/vision_board/component_image.dart';
 
 class VisionBoardHomeFront extends StatelessWidget {
@@ -163,7 +166,18 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
 
   Future<void> _toggleHabit(String componentId, HabitItem habit) async {
     final now = LogicalDateService.now();
-    if (!habit.isScheduledOnDate(now)) return;
+    if (!habit.isScheduledOnDate(now)) {
+      final choice = await showOffScheduleCompletionDialog(
+        context: context,
+        habit: habit,
+      );
+      if (!mounted) return;
+      if (choice == OffScheduleCompletionChoice.cancel) return;
+      if (choice == OffScheduleCompletionChoice.changeSchedule) {
+        await _editHabitSchedule(componentId, habit);
+        return;
+      }
+    }
     final iso = LogicalDateService.toIsoDate(now);
     final wasDone = habit.isCompletedForCurrentPeriod(now);
 
@@ -192,6 +206,7 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
 
     // 3) If newly completed, prompt for rating and save feedback.
     if (!wasDone) {
+      if (!mounted) return;
       final res = await showCompletionFeedbackSheet(
         context,
         title: 'How did it go?',
@@ -229,6 +244,70 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
         );
       });
     }
+  }
+
+  Future<void> _editHabitSchedule(String componentId, HabitItem habit) async {
+    final baseComponents = widget.board.layoutType == VisionBoardInfo.layoutGrid
+        ? _componentsFromGridTiles(_tiles)
+        : _components;
+    final comp = baseComponents
+        .where((c) => c.id == componentId)
+        .cast<VisionComponent?>()
+        .firstWhere((_) => true, orElse: () => null);
+    if (comp == null) return;
+    final currentHabit = comp.habits
+        .where((h) => h.id == habit.id)
+        .cast<HabitItem?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final baseHabit = currentHabit ?? habit;
+
+    final req = await showEditHabitDialog(
+      context,
+      habit: baseHabit,
+      existingHabits: comp.habits.where((h) => h.id != baseHabit.id).toList(),
+    );
+    if (req == null) return;
+
+    final updatedHabit = baseHabit.copyWith(
+      name: req.name,
+      category: req.category,
+      frequency: req.frequency,
+      weeklyDays: req.weeklyDays,
+      deadline: req.deadline,
+      afterHabitId: req.afterHabitId,
+      timeOfDay: req.timeOfDay,
+      reminderMinutes: req.reminderMinutes,
+      reminderEnabled: req.reminderEnabled,
+      chaining: req.chaining,
+      cbtEnhancements: req.cbtEnhancements,
+      timeBound: req.timeBound,
+      clearTimeBound: req.timeBound == null,
+      locationBound: req.locationBound,
+      trackingSpec: req.trackingSpec,
+      clearTrackingSpec: req.trackingSpec == null,
+      iconIndex: req.iconIndex,
+      actionSteps: req.actionSteps,
+      startTimeMinutes: req.startTimeMinutes,
+      clearStartTimeMinutes: req.startTimeMinutes == null,
+    );
+
+    final latestComponents = widget.board.layoutType == VisionBoardInfo.layoutGrid
+        ? _componentsFromGridTiles(_tiles)
+        : _components;
+    final updatedComponents = latestComponents.map((c) {
+      if (c.id != componentId) return c;
+      final habits = c.habits
+          .map((h) => h.id == updatedHabit.id ? updatedHabit : h)
+          .toList();
+      return c.copyWithCommon(habits: habits);
+    }).toList();
+    await _persistUpdatedComponents(updatedComponents);
+
+    Future<void>(() async {
+      final ok = await NotificationsService.requestPermissionsIfNeeded();
+      if (!ok) return;
+      await NotificationsService.scheduleHabitReminders(updatedHabit);
+    });
   }
 
   @override
@@ -870,6 +949,16 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
           ),
           const SizedBox(height: 16),
         ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          child: Text(
+            'Today',
+            style: AppTypography.bodySmall(context).copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
         // Habits and Microhabits in merged single-column layout when micro habits exist
         Card(
           child: Padding(

@@ -663,7 +663,6 @@ class _ActionStepTileState extends State<_ActionStepTile> {
   @override
   Widget build(BuildContext context) {
     final cs = widget.colorScheme;
-    final icon = IconService.iconFromCodePoint(widget.step.iconCodePoint);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -675,35 +674,21 @@ class _ActionStepTileState extends State<_ActionStepTile> {
           ),
           const SizedBox(width: 10),
           Container(
-            width: 38,
-            height: 38,
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: cs.primaryContainer,
-              borderRadius: BorderRadius.circular(10),
+              color: cs.primary,
+              shape: BoxShape.circle,
             ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Center(child: Icon(icon, size: 18, color: cs.onPrimaryContainer)),
-                Positioned(
-                  top: -4,
-                  left: -4,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: cs.surface, width: 1.5),
-                    ),
-                    child: Text(
-                      '${widget.stepNumber}',
-                      style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w700, color: cs.onPrimary, height: 1),
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              '${widget.stepNumber}',
+              style: AppTypography.caption(context).copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: cs.onPrimary,
+                height: 1,
+              ),
             ),
           ),
           const SizedBox(width: 12),

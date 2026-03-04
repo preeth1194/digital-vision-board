@@ -800,7 +800,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       actionSteps: filteredSteps,
       startTimeMinutes: startTimeMinutes,
     );
-
     Navigator.of(context).pop(request);
   }
 
@@ -1543,17 +1542,18 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
-              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-              final selected = _weekdays.contains(index);
+              final weekdayIndex =
+                  kSundayFirstToMondayBasedWeekdayIndex[index];
+              final selected = _weekdays.contains(weekdayIndex);
               return AnimatedDayChip(
-                label: days[index],
+                label: kWeekdayLabelsSundayFirst[index],
                 isSelected: selected,
                 accentColor: baseColor,
                 onTap: () => setState(() {
-                  if (_weekdays.contains(index)) {
-                    _weekdays.remove(index);
+                  if (_weekdays.contains(weekdayIndex)) {
+                    _weekdays.remove(weekdayIndex);
                   } else {
-                    _weekdays.add(index);
+                    _weekdays.add(weekdayIndex);
                   }
                 }),
               );

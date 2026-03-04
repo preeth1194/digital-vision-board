@@ -15,6 +15,7 @@ import 'habit_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
+import '../widgets/habits/off_schedule_completion_dialog.dart';
 /// Habits list UI; reads habits from [components] (component.habits, backward compat)
 /// and writes via [onComponentsUpdated]. Callers must sync to [HabitStorageService].
 class HabitsListScreen extends StatefulWidget {
@@ -235,7 +236,18 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
   Future<void> _toggleHabit(VisionComponent component, HabitItem habit) async {
     final now = LogicalDateService.now();
-    if (!habit.isScheduledOnDate(now)) return;
+    if (!habit.isScheduledOnDate(now)) {
+      final choice = await showOffScheduleCompletionDialog(
+        context: context,
+        habit: habit,
+      );
+      if (!mounted) return;
+      if (choice == OffScheduleCompletionChoice.cancel) return;
+      if (choice == OffScheduleCompletionChoice.changeSchedule) {
+        await _editHabit(component, habit);
+        return;
+      }
+    }
     final wasDone = habit.isCompletedForCurrentPeriod(now);
     final toggled = habit.toggleForDate(now);
 
@@ -509,10 +521,31 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                     ),
                   ),
                 ),
-                ...component.habits.map((habit) {
+                ...(() {
                   final now = LogicalDateService.now();
-                  final scheduledToday = habit.isScheduledOnDate(now);
-                  final isCompleted = scheduledToday && habit.isCompletedForCurrentPeriod(now);
+                  final todayHabits = component.habits
+                      .where((h) => h.isScheduledOnDate(now))
+                      .toList();
+                  final otherHabits = component.habits
+                      .where((h) => !h.isScheduledOnDate(now))
+                      .toList();
+
+                  Widget buildSectionLabel(String text) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Text(
+                        text,
+                        style: AppTypography.bodySmall(context).copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }
+
+                  Widget buildHabitRow(HabitItem habit) {
+                    final scheduledToday = habit.isScheduledOnDate(now);
+                    final isCompleted = habit.isCompletedForCurrentPeriod(now);
                   final goal = _getGoalFromComponent(component);
                   final microhabit = goal?.actionPlan?.microHabit?.trim();
                   final hasMicrohabit = microhabit != null && microhabit.isNotEmpty;
@@ -537,7 +570,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                               children: [
                                 Checkbox(
                                   value: isCompleted,
-                                  onChanged: scheduledToday ? (_) => _toggleHabit(component, habit) : null,
+                                  onChanged: (_) => _toggleHabit(component, habit),
                                 ),
                                 Expanded(
                                   child: Column(
@@ -594,7 +627,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                                   .firstWhere((_) => true, orElse: () => null);
                                                               if (hNow == null) return;
                                                               final now = LogicalDateService.now();
-                                                              if (!hNow.isScheduledOnDate(now)) return;
                                                               if (hNow.isCompletedForCurrentPeriod(now)) return;
                                                               await _toggleHabit(cNow, hNow);
                                                             },
@@ -662,7 +694,19 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                       ),
                     ),
                   );
-                }),
+                  }
+
+                  final rows = <Widget>[];
+                  if (todayHabits.isNotEmpty) {
+                    rows.add(buildSectionLabel('Today'));
+                    rows.addAll(todayHabits.map(buildHabitRow));
+                  }
+                  if (otherHabits.isNotEmpty) {
+                    rows.add(buildSectionLabel('Upcoming'));
+                    rows.addAll(otherHabits.map(buildHabitRow));
+                  }
+                  return rows;
+                })(),
               ],
             ),
           );

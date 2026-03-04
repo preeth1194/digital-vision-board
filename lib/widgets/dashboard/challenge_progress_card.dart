@@ -20,8 +20,15 @@ class ChallengeProgressCard extends StatefulWidget {
   final int dataVersion;
   final VoidCallback? onStartChallenge;
   final VoidCallback? onViewHabits;
+  final bool hideWhenActive;
 
-  const ChallengeProgressCard({super.key, this.dataVersion = 0, this.onStartChallenge, this.onViewHabits});
+  const ChallengeProgressCard({
+    super.key,
+    this.dataVersion = 0,
+    this.onStartChallenge,
+    this.onViewHabits,
+    this.hideWhenActive = false,
+  });
 
   @override
   State<ChallengeProgressCard> createState() => _ChallengeProgressCardState();
@@ -145,6 +152,10 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
         return _buildAdGatedState(context);
       }
       return _buildEmptyState(context);
+    }
+
+    if (widget.hideWhenActive) {
+      return const SizedBox.shrink();
     }
 
     return _buildProgressCard(context, challenge);

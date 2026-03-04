@@ -27,6 +27,8 @@ class DashboardBody extends StatelessWidget {
   final ValueNotifier<int> boardDataVersion;
   final ValueNotifier<int>? coinNotifier;
   final GlobalKey? coinTargetKey;
+  final bool showHabitsCalendarMode;
+  final ValueChanged<bool>? onHabitsCalendarModeChanged;
 
   final VoidCallback onCreateBoard;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
@@ -47,6 +49,8 @@ class DashboardBody extends StatelessWidget {
     required this.boardDataVersion,
     this.coinNotifier,
     this.coinTargetKey,
+    this.showHabitsCalendarMode = false,
+    this.onHabitsCalendarModeChanged,
     required this.onCreateBoard,
     required this.onOpenEditor,
     required this.onOpenViewer,
@@ -164,6 +168,8 @@ class DashboardBody extends StatelessWidget {
             return AllBoardsHabitsTab(
               boards: boards,
               componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
+              showCalendarMode: showHabitsCalendarMode,
+              onCalendarModeChanged: onHabitsCalendarModeChanged,
               onSaveBoardComponents: (id, updated) async {
                 final b = _boardById(id);
                 if (b == null) return;

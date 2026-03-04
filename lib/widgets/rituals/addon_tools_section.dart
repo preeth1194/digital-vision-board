@@ -103,13 +103,13 @@ class AddonToolsSection extends StatelessWidget {
                     _AddonToggleRow(
                       icon: Icons.notifications_outlined,
                       activeIcon: Icons.notifications_active_rounded,
-                      title: 'Reminders',
-                      subtitle: 'Location triggers',
-                      isActive: localReminders,
+                      title: 'Notification Alert',
+                      subtitle: 'Start time & duration',
+                      isActive: localTimer,
                       accentColor: habitColor,
                       onChanged: (v) {
-                        setSheetState(() => localReminders = v);
-                        onRemindersToggle(v);
+                        setSheetState(() => localTimer = v);
+                        onTimerToggle(v);
                       },
                     ),
                     Divider(
@@ -119,15 +119,15 @@ class AddonToolsSection extends StatelessWidget {
                       color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                     ),
                     _AddonToggleRow(
-                      icon: Icons.timer_outlined,
-                      activeIcon: Icons.timer_rounded,
-                      title: 'Timer',
-                      subtitle: 'Start time & duration',
-                      isActive: localTimer,
+                      icon: Icons.location_on_outlined,
+                      activeIcon: Icons.location_on_rounded,
+                      title: 'Location',
+                      subtitle: 'Location triggers',
+                      isActive: localReminders,
                       accentColor: habitColor,
                       onChanged: (v) {
-                        setSheetState(() => localTimer = v);
-                        onTimerToggle(v);
+                        setSheetState(() => localReminders = v);
+                        onRemindersToggle(v);
                       },
                     ),
                     Divider(

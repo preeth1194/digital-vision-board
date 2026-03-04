@@ -44,6 +44,7 @@ Future<HabitCreateRequest?> showAddHabitModal(
   TimeOfDay? initialStartTime,
   int? initialDurationMinutes,
   bool initialTimerEnabled = false,
+  List<int>? initialWeeklyDays,
 }) {
   return Navigator.of(context).push<HabitCreateRequest?>(
     PageRouteBuilder<HabitCreateRequest?>(
@@ -61,6 +62,7 @@ Future<HabitCreateRequest?> showAddHabitModal(
           initialStartTime: initialStartTime,
           initialDurationMinutes: initialDurationMinutes,
           initialTimerEnabled: initialTimerEnabled,
+          initialWeeklyDays: initialWeeklyDays,
         );
       },
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -98,6 +100,7 @@ class _CreateHabitPage extends StatefulWidget {
   final TimeOfDay? initialStartTime;
   final int? initialDurationMinutes;
   final bool initialTimerEnabled;
+  final List<int>? initialWeeklyDays;
 
   const _CreateHabitPage({
     required this.existingHabits,
@@ -110,6 +113,7 @@ class _CreateHabitPage extends StatefulWidget {
     this.initialStartTime,
     this.initialDurationMinutes,
     this.initialTimerEnabled = false,
+    this.initialWeeklyDays,
   });
 
   @override
@@ -252,6 +256,17 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _actionSteps = List<HabitActionStep>.from(widget.initialActionSteps!);
       _selectedTemplateId = widget.initialTemplateId;
       _selectedTemplateVersion = widget.initialTemplateVersion;
+    }
+    if (widget.initialHabit == null &&
+        widget.initialWeeklyDays != null &&
+        widget.initialWeeklyDays!.isNotEmpty) {
+      _weekdays
+        ..clear()
+        ..addAll(
+          widget.initialWeeklyDays!
+              .where((d) => d >= DateTime.monday && d <= DateTime.sunday)
+              .map((d) => d - 1),
+        );
     }
     _initializeFromHabit();
     // Apply pre-filled start time / duration when provided (e.g. from routine time-slot tap)
@@ -930,7 +945,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     }
     if (_actionStepsEnabled) {
       final nonEmpty = _actionSteps
-          .where((s) => s.title.trim().isNotEmpty)
+          .where((s) => s.displayTitle.trim().isNotEmpty)
           .toList();
       if (nonEmpty.isEmpty) {
         _actionStepsError = 'Add at least one step with a title';
@@ -1040,6 +1055,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     // 8. Filter out empty action steps
     final filteredSteps = _actionSteps
+        .map((s) => s.copyWith(title: s.displayTitle))
         .where((s) => s.title.trim().isNotEmpty)
         .toList();
     for (int i = 0; i < filteredSteps.length; i++) {
@@ -1325,21 +1341,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           if (_actionStepsError != null)
                             _actionStepsError = null;
                         }),
-                        onUseGuideForSteps: _openTemplatePicker,
-                        guideLoading: _templatesLoading,
-                        selectedTemplateLabel: _selectedTemplateId == null
-                            ? null
-                            : (_selectedTemplateVersion == null
-                                  ? _selectedTemplateId!
-                                  : '${_selectedTemplateId!} (v$_selectedTemplateVersion)'),
-                        onClearSelectedTemplate: _selectedTemplateId == null
-                            ? null
-                            : () {
-                                setState(() {
-                                  _selectedTemplateId = null;
-                                  _selectedTemplateVersion = null;
-                                });
-                              },
                       ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[
                         SizedBox(height: kSectionSpacing),

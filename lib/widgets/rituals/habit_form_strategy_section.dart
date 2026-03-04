@@ -28,10 +28,6 @@ class Step6Strategy extends StatefulWidget {
   final String? actionStepsError;
   final List<HabitActionStep> actionSteps;
   final ValueChanged<List<HabitActionStep>> onActionStepsChanged;
-  final VoidCallback onUseGuideForSteps;
-  final bool guideLoading;
-  final String? selectedTemplateLabel;
-  final VoidCallback? onClearSelectedTemplate;
 
   const Step6Strategy({
     super.key,
@@ -52,10 +48,6 @@ class Step6Strategy extends StatefulWidget {
     this.actionStepsError,
     required this.actionSteps,
     required this.onActionStepsChanged,
-    required this.onUseGuideForSteps,
-    this.guideLoading = false,
-    this.selectedTemplateLabel,
-    this.onClearSelectedTemplate,
   });
 
   @override
@@ -171,12 +163,16 @@ class _Step6StrategyState extends State<Step6Strategy> {
     widget.onActionStepsChanged(steps);
   }
 
-  void _updateStepTitle(int index, String title) {
+  void _updateStep(int index, HabitActionStep updatedStep) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    final newIcon = title.trim().isNotEmpty
-        ? IconService.getIconCodePointForTitle(title.trim())
+    final computedTitle = updatedStep.displayTitle;
+    final newIcon = computedTitle.trim().isNotEmpty
+        ? IconService.getIconCodePointForTitle(computedTitle.trim())
         : steps[index].iconCodePoint;
-    steps[index] = steps[index].copyWith(title: title, iconCodePoint: newIcon);
+    steps[index] = updatedStep.copyWith(
+      title: computedTitle,
+      iconCodePoint: newIcon,
+    );
     widget.onActionStepsChanged(steps);
   }
 
@@ -242,21 +238,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
               label: const Text('Add a step'),
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: widget.guideLoading ? null : widget.onUseGuideForSteps,
-              style: style,
-              icon: widget.guideLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome_outlined, size: 18),
-              label: const Text('Use guide'),
-            ),
-          ),
         ],
       ),
     );
@@ -312,35 +293,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
         ),
         if (widget.actionStepsEnabled) ...[
           _buildStepOptionsRow(colorScheme),
-          if (widget.selectedTemplateLabel != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.link_rounded,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      widget.selectedTemplateLabel!,
-                      style: AppTypography.caption(
-                        context,
-                      ).copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                  if (widget.onClearSelectedTemplate != null)
-                    IconButton(
-                      onPressed: widget.onClearSelectedTemplate,
-                      icon: const Icon(Icons.link_off, size: 18),
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'Unlink template',
-                    ),
-                ],
-              ),
-            ),
           if (widget.actionSteps.isNotEmpty)
             ReorderableListView.builder(
               shrinkWrap: true,
@@ -366,7 +318,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   step: step,
                   stepNumber: index + 1,
                   colorScheme: colorScheme,
-                  onTitleChanged: (title) => _updateStepTitle(index, title),
+                  onChanged: (nextStep) => _updateStep(index, nextStep),
                   onDelete: () => _deleteStep(index),
                   reorderIndex: index,
                   trailing: index == widget.actionSteps.length - 1
@@ -726,7 +678,7 @@ class _ActionStepTile extends StatefulWidget {
   final HabitActionStep step;
   final int stepNumber;
   final ColorScheme colorScheme;
-  final ValueChanged<String> onTitleChanged;
+  final ValueChanged<HabitActionStep> onChanged;
   final VoidCallback onDelete;
   final int reorderIndex;
   final Widget? trailing;
@@ -736,7 +688,7 @@ class _ActionStepTile extends StatefulWidget {
     required this.step,
     required this.stepNumber,
     required this.colorScheme,
-    required this.onTitleChanged,
+    required this.onChanged,
     required this.onDelete,
     required this.reorderIndex,
     this.trailing,
@@ -747,26 +699,42 @@ class _ActionStepTile extends StatefulWidget {
 }
 
 class _ActionStepTileState extends State<_ActionStepTile> {
-  late TextEditingController _controller;
+  late TextEditingController _stepLabelController;
+  late TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.step.title);
+    _stepLabelController = TextEditingController(text: widget.step.stepLabel ?? '');
+    _notesController = TextEditingController(text: widget.step.notes ?? '');
   }
 
   @override
   void didUpdateWidget(_ActionStepTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.step.id != widget.step.id) {
-      _controller.text = widget.step.title;
+      _stepLabelController.text = widget.step.stepLabel ?? '';
+      _notesController.text = widget.step.notes ?? '';
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _stepLabelController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  void _emitChange() {
+    widget.onChanged(
+      widget.step.copyWith(
+        stepLabel: _stepLabelController.text,
+        // Clear product fields from this UI path so label/notes drive the step.
+        productType: '',
+        productName: '',
+        notes: _notesController.text,
+      ),
+    );
   }
 
   @override
@@ -775,68 +743,88 @@ class _ActionStepTileState extends State<_ActionStepTile> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReorderableDragStartListener(
-            index: widget.reorderIndex,
-            child: Icon(
-              Icons.drag_handle_rounded,
-              size: 22,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: cs.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${widget.stepNumber}',
-              style: AppTypography.caption(context).copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: cs.onPrimary,
-                height: 1,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              maxLength: 200,
-              maxLengthEnforcement: MaxLengthEnforcement.enforced,
-              decoration: InputDecoration(
-                hintText: 'Step title...',
-                hintStyle: AppTypography.body(context).copyWith(
+          Row(
+            children: [
+              ReorderableDragStartListener(
+                index: widget.reorderIndex,
+                child: Icon(
+                  Icons.drag_handle_rounded,
+                  size: 22,
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                  fontStyle: FontStyle.italic,
                 ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                counterText: '',
               ),
-              style: AppTypography.body(
-                context,
-              ).copyWith(fontWeight: FontWeight.w500),
-              onChanged: widget.onTitleChanged,
-            ),
+              const SizedBox(width: 10),
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${widget.stepNumber}',
+                  style: AppTypography.caption(context).copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onPrimary,
+                    height: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _stepLabelController,
+                  maxLength: 40,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    hintText: 'Step/day label (e.g. 1, Monday)',
+                    hintStyle: AppTypography.body(context).copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    counterText: '',
+                  ),
+                  style: AppTypography.body(context).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  onChanged: (_) => _emitChange(),
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: cs.error.withValues(alpha: 0.7),
+                ),
+                onPressed: widget.onDelete,
+                tooltip: 'Remove',
+              ),
+              if (widget.trailing != null) widget.trailing!,
+            ],
           ),
-          IconButton(
-            icon: Icon(
-              Icons.close_rounded,
-              size: 20,
-              color: cs.error.withValues(alpha: 0.7),
+          TextField(
+            controller: _notesController,
+            maxLength: 180,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            decoration: InputDecoration(
+              hintText: 'Notes',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              counterText: '',
             ),
-            onPressed: widget.onDelete,
-            tooltip: 'Remove',
+            style: AppTypography.bodySmall(context).copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+            onChanged: (_) => _emitChange(),
           ),
-          if (widget.trailing != null) widget.trailing!,
         ],
       ),
     );

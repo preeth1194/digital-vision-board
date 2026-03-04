@@ -39,6 +39,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import 'widget_guide_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'presets/preset_shop_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
 import 'subscription_screen.dart';
@@ -1038,7 +1039,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       7,
       6,
       2,
-    ]; // Dashboard, Rituals, Planner, Journal
+    ]; // Dashboard, Rituals, Presets, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -1322,6 +1323,24 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             ListTile(
               leading: Icon(
+                Icons.storefront_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Preset Shop',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PresetShopScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
                 Icons.info_outline,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -1501,7 +1520,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         AnimatedNavItem(
           icon: Icons.schedule_outlined,
           activeIcon: Icons.schedule_rounded,
-          label: 'Planner',
+          label: 'Presets',
         ),
         AnimatedNavItem(
           icon: Icons.book_outlined,

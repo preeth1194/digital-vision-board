@@ -292,7 +292,9 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              step.title.isEmpty ? 'Step ${index + 1}' : step.title,
+                              step.displayTitle.isEmpty
+                                  ? 'Step ${index + 1}'
+                                  : step.displayTitle,
                               style: AppTypography.body(context).copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isCompleted

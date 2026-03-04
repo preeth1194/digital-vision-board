@@ -21,7 +21,6 @@ import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../screens/routine_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
-import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
 import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
@@ -68,7 +67,6 @@ class AllBoardsHabitsTab extends StatefulWidget {
 
 class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     with SingleTickerProviderStateMixin {
-  static const double _dailyProgressHeaderHeight = 132;
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
   List<HabitItem> _habits = [];
@@ -1935,22 +1933,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
         .where((e) => !_isTimedHabit(e.habit))
         .toList();
 
-    // Calculate progress stats for today
-    final scheduledToday = allHabits
-        .where((e) => e.habit.isScheduledOnDate(now))
-        .toList();
-    final completedToday = scheduledToday
-        .where((e) => e.habit.isCompletedForCurrentPeriod(now))
-        .length;
-    final totalScheduledToday = scheduledToday.length;
-
-    // Best current streak across all habits
-    int bestStreak = 0;
-    for (final e in allHabits) {
-      final s = e.habit.currentStreak;
-      if (s > bestStreak) bestStreak = s;
-    }
-
     return Stack(
       children: [
         // Main content
@@ -1983,30 +1965,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
               SliverToBoxAdapter(child: _buildFilterStrip()),
             if (allHabits.isNotEmpty)
               SliverToBoxAdapter(child: _buildControlsSummaryRow()),
-            // Sticky daily progress header
-            SliverAppBar(
-              primary: false,
-              pinned: true,
-              automaticallyImplyLeading: false,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              toolbarHeight: _dailyProgressHeaderHeight,
-              collapsedHeight: _dailyProgressHeaderHeight,
-              expandedHeight: _dailyProgressHeaderHeight,
-              flexibleSpace: Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  height: _dailyProgressHeaderHeight,
-                  child: DailyProgressHeader(
-                    completedCount: completedToday,
-                    totalCount: totalScheduledToday,
-                    bestStreak: bestStreak,
-                  ),
-                ),
-              ),
-            ),
             // Empty state
             if (allHabits.isEmpty)
               SliverFillRemaining(

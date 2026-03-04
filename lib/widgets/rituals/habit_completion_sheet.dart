@@ -614,7 +614,7 @@ class _StepTile extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                step.title,
+                step.displayTitle.isEmpty ? 'Step' : step.displayTitle,
                 style: AppTypography.bodySmall(context).copyWith(
                   fontWeight: FontWeight.w500,
                   color: isChecked

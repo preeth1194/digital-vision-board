@@ -10,15 +10,18 @@ import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/goal_picker_sheet.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 
-typedef OpenComponentCallback = Future<void> Function(VisionComponent component);
+typedef OpenComponentCallback =
+    Future<void> Function(VisionComponent component);
 
 class TodosListScreen extends StatefulWidget {
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final OpenComponentCallback onOpenComponent;
   final bool showAppBar;
+
   /// When true, enables add/edit/delete and convert-to-habit actions.
   final bool allowManageTodos;
+
   /// Preferred goal component id for "Add todo" (e.g. last-opened goal).
   final String? preferredGoalComponentId;
 
@@ -95,6 +98,8 @@ class _TodosListScreenState extends State<TodosListScreen> {
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
   }
 
@@ -102,8 +107,10 @@ class _TodosListScreenState extends State<TodosListScreen> {
     return raw.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  List<({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})> _flattenTodos() {
-    final out = <({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})>[];
+  List<({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})>
+  _flattenTodos() {
+    final out =
+        <({VisionComponent component, GoalTodoItem todo, GoalMetadata meta})>[];
     for (final c in _components) {
       final meta = _goalMeta(c);
       if (meta == null) continue;
@@ -115,12 +122,15 @@ class _TodosListScreenState extends State<TodosListScreen> {
     return out;
   }
 
-  Future<VisionComponent?> _pickTargetComponentForNewTodos(BuildContext context) async {
+  Future<VisionComponent?> _pickTargetComponentForNewTodos(
+    BuildContext context,
+  ) async {
     final preferredId = (widget.preferredGoalComponentId ?? '').trim();
     if (preferredId.isNotEmpty) {
-      final preferred = _components
-          .cast<VisionComponent?>()
-          .firstWhere((c) => c?.id == preferredId && _isGoalLike(c!), orElse: () => null);
+      final preferred = _components.cast<VisionComponent?>().firstWhere(
+        (c) => c?.id == preferredId && _isGoalLike(c!),
+        orElse: () => null,
+      );
       if (preferred != null) return preferred;
     }
 
@@ -168,7 +178,12 @@ class _TodosListScreenState extends State<TodosListScreen> {
     _newTodoFocus.requestFocus();
   }
 
-  Future<void> _editTodoText(BuildContext context, VisionComponent component, GoalMetadata meta, GoalTodoItem item) async {
+  Future<void> _editTodoText(
+    BuildContext context,
+    VisionComponent component,
+    GoalMetadata meta,
+    GoalTodoItem item,
+  ) async {
     final res = await showTextInputDialog(
       context,
       title: 'Edit todo',
@@ -178,7 +193,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
     final nextText = _normalizeTodoText(res);
     if (nextText.isEmpty) return;
 
-    final nextItems = meta.todoItems.map((t) => t.id == item.id ? t.copyWith(text: nextText) : t).toList();
+    final nextItems = meta.todoItems
+        .map((t) => t.id == item.id ? t.copyWith(text: nextText) : t)
+        .toList();
     final nextMeta = meta.copyWith(todoItems: nextItems);
 
     final linkedHabitId = (item.habitId ?? '').trim();
@@ -187,7 +204,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
       final updatedGoal = _withGoalMeta(c, nextMeta);
       if (linkedHabitId.isEmpty) return updatedGoal;
       return updatedGoal.copyWithCommon(
-        habits: updatedGoal.habits.map((h) => h.id == linkedHabitId ? h.copyWith(name: nextText) : h).toList(),
+        habits: updatedGoal.habits
+            .map((h) => h.id == linkedHabitId ? h.copyWith(name: nextText) : h)
+            .toList(),
       );
     }).toList();
 
@@ -195,7 +214,11 @@ class _TodosListScreenState extends State<TodosListScreen> {
     widget.onComponentsUpdated(nextComponents);
   }
 
-  void _deleteTodo(VisionComponent component, GoalMetadata meta, GoalTodoItem item) {
+  void _deleteTodo(
+    VisionComponent component,
+    GoalMetadata meta,
+    GoalTodoItem item,
+  ) {
     final nextItems = meta.todoItems.where((t) => t.id != item.id).toList();
     final nextMeta = meta.copyWith(todoItems: nextItems);
 
@@ -208,12 +231,20 @@ class _TodosListScreenState extends State<TodosListScreen> {
     widget.onComponentsUpdated(nextComponents);
   }
 
-  void _toggleTodo(VisionComponent component, GoalMetadata meta, GoalTodoItem item, bool nextDone) {
+  void _toggleTodo(
+    VisionComponent component,
+    GoalMetadata meta,
+    GoalTodoItem item,
+    bool nextDone,
+  ) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final nextItems = meta.todoItems
         .map(
           (t) => t.id == item.id
-              ? t.copyWith(isCompleted: nextDone, completedAtMs: nextDone ? now : null)
+              ? t.copyWith(
+                  isCompleted: nextDone,
+                  completedAtMs: nextDone ? now : null,
+                )
               : t,
         )
         .toList();
@@ -228,7 +259,11 @@ class _TodosListScreenState extends State<TodosListScreen> {
     widget.onComponentsUpdated(nextComponents);
   }
 
-  void _unlinkHabit(VisionComponent component, GoalMetadata meta, GoalTodoItem item) {
+  void _unlinkHabit(
+    VisionComponent component,
+    GoalMetadata meta,
+    GoalTodoItem item,
+  ) {
     final nextItems = meta.todoItems
         .map((t) => t.id == item.id ? t.copyWith(habitId: null) : t)
         .toList();
@@ -243,12 +278,22 @@ class _TodosListScreenState extends State<TodosListScreen> {
     widget.onComponentsUpdated(nextComponents);
   }
 
-  Future<void> _convertToHabit(BuildContext context, VisionComponent component, GoalMetadata meta, GoalTodoItem item) async {
+  Future<void> _convertToHabit(
+    BuildContext context,
+    VisionComponent component,
+    GoalMetadata meta,
+    GoalTodoItem item,
+  ) async {
     final linkedId = (item.habitId ?? '').trim();
     final existing = linkedId.isEmpty
         ? null
-        : component.habits.cast<HabitItem?>().firstWhere((h) => h?.id == linkedId, orElse: () => null);
-    final otherHabits = component.habits.where((h) => h.id != existing?.id).toList();
+        : component.habits.cast<HabitItem?>().firstWhere(
+            (h) => h?.id == linkedId,
+            orElse: () => null,
+          );
+    final otherHabits = component.habits
+        .where((h) => h.id != existing?.id)
+        .toList();
 
     final HabitCreateRequest? req = (existing == null)
         ? await showAddHabitDialog(
@@ -275,11 +320,19 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
     final nextHabits = (existing == null)
         ? [...component.habits, nextHabit]
-        : component.habits.map((h) => h.id == existing.id ? nextHabit : h).toList();
+        : component.habits
+              .map((h) => h.id == existing.id ? nextHabit : h)
+              .toList();
 
-    final nextText = nextHabit.name.trim().isEmpty ? item.text : nextHabit.name.trim();
+    final nextText = nextHabit.name.trim().isEmpty
+        ? item.text
+        : nextHabit.name.trim();
     final nextItems = meta.todoItems
-        .map((t) => t.id == item.id ? t.copyWith(text: nextText, habitId: nextHabit.id) : t)
+        .map(
+          (t) => t.id == item.id
+              ? t.copyWith(text: nextText, habitId: nextHabit.id)
+              : t,
+        )
         .toList();
     final nextMeta = meta.copyWith(todoItems: nextItems);
 
@@ -305,7 +358,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
               final component = rows[idx].component;
               final todo = rows[idx].todo;
               final meta = rows[idx].meta;
-              final goalLabel = ComponentLabelUtils.categoryOrTitleOrId(component);
+              final goalLabel = ComponentLabelUtils.categoryOrTitleOrId(
+                component,
+              );
               final hasHabit = (todo.habitId ?? '').trim().isNotEmpty;
 
               return ListTile(
@@ -317,7 +372,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.body(context).copyWith(
-                          decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
+                          decoration: todo.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                     ),
@@ -338,21 +395,43 @@ class _TodosListScreenState extends State<TodosListScreen> {
                 subtitle: Text(goalLabel),
                 leading: Checkbox(
                   value: todo.isCompleted,
-                  onChanged: (v) => _toggleTodo(component, meta, todo, v == true),
+                  onChanged: (v) =>
+                      _toggleTodo(component, meta, todo, v == true),
                 ),
                 trailing: widget.allowManageTodos
                     ? PopupMenuButton<String>(
                         onSelected: (v) async {
-                          if (v == 'edit') await _editTodoText(context, component, meta, todo);
+                          if (v == 'edit')
+                            await _editTodoText(context, component, meta, todo);
                           if (v == 'delete') _deleteTodo(component, meta, todo);
-                          if (v == 'convert') await _convertToHabit(context, component, meta, todo);
-                          if (v == 'unlink') _unlinkHabit(component, meta, todo);
+                          if (v == 'convert')
+                            await _convertToHabit(
+                              context,
+                              component,
+                              meta,
+                              todo,
+                            );
+                          if (v == 'unlink')
+                            _unlinkHabit(component, meta, todo);
                         },
                         itemBuilder: (context) => [
-                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          const PopupMenuItem(value: 'convert', child: Text('Convert to habit')),
-                          if (hasHabit) const PopupMenuItem(value: 'unlink', child: Text('Unlink habit')),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'convert',
+                            child: Text('Convert to habit'),
+                          ),
+                          if (hasHabit)
+                            const PopupMenuItem(
+                              value: 'unlink',
+                              child: Text('Unlink habit'),
+                            ),
                         ],
                       )
                     : const Icon(Icons.chevron_right),
@@ -405,9 +484,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
 
     if (!widget.showAppBar) return body;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Todo'),
-      ),
+      appBar: AppBar(title: const Text('Todo')),
       body: widget.allowManageTodos
           ? Column(
               children: [
@@ -436,7 +513,9 @@ class _TodosListScreenState extends State<TodosListScreen> {
                       SizedBox(
                         height: 40,
                         child: FilledButton(
-                          onPressed: _newTodoC.text.trim().isNotEmpty ? () => _addTodos(context) : null,
+                          onPressed: _newTodoC.text.trim().isNotEmpty
+                              ? () => _addTodos(context)
+                              : null,
                           child: const Text('Save'),
                         ),
                       ),
@@ -450,4 +529,3 @@ class _TodosListScreenState extends State<TodosListScreen> {
     );
   }
 }
-

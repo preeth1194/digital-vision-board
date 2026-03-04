@@ -6,15 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/cbt_enhancements.dart';
+import '../../models/action_step_template.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
+import '../../services/action_templates_service.dart';
 import '../../services/boards_storage_service.dart';
+import '../../services/dv_auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
-import '../../models/grid_tile_model.dart';
 import '../../utils/app_typography.dart';
 import 'addon_tools_section.dart';
 import 'habit_form_constants.dart';
@@ -35,6 +37,10 @@ Future<HabitCreateRequest?> showAddHabitModal(
   required List<HabitItem> existingHabits,
   HabitItem? initialHabit,
   String? initialName,
+  String? initialCategory,
+  List<HabitActionStep>? initialActionSteps,
+  String? initialTemplateId,
+  int? initialTemplateVersion,
   TimeOfDay? initialStartTime,
   int? initialDurationMinutes,
   bool initialTimerEnabled = false,
@@ -48,6 +54,10 @@ Future<HabitCreateRequest?> showAddHabitModal(
           existingHabits: existingHabits,
           initialHabit: initialHabit,
           initialName: initialName,
+          initialCategory: initialCategory,
+          initialActionSteps: initialActionSteps,
+          initialTemplateId: initialTemplateId,
+          initialTemplateVersion: initialTemplateVersion,
           initialStartTime: initialStartTime,
           initialDurationMinutes: initialDurationMinutes,
           initialTimerEnabled: initialTimerEnabled,
@@ -81,6 +91,10 @@ class _CreateHabitPage extends StatefulWidget {
   final List<HabitItem> existingHabits;
   final HabitItem? initialHabit;
   final String? initialName;
+  final String? initialCategory;
+  final List<HabitActionStep>? initialActionSteps;
+  final String? initialTemplateId;
+  final int? initialTemplateVersion;
   final TimeOfDay? initialStartTime;
   final int? initialDurationMinutes;
   final bool initialTimerEnabled;
@@ -89,6 +103,10 @@ class _CreateHabitPage extends StatefulWidget {
     required this.existingHabits,
     this.initialHabit,
     this.initialName,
+    this.initialCategory,
+    this.initialActionSteps,
+    this.initialTemplateId,
+    this.initialTemplateVersion,
     this.initialStartTime,
     this.initialDurationMinutes,
     this.initialTimerEnabled = false,
@@ -139,9 +157,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         (i) => (i, habitIcons[i].$1, habitIcons[i].$2),
       );
     }
-    return indices
-        .map((i) => (i, habitIcons[i].$1, habitIcons[i].$2))
-        .toList();
+    return indices.map((i) => (i, habitIcons[i].$1, habitIcons[i].$2)).toList();
   }
 
   // Rhythm (Frequency) - all 7 days selected by default (daily logic)
@@ -168,7 +184,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   TimeOfDay? _selectedTime;
   bool _reminderEnabled = false;
   TimeOfDay? _reminderTime;
-  int? _reminderMinutesBefore; // 5, 10, 15, 20, 25, 30, 45, 60 mins before start
+  int?
+  _reminderMinutesBefore; // 5, 10, 15, 20, 25, 30, 45, 60 mins before start
 
   bool _locationEnabled = false;
   double? _locationLat;
@@ -191,6 +208,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   // Action Steps
   bool _actionStepsEnabled = false;
   List<HabitActionStep> _actionSteps = [];
+  String? _selectedTemplateId;
+  int? _selectedTemplateVersion;
+  bool _templatesLoading = false;
+  List<ActionStepTemplate> _availableTemplates = const [];
 
   // Strategy (Stacking & CBT)
   bool _habitStackingEnabled = false;
@@ -220,6 +241,17 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         widget.initialName!.trim().isNotEmpty &&
         widget.initialHabit == null) {
       _habitNameController.text = widget.initialName!.trim();
+    }
+    if (widget.initialHabit == null && widget.initialCategory != null) {
+      _category = widget.initialCategory;
+    }
+    if (widget.initialHabit == null &&
+        widget.initialActionSteps != null &&
+        widget.initialActionSteps!.isNotEmpty) {
+      _actionStepsEnabled = true;
+      _actionSteps = List<HabitActionStep>.from(widget.initialActionSteps!);
+      _selectedTemplateId = widget.initialTemplateId;
+      _selectedTemplateVersion = widget.initialTemplateVersion;
     }
     _initializeFromHabit();
     // Apply pre-filled start time / duration when provided (e.g. from routine time-slot tap)
@@ -260,20 +292,25 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     for (final board in boards) {
       List<VisionComponent> components;
       if (board.layoutType == VisionBoardInfo.layoutGrid) {
-        final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+        final tiles = await GridTilesStorageService.loadTiles(
+          board.id,
+          prefs: prefs,
+        );
         components = tiles
             .where((t) => t.type != 'empty')
-            .map((t) => ImageComponent(
-                  id: t.id,
-                  position: Offset.zero,
-                  size: const Size(1, 1),
-                  rotation: 0,
-                  scale: 1,
-                  zIndex: t.index,
-                  imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-                  goal: t.goal,
-                  habits: t.habits,
-                ))
+            .map(
+              (t) => ImageComponent(
+                id: t.id,
+                position: Offset.zero,
+                size: const Size(1, 1),
+                rotation: 0,
+                scale: 1,
+                zIndex: t.index,
+                imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+                goal: t.goal,
+                habits: t.habits,
+              ),
+            )
             .toList();
       } else {
         components = await VisionBoardComponentsStorageService.loadComponents(
@@ -301,7 +338,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       return;
     }
 
-    final startMins = _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+    final startMins =
+        _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
     final duration = _timeBoundDurationMinutes;
     final newEnd = startMins + duration;
     final editingId = widget.initialHabit?.id;
@@ -328,7 +366,11 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     if (conflictName != null) {
       occupied.sort((a, b) => a.$1.compareTo(b.$1));
-      final suggested = _findNearestAvailableTime(startMins, duration, occupied);
+      final suggested = _findNearestAvailableTime(
+        startMins,
+        duration,
+        occupied,
+      );
       setState(() {
         _timeConflictError = 'Conflicts with "$conflictName"';
         _suggestedStartTime = suggested;
@@ -353,7 +395,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   }
 
   TimeOfDay? _findNearestAvailableTime(
-    int preferredStart, int duration, List<(int, int, String)> occupied,
+    int preferredStart,
+    int duration,
+    List<(int, int, String)> occupied,
   ) {
     const maxMins = 24 * 60;
     int? bestStart;
@@ -399,6 +443,235 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
   void _clearActionError() {
     if (_actionError != null) setState(() => _actionError = null);
+  }
+
+  ActionTemplateCategory? _categoryToTemplateCategory(String? category) {
+    final normalized = (category ?? '').trim().toLowerCase();
+    if (normalized.contains('skin')) return ActionTemplateCategory.skincare;
+    if (normalized.contains('workout') ||
+        normalized.contains('fitness') ||
+        normalized.contains('exercise') ||
+        normalized == 'health') {
+      return ActionTemplateCategory.workout;
+    }
+    if (normalized.contains('meal') ||
+        normalized.contains('diet') ||
+        normalized.contains('nutrition')) {
+      return ActionTemplateCategory.mealPrep;
+    }
+    return null;
+  }
+
+  List<ActionStepTemplate> _localTemplatesForHabitCategory(String? category) {
+    final cat = (category ?? '').trim();
+    final normalized = cat.toLowerCase();
+
+    List<String> stepsFor(String key) {
+      switch (key) {
+        case 'health':
+          return [
+            'Hydrate',
+            'Take supplements/medicine',
+            'Healthy meal',
+            'Sleep wind-down',
+          ];
+        case 'fitness':
+          return [
+            'Warm-up',
+            'Main workout set',
+            'Cooldown stretch',
+            'Log progress',
+          ];
+        case 'productivity':
+          return [
+            'Top 3 priorities',
+            'Focused work block',
+            'Inbox/task cleanup',
+            'Plan tomorrow',
+          ];
+        case 'mindfulness':
+          return [
+            'Breathing reset',
+            'Meditation',
+            'Gratitude note',
+            'Reflect on mood',
+          ];
+        case 'learning':
+          return [
+            'Pick topic',
+            'Study session',
+            'Practice/review',
+            'Capture notes',
+          ];
+        case 'relationships':
+          return [
+            'Reach out',
+            'Quality conversation',
+            'Follow-up',
+            'Appreciation message',
+          ];
+        case 'finance':
+          return [
+            'Check spending',
+            'Budget review',
+            'Savings transfer',
+            'Track progress',
+          ];
+        case 'creativity':
+          return [
+            'Collect inspiration',
+            'Create draft',
+            'Refine one piece',
+            'Share/publish',
+          ];
+        case 'other':
+        default:
+          return [
+            'Define small action',
+            'Do it now',
+            'Track completion',
+            'Reflect and improve',
+          ];
+      }
+    }
+
+    final steps = stepsFor(normalized);
+    final prefix = normalized.isEmpty
+        ? 'other'
+        : normalized.replaceAll(' ', '_');
+
+    ActionTemplateCategory templateCategory = ActionTemplateCategory.workout;
+    if (normalized == 'mindfulness')
+      templateCategory = ActionTemplateCategory.skincare;
+    if (normalized == 'other') templateCategory = ActionTemplateCategory.recipe;
+    if (normalized == 'finance' || normalized == 'productivity') {
+      templateCategory = ActionTemplateCategory.mealPrep;
+    }
+
+    ActionStepTemplate template({
+      required String id,
+      required String name,
+      required List<String> stepTitles,
+      required String setKey,
+    }) {
+      return ActionStepTemplate(
+        id: id,
+        name: name,
+        category: templateCategory,
+        schemaVersion: 1,
+        templateVersion: 1,
+        setKey: setKey,
+        isOfficial: true,
+        status: ActionTemplateStatus.approved,
+        createdByUserId: 'system',
+        steps: [
+          for (int i = 0; i < stepTitles.length; i++)
+            HabitActionStep(
+              id: '$id-$i',
+              title: stepTitles[i],
+              iconCodePoint: Icons.check_circle_outline.codePoint,
+              order: i,
+            ),
+        ],
+      );
+    }
+
+    final display = cat.isEmpty ? 'Other' : cat;
+    return [
+      template(
+        id: 'local_${prefix}_starter',
+        name: '$display Starter Guide',
+        stepTitles: steps,
+        setKey: 'local_all_categories',
+      ),
+      template(
+        id: 'local_${prefix}_focused',
+        name: '$display Focus Guide',
+        stepTitles: [
+          'Set intention',
+          'Do one high-impact action',
+          'Record outcome',
+          'Adjust next step',
+        ],
+        setKey: 'local_all_categories',
+      ),
+    ];
+  }
+
+  Future<void> _openTemplatePicker() async {
+    if (_templatesLoading) return;
+    setState(() => _templatesLoading = true);
+    try {
+      final token = await DvAuthService.getDvToken();
+      if (token == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in to load cloud templates.')),
+        );
+        return;
+      }
+      final category = _categoryToTemplateCategory(_category);
+      List<ActionStepTemplate> templates;
+      try {
+        templates = await ActionTemplatesService.listApproved(
+          dvToken: token,
+          category: category,
+        );
+      } catch (e) {
+        templates = const <ActionStepTemplate>[];
+      }
+      final localTemplates = _localTemplatesForHabitCategory(_category);
+      final merged = <ActionStepTemplate>[...templates];
+      final existingNames = merged.map((t) => t.name.toLowerCase()).toSet();
+      for (final local in localTemplates) {
+        if (!existingNames.contains(local.name.toLowerCase())) {
+          merged.add(local);
+        }
+      }
+      if (!mounted) return;
+      setState(() => _availableTemplates = merged);
+      if (_availableTemplates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No approved templates found for this category.'),
+          ),
+        );
+        return;
+      }
+      final selected = await showModalBottomSheet<ActionStepTemplate>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              Text(
+                'Apply template',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final tpl in _availableTemplates)
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome_outlined),
+                  title: Text(tpl.name),
+                  subtitle: Text('${tpl.steps.length} steps'),
+                  onTap: () => Navigator.of(context).pop(tpl),
+                ),
+            ],
+          );
+        },
+      );
+      if (selected == null) return;
+      setState(() {
+        _actionStepsEnabled = true;
+        _actionSteps = List<HabitActionStep>.from(selected.steps)
+          ..sort((a, b) => a.order.compareTo(b.order));
+        _selectedTemplateId = selected.id;
+        _selectedTemplateVersion = selected.templateVersion;
+      });
+    } finally {
+      if (mounted) setState(() => _templatesLoading = false);
+    }
   }
 
   void _initializeFromHabit() {
@@ -496,7 +769,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     // Derive reminderMinutesBefore from start time and reminder time (after Pacing sets start time)
     if (_reminderEnabled && habit.reminderMinutes != null) {
-      final startTime = _timeBoundStartTime ?? const TimeOfDay(hour: 8, minute: 0);
+      final startTime =
+          _timeBoundStartTime ?? const TimeOfDay(hour: 8, minute: 0);
       final startMins = startTime.hour * 60 + startTime.minute;
       final reminderMins = habit.reminderMinutes!;
       final before = startMins - reminderMins;
@@ -530,7 +804,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _vibrationType = tb.vibrationType ?? 'default';
     }
 
-
     // Step 6: Strategy (Stacking)
     final chaining = habit.chaining;
     if (chaining != null && chaining.anchorHabit != null) {
@@ -555,6 +828,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _actionStepsEnabled = true;
       _actionSteps = List<HabitActionStep>.from(habit.actionSteps);
     }
+    _selectedTemplateId = habit.templateId;
+    _selectedTemplateVersion = habit.templateVersion;
 
     // Step 6: Strategy (CBT) - map to trigger/action controllers
     final cbt = habit.cbtEnhancements;
@@ -607,7 +882,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     });
   }
 
-
   @override
   void dispose() {
     _habitNameController.removeListener(_clearNameError);
@@ -655,7 +929,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       hasError = true;
     }
     if (_actionStepsEnabled) {
-      final nonEmpty = _actionSteps.where((s) => s.title.trim().isNotEmpty).toList();
+      final nonEmpty = _actionSteps
+          .where((s) => s.title.trim().isNotEmpty)
+          .toList();
       if (nonEmpty.isEmpty) {
         _actionStepsError = 'Add at least one step with a title';
         hasError = true;
@@ -683,7 +959,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
     // 2. Build TimeBound (start time + duration) — only when timer addon is active
     HabitTimeBoundSpec? timeBound;
-    if (_timerAddonAdded && _timeBoundStartTime != null && _timeBoundDurationMinutes > 0) {
+    if (_timerAddonAdded &&
+        _timeBoundStartTime != null &&
+        _timeBoundDurationMinutes > 0) {
       final maxVal = _timeBoundDurationUnit == 'hours' ? 24 : 24 * 60;
       timeBound = HabitTimeBoundSpec(
         enabled: true,
@@ -728,7 +1006,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         _timeBoundStartTime != null) {
       final startMins =
           _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
-      reminderMins = (startMins - _reminderMinutesBefore!).clamp(0, 24 * 60 - 1);
+      reminderMins = (startMins - _reminderMinutesBefore!).clamp(
+        0,
+        24 * 60 - 1,
+      );
     }
 
     // 6. Resolve deadline from selected milestone
@@ -738,9 +1019,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       case '66':
       case '90':
         final days = int.parse(_selectedMilestone);
-        resolvedDeadline = _toIsoDate(
-          DateTime.now().add(Duration(days: days)),
-        );
+        resolvedDeadline = _toIsoDate(DateTime.now().add(Duration(days: days)));
         break;
       case 'custom':
         if (_customDeadlineDate != null) {
@@ -755,7 +1034,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     // 7. Compute startTimeMinutes from _timeBoundStartTime
     int? startTimeMinutes;
     if (_timerAddonAdded && _timeBoundStartTime != null) {
-      startTimeMinutes = _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
+      startTimeMinutes =
+          _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
     }
 
     // 8. Filter out empty action steps
@@ -799,6 +1079,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       iconIndex: _selectedIconIndex,
       actionSteps: filteredSteps,
       startTimeMinutes: startTimeMinutes,
+      templateId: _selectedTemplateId,
+      templateVersion: _selectedTemplateVersion,
     );
     Navigator.of(context).pop(request);
   }
@@ -880,8 +1162,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                   icon: const Icon(Icons.check_rounded, size: 20),
                   label: Text(
                     widget.initialHabit != null ? 'Save Habit' : 'Create Habit',
-                    style: AppTypography.button(context)
-                        .copyWith(fontWeight: FontWeight.w600),
+                    style: AppTypography.button(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w600),
                   ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
@@ -919,12 +1202,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                   });
                 },
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    topPadding,
-                    20,
-                    20,
-                  ),
+                  padding: EdgeInsets.fromLTRB(20, topPadding, 20, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -943,7 +1221,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                                   !indices.contains(_selectedIconIndex)) {
                                 _selectedIconIndex = indices.first;
                                 if (_trackerAddonAdded) {
-                                  final units = iconTrackingUnits[_selectedIconIndex];
+                                  final units =
+                                      iconTrackingUnits[_selectedIconIndex];
                                   if (units != null && units.isNotEmpty) {
                                     _trackingUnitId = units.first.$1;
                                     _trackingUnitLabel = units.first.$2;
@@ -1025,7 +1304,8 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onAfterHabitIdChanged: _onAfterHabitIdChanged,
                         onAnchorTextChanged: (v) => setState(() {
                           _anchorHabitText = v;
-                          if (_anchorHabitError != null) _anchorHabitError = null;
+                          if (_anchorHabitError != null)
+                            _anchorHabitError = null;
                         }),
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
@@ -1042,8 +1322,24 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         actionSteps: _actionSteps,
                         onActionStepsChanged: (steps) => setState(() {
                           _actionSteps = steps;
-                          if (_actionStepsError != null) _actionStepsError = null;
+                          if (_actionStepsError != null)
+                            _actionStepsError = null;
                         }),
+                        onUseGuideForSteps: _openTemplatePicker,
+                        guideLoading: _templatesLoading,
+                        selectedTemplateLabel: _selectedTemplateId == null
+                            ? null
+                            : (_selectedTemplateVersion == null
+                                  ? _selectedTemplateId!
+                                  : '${_selectedTemplateId!} (v$_selectedTemplateVersion)'),
+                        onClearSelectedTemplate: _selectedTemplateId == null
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedTemplateId = null;
+                                  _selectedTemplateVersion = null;
+                                });
+                              },
                       ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[
                         SizedBox(height: kSectionSpacing),
@@ -1074,10 +1370,15 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           timeConflictError: _timeConflictError,
                           suggestedStartTime: _suggestedStartTime,
                           slotAvailableInfo: _slotAvailableInfo,
-                          onSuggestionTap: _suggestedStartTime != null ? () {
-                            setState(() => _timeBoundStartTime = _suggestedStartTime);
-                            _checkTimeConflict();
-                          } : null,
+                          onSuggestionTap: _suggestedStartTime != null
+                              ? () {
+                                  setState(
+                                    () => _timeBoundStartTime =
+                                        _suggestedStartTime,
+                                  );
+                                  _checkTimeConflict();
+                                }
+                              : null,
                           locationEnabled: _locationEnabled,
                           lat: _locationLat,
                           lng: _locationLng,
@@ -1154,10 +1455,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           });
                         },
                         trackerAdded: _trackerAddonAdded,
-                        trackerAvailable: iconTrackingUnits
-                            .containsKey(_selectedIconIndex),
-                        isSubscribed:
-                            SubscriptionService.isSubscribed.value,
+                        trackerAvailable: iconTrackingUnits.containsKey(
+                          _selectedIconIndex,
+                        ),
+                        isSubscribed: SubscriptionService.isSubscribed.value,
                         onTrackerToggle: (added) {
                           setState(() {
                             _trackerAddonAdded = added;
@@ -1207,8 +1508,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         ),
     };
 
-    final selectedIdx =
-        units.indexWhere((u) => u.$1 == _trackingUnitId);
+    final selectedIdx = units.indexWhere((u) => u.$1 == _trackingUnitId);
 
     return CupertinoListSection.insetGrouped(
       header: Text(
@@ -1231,11 +1531,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.straighten,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
+                  Icon(Icons.straighten, size: 20, color: colorScheme.primary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1317,22 +1613,29 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       decoration: InputDecoration(
                         hintText: "I'm feeling too tired...",
                         hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.4,
+                          ),
                           fontSize: 14,
                         ),
                         errorText: _triggerError,
-                        errorStyle: AppTypography.caption(context).copyWith(
-                          color: colorScheme.error,
-                          fontSize: 11,
-                        ),
+                        errorStyle: AppTypography.caption(
+                          context,
+                        ).copyWith(color: colorScheme.error, fontSize: 11),
                         border: UnderlineInputBorder(
-                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                          borderSide: BorderSide(
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
                         ),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(
                             color: _triggerError != null
                                 ? colorScheme.error
-                                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                : colorScheme.outlineVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
                           ),
                         ),
                         focusedBorder: UnderlineInputBorder(
@@ -1391,22 +1694,29 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       decoration: InputDecoration(
                         hintText: "I will just do 2 minutes.",
                         hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.4,
+                          ),
                           fontSize: 14,
                         ),
                         errorText: _actionError,
-                        errorStyle: AppTypography.caption(context).copyWith(
-                          color: colorScheme.error,
-                          fontSize: 11,
-                        ),
+                        errorStyle: AppTypography.caption(
+                          context,
+                        ).copyWith(color: colorScheme.error, fontSize: 11),
                         border: UnderlineInputBorder(
-                          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                          borderSide: BorderSide(
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
                         ),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(
                             color: _actionError != null
                                 ? colorScheme.error
-                                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                : colorScheme.outlineVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
                           ),
                         ),
                         focusedBorder: UnderlineInputBorder(
@@ -1497,8 +1807,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                     TextSpan(
                       text: '  $subtitle',
                       style: AppTypography.bodySmall(context).copyWith(
-                        color: colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                         fontWeight: FontWeight.normal,
                       ),
                     ),
@@ -1542,8 +1853,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
-              final weekdayIndex =
-                  kSundayFirstToMondayBasedWeekdayIndex[index];
+              final weekdayIndex = kSundayFirstToMondayBasedWeekdayIndex[index];
               final selected = _weekdays.contains(weekdayIndex);
               return AnimatedDayChip(
                 label: kWeekdayLabelsSundayFirst[index],
@@ -1614,8 +1924,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                           size: 20,
                           color: _selectedMilestone == 'custom'
                               ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.5),
+                              : colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.5,
+                                ),
                         ),
                         const SizedBox(width: 12),
                         Icon(
@@ -1634,8 +1945,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             style: AppTypography.body(context).copyWith(
                               color: _selectedMilestone == 'custom'
                                   ? colorScheme.primary
-                                  : colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.6),
+                                  : colorScheme.onSurfaceVariant.withValues(
+                                      alpha: 0.6,
+                                    ),
                               fontWeight: _selectedMilestone == 'custom'
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -1666,4 +1978,3 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
     );
   }
 }
-

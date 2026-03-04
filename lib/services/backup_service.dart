@@ -21,6 +21,8 @@ class BackupService {
     'dv_habits_v1',
     'dv_journal_entries_v1',
     'dv_journal_books_v1',
+    'dv_recipes_v1',
+    'dv_meal_prep_weeks_v1',
     'dv_affirmations_v1',
     'dv_overall_streak_v1',
     'dv_micro_habit_selections_v1',
@@ -135,15 +137,28 @@ class BackupService {
       // 3. Restore SharedPreferences
       final prefsFile = archive.findFile('prefs.json');
       if (prefsFile != null) {
-        final json = jsonDecode(utf8.decode(prefsFile.content as List<int>))
-            as Map<String, dynamic>;
+        final json =
+            jsonDecode(utf8.decode(prefsFile.content as List<int>))
+                as Map<String, dynamic>;
         await _restorePrefsData(p2, json);
       }
 
       // 4. Restore media files
-      await _restoreMediaDir(archive, 'journal_images', await _journalImagesDir());
-      await _restoreMediaDir(archive, 'journal_audio', await _journalAudioDir());
-      await _restoreMediaDir(archive, 'vision_images', await _visionImagesDir());
+      await _restoreMediaDir(
+        archive,
+        'journal_images',
+        await _journalImagesDir(),
+      );
+      await _restoreMediaDir(
+        archive,
+        'journal_audio',
+        await _journalAudioDir(),
+      );
+      await _restoreMediaDir(
+        archive,
+        'vision_images',
+        await _visionImagesDir(),
+      );
 
       return true;
     } catch (e) {

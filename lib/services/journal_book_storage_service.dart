@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/journal_book.dart';
 
-
 /// Service for persisting and retrieving journal books.
 final class JournalBookStorageService {
   JournalBookStorageService._();
@@ -16,6 +15,9 @@ final class JournalBookStorageService {
 
   /// Book ID for the auto-created, non-deletable "Goal Logs" book.
   static const String goalLogsBookId = 'goal_logs';
+  static const String recipeBookId = 'recipe_book';
+
+  static bool isLockedSystemBookId(String id) => id == recipeBookId;
 
   /// Load all books from storage. Returns empty list if none exist.
   static Future<List<JournalBook>> loadBooks({SharedPreferences? prefs}) async {
@@ -43,11 +45,15 @@ final class JournalBookStorageService {
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final normalized = books
-        .where((b) => b.id.trim().isNotEmpty && b.name.trim().isNotEmpty)
-        .toList()
-      ..sort((a, b) => a.createdAtMs.compareTo(b.createdAtMs));
-    await p.setString(_key, jsonEncode(normalized.map((b) => b.toJson()).toList()));
+    final normalized =
+        books
+            .where((b) => b.id.trim().isNotEmpty && b.name.trim().isNotEmpty)
+            .toList()
+          ..sort((a, b) => a.createdAtMs.compareTo(b.createdAtMs));
+    await p.setString(
+      _key,
+      jsonEncode(normalized.map((b) => b.toJson()).toList()),
+    );
   }
 
   /// Create a new book with the given name.
@@ -79,11 +85,8 @@ final class JournalBookStorageService {
   }
 
   /// Delete a book by ID. The Goal Logs book cannot be deleted.
-  static Future<void> deleteBook(
-    String id, {
-    SharedPreferences? prefs,
-  }) async {
-    if (id == goalLogsBookId) return;
+  static Future<void> deleteBook(String id, {SharedPreferences? prefs}) async {
+    if (id == goalLogsBookId || id == recipeBookId) return;
     final p = prefs ?? await SharedPreferences.getInstance();
     final existing = await loadBooks(prefs: p);
     final next = existing.where((b) => b.id != id).toList();
@@ -105,6 +108,7 @@ final class JournalBookStorageService {
     final existing = await loadBooks(prefs: p);
     final idx = existing.indexWhere((b) => b.id == id);
     if (idx == -1) return null;
+    if (isLockedSystemBookId(id)) return existing[idx];
 
     final old = existing[idx];
     final updated = old.copyWith(
@@ -150,6 +154,18 @@ final class JournalBookStorageService {
         coverColor: 0xFF22C55E,
       );
       books = [...books, goalLogsBook];
+      changed = true;
+    }
+
+    if (!books.any((b) => b.id == recipeBookId)) {
+      final recipeBook = JournalBook(
+        id: recipeBookId,
+        name: 'Recipe Book',
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        subtitle: 'meal prep recipes',
+        coverColor: 0xFF3B82F6,
+      );
+      books = [...books, recipeBook];
       changed = true;
     }
 

@@ -72,7 +72,10 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
     _prefs = prefs;
 
     if (widget.board.layoutType == VisionBoardInfo.layoutGrid) {
-      final tiles = await GridTilesStorageService.loadTiles(widget.board.id, prefs: prefs);
+      final tiles = await GridTilesStorageService.loadTiles(
+        widget.board.id,
+        prefs: prefs,
+      );
       if (!mounted) return;
       setState(() {
         _tiles = tiles;
@@ -82,7 +85,10 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
       return;
     }
 
-    final comps = await VisionBoardComponentsStorageService.loadComponents(widget.board.id, prefs: prefs);
+    final comps = await VisionBoardComponentsStorageService.loadComponents(
+      widget.board.id,
+      prefs: prefs,
+    );
     if (!mounted) return;
     setState(() {
       _tiles = const [];
@@ -136,12 +142,13 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
         final c = byId[t.id];
         if (c == null) return t;
         final img = c is ImageComponent ? c : null;
-        return t.copyWith(
-          goal: img?.goal ?? t.goal,
-          habits: c.habits,
-        );
+        return t.copyWith(goal: img?.goal ?? t.goal, habits: c.habits);
       }).toList();
-      final normalized = await GridTilesStorageService.saveTiles(widget.board.id, nextTiles, prefs: prefs);
+      final normalized = await GridTilesStorageService.saveTiles(
+        widget.board.id,
+        nextTiles,
+        prefs: prefs,
+      );
       if (!mounted) return;
       setState(() => _tiles = normalized);
       return;
@@ -159,7 +166,11 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
       previousHabitIds,
       prefs: prefs,
     );
-    await VisionBoardComponentsStorageService.saveComponents(widget.board.id, updated, prefs: prefs);
+    await VisionBoardComponentsStorageService.saveComponents(
+      widget.board.id,
+      updated,
+      prefs: prefs,
+    );
     if (!mounted) return;
     setState(() => _components = updated);
   }
@@ -181,13 +192,16 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
     final iso = LogicalDateService.toIsoDate(now);
     final wasDone = habit.isCompletedForCurrentPeriod(now);
 
-    final baseComponents =
-        widget.board.layoutType == VisionBoardInfo.layoutGrid ? _componentsFromGridTiles(_tiles) : _components;
+    final baseComponents = widget.board.layoutType == VisionBoardInfo.layoutGrid
+        ? _componentsFromGridTiles(_tiles)
+        : _components;
 
     // 1) Toggle completion locally (this may remove today's feedback if unchecking).
     var nextComponents = baseComponents.map((c) {
       if (c.id != componentId) return c;
-      final nextHabits = c.habits.map((h) => h.id == habit.id ? h.toggleForDate(now) : h).toList();
+      final nextHabits = c.habits
+          .map((h) => h.id == habit.id ? h.toggleForDate(now) : h)
+          .toList();
       return c.copyWithCommon(habits: nextHabits);
     }).toList();
 
@@ -215,7 +229,8 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
       if (res == null) return;
 
       // Re-read latest state in case it changed while sheet was open.
-      final latestComponents = widget.board.layoutType == VisionBoardInfo.layoutGrid
+      final latestComponents =
+          widget.board.layoutType == VisionBoardInfo.layoutGrid
           ? _componentsFromGridTiles(_tiles)
           : _components;
 
@@ -223,8 +238,13 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
         if (c.id != componentId) return c;
         final nextHabits = c.habits.map((h) {
           if (h.id != habit.id) return h;
-          final nextFeedback = Map<String, HabitCompletionFeedback>.from(h.feedbackByDate);
-          nextFeedback[iso] = HabitCompletionFeedback(rating: res.rating, note: res.note);
+          final nextFeedback = Map<String, HabitCompletionFeedback>.from(
+            h.feedbackByDate,
+          );
+          nextFeedback[iso] = HabitCompletionFeedback(
+            rating: res.rating,
+            note: res.note,
+          );
           return h.copyWith(feedbackByDate: nextFeedback);
         }).toList();
         return c.copyWithCommon(habits: nextHabits);
@@ -288,10 +308,13 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
       clearStartTimeMinutes: req.startTimeMinutes == null,
     );
 
-    final latestComponents = widget.board.layoutType == VisionBoardInfo.layoutGrid
+    final latestComponents =
+        widget.board.layoutType == VisionBoardInfo.layoutGrid
         ? _componentsFromGridTiles(_tiles)
         : _components;
     final updatedComponents = latestComponents.map((c) {
@@ -341,14 +364,21 @@ Future<VisionBoardInfo?> showBoardPickerSheet(
         shrinkWrap: true,
         children: [
           ListTile(
-            title: Text('Set default board', style: AppTypography.body(ctx).copyWith(fontWeight: FontWeight.bold)),
+            title: Text(
+              'Set default board',
+              style: AppTypography.body(
+                ctx,
+              ).copyWith(fontWeight: FontWeight.bold),
+            ),
           ),
           for (final b in boards)
             ListTile(
               leading: Icon(Icons.dashboard_outlined),
               title: Text(b.title),
               subtitle: (b.id == activeBoardId) ? const Text('Default') : null,
-              trailing: (b.id == activeBoardId) ? const Icon(Icons.check) : null,
+              trailing: (b.id == activeBoardId)
+                  ? const Icon(Icons.check)
+                  : null,
               onTap: () => Navigator.of(ctx).pop(b),
             ),
           const SizedBox(height: 12),
@@ -422,7 +452,9 @@ class _PreviewTile extends StatelessWidget {
     final goalTitle = (tile.goal?.title ?? '').trim();
     final category = (tile.goal?.category ?? '').trim();
     final showCategoryLine = category.isNotEmpty && goalTitle.isNotEmpty;
-    final displayTitle = goalTitle.isNotEmpty ? goalTitle : (category.isNotEmpty ? category : 'Goal');
+    final displayTitle = goalTitle.isNotEmpty
+        ? goalTitle
+        : (category.isNotEmpty ? category : 'Goal');
     final path = (tile.type == 'image') ? (tile.content ?? '').trim() : '';
     final hasImage = path.isNotEmpty;
     return Container(
@@ -454,7 +486,9 @@ class _PreviewTile extends StatelessWidget {
               child: hasImage
                   ? componentImageForPath(context, path)
                   : Container(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withOpacity(0.08),
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.image_outlined,
@@ -466,7 +500,9 @@ class _PreviewTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             displayTitle,
-            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
+            style: AppTypography.body(
+              context,
+            ).copyWith(fontWeight: FontWeight.w700),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -481,7 +517,8 @@ class _LayerBoardCoverPreview extends StatefulWidget {
   const _LayerBoardCoverPreview({required this.boardId});
 
   @override
-  State<_LayerBoardCoverPreview> createState() => _LayerBoardCoverPreviewState();
+  State<_LayerBoardCoverPreview> createState() =>
+      _LayerBoardCoverPreviewState();
 }
 
 class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
@@ -495,7 +532,9 @@ class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
   }
 
   Future<void> _load() async {
-    final comps = await VisionBoardComponentsStorageService.loadComponents(widget.boardId);
+    final comps = await VisionBoardComponentsStorageService.loadComponents(
+      widget.boardId,
+    );
     if (!mounted) return;
     setState(() {
       _components = comps;
@@ -506,7 +545,10 @@ class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    final cover = _components.whereType<ImageComponent>().cast<ImageComponent?>().firstWhere(
+    final cover = _components
+        .whereType<ImageComponent>()
+        .cast<ImageComponent?>()
+        .firstWhere(
           (c) => (c?.imagePath ?? '').trim().isNotEmpty,
           orElse: () => null,
         );
@@ -523,7 +565,8 @@ class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
 class _PendingHabitsToday extends StatefulWidget {
   final VisionBoardInfo board;
   final List<VisionComponent> components;
-  final Future<void> Function(String componentId, HabitItem habit) onToggleHabit;
+  final Future<void> Function(String componentId, HabitItem habit)
+  onToggleHabit;
 
   const _PendingHabitsToday({
     required this.board,
@@ -543,7 +586,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
   // Cache for microhabit completion states: key = '${componentId}_${habitId}_${microhabitText}'
   Map<String, bool> _microhabitCompletions = {};
   bool _showMicroHabits = false; // Toggle between habits and micro habits view
-  
+
   /// Helper to get goal from a component
   GoalMetadata? _getGoalFromComponent(VisionComponent component) {
     if (component is ImageComponent) {
@@ -571,46 +614,58 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     _prefs = prefs;
-    
+
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
-    
+
     // Load selected micro habit
-    final selected = await MicroHabitStorageService.loadSelectedMicroHabit(todayIso, prefs: prefs);
-    final completed = await MicroHabitStorageService.isMicroHabitCompleted(todayIso, prefs: prefs);
-    
+    final selected = await MicroHabitStorageService.loadSelectedMicroHabit(
+      todayIso,
+      prefs: prefs,
+    );
+    final completed = await MicroHabitStorageService.isMicroHabitCompleted(
+      todayIso,
+      prefs: prefs,
+    );
+
     // Load overall streak
-    final streakData = await OverallStreakStorageService.loadStreak(prefs: prefs);
-    
+    final streakData = await OverallStreakStorageService.loadStreak(
+      prefs: prefs,
+    );
+
     // Load all microhabit completions for today
     final completions = <String, bool>{};
     for (final c in widget.components) {
       final goal = _getGoalFromComponent(c);
       final goalMicrohabit = goal?.actionPlan?.microHabit?.trim();
-      
+
       for (final h in c.habits) {
         if (!h.isScheduledOnDate(now)) continue;
-        
+
         // Check habit's microVersion first (from CBT enhancements), then fall back to goal's microHabit
         final habitMicroVersion = h.cbtEnhancements?.microVersion?.trim();
-        final microhabit = (habitMicroVersion != null && habitMicroVersion.isNotEmpty)
+        final microhabit =
+            (habitMicroVersion != null && habitMicroVersion.isNotEmpty)
             ? habitMicroVersion
-            : ((goalMicrohabit != null && goalMicrohabit.isNotEmpty) ? goalMicrohabit : null);
-        
+            : ((goalMicrohabit != null && goalMicrohabit.isNotEmpty)
+                  ? goalMicrohabit
+                  : null);
+
         if (microhabit != null && microhabit.isNotEmpty) {
           final key = '${c.id}_${h.id}_$microhabit';
-          final isCompleted = await MicroHabitStorageService.isMicroHabitCompletedForHabit(
-            todayIso,
-            c.id,
-            h.id,
-            microhabit,
-            prefs: prefs,
-          );
+          final isCompleted =
+              await MicroHabitStorageService.isMicroHabitCompletedForHabit(
+                todayIso,
+                c.id,
+                h.id,
+                microhabit,
+                prefs: prefs,
+              );
           completions[key] = isCompleted;
         }
       }
     }
-    
+
     if (!mounted) return;
     setState(() {
       _selectedMicroHabit = selected;
@@ -618,7 +673,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
       _overallStreak = streakData.count;
       _microhabitCompletions = completions;
     });
-    
+
     // Update streak based on current completions
     await _updateStreak();
   }
@@ -626,10 +681,10 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
   Future<void> _updateStreak() async {
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
-    
+
     // Check if at least one habit is completed today
     bool hasCompletion = false;
-    
+
     // Check regular habits
     for (final c in widget.components) {
       for (final h in c.habits) {
@@ -640,7 +695,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
       }
       if (hasCompletion) break;
     }
-    
+
     // Check micro habits (per-habit completions)
     if (!hasCompletion) {
       for (final c in widget.components) {
@@ -649,13 +704,14 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         if (microhabit != null && microhabit.isNotEmpty) {
           for (final h in c.habits) {
             if (h.isScheduledOnDate(now)) {
-              final isCompleted = await MicroHabitStorageService.isMicroHabitCompletedForHabit(
-                todayIso,
-                c.id,
-                h.id,
-                microhabit,
-                prefs: _prefs,
-              );
+              final isCompleted =
+                  await MicroHabitStorageService.isMicroHabitCompletedForHabit(
+                    todayIso,
+                    c.id,
+                    h.id,
+                    microhabit,
+                    prefs: _prefs,
+                  );
               if (isCompleted) {
                 hasCompletion = true;
                 break;
@@ -666,15 +722,18 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         }
       }
     }
-    
+
     // Check legacy micro habit (for backward compatibility)
     if (!hasCompletion && _microHabitCompleted) {
       hasCompletion = true;
     }
-    
+
     final prefs = _prefs ?? await SharedPreferences.getInstance();
-    final newStreak = await OverallStreakStorageService.updateStreak(hasCompletion, prefs: prefs);
-    
+    final newStreak = await OverallStreakStorageService.updateStreak(
+      hasCompletion,
+      prefs: prefs,
+    );
+
     if (!mounted) return;
     setState(() {
       _overallStreak = newStreak;
@@ -692,10 +751,13 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
       final microHabit = goal?.actionPlan?.microHabit?.trim();
       if (microHabit != null && microHabit.isNotEmpty) {
         final goalTitle = (goal?.title ?? '').trim();
-        microHabits.add((text: microHabit, goalTitle: goalTitle.isEmpty ? null : goalTitle));
+        microHabits.add((
+          text: microHabit,
+          goalTitle: goalTitle.isEmpty ? null : goalTitle,
+        ));
       }
     }
-    
+
     if (microHabits.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -705,7 +767,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
       );
       return;
     }
-    
+
     // Show bottom sheet to select micro habit
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -718,7 +780,9 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Select micro habit',
-                style: AppTypography.heading3(context).copyWith(fontWeight: FontWeight.w800),
+                style: AppTypography.heading3(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             Flexible(
@@ -736,7 +800,9 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                   final mh = microHabits[i - 1];
                   return ListTile(
                     title: Text(mh.text),
-                    subtitle: mh.goalTitle != null ? Text('From: ${mh.goalTitle}') : null,
+                    subtitle: mh.goalTitle != null
+                        ? Text('From: ${mh.goalTitle}')
+                        : null,
                     onTap: () => Navigator.of(ctx).pop(mh.text),
                   );
                 },
@@ -746,20 +812,30 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         ),
       ),
     );
-    
+
     if (selected == null) return;
-    
+
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
-    
+
     if (selected.isEmpty) {
-      await MicroHabitStorageService.clearSelectedMicroHabit(todayIso, prefs: prefs);
-      await MicroHabitStorageService.unmarkMicroHabitCompleted(todayIso, prefs: prefs);
+      await MicroHabitStorageService.clearSelectedMicroHabit(
+        todayIso,
+        prefs: prefs,
+      );
+      await MicroHabitStorageService.unmarkMicroHabitCompleted(
+        todayIso,
+        prefs: prefs,
+      );
     } else {
-      await MicroHabitStorageService.saveSelectedMicroHabit(todayIso, selected, prefs: prefs);
+      await MicroHabitStorageService.saveSelectedMicroHabit(
+        todayIso,
+        selected,
+        prefs: prefs,
+      );
     }
-    
+
     if (!mounted) return;
     setState(() {
       _selectedMicroHabit = selected.isEmpty ? null : selected;
@@ -767,7 +843,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         _microHabitCompleted = false;
       }
     });
-    
+
     await _updateStreak();
   }
 
@@ -775,19 +851,25 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
-    
+
     if (_microHabitCompleted) {
-      await MicroHabitStorageService.unmarkMicroHabitCompleted(todayIso, prefs: prefs);
+      await MicroHabitStorageService.unmarkMicroHabitCompleted(
+        todayIso,
+        prefs: prefs,
+      );
     } else {
-      await MicroHabitStorageService.markMicroHabitCompleted(todayIso, prefs: prefs);
+      await MicroHabitStorageService.markMicroHabitCompleted(
+        todayIso,
+        prefs: prefs,
+      );
       // Auto-save rating as 5 (already handled by the feedback sheet behavior)
     }
-    
+
     if (!mounted) return;
     setState(() {
       _microHabitCompleted = !_microHabitCompleted;
     });
-    
+
     await _updateStreak();
   }
 
@@ -812,10 +894,10 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
-    
+
     final key = '${componentId}_${habitId}_$microhabitText';
     final isCompleted = _microhabitCompletions[key] ?? false;
-    
+
     if (isCompleted) {
       // Unchecking micro habit - don't auto-uncheck main habit
       await MicroHabitStorageService.unmarkMicroHabitCompletedForHabit(
@@ -834,19 +916,19 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         microhabitText,
         prefs: prefs,
       );
-      
+
       // Auto-complete the main habit (this will trigger feedback)
       final habit = _findHabitItem(componentId, habitId);
       if (habit != null && !habit.isCompletedForCurrentPeriod(now)) {
         await widget.onToggleHabit(componentId, habit);
       }
     }
-    
+
     if (!mounted) return;
     setState(() {
       _microhabitCompletions[key] = !isCompleted;
     });
-    
+
     await _updateStreak();
   }
 
@@ -860,30 +942,27 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final todayIso = _toIsoDate(now);
 
     // Build items with microhabit information
-    final items = <({
-      String componentId,
-      HabitItem habit,
-      String? microhabitText,
-    })>[];
-    final pendingItems = <({
-      String componentId,
-      HabitItem habit,
-      String? microhabitText,
-    })>[];
-    
+    final items =
+        <({String componentId, HabitItem habit, String? microhabitText})>[];
+    final pendingItems =
+        <({String componentId, HabitItem habit, String? microhabitText})>[];
+
     for (final c in widget.components) {
       final goal = _getGoalFromComponent(c);
       final goalMicrohabit = goal?.actionPlan?.microHabit?.trim();
-      
+
       for (final h in c.habits) {
         if (!h.isScheduledOnDate(now)) continue;
-        
+
         // Check habit's microVersion first (from CBT enhancements), then fall back to goal's microHabit
         final habitMicroVersion = h.cbtEnhancements?.microVersion?.trim();
-        final microhabitText = (habitMicroVersion != null && habitMicroVersion.isNotEmpty)
+        final microhabitText =
+            (habitMicroVersion != null && habitMicroVersion.isNotEmpty)
             ? habitMicroVersion
-            : ((goalMicrohabit != null && goalMicrohabit.isNotEmpty) ? goalMicrohabit : null);
-        
+            : ((goalMicrohabit != null && goalMicrohabit.isNotEmpty)
+                  ? goalMicrohabit
+                  : null);
+
         final it = (
           componentId: c.id,
           habit: h,
@@ -911,7 +990,9 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
               const SizedBox(height: 12),
               Text(
                 'No habits scheduled today',
-                style: AppTypography.heading3(context).copyWith(fontWeight: FontWeight.w800),
+                style: AppTypography.heading3(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -920,8 +1001,8 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     }
 
     // Check if any items have micro habits
-    final hasAnyMicrohabit = items.any((it) => 
-      it.microhabitText != null && it.microhabitText!.isNotEmpty
+    final hasAnyMicrohabit = items.any(
+      (it) => it.microhabitText != null && it.microhabitText!.isNotEmpty,
     );
 
     return ListView(
@@ -931,14 +1012,8 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
         if (hasAnyMicrohabit) ...[
           SegmentedButton<bool>(
             segments: const [
-              ButtonSegment<bool>(
-                value: false,
-                label: Text('Habits'),
-              ),
-              ButtonSegment<bool>(
-                value: true,
-                label: Text('Micro Habits'),
-              ),
+              ButtonSegment<bool>(value: false, label: Text('Habits')),
+              ButtonSegment<bool>(value: true, label: Text('Micro Habits')),
             ],
             selected: {_showMicroHabits},
             onSelectionChanged: (Set<bool> newSelection) {
@@ -971,29 +1046,38 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                       Builder(
                         builder: (context) {
                           final hasTimer = it.habit.timeBound?.enabled == true;
-                          final hasLocation = it.habit.locationBound?.enabled == true;
-                          final hasMicrohabit = it.microhabitText != null && it.microhabitText!.isNotEmpty;
+                          final hasLocation =
+                              it.habit.locationBound?.enabled == true;
+                          final hasMicrohabit =
+                              it.microhabitText != null &&
+                              it.microhabitText!.isNotEmpty;
                           final microhabitKey = hasMicrohabit
                               ? '${it.componentId}_${it.habit.id}_${it.microhabitText}'
                               : null;
                           final microhabitCompleted = microhabitKey != null
                               ? (_microhabitCompletions[microhabitKey] ?? false)
                               : false;
-                          
+
                           // If showing micro habits only, skip items without micro habits
                           if (_showMicroHabits && !hasMicrohabit) {
                             return const SizedBox.shrink();
                           }
-                          
+
                           // If showing micro habits only and this item has micro habit, show only micro habit row
                           if (_showMicroHabits && hasMicrohabit) {
                             // Show only micro habit row (hide main habit checkbox and name)
                             return Container(
                               margin: const EdgeInsets.symmetric(vertical: 2),
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: hasLocation
-                                    ? Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.2)
+                                    ? Theme.of(context)
+                                          .colorScheme
+                                          .tertiaryContainer
+                                          .withOpacity(0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -1012,10 +1096,13 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                   Expanded(
                                     child: Text(
                                       it.microhabitText!,
-                                      style: AppTypography.bodySmall(context).copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                      ),
+                                      style: AppTypography.bodySmall(context)
+                                          .copyWith(
+                                            fontWeight: FontWeight.w500,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 2,
                                     ),
@@ -1030,16 +1117,24 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                               margin: const EdgeInsets.symmetric(vertical: 2),
                               decoration: BoxDecoration(
                                 color: hasLocation
-                                    ? Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.2)
+                                    ? Theme.of(context)
+                                          .colorScheme
+                                          .tertiaryContainer
+                                          .withOpacity(0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
                                   Checkbox(
-                                    value: it.habit.isCompletedForCurrentPeriod(now),
+                                    value: it.habit.isCompletedForCurrentPeriod(
+                                      now,
+                                    ),
                                     onChanged: (_) async {
-                                      await widget.onToggleHabit(it.componentId, it.habit);
+                                      await widget.onToggleHabit(
+                                        it.componentId,
+                                        it.habit,
+                                      );
                                       await _updateStreak();
                                     },
                                   ),
@@ -1049,7 +1144,10 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                         Expanded(
                                           child: Text(
                                             it.habit.name,
-                                            style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700),
+                                            style: AppTypography.body(context)
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                             overflow: TextOverflow.ellipsis,
                                             maxLines: 2,
                                           ),
@@ -1059,7 +1157,9 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                           Icon(
                                             Icons.location_on_outlined,
                                             size: 18,
-                                            color: Theme.of(context).colorScheme.tertiary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
                                           ),
                                         ],
                                       ],
@@ -1067,8 +1167,14 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                   ),
                                   if (hasTimer || hasLocation)
                                     IconButton(
-                                      tooltip: hasTimer ? 'Open timer' : 'Location-based',
-                                      icon: Icon(hasTimer ? Icons.timer_outlined : Icons.location_on_outlined),
+                                      tooltip: hasTimer
+                                          ? 'Open timer'
+                                          : 'Location-based',
+                                      icon: Icon(
+                                        hasTimer
+                                            ? Icons.timer_outlined
+                                            : Icons.location_on_outlined,
+                                      ),
                                       onPressed: () async {
                                         if (hasTimer) {
                                           await Navigator.of(context).push(
@@ -1076,7 +1182,10 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                               builder: (_) => HabitTimerScreen(
                                                 habit: it.habit,
                                                 onMarkCompleted: () async {
-                                                  await widget.onToggleHabit(it.componentId, it.habit);
+                                                  await widget.onToggleHabit(
+                                                    it.componentId,
+                                                    it.habit,
+                                                  );
                                                   await _updateStreak();
                                                 },
                                               ),
@@ -1104,4 +1213,3 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     );
   }
 }
-

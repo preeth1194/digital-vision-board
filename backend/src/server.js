@@ -26,6 +26,9 @@ import {
   getTemplateImagePg,
   getTemplatePg,
   listTemplatesPg,
+  listApprovedActionTemplatesPg,
+  reviewActionTemplatePg,
+  submitActionTemplateDraftPg,
 } from "./templates_pg.js";
 import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
@@ -94,6 +97,24 @@ function ensureDbOr501(res) {
   if (hasDatabase()) return true;
   res.status(501).json({ error: "database_required" });
   return false;
+}
+
+const kActionTemplateCategories = new Set(["skincare", "workout", "meal_prep", "recipe"]);
+
+function normalizeActionTemplateCategory(raw) {
+  const v = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  return kActionTemplateCategories.has(v) ? v : null;
+}
+
+function isActionTemplateAdmin(dvUserId) {
+  const admins = String(process.env.TEMPLATE_ADMIN_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!admins.length) return false;
+  return admins.includes(String(dvUserId ?? ""));
 }
 
 app.get("/", (req, res) => {
@@ -682,6 +703,86 @@ app.get("/templates/:id", requireDvAuth(), async (req, res) => {
       updatedAt: t.updatedAt ?? null,
     },
   });
+});
+
+// ---- Action templates (Planner Guide) ----
+app.get("/action-templates", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    const category = normalizeActionTemplateCategory(req.query.category);
+    const templates = await listApprovedActionTemplatesPg({ category });
+    return res.json({
+      templates: templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        schemaVersion: t.schemaVersion,
+        templateVersion: t.templateVersion,
+        status: t.status,
+        isOfficial: t.isOfficial,
+        setKey: t.setKey,
+        steps: t.steps,
+        metadata: t.metadata,
+        createdByUserId: t.createdByUserId,
+        updatedAt: t.updatedAt,
+      })),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: "action_templates_list_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/action-templates/submit", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    const category = normalizeActionTemplateCategory(req.body?.category);
+    const schemaVersion = Number.isFinite(Number(req.body?.schemaVersion)) ? Number(req.body.schemaVersion) : 1;
+    const templateVersion = Number.isFinite(Number(req.body?.templateVersion)) ? Number(req.body.templateVersion) : 1;
+    const steps = Array.isArray(req.body?.steps) ? req.body.steps : [];
+    const metadata = req.body?.metadata && typeof req.body.metadata === "object" ? req.body.metadata : {};
+    if (!name) return res.status(400).json({ error: "missing_name" });
+    if (!category) return res.status(400).json({ error: "invalid_category" });
+    if (!steps.length) return res.status(400).json({ error: "missing_steps" });
+    const id = `tpl_${Date.now()}_${randomId(8)}`;
+    const created = await submitActionTemplateDraftPg({
+      id,
+      name,
+      category,
+      schemaVersion,
+      templateVersion,
+      steps,
+      metadata,
+      createdBy: req.dvUser.canvaUserId,
+    });
+    return res.status(201).json({ ok: true, template: created });
+  } catch (e) {
+    return res.status(500).json({ error: "action_template_submit_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/action-templates/:id/review", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  if (!isActionTemplateAdmin(req.dvUser?.canvaUserId)) {
+    return res.status(403).json({ error: "admin_required" });
+  }
+  try {
+    const status = String(req.body?.status ?? "").trim().toLowerCase();
+    if (status !== "approved" && status !== "rejected") {
+      return res.status(400).json({ error: "invalid_status" });
+    }
+    const reviewNotes = typeof req.body?.reviewNotes === "string" ? req.body.reviewNotes.trim() : null;
+    const updated = await reviewActionTemplatePg({
+      id: req.params.id,
+      status,
+      reviewedBy: req.dvUser.canvaUserId,
+      reviewNotes,
+    });
+    if (!updated) return res.status(404).json({ error: "template_not_found" });
+    return res.json({ ok: true, template: updated });
+  } catch (e) {
+    return res.status(500).json({ error: "action_template_review_failed", message: String(e?.message ?? e) });
+  }
 });
 
 // Public image serving (Image.network can’t attach headers)

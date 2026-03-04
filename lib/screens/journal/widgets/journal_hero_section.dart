@@ -9,40 +9,41 @@ import 'journal_book_carousel.dart';
 class JournalHeroSection extends StatefulWidget {
   final VoidCallback onType;
   final VoidCallback onRecord;
-  
+
   /// List of journal books to display in the carousel.
   final List<JournalBook> books;
-  
+
   /// Currently selected book ID.
   final String? selectedBookId;
-  
+
   /// Entry counts per book (bookId -> count).
   final Map<String, int> entryCounts;
-  
+
   /// Entries grouped by book ID.
   final Map<String, List<JournalEntry>> entriesByBook;
-  
+
   /// Callback when a book is selected.
   final ValueChanged<JournalBook>? onBookSelected;
-  
+  final ValueChanged<JournalBook>? onBookTap;
+
   /// Callback to add a new book.
   final VoidCallback? onAddBook;
-  
+
   /// Callback when an entry is opened.
   final void Function(JournalEntry)? onOpenEntry;
 
   /// Callback to delete a single entry (with confirmation).
   final void Function(JournalEntry)? onDeleteEntry;
-  
+
   /// Callback to delete a book and all its entries.
   final void Function(String bookId)? onDeleteBook;
-  
+
   /// Callback when book color is changed.
   final void Function(String bookId, int color)? onColorChanged;
-  
+
   /// Callback when book title is changed.
   final void Function(String bookId, String newTitle)? onTitleChanged;
-  
+
   /// ID of newly created book to auto-focus title.
   final String? newBookId;
 
@@ -55,6 +56,7 @@ class JournalHeroSection extends StatefulWidget {
     this.entryCounts = const {},
     this.entriesByBook = const {},
     this.onBookSelected,
+    this.onBookTap,
     this.onAddBook,
     this.onOpenEntry,
     this.onDeleteEntry,
@@ -82,11 +84,17 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeIn = CurvedAnimation(parent: _entranceController, curve: Curves.easeOut);
-    _slideIn = Tween<Offset>(
-      begin: const Offset(0, 0.04),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic));
+    _fadeIn = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOut,
+    );
+    _slideIn = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _entranceController.forward();
   }
 
@@ -114,7 +122,11 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
               AnimatedSize(
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeInOutCubic,
-                child: SizedBox(height: _isBookOpen ? 0 : MediaQuery.of(context).padding.top + 8),
+                child: SizedBox(
+                  height: _isBookOpen
+                      ? 0
+                      : MediaQuery.of(context).padding.top + 8,
+                ),
               ),
               // Title – hides & collapses when book is open
               AnimatedSize(
@@ -131,7 +143,9 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                             child: Text(
                               'Here, your journal\ncomes to life',
                               textAlign: TextAlign.center,
-                              style: AppTypography.heading1(context).copyWith(height: 1.35),
+                              style: AppTypography.heading1(
+                                context,
+                              ).copyWith(height: 1.35),
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -139,8 +153,8 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                       ),
               ),
               // Book carousel
-              if (widget.books.isNotEmpty && 
-                  widget.onBookSelected != null && 
+              if (widget.books.isNotEmpty &&
+                  widget.onBookSelected != null &&
                   widget.onAddBook != null &&
                   widget.onOpenEntry != null &&
                   widget.onDeleteEntry != null &&
@@ -161,7 +175,9 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                   onColorChanged: widget.onColorChanged!,
                   onTitleChanged: widget.onTitleChanged!,
                   newBookId: widget.newBookId,
-                  onBookOpenChanged: (open) => setState(() => _isBookOpen = open),
+                  onBookTap: widget.onBookTap,
+                  onBookOpenChanged: (open) =>
+                      setState(() => _isBookOpen = open),
                 ),
               const SizedBox(height: 16),
             ],

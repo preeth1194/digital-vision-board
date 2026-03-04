@@ -28,6 +28,10 @@ class Step6Strategy extends StatefulWidget {
   final String? actionStepsError;
   final List<HabitActionStep> actionSteps;
   final ValueChanged<List<HabitActionStep>> onActionStepsChanged;
+  final VoidCallback onUseGuideForSteps;
+  final bool guideLoading;
+  final String? selectedTemplateLabel;
+  final VoidCallback? onClearSelectedTemplate;
 
   const Step6Strategy({
     super.key,
@@ -48,6 +52,10 @@ class Step6Strategy extends StatefulWidget {
     this.actionStepsError,
     required this.actionSteps,
     required this.onActionStepsChanged,
+    required this.onUseGuideForSteps,
+    this.guideLoading = false,
+    this.selectedTemplateLabel,
+    this.onClearSelectedTemplate,
   });
 
   @override
@@ -97,19 +105,18 @@ class _Step6StrategyState extends State<Step6Strategy> {
   /// Builds the merged + filtered suggestion list from user habits and defaults.
   List<HabitSuggestion> _buildSuggestions() {
     final query = _searchController.text.trim().toLowerCase();
-    final existingNames =
-        widget.existingHabits.map((h) => h.name.toLowerCase()).toSet();
+    final existingNames = widget.existingHabits
+        .map((h) => h.name.toLowerCase())
+        .toSet();
 
     final List<HabitSuggestion> results = [];
 
     // User's own habits
     for (final h in widget.existingHabits) {
       if (query.isEmpty || h.name.toLowerCase().contains(query)) {
-        results.add(HabitSuggestion(
-          label: h.name,
-          habitId: h.id,
-          isDefault: false,
-        ));
+        results.add(
+          HabitSuggestion(label: h.name, habitId: h.id, isDefault: false),
+        );
       }
     }
 
@@ -117,11 +124,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
     for (final name in kDefaultStackingHabits) {
       if (!existingNames.contains(name.toLowerCase())) {
         if (query.isEmpty || name.toLowerCase().contains(query)) {
-          results.add(HabitSuggestion(
-            label: name,
-            habitId: null,
-            isDefault: true,
-          ));
+          results.add(
+            HabitSuggestion(label: name, habitId: null, isDefault: true),
+          );
         }
       }
     }
@@ -146,12 +151,14 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
   void _addStep() {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    steps.add(HabitActionStep(
-      id: 'step_${DateTime.now().millisecondsSinceEpoch}',
-      title: '',
-      iconCodePoint: Icons.check_circle_outline.codePoint,
-      order: steps.length,
-    ));
+    steps.add(
+      HabitActionStep(
+        id: 'step_${DateTime.now().millisecondsSinceEpoch}',
+        title: '',
+        iconCodePoint: Icons.check_circle_outline.codePoint,
+        order: steps.length,
+      ),
+    );
     widget.onActionStepsChanged(steps);
   }
 
@@ -175,7 +182,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
   Widget _buildInlineAddButton(ColorScheme colorScheme) {
     return IconButton(
-      icon: Icon(Icons.add_circle_rounded, size: 22, color: colorScheme.primary),
+      icon: Icon(
+        Icons.add_circle_rounded,
+        size: 22,
+        color: colorScheme.primary,
+      ),
       onPressed: _addStep,
       visualDensity: VisualDensity.compact,
       tooltip: 'Add step',
@@ -191,7 +202,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Icon(Icons.add_circle_outline, size: 20, color: colorScheme.primary),
+              Icon(
+                Icons.add_circle_outline,
+                size: 20,
+                color: colorScheme.primary,
+              ),
               const SizedBox(width: 12),
               Text(
                 'Add a step',
@@ -203,6 +218,46 @@ class _Step6StrategyState extends State<Step6Strategy> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepOptionsRow(ColorScheme colorScheme) {
+    final style = OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      side: BorderSide(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _addStep,
+              style: style,
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text('Add a step'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: widget.guideLoading ? null : widget.onUseGuideForSteps,
+              style: style,
+              icon: widget.guideLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined, size: 18),
+              label: const Text('Use guide'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -244,9 +299,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
           ),
           title: Text(
             "Break into small steps",
-            style: AppTypography.body(context).copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTypography.body(
+              context,
+            ).copyWith(fontWeight: FontWeight.w500),
           ),
           trailing: CupertinoSwitch(
             value: widget.actionStepsEnabled,
@@ -256,6 +311,36 @@ class _Step6StrategyState extends State<Step6Strategy> {
           onTap: null,
         ),
         if (widget.actionStepsEnabled) ...[
+          _buildStepOptionsRow(colorScheme),
+          if (widget.selectedTemplateLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.link_rounded,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      widget.selectedTemplateLabel!,
+                      style: AppTypography.caption(
+                        context,
+                      ).copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                  if (widget.onClearSelectedTemplate != null)
+                    IconButton(
+                      onPressed: widget.onClearSelectedTemplate,
+                      icon: const Icon(Icons.link_off, size: 18),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Unlink template',
+                    ),
+                ],
+              ),
+            ),
           if (widget.actionSteps.isNotEmpty)
             ReorderableListView.builder(
               shrinkWrap: true,
@@ -291,15 +376,15 @@ class _Step6StrategyState extends State<Step6Strategy> {
               },
             )
           else
-            _buildAddStepRow(colorScheme),
+            const SizedBox(height: 2),
           if (widget.actionStepsError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
                 widget.actionStepsError!,
-                style: AppTypography.caption(context).copyWith(
-                  color: colorScheme.error,
-                ),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: colorScheme.error),
               ),
             ),
         ],
@@ -315,9 +400,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
               ),
               title: Text(
                 "Anchor to an existing habit",
-                style: AppTypography.body(context).copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTypography.body(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
               ),
               trailing: CupertinoSwitch(
                 value: widget.habitStackingEnabled,
@@ -332,31 +417,44 @@ class _Step6StrategyState extends State<Step6Strategy> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Builder(builder: (context) {
-                      const options = ['Before', 'After'];
-                      final safeValue = options.contains(widget.relationship)
-                          ? widget.relationship
-                          : 'Before';
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButton<String>(
-                          dropdownColor: colorScheme.surfaceContainerHighest,
-                          value: safeValue,
-                          isExpanded: true,
-                          style: AppTypography.body(context),
-                          underline: const SizedBox(),
-                          icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurfaceVariant),
-                          items: ['Before', 'After']
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                              .toList(),
-                          onChanged: (v) => widget.onRelationshipChanged(v!),
-                        ),
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        const options = ['Before', 'After'];
+                        final safeValue = options.contains(widget.relationship)
+                            ? widget.relationship
+                            : 'Before';
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButton<String>(
+                            dropdownColor: colorScheme.surfaceContainerHighest,
+                            value: safeValue,
+                            isExpanded: true,
+                            style: AppTypography.body(context),
+                            underline: const SizedBox(),
+                            icon: Icon(
+                              Icons.keyboard_arrow_down,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            items: ['Before', 'After']
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => widget.onRelationshipChanged(v!),
+                          ),
+                        );
+                      },
+                    ),
                     SizedBox(height: kControlSpacing),
                     TextField(
                       controller: _searchController,
@@ -372,19 +470,29 @@ class _Step6StrategyState extends State<Step6Strategy> {
                       decoration: InputDecoration(
                         hintText: "Search or type a habit...",
                         hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         errorText: widget.anchorHabitError,
-                        errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
+                        errorStyle: AppTypography.caption(
+                          context,
+                        ).copyWith(color: colorScheme.error),
                         prefixIcon: Icon(
                           Icons.search,
                           color: widget.anchorHabitError != null
                               ? colorScheme.error
-                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              : colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                ),
                         ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear, size: 18, color: colorScheme.onSurfaceVariant),
+                                icon: Icon(
+                                  Icons.clear,
+                                  size: 18,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                                 onPressed: _clearSelection,
                               )
                             : null,
@@ -410,7 +518,10 @@ class _Step6StrategyState extends State<Step6Strategy> {
                                 : colorScheme.primary,
                           ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
                     ),
                     if (_showSuggestions) _buildSuggestionList(colorScheme),
@@ -428,10 +539,8 @@ class _Step6StrategyState extends State<Step6Strategy> {
     final query = _searchController.text.trim();
 
     // Split into user habits and default habits
-    final userHabits =
-        suggestions.where((s) => !s.isDefault).toList();
-    final defaultHabits =
-        suggestions.where((s) => s.isDefault).toList();
+    final userHabits = suggestions.where((s) => !s.isDefault).toList();
+    final defaultHabits = suggestions.where((s) => s.isDefault).toList();
 
     // Check if typed text matches any suggestion exactly
     final exactMatch = suggestions.any(
@@ -472,36 +581,34 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
             // User's own habits section
             if (userHabits.isNotEmpty) ...[
-              SectionLabel(
-                label: 'Your Habits',
-                colorScheme: colorScheme,
+              SectionLabel(label: 'Your Habits', colorScheme: colorScheme),
+              ...userHabits.map(
+                (s) => SuggestionTile(
+                  label: s.label,
+                  icon: Icons.person_outline,
+                  iconColor: colorScheme.primary,
+                  colorScheme: colorScheme,
+                  isSelected: widget.afterHabitId == s.habitId,
+                  onTap: () => _selectSuggestion(s),
+                ),
               ),
-              ...userHabits.map((s) => SuggestionTile(
-                    label: s.label,
-                    icon: Icons.person_outline,
-                    iconColor: colorScheme.primary,
-                    colorScheme: colorScheme,
-                    isSelected: widget.afterHabitId == s.habitId,
-                    onTap: () => _selectSuggestion(s),
-                  )),
             ],
 
             // Default habits section
             if (defaultHabits.isNotEmpty) ...[
-              SectionLabel(
-                label: 'Common Habits',
-                colorScheme: colorScheme,
+              SectionLabel(label: 'Common Habits', colorScheme: colorScheme),
+              ...defaultHabits.map(
+                (s) => SuggestionTile(
+                  label: s.label,
+                  icon: Icons.auto_awesome_outlined,
+                  iconColor: colorScheme.tertiary,
+                  colorScheme: colorScheme,
+                  isSelected:
+                      s.label == widget.anchorHabitText &&
+                      widget.afterHabitId == null,
+                  onTap: () => _selectSuggestion(s),
+                ),
               ),
-              ...defaultHabits.map((s) => SuggestionTile(
-                    label: s.label,
-                    icon: Icons.auto_awesome_outlined,
-                    iconColor: colorScheme.tertiary,
-                    colorScheme: colorScheme,
-                    isSelected:
-                        s.label == widget.anchorHabitText &&
-                            widget.afterHabitId == null,
-                    onTap: () => _selectSuggestion(s),
-                  )),
             ],
 
             // Empty state
@@ -512,8 +619,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   'No matching habits found',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption(context).copyWith(
-                    color: colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -542,7 +648,11 @@ class SectionLabel extends StatelessWidget {
   final String label;
   final ColorScheme colorScheme;
 
-  const SectionLabel({super.key, required this.label, required this.colorScheme});
+  const SectionLabel({
+    super.key,
+    required this.label,
+    required this.colorScheme,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -597,8 +707,7 @@ class SuggestionTile extends StatelessWidget {
                 child: Text(
                   label,
                   style: AppTypography.body(context).copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ),
@@ -670,7 +779,11 @@ class _ActionStepTileState extends State<_ActionStepTile> {
         children: [
           ReorderableDragStartListener(
             index: widget.reorderIndex,
-            child: Icon(Icons.drag_handle_rounded, size: 22, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+            child: Icon(
+              Icons.drag_handle_rounded,
+              size: 22,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
           ),
           const SizedBox(width: 10),
           Container(
@@ -699,18 +812,27 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
                 hintText: 'Step title...',
-                hintStyle: AppTypography.body(context).copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
+                hintStyle: AppTypography.body(context).copyWith(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  fontStyle: FontStyle.italic,
+                ),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 counterText: '',
               ),
-              style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
+              style: AppTypography.body(
+                context,
+              ).copyWith(fontWeight: FontWeight.w500),
               onChanged: widget.onTitleChanged,
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close_rounded, size: 20, color: cs.error.withValues(alpha: 0.7)),
+            icon: Icon(
+              Icons.close_rounded,
+              size: 20,
+              color: cs.error.withValues(alpha: 0.7),
+            ),
             onPressed: widget.onDelete,
             tooltip: 'Remove',
           ),

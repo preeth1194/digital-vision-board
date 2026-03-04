@@ -62,6 +62,8 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
   }
 
@@ -144,8 +146,13 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
   Future<void> _convertToHabit(BuildContext context, GoalTodoItem item) async {
     final existing = (item.habitId == null)
         ? null
-        : widget.habits.cast<HabitItem?>().firstWhere((h) => h?.id == item.habitId, orElse: () => null);
-    final otherHabits = widget.habits.where((h) => h.id != existing?.id).toList();
+        : widget.habits.cast<HabitItem?>().firstWhere(
+            (h) => h?.id == item.habitId,
+            orElse: () => null,
+          );
+    final otherHabits = widget.habits
+        .where((h) => h.id != existing?.id)
+        .toList();
 
     final HabitCreateRequest? req = (existing == null)
         ? await showAddHabitDialog(
@@ -172,10 +179,14 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
 
     final nextHabits = (existing == null)
         ? [...widget.habits, nextHabit]
-        : widget.habits.map((h) => h.id == existing.id ? nextHabit : h).toList();
+        : widget.habits
+              .map((h) => h.id == existing.id ? nextHabit : h)
+              .toList();
     widget.onHabitsChanged(nextHabits);
 
-    final nextText = nextHabit.name.trim().isEmpty ? item.text : nextHabit.name.trim();
+    final nextText = nextHabit.name.trim().isEmpty
+        ? item.text
+        : nextHabit.name.trim();
     widget.onTodosChanged(
       widget.todos
           .map(
@@ -243,7 +254,9 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.body(context).copyWith(
-                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                          decoration: item.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       subtitle: Wrap(
@@ -252,9 +265,15 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
                         children: [
                           InputChip(
                             selected: (item.habitId ?? '').trim().isNotEmpty,
-                            label: Text(((item.habitId ?? '').trim().isEmpty) ? 'Habit' : 'Habit ✓'),
+                            label: Text(
+                              ((item.habitId ?? '').trim().isEmpty)
+                                  ? 'Habit'
+                                  : 'Habit ✓',
+                            ),
                             onPressed: () => _convertToHabit(context, item),
-                            onDeleted: ((item.habitId ?? '').trim().isEmpty) ? null : () => _unlinkHabit(item),
+                            onDeleted: ((item.habitId ?? '').trim().isEmpty)
+                                ? null
+                                : () => _unlinkHabit(item),
                             deleteIcon: const Icon(Icons.close),
                           ),
                         ],
@@ -278,4 +297,3 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
     );
   }
 }
-

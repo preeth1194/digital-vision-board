@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../utils/progress_growth_image.dart';
 
 /// Shows a stage PNG by default and plays the matching stage GIF on tap.
+/// Optionally can render GIF as the default frame.
 class InteractiveProgressGrowthImage extends StatefulWidget {
   final double progress;
   final double width;
   final double height;
   final BoxFit fit;
   final Duration gifDisplayDuration;
+  final bool useGifAsDefault;
 
   const InteractiveProgressGrowthImage({
     super.key,
@@ -17,6 +19,7 @@ class InteractiveProgressGrowthImage extends StatefulWidget {
     required this.height,
     this.fit = BoxFit.contain,
     this.gifDisplayDuration = const Duration(milliseconds: 1200),
+    this.useGifAsDefault = false,
   });
 
   @override
@@ -59,7 +62,7 @@ class _InteractiveProgressGrowthImageState
         height: widget.height,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 120),
-          child: _showGif
+          child: (_showGif || widget.useGifAsDefault)
               ? Image.asset(
                   _gifAsset,
                   key: ValueKey<String>(_gifAsset),

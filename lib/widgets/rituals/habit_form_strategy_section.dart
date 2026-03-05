@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +10,37 @@ import '../../models/habit_item.dart';
 import '../../services/icon_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
+
+void _debugLogStepForm({
+  required String runId,
+  required String hypothesisId,
+  required String location,
+  required String message,
+  required Map<String, dynamic> data,
+}) {
+  final payload = <String, dynamic>{
+    'sessionId': '7739ce',
+    'runId': runId,
+    'hypothesisId': hypothesisId,
+    'location': location,
+    'message': message,
+    'data': data,
+    'timestamp': DateTime.now().millisecondsSinceEpoch,
+  };
+  () async {
+    try {
+      final client = HttpClient();
+      final req = await client.postUrl(
+        Uri.parse('http://127.0.0.1:7242/ingest/374160e6-9662-46f2-a15d-93097c3f6383'),
+      );
+      req.headers.set('Content-Type', 'application/json');
+      req.headers.set('X-Debug-Session-Id', '7739ce');
+      req.add(utf8.encode(jsonEncode(payload)));
+      await req.close();
+      client.close(force: true);
+    } catch (_) {}
+  }();
+}
 
 // --- STEP 6: ACTION STEPS ---
 class Step6Strategy extends StatefulWidget {
@@ -55,13 +89,132 @@ class Step6Strategy extends StatefulWidget {
 }
 
 class _Step6StrategyState extends State<Step6Strategy> {
+  static const int _allPlannerDays = 0;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _showSuggestions = false;
+  bool _plannerMode = false;
+  int _selectedPlannerWeek = 1;
+  int _selectedPlannerDay = DateTime.monday;
+  bool _loggedPlannerBucketSnapshot = false;
+  bool _loggedPlannerBucketFilter = false;
+
+  static const List<(int, String)> _plannerWeekOptions = [
+    (1, 'Week 1'),
+    (2, 'Week 2'),
+    (3, 'Week 3'),
+  ];
+  static const List<(int, String)> _plannerDayOptions = [
+    (DateTime.monday, 'Mon'),
+    (DateTime.tuesday, 'Tue'),
+    (DateTime.wednesday, 'Wed'),
+    (DateTime.thursday, 'Thu'),
+    (DateTime.friday, 'Fri'),
+    (DateTime.saturday, 'Sat'),
+    (DateTime.sunday, 'Sun'),
+  ];
+  static const List<(int, String)> _plannerDayFilterOptions = [
+    (_allPlannerDays, 'All'),
+    (DateTime.monday, 'Mon'),
+    (DateTime.tuesday, 'Tue'),
+    (DateTime.wednesday, 'Wed'),
+    (DateTime.thursday, 'Thu'),
+    (DateTime.friday, 'Fri'),
+    (DateTime.saturday, 'Sat'),
+    (DateTime.sunday, 'Sun'),
+  ];
+
+  bool _hasPlannerMetadata(List<HabitActionStep> steps) {
+    final hasPlannerSchedule = steps.any((s) => s.hasPlannerSchedule);
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run2',
+      hypothesisId: 'H6',
+      location: 'habit_form_strategy_section.dart:_hasPlannerMetadata',
+      message: 'Planner metadata detection result',
+      data: {
+        'stepsCount': steps.length,
+        'hasPlannerSchedule': hasPlannerSchedule,
+        'sample': steps.take(3).map((s) {
+          return {
+            'id': s.id,
+            'plannerDay': s.plannerDay,
+            'plannerWeek': s.plannerWeek,
+            'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
+            'normalizedPlannerWeek': s.normalizedPlannerWeek,
+            'hasPlannerSchedule': s.hasPlannerSchedule,
+          };
+        }).toList(),
+      },
+    );
+    // #endregion
+    return hasPlannerSchedule;
+  }
+
+  String _plannerDayKey(int weekday) {
+    if (weekday == _allPlannerDays) {
+      return 'mon';
+    }
+    switch (weekday) {
+      case DateTime.monday:
+        return 'mon';
+      case DateTime.tuesday:
+        return 'tue';
+      case DateTime.wednesday:
+        return 'wed';
+      case DateTime.thursday:
+        return 'thu';
+      case DateTime.friday:
+        return 'fri';
+      case DateTime.saturday:
+        return 'sat';
+      case DateTime.sunday:
+      default:
+        return 'sun';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _plannerMode = _hasPlannerMetadata(widget.actionSteps);
+    if (_plannerMode) {
+      final distinctWeekdays = widget.actionSteps
+          .map((s) => s.normalizedPlannerWeekday)
+          .whereType<int>()
+          .toSet();
+      if (distinctWeekdays.length > 1) {
+        _selectedPlannerDay = _allPlannerDays;
+      }
+    }
+    final initialBucketCount = widget.actionSteps.where((step) {
+      final weekMatches = step.normalizedPlannerWeek == null ||
+          step.normalizedPlannerWeek == _selectedPlannerWeek;
+      final dayMatches = _selectedPlannerDay == _allPlannerDays ||
+          step.normalizedPlannerWeekday == null ||
+          step.normalizedPlannerWeekday == _selectedPlannerDay;
+      return weekMatches && dayMatches;
+    }).length;
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run5',
+      hypothesisId: 'H11',
+      location: 'habit_form_strategy_section.dart:initState',
+      message: 'Step6Strategy initialized planner mode',
+      data: {
+        'plannerMode': _plannerMode,
+        'actionStepsCount': widget.actionSteps.length,
+        'selectedPlannerWeek': _selectedPlannerWeek,
+        'selectedPlannerDay': _selectedPlannerDay,
+        'initialBucketCount': initialBucketCount,
+        'plannerDayValues': widget.actionSteps
+            .map((s) => (s.plannerDay ?? '').trim())
+            .where((v) => v.isNotEmpty)
+            .toSet()
+            .toList(),
+      },
+    );
+    // #endregion
     if (widget.anchorHabitText.isNotEmpty) {
       _searchController.text = widget.anchorHabitText;
     }
@@ -75,6 +228,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
   @override
   void didUpdateWidget(covariant Step6Strategy oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.actionSteps != oldWidget.actionSteps &&
+        !_plannerMode &&
+        _hasPlannerMetadata(widget.actionSteps)) {
+      _plannerMode = true;
+    }
     if (widget.anchorHabitText != oldWidget.anchorHabitText &&
         widget.anchorHabitText != _searchController.text) {
       _searchController.text = widget.anchorHabitText;
@@ -149,22 +307,26 @@ class _Step6StrategyState extends State<Step6Strategy> {
         title: '',
         iconCodePoint: Icons.check_circle_outline.codePoint,
         order: steps.length,
+        plannerWeek: _plannerMode ? _selectedPlannerWeek : null,
+        plannerDay: _plannerMode ? _plannerDayKey(_selectedPlannerDay) : null,
       ),
     );
     widget.onActionStepsChanged(steps);
   }
 
-  void _deleteStep(int index) {
+  void _deleteStepById(String stepId) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    steps.removeAt(index);
+    steps.removeWhere((step) => step.id == stepId);
     for (int i = 0; i < steps.length; i++) {
       steps[i] = steps[i].copyWith(order: i);
     }
     widget.onActionStepsChanged(steps);
   }
 
-  void _updateStep(int index, HabitActionStep updatedStep) {
+  void _updateStepById(String stepId, HabitActionStep updatedStep) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
+    final index = steps.indexWhere((step) => step.id == stepId);
+    if (index < 0) return;
     final computedTitle = updatedStep.displayTitle;
     final newIcon = computedTitle.trim().isNotEmpty
         ? IconService.getIconCodePointForTitle(computedTitle.trim())
@@ -243,6 +405,182 @@ class _Step6StrategyState extends State<Step6Strategy> {
     );
   }
 
+  Widget _buildPlanningModeToggle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: CupertinoSlidingSegmentedControl<bool>(
+        groupValue: _plannerMode,
+        children: const {
+          false: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Simple Steps'),
+          ),
+          true: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Planner Mode'),
+          ),
+        },
+        onValueChanged: (value) {
+          if (value == null) return;
+          setState(() {
+            _plannerMode = value;
+          });
+          final steps = List<HabitActionStep>.from(widget.actionSteps);
+          var changed = false;
+          for (var i = 0; i < steps.length; i++) {
+            if (!value && steps[i].hasPlannerSchedule) {
+              steps[i] = steps[i].copyWith(
+                clearPlannerWeek: true,
+                clearPlannerDay: true,
+              );
+              changed = true;
+              continue;
+            }
+            if (value && !steps[i].hasPlannerSchedule) {
+              steps[i] = steps[i].copyWith(
+                plannerWeek: _selectedPlannerWeek,
+                plannerDay: _plannerDayKey(_selectedPlannerDay),
+              );
+              changed = true;
+            }
+          }
+          if (changed) {
+            widget.onActionStepsChanged(steps);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlannerBucketSelector() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              value: _selectedPlannerWeek,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Tracker Week',
+              ),
+              items: _plannerWeekOptions
+                  .map(
+                    (option) => DropdownMenuItem<int>(
+                      value: option.$1,
+                      child: Text(option.$2),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                // #region agent log
+                _debugLogStepForm(
+                  runId: 'run6',
+                  hypothesisId: 'H12',
+                  location: 'habit_form_strategy_section.dart:_buildPlannerBucketSelector',
+                  message: 'Tracker week selector changed',
+                  data: {
+                    'previousSelectedPlannerWeek': _selectedPlannerWeek,
+                    'nextSelectedPlannerWeek': value,
+                    'selectedPlannerDay': _selectedPlannerDay,
+                    'stepsCount': widget.actionSteps.length,
+                  },
+                );
+                // #endregion
+                setState(() => _selectedPlannerWeek = value);
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              value: _selectedPlannerDay,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Weekday',
+              ),
+              items: _plannerDayFilterOptions
+                  .map(
+                    (option) => DropdownMenuItem<int>(
+                      value: option.$1,
+                      child: Text(option.$2),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedPlannerDay = value);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<HabitActionStep> get _plannerBucketSteps {
+    final bucket = widget.actionSteps
+        .where(
+          (step) {
+            final weekMatches = step.normalizedPlannerWeek == null ||
+                step.normalizedPlannerWeek == _selectedPlannerWeek;
+            final dayMatches = _selectedPlannerDay == _allPlannerDays ||
+                step.normalizedPlannerWeekday == null ||
+                step.normalizedPlannerWeekday == _selectedPlannerDay;
+            return weekMatches && dayMatches;
+          },
+        )
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    if (!_loggedPlannerBucketFilter) {
+      _loggedPlannerBucketFilter = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run4',
+        hypothesisId: 'H8',
+        location: 'habit_form_strategy_section.dart:_plannerBucketSteps',
+        message: 'Planner bucket filter result',
+        data: {
+          'bucketFilterVersion': 'wildcard_v2',
+          'selectedPlannerWeek': _selectedPlannerWeek,
+          'selectedPlannerDay': _selectedPlannerDay,
+          'totalSteps': widget.actionSteps.length,
+          'bucketCount': bucket.length,
+          'selectedStepsPlannerWeeks': bucket
+              .map((s) => s.normalizedPlannerWeek)
+              .toSet()
+              .toList(),
+          'firstStepEvaluation': widget.actionSteps.isEmpty
+              ? null
+              : {
+                  'weekMatches': widget.actionSteps.first.normalizedPlannerWeek ==
+                          null ||
+                      widget.actionSteps.first.normalizedPlannerWeek ==
+                          _selectedPlannerWeek,
+                  'dayMatches': _selectedPlannerDay == _allPlannerDays ||
+                      widget.actionSteps.first.normalizedPlannerWeekday ==
+                          null ||
+                      widget.actionSteps.first.normalizedPlannerWeekday ==
+                          _selectedPlannerDay,
+                },
+          'sample': widget.actionSteps.take(5).map((s) {
+            return {
+              'id': s.id,
+              'title': s.title,
+              'plannerDay': s.plannerDay,
+              'plannerWeek': s.plannerWeek,
+              'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
+              'normalizedPlannerWeek': s.normalizedPlannerWeek,
+            };
+          }).toList(),
+        },
+      );
+      // #endregion
+    }
+    return bucket;
+  }
+
   void _reorderSteps(int oldIndex, int newIndex) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
     if (newIndex > oldIndex) newIndex--;
@@ -257,6 +595,29 @@ class _Step6StrategyState extends State<Step6Strategy> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    if (_plannerMode && !_loggedPlannerBucketSnapshot) {
+      _loggedPlannerBucketSnapshot = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run4',
+        hypothesisId: 'H9',
+        location: 'habit_form_strategy_section.dart:build',
+        message: 'Planner mode first render snapshot',
+        data: {
+          'bucketFilterVersion': 'wildcard_v2',
+          'plannerMode': _plannerMode,
+          'selectedPlannerWeek': _selectedPlannerWeek,
+          'selectedPlannerDay': _selectedPlannerDay,
+          'actionStepsCount': widget.actionSteps.length,
+          'plannerDayValues': widget.actionSteps
+              .map((s) => (s.plannerDay ?? '').trim())
+              .where((v) => v.isNotEmpty)
+              .toSet()
+              .toList(),
+        },
+      );
+      // #endregion
+    }
 
     return CupertinoListSection.insetGrouped(
       header: Text(
@@ -292,8 +653,10 @@ class _Step6StrategyState extends State<Step6Strategy> {
           onTap: null,
         ),
         if (widget.actionStepsEnabled) ...[
+          _buildPlanningModeToggle(),
+          if (_plannerMode) _buildPlannerBucketSelector(),
           _buildStepOptionsRow(colorScheme),
-          if (widget.actionSteps.isNotEmpty)
+          if (!_plannerMode && widget.actionSteps.isNotEmpty)
             ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -318,8 +681,8 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   step: step,
                   stepNumber: index + 1,
                   colorScheme: colorScheme,
-                  onChanged: (nextStep) => _updateStep(index, nextStep),
-                  onDelete: () => _deleteStep(index),
+                  onChanged: (nextStep) => _updateStepById(step.id, nextStep),
+                  onDelete: () => _deleteStepById(step.id),
                   reorderIndex: index,
                   trailing: index == widget.actionSteps.length - 1
                       ? _buildInlineAddButton(colorScheme)
@@ -327,8 +690,78 @@ class _Step6StrategyState extends State<Step6Strategy> {
                 );
               },
             )
+          else if (_plannerMode && _plannerBucketSteps.isNotEmpty)
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _plannerBucketSteps.length,
+              itemBuilder: (context, index) {
+                final step = _plannerBucketSteps[index];
+                return _ActionStepTile(
+                  key: ValueKey(step.id),
+                  step: step,
+                  stepNumber: index + 1,
+                  colorScheme: colorScheme,
+                  onChanged: (nextStep) => _updateStepById(step.id, nextStep),
+                  onDelete: () => _deleteStepById(step.id),
+                  reorderIndex: index,
+                  showPlannerControls: true,
+                  plannerWeekOptions: _plannerWeekOptions,
+                  plannerDayOptions: _plannerDayOptions,
+                  onPlannerWeekChanged: (week) {
+                    // #region agent log
+                    _debugLogStepForm(
+                      runId: 'run6',
+                      hypothesisId: 'H14',
+                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
+                      message: 'Per-step planner week changed',
+                      data: {
+                        'stepId': step.id,
+                        'previousPlannerWeek': step.plannerWeek,
+                        'nextPlannerWeek': week,
+                      },
+                    );
+                    // #endregion
+                    _updateStepById(step.id, step.copyWith(plannerWeek: week));
+                  },
+                  onPlannerDayChanged: (weekday) {
+                    // #region agent log
+                    _debugLogStepForm(
+                      runId: 'run6',
+                      hypothesisId: 'H14',
+                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
+                      message: 'Per-step planner day changed',
+                      data: {
+                        'stepId': step.id,
+                        'previousPlannerDay': step.plannerDay,
+                        'nextPlannerDay': _plannerDayKey(weekday),
+                      },
+                    );
+                    // #endregion
+                    _updateStepById(
+                      step.id,
+                      step.copyWith(plannerDay: _plannerDayKey(weekday)),
+                    );
+                  },
+                  plannerWeekFallback: _selectedPlannerWeek,
+                  trailing: index == _plannerBucketSteps.length - 1
+                      ? _buildInlineAddButton(colorScheme)
+                      : null,
+                );
+              },
+            )
           else
-            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _plannerMode
+                    ? 'No steps for this week/day bucket yet.'
+                    : 'Add at least one action step.',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           if (widget.actionStepsError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -682,6 +1115,12 @@ class _ActionStepTile extends StatefulWidget {
   final VoidCallback onDelete;
   final int reorderIndex;
   final Widget? trailing;
+  final bool showPlannerControls;
+  final List<(int, String)> plannerWeekOptions;
+  final List<(int, String)> plannerDayOptions;
+  final ValueChanged<int>? onPlannerWeekChanged;
+  final ValueChanged<int>? onPlannerDayChanged;
+  final int plannerWeekFallback;
 
   const _ActionStepTile({
     super.key,
@@ -692,6 +1131,12 @@ class _ActionStepTile extends StatefulWidget {
     required this.onDelete,
     required this.reorderIndex,
     this.trailing,
+    this.showPlannerControls = false,
+    this.plannerWeekOptions = const [],
+    this.plannerDayOptions = const [],
+    this.onPlannerWeekChanged,
+    this.onPlannerDayChanged,
+    this.plannerWeekFallback = 1,
   });
 
   @override
@@ -701,19 +1146,46 @@ class _ActionStepTile extends StatefulWidget {
 class _ActionStepTileState extends State<_ActionStepTile> {
   late TextEditingController _stepLabelController;
   late TextEditingController _notesController;
+  bool _loggedWeekRender = false;
+
+  String _seedStepTitle(HabitActionStep step) {
+    final preferred = step.displayTitle.trim();
+    if (preferred.isNotEmpty) return preferred;
+    return (step.stepLabel ?? '').trim();
+  }
 
   @override
   void initState() {
     super.initState();
-    _stepLabelController = TextEditingController(text: widget.step.stepLabel ?? '');
+    final seededTitle = _seedStepTitle(widget.step);
+    _stepLabelController = TextEditingController(text: seededTitle);
     _notesController = TextEditingController(text: widget.step.notes ?? '');
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run1',
+      hypothesisId: 'H4',
+      location: 'habit_form_strategy_section.dart:_ActionStepTileState.initState',
+      message: 'Planner tile initialized with source fields',
+      data: {
+        'stepId': widget.step.id,
+        'title': widget.step.title,
+        'displayTitle': widget.step.displayTitle,
+        'stepLabel': widget.step.stepLabel,
+        'seededInputTitle': seededTitle,
+        'productName': widget.step.productName,
+        'notes': widget.step.notes,
+        'plannerDay': widget.step.plannerDay,
+        'plannerWeek': widget.step.plannerWeek,
+      },
+    );
+    // #endregion
   }
 
   @override
   void didUpdateWidget(_ActionStepTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.step.id != widget.step.id) {
-      _stepLabelController.text = widget.step.stepLabel ?? '';
+      _stepLabelController.text = _seedStepTitle(widget.step);
       _notesController.text = widget.step.notes ?? '';
     }
   }
@@ -726,6 +1198,21 @@ class _ActionStepTileState extends State<_ActionStepTile> {
   }
 
   void _emitChange() {
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run1',
+      hypothesisId: 'H5',
+      location: 'habit_form_strategy_section.dart:_ActionStepTileState._emitChange',
+      message: 'Step emit change before clearing product fields',
+      data: {
+        'stepId': widget.step.id,
+        'typedStepLabel': _stepLabelController.text,
+        'typedNotes': _notesController.text,
+        'existingProductType': widget.step.productType,
+        'existingProductName': widget.step.productName,
+      },
+    );
+    // #endregion
     widget.onChanged(
       widget.step.copyWith(
         stepLabel: _stepLabelController.text,
@@ -740,6 +1227,30 @@ class _ActionStepTileState extends State<_ActionStepTile> {
   @override
   Widget build(BuildContext context) {
     final cs = widget.colorScheme;
+    final selectedWeek =
+        widget.step.normalizedPlannerWeek ?? widget.plannerWeekFallback;
+    final selectedDay = widget.step.normalizedPlannerWeekday ?? DateTime.monday;
+    if (widget.showPlannerControls && !_loggedWeekRender) {
+      _loggedWeekRender = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run6',
+        hypothesisId: 'H13',
+        location: 'habit_form_strategy_section.dart:_ActionStepTileState.build',
+        message: 'Planner step row rendered with week/day values',
+        data: {
+          'stepId': widget.step.id,
+          'stepTitle': widget.step.displayTitle,
+          'rawPlannerWeek': widget.step.plannerWeek,
+          'normalizedPlannerWeek': widget.step.normalizedPlannerWeek,
+          'renderedSelectedWeek': selectedWeek,
+          'rawPlannerDay': widget.step.plannerDay,
+          'normalizedPlannerWeekday': widget.step.normalizedPlannerWeekday,
+          'renderedSelectedDay': selectedDay,
+        },
+      );
+      // #endregion
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -782,7 +1293,9 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                   maxLength: 40,
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    hintText: 'Step/day label (e.g. 1, Monday)',
+                    hintText: widget.showPlannerControls
+                        ? 'Action step title'
+                        : 'Step/day label (e.g. 1, Monday)',
                     hintStyle: AppTypography.body(context).copyWith(
                       color: cs.onSurfaceVariant.withValues(alpha: 0.55),
                     ),
@@ -809,6 +1322,56 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               if (widget.trailing != null) widget.trailing!,
             ],
           ),
+          if (widget.showPlannerControls) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: selectedWeek,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Week',
+                    ),
+                    items: widget.plannerWeekOptions
+                        .map(
+                          (option) => DropdownMenuItem<int>(
+                            value: option.$1,
+                            child: Text(option.$2),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      widget.onPlannerWeekChanged?.call(value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: selectedDay,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Day',
+                    ),
+                    items: widget.plannerDayOptions
+                        .map(
+                          (option) => DropdownMenuItem<int>(
+                            value: option.$1,
+                            child: Text(option.$2),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      widget.onPlannerDayChanged?.call(value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
           TextField(
             controller: _notesController,
             maxLength: 180,

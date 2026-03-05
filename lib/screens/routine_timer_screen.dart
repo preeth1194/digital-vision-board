@@ -41,7 +41,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
   // Track which steps are completed locally (by step id)
   final Set<String> _completedStepIds = {};
 
-  List<HabitActionStep> get _steps => _habit.actionSteps;
+  List<HabitActionStep> get _steps => _habit.activeActionStepsForDate(DateTime.now());
 
   bool get _hasTimer {
     final tb = _habit.timeBound;

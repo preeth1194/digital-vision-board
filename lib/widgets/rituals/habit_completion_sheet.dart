@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
 import '../../services/coins_service.dart';
 import '../../utils/app_colors.dart';
@@ -143,12 +144,15 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
       widget.habit.trackingSpec != null && widget.habit.trackingSpec!.enabled;
 
   bool get _showSteps =>
-      widget.isFullHabit && widget.habit.actionSteps.isNotEmpty;
+      widget.isFullHabit && _activeSteps.isNotEmpty;
+
+  List<HabitActionStep> get _activeSteps =>
+      widget.habit.activeActionStepsForDate(DateTime.now());
 
   int get _totalCoins {
     final stepBonus = CoinsService.calculateStepBonus(
       _completedStepIds.length,
-      widget.habit.actionSteps.length,
+      _activeSteps.length,
     );
     final hasMedia = _audioPath != null || _imagePaths.isNotEmpty;
     final mediaBonus = CoinsService.calculateMediaBonus(hasMedia);
@@ -158,7 +162,10 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
   @override
   void initState() {
     super.initState();
-    _completedStepIds.addAll(widget.preSelectedStepIds);
+    final activeIds = _activeSteps.map((s) => s.id).toSet();
+    _completedStepIds.addAll(
+      widget.preSelectedStepIds.where((id) => activeIds.contains(id)),
+    );
   }
 
   @override
@@ -298,7 +305,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
           if (_showSteps) ...[
             const SizedBox(height: 20),
             _ActionStepsChecklist(
-              steps: widget.habit.actionSteps,
+              steps: _activeSteps,
               completedIds: _completedStepIds,
               onToggle: _toggleStep,
             ),
@@ -526,7 +533,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
 // =============================================================================
 
 class _ActionStepsChecklist extends StatelessWidget {
-  final List steps;
+  final List<HabitActionStep> steps;
   final Set<String> completedIds;
   final ValueChanged<String> onToggle;
 
@@ -539,7 +546,8 @@ class _ActionStepsChecklist extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final sorted = List.of(steps)..sort((a, b) => a.order.compareTo(b.order));
+    final sorted = List<HabitActionStep>.of(steps)
+      ..sort((a, b) => a.order.compareTo(b.order));
 
     return Container(
       decoration: BoxDecoration(
@@ -569,7 +577,7 @@ class _ActionStepsChecklist extends StatelessWidget {
 }
 
 class _StepTile extends StatelessWidget {
-  final dynamic step;
+  final HabitActionStep step;
   final bool isChecked;
   final VoidCallback onTap;
 

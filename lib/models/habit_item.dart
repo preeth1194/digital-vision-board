@@ -575,6 +575,16 @@ class HabitItem {
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  /// 3-week monthly tracker cycle:
+  /// - Days 1-7 => Week 1
+  /// - Days 8-14 => Week 2
+  /// - Days 15-21 => Week 3
+  /// - Days 22-31 => Week 1 (repeat)
+  static int trackerWeekForDate(DateTime date) {
+    final weekOfMonth = ((date.day - 1) ~/ 7) + 1;
+    return ((weekOfMonth - 1) % 3) + 1;
+  }
+
   static DateTime _weekStartMonday(DateTime date) {
     final d = _dateOnly(date);
     final delta = d.weekday - DateTime.monday; // monday=1
@@ -588,6 +598,22 @@ class HabitItem {
   bool isScheduledOnDate(DateTime date) {
     if (!hasWeeklySchedule) return true;
     return weeklyDays.contains(_dateOnly(date).weekday);
+  }
+
+  List<HabitActionStep> activeActionStepsForDate(DateTime date) {
+    if (actionSteps.isEmpty) return const <HabitActionStep>[];
+    final targetDate = _dateOnly(date);
+    final trackerWeek = trackerWeekForDate(targetDate);
+    final hasPlannerSteps = actionSteps.any((s) => s.hasPlannerSchedule);
+    if (!hasPlannerSteps) {
+      return List<HabitActionStep>.from(actionSteps)
+        ..sort((a, b) => a.order.compareTo(b.order));
+    }
+    final filtered = actionSteps
+        .where((step) => step.appliesToDate(date: targetDate, trackerWeek: trackerWeek))
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return filtered;
   }
 
   /// Get the current streak count (consecutive days from today backwards)

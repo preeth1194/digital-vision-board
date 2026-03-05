@@ -638,14 +638,20 @@ class SkincarePlanner {
         nextMap[day] = dayPlan.copyWith(
           morningSourceId: !morningRoutineEnabled
               ? null
-              : (morningSetIds.contains(dayPlan.morningSourceId)
-                    ? dayPlan.morningSourceId
-                    : resolvedMorningSets.first.id),
+              : ((dayPlan.morningSourceId == null ||
+                        (dayPlan.morningSourceId ?? '').trim().isEmpty)
+                    ? null
+                    : (morningSetIds.contains(dayPlan.morningSourceId)
+                          ? dayPlan.morningSourceId
+                          : resolvedMorningSets.first.id)),
           eveningSourceId: !eveningRoutineEnabled
               ? null
-              : (eveningSetIds.contains(dayPlan.eveningSourceId)
-                    ? dayPlan.eveningSourceId
-                    : resolvedEveningSets.first.id),
+              : ((dayPlan.eveningSourceId == null ||
+                        (dayPlan.eveningSourceId ?? '').trim().isEmpty)
+                    ? null
+                    : (eveningSetIds.contains(dayPlan.eveningSourceId)
+                          ? dayPlan.eveningSourceId
+                          : resolvedEveningSets.first.id)),
         );
       }
       return plan.copyWith(weeklyPlanByDay: nextMap);

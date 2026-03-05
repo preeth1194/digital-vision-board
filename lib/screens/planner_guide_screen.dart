@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -7,9 +8,12 @@ import '../models/action_step_template.dart';
 import '../models/habit_action_step.dart';
 import '../models/habit_item.dart';
 import '../models/skincare_planner.dart';
-import '../screens/meal_prep/meal_prep_week_screen.dart';
+import '../presets/models/preset_preview_section.dart';
+import '../presets/models/preset_template_config.dart';
+import '../presets/preset_route_registry.dart';
+import '../presets/services/skincare_preset_compiler.dart';
+import '../presets/widgets/preset_template_screen.dart';
 import '../screens/presets/preset_shop_screen.dart';
-import '../screens/skincare/skincare_planner_screen.dart';
 import '../services/action_templates_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
@@ -26,6 +30,16 @@ class PlannerGuideScreen extends StatefulWidget {
 }
 
 class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
+  void _debugLog({
+    required String runId,
+    required String hypothesisId,
+    required String location,
+    required String message,
+    required Map<String, dynamic> data,
+  }) {
+    // Debug instrumentation removed.
+  }
+
   bool _loading = true;
   String? _error;
   List<ActionStepTemplate> _templates = const [];
@@ -33,6 +47,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   double _scrollOffset = 0;
   String _categorySearchQuery = '';
   String? _expandedCategory;
+  int? _liveSkincareGuideStepCount;
+  String? _liveSkincarePresetTitle;
+  _PlannerGuideOverlayData? _activeGuideOverlay;
+  Completer<String?>? _guideOverlayCompleter;
 
   @override
   void initState() {
@@ -42,31 +60,103 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   Future<void> _load() async {
     final habits = await HabitStorageService.loadAll();
+    final planner = await SkincarePlannerStorageService.loadOrDefault();
+    final liveWeeklyPlan =
+        SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(planner);
+    final liveMorning = SkincarePresetCompiler.buildHabitPartsFromPlanner(
+      planner: planner,
+      weeklyPlan: liveWeeklyPlan,
+      morning: true,
+    );
+    final liveEvening = SkincarePresetCompiler.buildHabitPartsFromPlanner(
+      planner: planner,
+      weeklyPlan: liveWeeklyPlan,
+      morning: false,
+    );
+    final liveSkincareStepCount =
+        liveMorning.steps.length + liveEvening.steps.length;
+    final liveSkincarePresetTitle = planner.title.trim().isEmpty
+        ? null
+        : planner.title.trim();
     try {
       final token = await DvAuthService.getDvToken();
       List<ActionStepTemplate> templates;
+      String source;
       if (token == null) {
         templates = _fallbackTemplates();
+        source = 'fallback_no_token';
       } else {
         templates = await ActionTemplatesService.listApproved(dvToken: token);
-        if (templates.isEmpty) templates = _fallbackTemplates();
+        source = 'cloud';
+        if (templates.isEmpty) {
+          templates = _fallbackTemplates();
+          source = 'fallback_empty_cloud';
+        }
       }
+      // #region agent log
+      _debugLog(
+        runId: 'run8',
+        hypothesisId: 'H16',
+        location: 'planner_guide_screen.dart:_load',
+        message: 'Planner guide templates loaded',
+        data: {
+          'source': source,
+          'templatesCount': templates.length,
+          'sampleTemplateIds': templates.take(5).map((t) => t.id).toList(),
+          'sampleTemplateVersions': templates
+              .take(5)
+              .map((t) => {'id': t.id, 'version': t.templateVersion})
+              .toList(),
+        },
+      );
+      // #endregion
       if (!mounted) return;
       setState(() {
         _existingHabits = habits;
         _templates = templates;
+        _liveSkincareGuideStepCount = liveSkincareStepCount;
+        _liveSkincarePresetTitle = liveSkincarePresetTitle;
         _loading = false;
         _error = null;
       });
     } catch (e) {
+      // #region agent log
+      _debugLog(
+        runId: 'run8',
+        hypothesisId: 'H16',
+        location: 'planner_guide_screen.dart:_load',
+        message: 'Planner guide cloud load failed, using fallback',
+        data: {'error': e.toString()},
+      );
+      // #endregion
       if (!mounted) return;
       setState(() {
         _existingHabits = habits;
         _templates = _fallbackTemplates();
+        _liveSkincareGuideStepCount = liveSkincareStepCount;
+        _liveSkincarePresetTitle = liveSkincarePresetTitle;
         _loading = false;
         _error = 'Could not load cloud templates. Showing defaults.';
       });
     }
+  }
+
+  String _guideSummaryText(ActionStepTemplate? guide) {
+    if (guide == null) return 'Try again after refresh.';
+    if (guide.category == ActionTemplateCategory.skincare &&
+        _liveSkincareGuideStepCount != null) {
+      return '${_liveSkincareGuideStepCount!} action steps';
+    }
+    return '${guide.steps.length} action steps';
+  }
+
+  String _guideTitleText(ActionStepTemplate? guide) {
+    if (guide == null) return 'No preset available';
+    if (guide.category == ActionTemplateCategory.skincare) {
+      final live = (_liveSkincarePresetTitle ?? '').trim();
+      if (live.isNotEmpty) return live;
+    }
+    return guide.name;
   }
 
   List<ActionStepTemplate> _fallbackTemplates() {
@@ -80,7 +170,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       required String setKey,
       Map<String, dynamic> metadata = const {},
     }) {
-      final resolvedSteps = structuredSteps ??
+      final resolvedSteps =
+          structuredSteps ??
           [
             for (int i = 0; i < steps.length; i++)
               HabitActionStep(
@@ -101,10 +192,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         status: ActionTemplateStatus.approved,
         createdByUserId: null,
         steps: resolvedSteps,
-        metadata: {
-          'habitCategory': habitCategory,
-          ...metadata,
-        },
+        metadata: {'habitCategory': habitCategory, ...metadata},
       );
     }
 
@@ -332,14 +420,27 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       t(
         id: 'default_mindfulness_guide',
         name: 'Mindfulness Reset Preset',
-        category: ActionTemplateCategory.skincare,
+        category: ActionTemplateCategory.workout,
         habitCategory: 'Mindfulness',
         setKey: 'default_set_beginner',
         steps: [
           'Breathing reset',
-          'Meditation',
+          'Body scan',
           'Gratitude note',
           'End-of-day reflection',
+        ],
+      ),
+      t(
+        id: 'default_mindfulness_meditation',
+        name: 'Meditation Focus Preset',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Mindfulness',
+        setKey: 'default_set_structured',
+        steps: [
+          'Settle posture',
+          'Breath awareness',
+          'Open monitoring',
+          'Journal one insight',
         ],
       ),
       t(
@@ -483,7 +584,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       if (skincareFirst.isNotEmpty) return skincareFirst.first;
     }
 
-    final categoryTemplates = _sortedTemplatesByPriority(_byHabitCategory(category));
+    final categoryTemplates = _sortedTemplatesByPriority(
+      _byHabitCategory(category),
+    );
     return categoryTemplates.isEmpty ? null : categoryTemplates.first;
   }
 
@@ -493,6 +596,28 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       return;
     }
     final habitCategory = _habitCategoryForTemplate(template);
+    // #region agent log
+    _debugLog(
+      runId: 'run1',
+      hypothesisId: 'H1',
+      location: 'planner_guide_screen.dart:_createHabitFromTemplate',
+      message: 'Template steps before opening Add Habit modal',
+      data: {
+        'templateId': template.id,
+        'stepsCount': template.steps.length,
+        'firstStep': template.steps.isEmpty
+            ? null
+            : {
+                'id': template.steps.first.id,
+                'title': template.steps.first.title,
+                'stepLabel': template.steps.first.stepLabel,
+                'productName': template.steps.first.productName,
+                'plannerDay': template.steps.first.plannerDay,
+                'plannerWeek': template.steps.first.plannerWeek,
+              },
+      },
+    );
+    // #endregion
     final request = await showAddHabitModal(
       context,
       existingHabits: _existingHabits,
@@ -514,79 +639,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     await _load();
   }
 
-  String _uniqueHabitName(String base, Set<String> takenLower) {
-    var candidate = base.trim().isEmpty ? 'Skincare Habit' : base.trim();
-    if (!takenLower.contains(candidate.toLowerCase())) {
-      takenLower.add(candidate.toLowerCase());
-      return candidate;
-    }
-    int n = 2;
-    while (takenLower.contains('$candidate ($n)'.toLowerCase())) {
-      n++;
-    }
-    final next = '$candidate ($n)';
-    takenLower.add(next.toLowerCase());
-    return next;
-  }
-
-  int? _weekdayFromPlannerDay(String plannerDay) {
-    final key = plannerDay.trim().toLowerCase();
-    if (key.contains('mon')) return DateTime.monday;
-    if (key.contains('tue')) return DateTime.tuesday;
-    if (key.contains('wed')) return DateTime.wednesday;
-    if (key.contains('thu')) return DateTime.thursday;
-    if (key.contains('fri')) return DateTime.friday;
-    if (key.contains('sat')) return DateTime.saturday;
-    if (key.contains('sun')) return DateTime.sunday;
-    return null;
-  }
-
-  ({List<HabitActionStep> steps, List<int> weekdays}) _buildSkincareHabitParts({
-    required List<HabitActionStep> source,
-    required String prefix,
-  }) {
-    final steps = <HabitActionStep>[];
-    final weekdays = <int>{};
-    for (int i = 0; i < source.length; i++) {
-      final s = source[i];
-      final weekday = _weekdayFromPlannerDay(s.plannerDay ?? '');
-      if ((s.plannerDay ?? '').toLowerCase().contains('daily')) {
-        weekdays.addAll(const [
-          DateTime.monday,
-          DateTime.tuesday,
-          DateTime.wednesday,
-          DateTime.thursday,
-          DateTime.friday,
-          DateTime.saturday,
-          DateTime.sunday,
-        ]);
-      } else if (weekday != null) {
-        weekdays.add(weekday);
-      }
-      steps.add(
-        s.copyWith(
-          id: '$prefix-${DateTime.now().microsecondsSinceEpoch}-$i',
-          order: i,
-        ),
-      );
-    }
-    return (
-      steps: steps,
-      weekdays: weekdays.isEmpty
-          ? const [
-              DateTime.monday,
-              DateTime.tuesday,
-              DateTime.wednesday,
-              DateTime.thursday,
-              DateTime.friday,
-              DateTime.saturday,
-              DateTime.sunday,
-            ]
-          : (weekdays.toList()..sort()),
-    );
-  }
-
-  Future<void> _createSkincareHabitsFromTemplate(ActionStepTemplate template) async {
+  Future<void> _createSkincareHabitsFromTemplate(
+    ActionStepTemplate template,
+  ) async {
     final planner = await SkincarePlannerStorageService.loadOrDefault();
     final morningEnabled = planner.morningRoutineEnabled;
     final eveningEnabled = planner.eveningRoutineEnabled;
@@ -598,64 +653,85 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       return;
     }
 
-    final morningSource = template.steps
-        .where((s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith('am'))
-        .toList();
-    final eveningSource = template.steps
-        .where((s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith('pm'))
-        .toList();
-    final morning = _buildSkincareHabitParts(
-      source: morningSource,
-      prefix: 'skincare-am',
+    final weeklyPlan = SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(
+      planner,
     );
-    final evening = _buildSkincareHabitParts(
-      source: eveningSource,
-      prefix: 'skincare-pm',
+    final morning = SkincarePresetCompiler.buildHabitPartsFromPlanner(
+      planner: planner,
+      weeklyPlan: weeklyPlan,
+      morning: true,
     );
+    final evening = SkincarePresetCompiler.buildHabitPartsFromPlanner(
+      planner: planner,
+      weeklyPlan: weeklyPlan,
+      morning: false,
+    );
+    // #region agent log
+    _debugLog(
+      runId: 'run7',
+      hypothesisId: 'H15',
+      location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
+      message:
+          'Skincare create uses template-derived weekdays vs planner weekly config',
+      data: {
+        'templateId': template.id,
+        'morningEnabled': morningEnabled,
+        'eveningEnabled': eveningEnabled,
+        'weeklyPlanIdUsed': weeklyPlan.id,
+        'morningBuiltSteps': morning.steps.length,
+        'eveningBuiltSteps': evening.steps.length,
+        'morningWeekdays': morning.weekdays,
+        'eveningWeekdays': evening.weekdays,
+        'plannerWeeklyAssignments': {
+          for (final day in SkincarePlanner.weekDays)
+            day: {
+              'morningSourceId':
+                  weeklyPlan.weeklyPlanByDay[day]?.morningSourceId,
+              'eveningSourceId':
+                  weeklyPlan.weeklyPlanByDay[day]?.eveningSourceId,
+            },
+        },
+        'morningNotesSample': morning.steps
+            .take(3)
+            .map((s) => s.notes)
+            .toList(),
+        'eveningNotesSample': evening.steps
+            .take(3)
+            .map((s) => s.notes)
+            .toList(),
+      },
+    );
+    // #endregion
 
-    final existing = await HabitStorageService.loadAll();
-    final taken = existing.map((h) => h.name.toLowerCase()).toSet();
-    final createdNames = <String>[];
-
-    if (morningEnabled && morning.steps.isNotEmpty) {
-      final name = _uniqueHabitName('${template.name} Morning', taken);
-      await HabitStorageService.addHabit(
-        HabitItem(
-          id: 'skincare-am-${DateTime.now().microsecondsSinceEpoch}',
-          name: name,
-          category: 'Health',
-          frequency: 'Weekly',
-          weeklyDays: morning.weekdays,
-          actionSteps: morning.steps,
-          completedDates: const [],
-        ),
-      );
-      createdNames.add(name);
-    }
-
-    if (eveningEnabled && evening.steps.isNotEmpty) {
-      final name = _uniqueHabitName('${template.name} Evening', taken);
-      await HabitStorageService.addHabit(
-        HabitItem(
-          id: 'skincare-pm-${DateTime.now().microsecondsSinceEpoch}',
-          name: name,
-          category: 'Health',
-          frequency: 'Weekly',
-          weeklyDays: evening.weekdays,
-          actionSteps: evening.steps,
-          completedDates: const [],
-        ),
-      );
-      createdNames.add(name);
-    }
+    final baseTitle = planner.title.trim().isEmpty
+        ? template.name
+        : planner.title.trim();
+    final createdNames = await SkincarePresetCompiler.createHabitsFromPlanner(
+      planner: planner,
+      baseTitle: baseTitle,
+      morningEnabled: morningEnabled,
+      eveningEnabled: eveningEnabled,
+    );
 
     if (createdNames.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No skincare steps available to create habits.')),
+        const SnackBar(
+          content: Text('No skincare steps available to create habits.'),
+        ),
       );
       return;
     }
+
+    // #region agent log
+    _debugLog(
+      runId: 'post-fix',
+      hypothesisId: 'H29',
+      location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
+      message: 'Planner guide created habit names summary',
+      data: {'createdCount': createdNames.length, 'createdNames': createdNames},
+    );
+    // #endregion
 
     widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
     if (!mounted) return;
@@ -696,9 +772,23 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _openGuidePreview(ActionStepTemplate template) async {
+    // Planner overlay is rendered inside Scaffold body, which already reserves
+    // bottom-nav space via _NavBarSpacer in DashboardScreen.
+    final navClearance = 0.0;
     var confirmMessage = 'This will create habits from the selected preset.';
+    final adapter = PresetRouteRegistry.adapterForTemplate(template);
+    final config = adapter.buildConfig(template);
+    final skincarePlanner = template.category == ActionTemplateCategory.skincare
+        ? await SkincarePlannerStorageService.loadOrDefault()
+        : null;
+    final resolvedPresetName =
+        template.category == ActionTemplateCategory.skincare
+        ? ((skincarePlanner?.title ?? '').trim().isNotEmpty
+              ? skincarePlanner!.title.trim()
+              : template.name)
+        : template.name;
     if (template.category == ActionTemplateCategory.skincare) {
-      final planner = await SkincarePlannerStorageService.loadOrDefault();
+      final planner = skincarePlanner!;
       final enabledCount =
           (planner.morningRoutineEnabled ? 1 : 0) +
           (planner.eveningRoutineEnabled ? 1 : 0);
@@ -708,201 +798,34 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       confirmMessage =
           'This will create $enabledCount ${enabledCount == 1 ? 'habit' : 'habits'} ($targetLabel) from the weekly plan associated with the current week of this month.';
     }
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final colorScheme = Theme.of(ctx).colorScheme;
-        final habitCategory = _habitCategoryForTemplate(template);
-        final morningSteps = template.steps
-            .where(
-              (s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith('am'),
-            )
-            .toList();
-        final eveningSteps = template.steps
-            .where(
-              (s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith('pm'),
-            )
-            .toList();
+    final previewSections = _previewSectionsForTemplate(
+      template: template,
+      config: config,
+      skincarePlanner: skincarePlanner,
+    );
 
-        Widget buildRoutinePreview({
-          required String title,
-          required IconData icon,
-          required List<HabitActionStep> steps,
-        }) {
-          return Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 18, color: colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${steps.length} ${steps.length == 1 ? 'step' : 'steps'}',
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                if (steps.isEmpty)
-                  Text(
-                    'No steps',
-                    style: Theme.of(
-                      ctx,
-                    ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                for (int i = 0; i < steps.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 11,
-                          backgroundColor: colorScheme.primary.withValues(alpha: 0.14),
-                          child: Text(
-                            '${i + 1}',
-                            style: Theme.of(ctx).textTheme.labelSmall,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            steps[i].displayTitle.isEmpty
-                                ? 'Step ${i + 1}'
-                                : steps[i].displayTitle,
-                            style: Theme.of(ctx).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-          child: _GlassSection(
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.auto_awesome_outlined,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          template.name,
-                          style: Theme.of(ctx).textTheme.titleMedium,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Edit preset',
-                        onPressed: () => Navigator.of(ctx).pop('edit'),
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      Chip(
-                        label: Text(habitCategory),
-                        side: BorderSide(color: colorScheme.outlineVariant),
-                      ),
-                      Chip(
-                        label: Text('${template.steps.length} steps'),
-                        side: BorderSide(color: colorScheme.outlineVariant),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          buildRoutinePreview(
-                            title: 'Morning Routine',
-                            icon: Icons.wb_sunny_outlined,
-                            steps: morningSteps,
-                          ),
-                          const SizedBox(height: 8),
-                          buildRoutinePreview(
-                            title: 'Evening Routine',
-                            icon: Icons.nights_stay_outlined,
-                            steps: eveningSteps,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(ctx).pop('close'),
-                          child: const Text('Close'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => Navigator.of(ctx).pop('create'),
-                          style: FilledButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text('Create habits'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    final action = await _showGuideOverlay(
+      _PlannerGuideOverlayData(
+        presetName: resolvedPresetName,
+        habitCategory: _habitCategoryForTemplate(template),
+        totalSteps: template.steps.length,
+        config: config,
+        previewSections: previewSections,
+        bottomInset: navClearance,
+      ),
     );
     if (!mounted || action == null || action == 'close') return;
     if (action == 'edit') {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => SkincarePlannerScreen(initialTemplate: template),
-        ),
-      );
+      final edited = await adapter.openEditor(context, template);
+      if (edited != null) {
+        setState(() {
+          _templates = _templates
+              .map((t) => t.id == edited.id ? edited : t)
+              .toList();
+        });
+        return;
+      }
+      await _load();
       return;
     }
     if (action == 'create') {
@@ -910,9 +833,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Create habits?'),
-          content: Text(
-            confirmMessage,
-          ),
+          content: Text(confirmMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -928,6 +849,126 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       if (confirmed != true) return;
       await _createHabitFromTemplate(template);
     }
+  }
+
+  Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
+    _guideOverlayCompleter?.complete('close');
+    _guideOverlayCompleter = Completer<String?>();
+    setState(() => _activeGuideOverlay = overlay);
+    return _guideOverlayCompleter!.future;
+  }
+
+  void _closeGuideOverlay(String action) {
+    if (_guideOverlayCompleter?.isCompleted == false) {
+      _guideOverlayCompleter!.complete(action);
+    }
+    if (mounted) {
+      setState(() => _activeGuideOverlay = null);
+    }
+  }
+
+  Widget _buildGuideOverlay() {
+    final overlay = _activeGuideOverlay;
+    if (overlay == null) return const SizedBox.shrink();
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => _closeGuideOverlay('close'),
+                  child: Container(color: Colors.black.withValues(alpha: 0.35)),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: PresetTemplateScreen(
+                  presetName: overlay.presetName,
+                  habitCategory: overlay.habitCategory,
+                  totalSteps: overlay.totalSteps,
+                  config: overlay.config,
+                  bottomInset: overlay.bottomInset,
+                  showBottomNotch: false,
+                  previewSections: overlay.previewSections,
+                  onClose: () => _closeGuideOverlay('close'),
+                  onEdit: overlay.config.allowEdit
+                      ? () => _closeGuideOverlay('edit')
+                      : null,
+                  onCreate: overlay.config.allowCreateHabits
+                      ? () => _closeGuideOverlay('create')
+                      : null,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<PresetPreviewSection> _previewSectionsForTemplate({
+    required ActionStepTemplate template,
+    required PresetTemplateConfig config,
+    required SkincarePlanner? skincarePlanner,
+  }) {
+    if (!config.sections.contains(PresetTemplateSection.routinePreview)) {
+      return const [];
+    }
+    if (config.supportsAmPmSplit) {
+      final weeklyPlan = skincarePlanner != null
+          ? SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(
+              skincarePlanner,
+            )
+          : null;
+      final morningSteps = skincarePlanner != null && weeklyPlan != null
+          ? SkincarePresetCompiler.buildHabitPartsFromPlanner(
+              planner: skincarePlanner,
+              weeklyPlan: weeklyPlan,
+              morning: true,
+            ).steps
+          : template.steps
+                .where(
+                  (s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith(
+                    'am',
+                  ),
+                )
+                .toList();
+      final eveningSteps = skincarePlanner != null && weeklyPlan != null
+          ? SkincarePresetCompiler.buildHabitPartsFromPlanner(
+              planner: skincarePlanner,
+              weeklyPlan: weeklyPlan,
+              morning: false,
+            ).steps
+          : template.steps
+                .where(
+                  (s) => (s.plannerDay ?? '').trim().toLowerCase().startsWith(
+                    'pm',
+                  ),
+                )
+                .toList();
+      return [
+        PresetPreviewSection(
+          title: 'Morning Routine',
+          icon: Icons.wb_sunny_outlined,
+          steps: morningSteps,
+        ),
+        PresetPreviewSection(
+          title: 'Evening Routine',
+          icon: Icons.nights_stay_outlined,
+          steps: eveningSteps,
+        ),
+      ];
+    }
+    return [
+      PresetPreviewSection(
+        title: 'Preset Steps',
+        icon: Icons.playlist_add_check_outlined,
+        steps: template.steps,
+      ),
+    ];
   }
 
   static const List<String> _habitCategoriesInOrder = [
@@ -978,15 +1019,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   List<String> get _filteredPlannerGuideCategories {
     final q = _categorySearchQuery.trim().toLowerCase();
     if (q.isEmpty) return _plannerGuideCategories;
-    return _plannerGuideCategories
-        .where((category) {
-          if (category.toLowerCase().contains(q)) return true;
-          final presetName =
-              _primaryGuideForPlannerCategory(category)?.name.toLowerCase() ??
-              '';
-          return presetName.contains(q);
-        })
-        .toList();
+    return _plannerGuideCategories.where((category) {
+      if (category.toLowerCase().contains(q)) return true;
+      final presetName = _guideTitleText(
+        _primaryGuideForPlannerCategory(category),
+      ).toLowerCase();
+      return presetName.contains(q);
+    }).toList();
   }
 
   String _categoryDescription(String category) {
@@ -1025,12 +1064,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
-    if (category == _mealPrepGuideCategory) {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const MealPrepWeekScreen()));
-      return;
-    }
     final guide = _primaryGuideForPlannerCategory(category);
     if (guide == null) return;
     await _openGuidePreview(guide);
@@ -1041,99 +1074,139 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final viewportHeight = MediaQuery.of(context).size.height;
     final visibleCategories = _filteredPlannerGuideCategories;
+    final healthGuide = _primaryGuideForPlannerCategory('Health');
+    // #region agent log
+    _debugLog(
+      runId: 'run14',
+      hypothesisId: 'H32',
+      location: 'planner_guide_screen.dart:build',
+      message: 'Planner card vs preview title source snapshot',
+      data: {
+        'healthTemplateName': healthGuide?.name,
+        'liveSkincarePresetTitle': _liveSkincarePresetTitle,
+        'healthCardDisplayTitle': _guideTitleText(healthGuide),
+      },
+    );
+    // #endregion
     final estimatedDeckHeight = visibleCategories.isEmpty
         ? 0.0
         : _categoryDeckCardHeight +
               ((visibleCategories.length - 1) * _categoryDeckPeekHeight);
-    return Scaffold(
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  if (notification.metrics.axis == Axis.vertical) {
-                    setState(() {
-                      _scrollOffset = notification.metrics.pixels;
-                    });
-                  }
-                  return false;
-                },
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                  children: [
-                    if (_error != null)
-                      _GlassSection(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.cloud_off_outlined,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text(_error!)),
-                          ],
-                        ),
-                      ),
+    final content = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _load,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification.metrics.axis == Axis.vertical) {
+                  setState(() {
+                    _scrollOffset = notification.metrics.pixels;
+                  });
+                }
+                return false;
+              },
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                children: [
+                  if (_error != null)
                     _GlassSection(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cloud_off_outlined,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(_error!)),
+                        ],
                       ),
-                      child: TextField(
-                        onChanged: (value) {
-                          setState(() => _categorySearchQuery = value);
-                        },
-                        decoration: InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: 'Search categories or presets',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: IconButton(
-                            tooltip: 'Preset shop',
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const PresetShopScreen(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.storefront_outlined),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                          ),
+                    ),
+                  _GlassSection(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() => _categorySearchQuery = value);
+                      },
+                      decoration: InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        hintText: 'Search categories or presets',
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: IconButton(
+                          tooltip: 'Preset shop',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PresetShopScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.storefront_outlined),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    if (visibleCategories.isEmpty)
-                      _GlassSection(
-                        child: Text(
-                          'No category or preset matches your search.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      )
-                    else
-                      _CategoryDeck(
-                        categories: visibleCategories,
-                        cardHeight: _categoryDeckCardHeight,
-                        peekHeight: _categoryDeckPeekHeight,
-                        scrollOffset: _scrollOffset,
-                        expandedCategory: _expandedCategory,
-                        iconForCategory: _iconForCategory,
-                        subtitleForCategory: _categoryDescription,
-                        guideCountForCategory: _guideCountForPlannerCategory,
-                        guideForCategory: _primaryGuideForPlannerCategory,
-                        onTapCategory: _onPlannerCategoryTap,
-                        onTapGuide: _onPlannerGuideTap,
+                  ),
+                  const SizedBox(height: 8),
+                  if (visibleCategories.isEmpty)
+                    _GlassSection(
+                      child: Text(
+                        'No category or preset matches your search.',
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                  ],
-                ),
+                    )
+                  else
+                    _CategoryDeck(
+                      categories: visibleCategories,
+                      cardHeight: _categoryDeckCardHeight,
+                      peekHeight: _categoryDeckPeekHeight,
+                      scrollOffset: _scrollOffset,
+                      expandedCategory: _expandedCategory,
+                      iconForCategory: _iconForCategory,
+                      subtitleForCategory: _categoryDescription,
+                      guideCountForCategory: _guideCountForPlannerCategory,
+                      guideForCategory: _primaryGuideForPlannerCategory,
+                      onTapCategory: _onPlannerCategoryTap,
+                      onTapGuide: _onPlannerGuideTap,
+                      guideTitleForCard: _guideTitleText,
+                      guideSummaryTextForCard: _guideSummaryText,
+                    ),
+                ],
               ),
             ),
+          );
+    return Scaffold(
+      body: Stack(
+        children: [
+          content,
+          if (_activeGuideOverlay != null) _buildGuideOverlay(),
+        ],
+      ),
     );
   }
+}
+
+class _PlannerGuideOverlayData {
+  final String presetName;
+  final String habitCategory;
+  final int totalSteps;
+  final PresetTemplateConfig config;
+  final List<PresetPreviewSection> previewSections;
+  final double bottomInset;
+
+  const _PlannerGuideOverlayData({
+    required this.presetName,
+    required this.habitCategory,
+    required this.totalSteps,
+    required this.config,
+    required this.previewSections,
+    required this.bottomInset,
+  });
 }
 
 class _GuideCard extends StatelessWidget {
@@ -1186,6 +1259,8 @@ class _CategoryDeck extends StatelessWidget {
   final ActionStepTemplate? Function(String) guideForCategory;
   final Future<void> Function(String category) onTapCategory;
   final Future<void> Function(String category) onTapGuide;
+  final String Function(ActionStepTemplate? guide) guideTitleForCard;
+  final String Function(ActionStepTemplate? guide) guideSummaryTextForCard;
 
   const _CategoryDeck({
     required this.categories,
@@ -1199,6 +1274,8 @@ class _CategoryDeck extends StatelessWidget {
     required this.guideForCategory,
     required this.onTapCategory,
     required this.onTapGuide,
+    required this.guideTitleForCard,
+    required this.guideSummaryTextForCard,
   });
 
   @override
@@ -1221,7 +1298,8 @@ class _CategoryDeck extends StatelessWidget {
             Positioned(
               left: 0,
               right: 0,
-              top: (i * peekHeight) +
+              top:
+                  (i * peekHeight) +
                   (expandedIndex >= 0 && i > expandedIndex
                       ? expandedPanelHeight
                       : 0),
@@ -1236,9 +1314,13 @@ class _CategoryDeck extends StatelessWidget {
                 expandedPanelHeight: expandedPanelHeight,
                 isExpanded: categories[i] == expandedCategory,
                 guide: guideForCategory(categories[i]),
+                guideTitle: guideTitleForCard(guideForCategory(categories[i])),
                 zDepth: (i + 1).toDouble(),
                 onTap: () => onTapCategory(categories[i]),
                 onTapGuide: () => onTapGuide(categories[i]),
+                guideSummaryText: guideSummaryTextForCard(
+                  guideForCategory(categories[i]),
+                ),
               ),
             ),
         ],
@@ -1258,9 +1340,11 @@ class _CategoryGuideCard extends StatefulWidget {
   final double expandedPanelHeight;
   final bool isExpanded;
   final ActionStepTemplate? guide;
+  final String guideTitle;
   final double zDepth;
   final VoidCallback onTap;
   final VoidCallback onTapGuide;
+  final String guideSummaryText;
 
   const _CategoryGuideCard({
     required this.index,
@@ -1273,9 +1357,11 @@ class _CategoryGuideCard extends StatefulWidget {
     required this.expandedPanelHeight,
     required this.isExpanded,
     required this.guide,
+    required this.guideTitle,
     required this.zDepth,
     required this.onTap,
     required this.onTapGuide,
+    required this.guideSummaryText,
   });
 
   @override
@@ -1363,7 +1449,9 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                     widget.title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.titleMedium
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
                                         ?.copyWith(
                                           color: colorScheme.onSurface,
                                           fontWeight: FontWeight.w700,
@@ -1383,14 +1471,15 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                       alpha: 0.12,
                                     ),
                                     border: Border.all(
-                                      color: colorScheme.outlineVariant.withValues(
-                                        alpha: 0.75,
-                                      ),
+                                      color: colorScheme.outlineVariant
+                                          .withValues(alpha: 0.75),
                                     ),
                                   ),
                                   child: Text(
                                     '${widget.guideCount} preset${widget.guideCount == 1 ? '' : 's'}',
-                                    style: Theme.of(context).textTheme.labelSmall
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
                                         ?.copyWith(
                                           color: colorScheme.onSurfaceVariant,
                                           fontWeight: FontWeight.w600,
@@ -1405,7 +1494,9 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                           ],
                         ),
@@ -1460,7 +1551,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        guide?.name ?? 'No preset available',
+                                        widget.guideTitle,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: Theme.of(context)
@@ -1472,9 +1563,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        guide == null
-                                            ? 'Try again after refresh.'
-                                            : '${guide.steps.length} action steps',
+                                        widget.guideSummaryText,
                                         style: Theme.of(
                                           context,
                                         ).textTheme.bodySmall,
@@ -1484,7 +1573,9 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                 ),
                                 const SizedBox(width: 8),
                                 FilledButton.tonal(
-                                  onPressed: guide == null ? null : widget.onTapGuide,
+                                  onPressed: guide == null
+                                      ? null
+                                      : widget.onTapGuide,
                                   child: const Text('View'),
                                 ),
                               ],

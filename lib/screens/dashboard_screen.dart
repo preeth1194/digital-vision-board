@@ -1406,8 +1406,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
-      // Hide app bar only for journal screen (tabIndex == 2)
-      appBar: (_tabIndex == 2)
+      // Hide app bar for journal and habits timeline mode.
+      appBar: (_tabIndex == 2 || (_tabIndex == 7 && _showHabitsCalendarMode))
           ? null
           : AppBar(
               toolbarHeight: 72,

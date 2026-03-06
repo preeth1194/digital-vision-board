@@ -8,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/legal_consent_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
@@ -61,18 +62,29 @@ Future<void> main() async {
 
   // Existing users skip onboarding; new users see it.
   final onboardingDone = await isOnboardingCompleted(prefs: prefs);
+  final legalConsentAccepted = await isLegalConsentAccepted(prefs: prefs);
   final showOnboarding = !onboardingDone && !existingUser;
   if (!onboardingDone && existingUser) {
     await markOnboardingCompleted(prefs: prefs);
   }
 
-  runApp(DigitalVisionBoardApp(showOnboarding: showOnboarding));
+  runApp(
+    DigitalVisionBoardApp(
+      showOnboarding: showOnboarding,
+      legalConsentAccepted: legalConsentAccepted,
+    ),
+  );
 }
 
 class DigitalVisionBoardApp extends StatelessWidget {
-  const DigitalVisionBoardApp({super.key, this.showOnboarding = false});
+  const DigitalVisionBoardApp({
+    super.key,
+    this.showOnboarding = false,
+    this.legalConsentAccepted = false,
+  });
 
   final bool showOnboarding;
+  final bool legalConsentAccepted;
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -155,7 +167,9 @@ class DigitalVisionBoardApp extends StatelessWidget {
           themeMode: mode,
           home: showOnboarding
               ? const OnboardingScreen()
-              : const DashboardScreen(),
+              : (!legalConsentAccepted
+                    ? const LegalConsentScreen()
+                    : const DashboardScreen()),
         );
       },
     );

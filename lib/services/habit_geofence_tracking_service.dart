@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:geofence_service/geofence_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
@@ -17,8 +17,9 @@ import 'vision_board_components_storage_service.dart';
 /// App-level geofence tracker for location-bound habits.
 ///
 /// Notes:
-/// - `geofence_service` runs while the app process is alive.
-/// - We use ENTER/DWELL/EXIT to accumulate time-inside via [HabitTimerStateService].
+/// - Runs while the app process is alive.
+/// - Uses foreground location stream + distance checks (no discontinued plugins).
+/// - We use enter/inside/exit events to accumulate time-inside via [HabitTimerStateService].
 /// - We can optionally auto-complete habits by persisting completion to local storage
 ///   and enqueuing sync, without requiring UI to be open.
 final class HabitGeofenceTrackingService {
@@ -26,30 +27,17 @@ final class HabitGeofenceTrackingService {
 
   static final HabitGeofenceTrackingService instance = HabitGeofenceTrackingService._();
 
-  final GeofenceService _svc = GeofenceService.instance;
   bool _initialized = false;
+  StreamSubscription<Position>? _positionSub;
 
   // Map per component so UI screens can refresh just their component’s habits.
   final Map<String, List<_HabitGeoTarget>> _targetsByComponentKey = <String, List<_HabitGeoTarget>>{};
+  final Map<String, bool> _lastInsideByTargetId = <String, bool>{};
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
   void _ensureInitialized() {
     if (_initialized) return;
-
-    _svc.setup(
-      interval: 5000,
-      accuracy: 100,
-      loiteringDelayMs: 60000,
-      statusChangeDelayMs: 10000,
-      useActivityRecognition: false,
-      allowMockLocations: false,
-      printDevLog: false,
-      geofenceRadiusSortType: GeofenceRadiusSortType.DESC,
-    );
-
-    _svc.addGeofenceStatusChangeListener(_onGeofenceStatusChanged);
-    _svc.addStreamErrorListener(_onError);
     _initialized = true;
   }
 
@@ -105,79 +93,106 @@ final class HabitGeofenceTrackingService {
   }
 
   Future<void> stop() async {
-    if (!_svc.isRunningService) return;
-    await _svc.stop();
+    await _positionSub?.cancel();
+    _positionSub = null;
+    _lastInsideByTargetId.clear();
   }
 
   Future<void> _rebuildService({SharedPreferences? prefs}) async {
-    // Rebuild the full geofence list from our component-target map.
-    _svc.clearGeofenceList();
-
     final targets = _targetsByComponentKey.values.expand((x) => x).toList();
+
+    debugPrint('[Geofence] _rebuildService: ${targets.length} target(s)');
+    if (targets.isEmpty) {
+      await stop();
+      debugPrint('[Geofence] Stopped service (no targets)');
+      return;
+    }
+
+    if (_positionSub != null) {
+      debugPrint('[Geofence] Location stream already running');
+      return;
+    }
+    debugPrint('[Geofence] Starting location stream...');
+    await _startLocationStream().catchError(_onError);
+  }
+
+  Future<void> _startLocationStream() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      debugPrint('[Geofence] Location services disabled');
+      return;
+    }
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      debugPrint('[Geofence] Location permission denied');
+      return;
+    }
+
+    const settings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10,
+    );
+    _positionSub = Geolocator.getPositionStream(locationSettings: settings).listen(
+      (position) {
+        unawaited(_onPosition(position));
+      },
+      onError: _onError,
+      cancelOnError: false,
+    );
+  }
+
+  Future<void> _onPosition(Position position) async {
+    final targets = _targetsByComponentKey.values.expand((x) => x).toList();
+    if (targets.isEmpty) return;
+
+    final eventMs = position.timestamp.millisecondsSinceEpoch;
+
     for (final t in targets) {
       final h = t.habit;
       final lb = h.locationBound;
       if (lb == null || !lb.enabled) continue;
 
-      final targetMs = HabitTimerStateService.targetMsForHabit(h);
-
-      final geofence = Geofence(
-        id: 'habit:${t.boardId}:${t.componentId}:${h.id}',
-        data: <String, dynamic>{
-          'habitId': h.id,
-          'boardId': t.boardId,
-          'componentId': t.componentId,
-          'targetMs': targetMs,
-          'triggerMode': lb.triggerMode,
-        },
-        latitude: lb.lat,
-        longitude: lb.lng,
-        radius: [
-          GeofenceRadius(id: 'radius_${lb.radiusMeters}m', length: lb.radiusMeters.toDouble()),
-        ],
+      final id = _targetId(t);
+      final distM = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        lb.lat,
+        lb.lng,
       );
-      _svc.addGeofence(geofence);
-    }
+      final inside = distM <= lb.radiusMeters;
+      final prevInside = _lastInsideByTargetId[id];
+      final changed = prevInside == null || prevInside != inside;
+      _lastInsideByTargetId[id] = inside;
 
-    debugPrint('[Geofence] _rebuildService: ${targets.length} target(s)');
-    if (targets.isEmpty) {
-      if (_svc.isRunningService) {
-        await _svc.stop();
-        debugPrint('[Geofence] Stopped service (no targets)');
-      }
-      return;
-    }
+      // Skip repeated "outside" states to avoid useless writes.
+      if (!inside && !changed) continue;
 
-    if (_svc.isRunningService) {
-      debugPrint('[Geofence] Service already running');
-      return;
+      await _handleTargetEvent(
+        target: t,
+        inside: inside,
+        eventMs: eventMs,
+        wasInsideBefore: prevInside == true,
+      );
     }
-    debugPrint('[Geofence] Starting geofence service...');
-    await _svc.start().catchError(_onError);
   }
 
-  Future<void> _onGeofenceStatusChanged(
-    Geofence geofence,
-    GeofenceRadius geofenceRadius,
-    GeofenceStatus geofenceStatus,
-    Location location,
-  ) async {
-    debugPrint('[Geofence] Status changed: ${geofence.id} -> $geofenceStatus');
-    final data = geofence.data;
-    if (data is! Map) return;
-
-    final habitId = data['habitId'] as String?;
-    final boardId = data['boardId'] as String?;
-    final componentId = data['componentId'] as String?;
-    final targetMs = (data['targetMs'] as num?)?.toInt() ?? 0;
-    final triggerMode = data['triggerMode'] as String? ?? 'arrival';
-
-    if (habitId == null || habitId.trim().isEmpty) return;
-    if (boardId == null || boardId.trim().isEmpty) return;
-    if (componentId == null || componentId.trim().isEmpty) return;
-
-    final inside = geofenceStatus != GeofenceStatus.EXIT;
-    final eventMs = location.timestamp.millisecondsSinceEpoch;
+  Future<void> _handleTargetEvent({
+    required _HabitGeoTarget target,
+    required bool inside,
+    required int eventMs,
+    required bool wasInsideBefore,
+  }) async {
+    final h = target.habit;
+    final lb = h.locationBound;
+    if (lb == null || !lb.enabled) return;
+    final habitId = h.id;
+    final boardId = target.boardId;
+    final componentId = target.componentId;
+    final targetMs = HabitTimerStateService.targetMsForHabit(h);
+    final triggerMode = lb.triggerMode;
 
     final prefs = await _prefs();
     await LogicalDateService.ensureInitialized(prefs: prefs);
@@ -193,8 +208,8 @@ final class HabitGeofenceTrackingService {
 
     debugPrint('[Geofence] targetMs=$targetMs, inside=$inside, triggerMode=$triggerMode');
 
-    // "departure" mode: complete when the user exits the geofence.
-    if (triggerMode == 'departure' && !inside) {
+    // "departure" mode: complete only on an actual inside -> outside transition.
+    if (triggerMode == 'departure' && !inside && wasInsideBefore) {
       final iso = LogicalDateService.isoToday();
       final didComplete = await HabitCompletionApplier.markCompleted(
         boardId: boardId,
@@ -254,6 +269,8 @@ final class HabitGeofenceTrackingService {
       }
     }
   }
+
+  String _targetId(_HabitGeoTarget t) => 'habit:${t.boardId}:${t.componentId}:${t.habit.id}';
 
   String? _lookupHabitName(String boardId, String componentId, String habitId) {
     final key = '$boardId::$componentId';

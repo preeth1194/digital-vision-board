@@ -10,7 +10,7 @@ final class HabitProgressWidgetNativeBridge {
 
   static const MethodChannel _ch = MethodChannel('dvb/habit_progress_widget');
 
-  static const String defaultIosAppGroupId = 'group.seerohabitseeding';
+  static const String defaultIosAppGroupId = 'group.habitseeding';
 
   static Future<void> writeSnapshotToAppGroupBestEffort(
     String snapshotJson, {

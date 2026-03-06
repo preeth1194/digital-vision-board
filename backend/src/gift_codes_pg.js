@@ -27,7 +27,7 @@ export async function getGiftCodePg(code) {
  * Redeem a gift code for a user. Runs inside a transaction to prevent races.
  * Returns { ok: true, planId } on success, or { ok: false, error } on failure.
  */
-export async function redeemGiftCodePg(code, canvaUserId) {
+export async function redeemGiftCodePg(code, userId) {
   return await withClient(async (c) => {
     await c.query("BEGIN");
     try {
@@ -53,8 +53,8 @@ export async function redeemGiftCodePg(code, canvaUserId) {
 
       // Check if user already redeemed this code
       const dup = await c.query(
-        "SELECT 1 FROM dv_gift_code_redemptions WHERE code = $1 AND canva_user_id = $2",
-        [code, canvaUserId],
+        "SELECT 1 FROM dv_gift_code_redemptions WHERE code = $1 AND user_id = $2",
+        [code, userId],
       );
       if (dup.rowCount) {
         await c.query("ROLLBACK");
@@ -69,20 +69,20 @@ export async function redeemGiftCodePg(code, canvaUserId) {
 
       // Log the redemption
       await c.query(
-        "INSERT INTO dv_gift_code_redemptions (code, canva_user_id) VALUES ($1, $2)",
-        [code, canvaUserId],
+        "INSERT INTO dv_gift_code_redemptions (code, user_id) VALUES ($1, $2)",
+        [code, userId],
       );
 
       // Activate subscription in user settings
       await c.query(
-        `INSERT INTO dv_user_settings (canva_user_id, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
+        `INSERT INTO dv_user_settings (user_id, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
          VALUES ($1, $2, true, now(), 'gift_code')
-         ON CONFLICT (canva_user_id) DO UPDATE
+         ON CONFLICT (user_id) DO UPDATE
            SET subscription_plan_id = $2,
                subscription_active = true,
                subscription_updated_at = now(),
                subscription_source = 'gift_code'`,
-        [canvaUserId, row.plan_id],
+        [userId, row.plan_id],
       );
 
       await c.query("COMMIT");

@@ -149,6 +149,51 @@ export async function listApprovedActionTemplatesPg({ category }) {
   });
 }
 
+export async function listMyActionTemplatesPg({ userId }) {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      `select id, name, category, schema_version, template_version, status, is_public,
+              is_official, set_key, steps_json, metadata_json, created_by, reviewed_by,
+              reviewed_at, review_notes, updated_at
+       from dv_action_templates
+       where created_by = $1
+       order by updated_at desc`,
+      [userId],
+    );
+    return r.rows.map(mapActionTemplateRow);
+  });
+}
+
+export async function listPendingActionTemplatesPg() {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      `select id, name, category, schema_version, template_version, status, is_public,
+              is_official, set_key, steps_json, metadata_json, created_by, reviewed_by,
+              reviewed_at, review_notes, created_at, updated_at
+       from dv_action_templates
+       where status = 'submitted'
+       order by created_at asc`,
+    );
+    return r.rows.map(mapActionTemplateRow);
+  });
+}
+
+export async function listReviewedActionTemplatesPg({ limit = 20 } = {}) {
+  return await withClient(async (c) => {
+    const r = await c.query(
+      `select id, name, category, schema_version, template_version, status, is_public,
+              is_official, set_key, steps_json, metadata_json, created_by, reviewed_by,
+              reviewed_at, review_notes, updated_at
+       from dv_action_templates
+       where status in ('approved', 'rejected')
+       order by reviewed_at desc nulls last, updated_at desc
+       limit $1`,
+      [limit],
+    );
+    return r.rows.map(mapActionTemplateRow);
+  });
+}
+
 export async function submitActionTemplateDraftPg({
   id,
   name,

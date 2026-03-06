@@ -27,6 +27,9 @@ import {
   getTemplatePg,
   listTemplatesPg,
   listApprovedActionTemplatesPg,
+  listMyActionTemplatesPg,
+  listPendingActionTemplatesPg,
+  listReviewedActionTemplatesPg,
   reviewActionTemplatePg,
   submitActionTemplateDraftPg,
 } from "./templates_pg.js";
@@ -34,6 +37,7 @@ import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg } from "./stock_category_images_pg.js";
 import { getGiftCodePg, redeemGiftCodePg } from "./gift_codes_pg.js";
+import { insertContactMessagePg } from "./contact_pg.js";
 
 const app = express();
 
@@ -608,8 +612,7 @@ app.post("/auth/guest", async (req, res) => {
     const guestId = `guest_${randomId(16)}`;
 
     await putUserRecord(guestId, {
-      canvaUserId: guestId,
-      teamId: null,
+      userId: guestId,
       dvToken,
       isGuest: true,
       guestExpiresAtMs: expiresAtMs,
@@ -651,8 +654,7 @@ app.post("/auth/firebase/exchange", async (req, res) => {
 
     const record = {
       ...(existing && typeof existing === "object" ? existing : {}),
-      canvaUserId: userId,
-      teamId: null,
+      userId: userId,
       dvToken,
       isGuest: false,
       guestExpiresAtMs: null,
@@ -671,6 +673,19 @@ app.post("/auth/firebase/exchange", async (req, res) => {
     const msg = String(e?.message ?? e);
     // Common misconfig: firebase-admin not configured.
     return res.status(500).json({ ok: false, error: "firebase_exchange_failed", message: msg });
+  }
+});
+
+app.get("/auth/me", requireDvAuth(), async (req, res) => {
+  try {
+    return res.json({
+      ok: true,
+      userId: req.dvUser?.userId ?? null,
+      isGuest: Boolean(req.dvUser?.isGuest),
+      isAdmin: isActionTemplateAdmin(req.dvUser?.userId),
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "auth_me_failed", message: String(e?.message ?? e) });
   }
 });
 
@@ -732,6 +747,83 @@ app.get("/action-templates", requireDvAuth(), async (req, res) => {
   }
 });
 
+app.get("/action-templates/mine", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  try {
+    const templates = await listMyActionTemplatesPg({ userId: req.dvUser.userId });
+    return res.json({
+      templates: templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        schemaVersion: t.schemaVersion,
+        templateVersion: t.templateVersion,
+        status: t.status,
+        isOfficial: t.isOfficial,
+        setKey: t.setKey,
+        steps: t.steps,
+        metadata: t.metadata,
+        createdByUserId: t.createdByUserId,
+        reviewedBy: t.reviewedBy,
+        reviewedAt: t.reviewedAt,
+        reviewNotes: t.reviewNotes,
+        updatedAt: t.updatedAt,
+      })),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: "action_templates_mine_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/action-templates/pending", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  if (!isActionTemplateAdmin(req.dvUser?.userId)) {
+    return res.status(403).json({ error: "admin_required" });
+  }
+  try {
+    const templates = await listPendingActionTemplatesPg();
+    return res.json({
+      templates: templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        status: t.status,
+        steps: t.steps,
+        metadata: t.metadata,
+        createdByUserId: t.createdByUserId,
+        updatedAt: t.updatedAt,
+      })),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: "action_templates_pending_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/action-templates/reviewed", requireDvAuth(), async (req, res) => {
+  if (!ensureDbOr501(res)) return;
+  if (!isActionTemplateAdmin(req.dvUser?.userId)) {
+    return res.status(403).json({ error: "admin_required" });
+  }
+  try {
+    const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : 20;
+    const templates = await listReviewedActionTemplatesPg({ limit: Number.isFinite(limit) ? Math.max(1, Math.min(limit, 100)) : 20 });
+    return res.json({
+      templates: templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        status: t.status,
+        reviewNotes: t.reviewNotes,
+        reviewedBy: t.reviewedBy,
+        reviewedAt: t.reviewedAt,
+        updatedAt: t.updatedAt,
+      })),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: "action_templates_reviewed_failed", message: String(e?.message ?? e) });
+  }
+});
+
 app.post("/action-templates/submit", requireDvAuth(), async (req, res) => {
   if (!ensureDbOr501(res)) return;
   try {
@@ -753,7 +845,7 @@ app.post("/action-templates/submit", requireDvAuth(), async (req, res) => {
       templateVersion,
       steps,
       metadata,
-      createdBy: req.dvUser.canvaUserId,
+      createdBy: req.dvUser.userId,
     });
     return res.status(201).json({ ok: true, template: created });
   } catch (e) {
@@ -763,7 +855,7 @@ app.post("/action-templates/submit", requireDvAuth(), async (req, res) => {
 
 app.post("/action-templates/:id/review", requireDvAuth(), async (req, res) => {
   if (!ensureDbOr501(res)) return;
-  if (!isActionTemplateAdmin(req.dvUser?.canvaUserId)) {
+  if (!isActionTemplateAdmin(req.dvUser?.userId)) {
     return res.status(403).json({ error: "admin_required" });
   }
   try {
@@ -775,7 +867,7 @@ app.post("/action-templates/:id/review", requireDvAuth(), async (req, res) => {
     const updated = await reviewActionTemplatePg({
       id: req.params.id,
       status,
-      reviewedBy: req.dvUser.canvaUserId,
+      reviewedBy: req.dvUser.userId,
       reviewNotes,
     });
     if (!updated) return res.status(404).json({ error: "template_not_found" });
@@ -797,6 +889,16 @@ app.get("/template-images/:id", async (req, res) => {
 
 // ---- User Settings + Encryption Key ----
 
+app.get("/user/settings", requireDvAuth(), async (req, res) => {
+  if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
+  try {
+    const settings = await getUserSettingsPg(req.dvUser.userId);
+    return res.json({ ok: true, ...(settings ?? {}) });
+  } catch (e) {
+    return res.status(500).json({ error: "user_settings_fetch_failed", message: String(e?.message ?? e) });
+  }
+});
+
 app.put("/user/settings", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   const homeTimezone = typeof req.body?.home_timezone === "string" ? req.body.home_timezone : null;
@@ -810,14 +912,14 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   const subscriptionPlanId = typeof req.body?.subscription_plan_id === "string" ? req.body.subscription_plan_id.trim() || null : null;
   const subscriptionActive = req.body?.subscription_active != null ? Boolean(req.body.subscription_active) : null;
   const subscriptionSource = typeof req.body?.subscription_source === "string" ? req.body.subscription_source.trim() || null : null;
-  await putUserSettingsPg(req.dvUser.canvaUserId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource });
+  await putUserSettingsPg(req.dvUser.userId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource });
   res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive, subscription_source: subscriptionSource });
 });
 
 app.get("/user/encryption-key", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   try {
-    const key = await getEncryptionKeyPg(req.dvUser.canvaUserId);
+    const key = await getEncryptionKeyPg(req.dvUser.userId);
     res.json({ ok: true, encryption_key: key });
   } catch (e) {
     res.status(500).json({ error: "encryption_key_fetch_failed", message: String(e?.message ?? e) });
@@ -829,7 +931,7 @@ app.put("/user/encryption-key", requireDvAuth(), async (req, res) => {
   try {
     const key = typeof req.body?.encryption_key === "string" ? req.body.encryption_key.trim() : null;
     if (!key) return res.status(400).json({ error: "missing_encryption_key" });
-    await putEncryptionKeyPg(req.dvUser.canvaUserId, key);
+    await putEncryptionKeyPg(req.dvUser.userId, key);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "encryption_key_update_failed", message: String(e?.message ?? e) });
@@ -866,12 +968,30 @@ app.post("/gift-codes/redeem", requireDvAuth(), async (req, res) => {
     const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
     if (!code) return res.status(400).json({ ok: false, error: "missing_code" });
 
-    const result = await redeemGiftCodePg(code, req.dvUser.canvaUserId);
+    const result = await redeemGiftCodePg(code, req.dvUser.userId);
     if (!result.ok) return res.json(result);
 
     return res.json({ ok: true, plan_id: result.planId });
   } catch (e) {
     res.status(500).json({ ok: false, error: "redeem_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.post("/contact", async (req, res) => {
+  try {
+    if (!ensureDbOr501(res)) return;
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+
+    if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
+    if (!email) return res.status(400).json({ ok: false, error: "missing_email" });
+    if (!message) return res.status(400).json({ ok: false, error: "missing_message" });
+
+    await insertContactMessagePg({ name, email, message });
+    return res.status(201).json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "contact_submit_failed", message: String(e?.message ?? e) });
   }
 });
 

@@ -25,17 +25,14 @@ class RoutineScreen extends StatefulWidget {
   final bool standalone;
   final ValueNotifier<int>? dataVersion;
 
-  const RoutineScreen({
-    super.key,
-    this.standalone = false,
-    this.dataVersion,
-  });
+  const RoutineScreen({super.key, this.standalone = false, this.dataVersion});
 
   @override
   State<RoutineScreen> createState() => _RoutineScreenState();
 }
 
-class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateMixin {
+class _RoutineScreenState extends State<RoutineScreen>
+    with TickerProviderStateMixin {
   bool _loading = true;
   SharedPreferences? _prefs;
   List<HabitItem> _habits = [];
@@ -101,7 +98,11 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   }
 
   void _normalizeDate() {
-    _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    _selectedDate = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
   }
 
   @override
@@ -127,13 +128,19 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     final centerOffset = scrollOffset + _viewportHeight / 2;
     final hour = _hourFromOffset(centerOffset);
     final fraction = _hourHeights[hour] > 0
-        ? ((centerOffset - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(0.0, 1.0)
+        ? ((centerOffset - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(
+            0.0,
+            1.0,
+          )
         : 0.0;
     final minute = (fraction * 60).toInt().clamp(0, 59);
 
     final previewTime = DateTime(
-      _selectedDate.year, _selectedDate.month, _selectedDate.day,
-      hour, minute,
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      hour,
+      minute,
     );
 
     if (hour != _lastCrossedHour && _lastCrossedHour != -1) {
@@ -174,13 +181,16 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
   void _onDateSelected(DateTime date) {
     setState(() => _selectedDate = DateTime(date.year, date.month, date.day));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToRelevantTime());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToRelevantTime(),
+    );
   }
 
   void _scrollToRelevantTime({bool animate = true}) {
     if (!_timelineScrollController.hasClients) return;
     final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
+    final isToday =
+        _selectedDate.year == now.year &&
         _selectedDate.month == now.month &&
         _selectedDate.day == now.day;
 
@@ -203,12 +213,21 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     final h = targetHour.clamp(0, 23);
     final yPosition = _hourYOffsets[h] + minuteFraction * _hourHeights[h];
     final totalHeight = _hourYOffsets[24];
-    final maxScroll = (totalHeight - _viewportHeight).clamp(0.0, double.infinity);
-    final targetOffset = (yPosition - _viewportHeight / 3).clamp(0.0, maxScroll);
+    final maxScroll = (totalHeight - _viewportHeight).clamp(
+      0.0,
+      double.infinity,
+    );
+    final targetOffset = (yPosition - _viewportHeight / 3).clamp(
+      0.0,
+      maxScroll,
+    );
 
     if (animate) {
-      _timelineScrollController.animateTo(targetOffset,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic);
+      _timelineScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+      );
     } else {
       _timelineScrollController.jumpTo(targetOffset);
     }
@@ -222,13 +241,18 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       if (h.deadline != null && h.deadline!.trim().isNotEmpty) {
         final deadlineDate = DateTime.tryParse(h.deadline!);
         if (deadlineDate != null) {
-          final d = DateTime(deadlineDate.year, deadlineDate.month, deadlineDate.day);
+          final d = DateTime(
+            deadlineDate.year,
+            deadlineDate.month,
+            deadlineDate.day,
+          );
           if (_selectedDate.isAfter(d)) return false;
         }
       }
       return true;
-    }).toList()
-      ..sort((a, b) => (a.startTimeMinutes ?? 0).compareTo(b.startTimeMinutes ?? 0));
+    }).toList()..sort(
+      (a, b) => (a.startTimeMinutes ?? 0).compareTo(b.startTimeMinutes ?? 0),
+    );
   }
 
   /// Habits with start time + duration — placed on the 24-hour timeline.
@@ -279,19 +303,27 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       _showCompletionDetails(habit);
       return;
     }
-    Navigator.of(context).push<List<String>>(
-      MaterialPageRoute(
-        builder: (_) => RoutineTimerScreen(habit: habit, onComplete: () => _loadHabits()),
-      ),
-    ).then((completedStepIds) async {
-      await _loadHabits();
-      if (completedStepIds != null && mounted) {
-        await _handleHabitCompletion(habit, completedStepIds);
-      }
-    });
+    Navigator.of(context)
+        .push<List<String>>(
+          MaterialPageRoute(
+            builder: (_) => RoutineTimerScreen(
+              habit: habit,
+              onComplete: () => _loadHabits(),
+            ),
+          ),
+        )
+        .then((completedStepIds) async {
+          await _loadHabits();
+          if (completedStepIds != null && mounted) {
+            await _handleHabitCompletion(habit, completedStepIds);
+          }
+        });
   }
 
-  Future<void> _handleHabitCompletion(HabitItem habit, List<String> completedStepIds) async {
+  Future<void> _handleHabitCompletion(
+    HabitItem habit,
+    List<String> completedStepIds,
+  ) async {
     final baseCoins = CoinsService.habitCompletionCoins;
     final result = await showHabitCompletionSheet(
       context,
@@ -312,14 +344,17 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
     var toggled = latestHabit.toggleForDate(now);
 
-    final iso = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final iso =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final feedback = HabitCompletionFeedback(
       rating: result.mood ?? 0,
       note: result.note,
       coinsEarned: result.coinsEarned,
       trackingValue: result.trackingValue,
     );
-    final updatedFeedback = Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
+    final updatedFeedback = Map<String, HabitCompletionFeedback>.from(
+      toggled.feedbackByDate,
+    );
     updatedFeedback[iso] = feedback;
     toggled = toggled.copyWith(feedbackByDate: updatedFeedback);
 
@@ -339,10 +374,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _CompletionDetailsSheet(
-        habit: habit,
-        feedback: feedback,
-      ),
+      builder: (ctx) =>
+          _CompletionDetailsSheet(habit: habit, feedback: feedback),
     );
   }
 
@@ -392,7 +425,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   void _handleSlotTap(TimeOfDay time) {
     if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
       if (_activeAdSession == null) {
-        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        final sessionKey =
+            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
         AdService.setActiveSession(sessionKey, prefs: _prefs);
         setState(() {
           _activeAdSession = sessionKey;
@@ -449,6 +483,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       completedDates: const [],
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
 
     await HabitStorageService.addHabit(newHabit);
@@ -509,9 +545,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
               onAllAdsWatched: _onAllAdsWatched,
             ),
           ),
-        Expanded(
-          child: _buildPlannerList(),
-        ),
+        Expanded(child: _buildPlannerList()),
       ],
     );
   }
@@ -529,9 +563,7 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
                 parent: BouncingScrollPhysics(),
               ),
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
-              children: [
-                _buildEmptyTimelineHint(),
-              ],
+              children: [_buildEmptyTimelineHint()],
             )
           : ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(
@@ -561,11 +593,13 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final habitCards = _buildPositionedHabitCards(habitsForDate, isDark);
-    final effectiveHeight =
-        _timelineMaxY > totalHeight ? _timelineMaxY + 20 : totalHeight;
+    final effectiveHeight = _timelineMaxY > totalHeight
+        ? _timelineMaxY + 20
+        : totalHeight;
 
     final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
+    final isToday =
+        _selectedDate.year == now.year &&
         _selectedDate.month == now.month &&
         _selectedDate.day == now.day;
 
@@ -573,7 +607,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       onRefresh: _loadHabits,
       child: SingleChildScrollView(
         controller: _timelineScrollController,
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         child: Container(
           height: effectiveHeight,
           color: isDark
@@ -655,18 +691,27 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.schedule_outlined, size: 40,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              Icon(
+                Icons.schedule_outlined,
+                size: 40,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
               const SizedBox(height: 12),
-              Text('No habits yet',
-                  style: AppTypography.body(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurfaceVariant)),
+              Text(
+                'No habits yet',
+                style: AppTypography.body(context).copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Tap an empty time slot to create a habit',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySmall(context).copyWith(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
+              Text(
+                'Tap an empty time slot to create a habit',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
             ],
           ),
         ),
@@ -679,115 +724,128 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     final totalHeight = _hourYOffsets[24];
 
     // Vertical timeline rail
-    hourWidgets.add(Positioned(
-      top: 0,
-      bottom: 0,
-      left: 52,
-      width: 2,
-      child: Container(
-        height: totalHeight,
-        decoration: BoxDecoration(
-          color: isDark
-              ? colorScheme.onSurface.withValues(alpha: 0.24)
-              : colorScheme.outlineVariant.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(1),
+    hourWidgets.add(
+      Positioned(
+        top: 0,
+        bottom: 0,
+        left: 52,
+        width: 2,
+        child: Container(
+          height: totalHeight,
+          decoration: BoxDecoration(
+            color: isDark
+                ? colorScheme.onSurface.withValues(alpha: 0.24)
+                : colorScheme.outlineVariant.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(1),
+          ),
         ),
       ),
-    ));
+    );
 
     for (int hour = 0; hour < 24; hour++) {
       final yPosition = _hourYOffsets[hour];
       final hourHeight = _hourHeights[hour];
       final hourLabel = _formatHourLabel(hour);
       final now = DateTime.now();
-      final isCurrentHour = now.hour == hour &&
+      final isCurrentHour =
+          now.hour == hour &&
           _selectedDate.year == now.year &&
           _selectedDate.month == now.month &&
           _selectedDate.day == now.day;
 
       // Full hour line + label
-      hourWidgets.add(Positioned(
-        top: yPosition,
-        left: 0,
-        right: 0,
-        height: hourHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 52,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(hourLabel,
+      hourWidgets.add(
+        Positioned(
+          top: yPosition,
+          left: 0,
+          right: 0,
+          height: hourHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 52,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    hourLabel,
                     style: AppTypography.bodySmall(context).copyWith(
-                      fontWeight: isCurrentHour ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: isCurrentHour
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: isCurrentHour
                           ? colorScheme.primary
                           : (isDark
-                              ? colorScheme.onSurface.withValues(alpha: 0.7)
-                              : colorScheme.onSurfaceVariant),
-                    )),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 7, right: 16),
-                child: Container(
-                  height: 1,
-                  color: isDark
-                      ? colorScheme.onSurface.withValues(alpha: 0.24)
-                      : colorScheme.outlineVariant,
+                                ? colorScheme.onSurface.withValues(alpha: 0.7)
+                                : colorScheme.onSurfaceVariant),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 7, right: 16),
+                  child: Container(
+                    height: 1,
+                    color: isDark
+                        ? colorScheme.onSurface.withValues(alpha: 0.24)
+                        : colorScheme.outlineVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ));
+      );
 
       // Half hour line + label
       final halfY = yPosition + hourHeight / 2;
       final halfLabel = _formatHalfHourLabel(hour);
 
-      hourWidgets.add(Positioned(
-        top: halfY,
-        left: 0,
-        right: 0,
-        height: 16,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 52,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(halfLabel,
+      hourWidgets.add(
+        Positioned(
+          top: halfY,
+          left: 0,
+          right: 0,
+          height: 16,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 52,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    halfLabel,
                     style: AppTypography.caption(context).copyWith(
                       fontSize: 10,
                       fontWeight: FontWeight.w400,
                       color: isDark
                           ? colorScheme.onSurface.withValues(alpha: 0.38)
                           : colorScheme.onSurfaceVariant,
-                    )),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 5, right: 16),
-                child: CustomPaint(
-                  size: const Size(double.infinity, 1),
-                  painter: _DottedLinePainter(
-                    color: isDark
-                        ? colorScheme.onSurface.withValues(alpha: 0.12)
-                        : colorScheme.outlineVariant,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 5, right: 16),
+                  child: CustomPaint(
+                    size: const Size(double.infinity, 1),
+                    painter: _DottedLinePainter(
+                      color: isDark
+                          ? colorScheme.onSurface.withValues(alpha: 0.12)
+                          : colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ));
+      );
     }
     return hourWidgets;
   }
@@ -830,7 +888,8 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
   Widget _buildCurrentTimeIndicator(bool isDark, ColorScheme colorScheme) {
     final now = DateTime.now();
     final hour = now.hour.clamp(0, 23);
-    final yPosition = _hourYOffsets[hour] + (now.minute / 60) * _hourHeights[hour];
+    final yPosition =
+        _hourYOffsets[hour] + (now.minute / 60) * _hourHeights[hour];
 
     return Positioned(
       top: yPosition - 6,
@@ -840,41 +899,48 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
         animation: _currentTimeIndicatorController,
         builder: (context, child) {
           final pulseValue = _currentTimeIndicatorController.value;
-          return Row(children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.error,
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.error.withOpacity(0.3 + pulseValue * 0.3),
-                    blurRadius: 4 + pulseValue * 4,
-                    spreadRadius: pulseValue * 2,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                height: 2,
+          return Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [
-                    colorScheme.error,
-                    colorScheme.error.withOpacity(0.3),
-                  ]),
+                  shape: BoxShape.circle,
+                  color: colorScheme.error,
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.error.withOpacity(0.2 + pulseValue * 0.2),
-                      blurRadius: 2 + pulseValue * 2,
+                      color: colorScheme.error.withOpacity(
+                        0.3 + pulseValue * 0.3,
+                      ),
+                      blurRadius: 4 + pulseValue * 4,
+                      spreadRadius: pulseValue * 2,
                     ),
                   ],
                 ),
               ),
-            ),
-          ]);
+              Expanded(
+                child: Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.error,
+                        colorScheme.error.withOpacity(0.3),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.error.withOpacity(
+                          0.2 + pulseValue * 0.2,
+                        ),
+                        blurRadius: 2 + pulseValue * 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -882,8 +948,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
 
   List<Widget> _buildPositionedHabitCards(List<HabitItem> habits, bool isDark) {
     final List<Widget> cards = [];
-    final scrollOffset =
-        _timelineScrollController.hasClients ? _timelineScrollController.offset : 0.0;
+    final scrollOffset = _timelineScrollController.hasClients
+        ? _timelineScrollController.offset
+        : 0.0;
 
     _timelineMaxY = _hourYOffsets[24];
     if (habits.isEmpty) {
@@ -903,7 +970,10 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       } else {
         yTop = _hourYOffsets[startHour] + (minuteInHour / 60) * hourHeight;
       }
-      final cardHeight = ((duration / 60) * _baseHourHeight).clamp(_minCardHeight, 200.0);
+      final cardHeight = ((duration / 60) * _baseHourHeight).clamp(
+        _minCardHeight,
+        200.0,
+      );
       return (yTop: yTop, cardHeight: cardHeight);
     }).toList();
 
@@ -912,7 +982,9 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
     for (int i = 1; i < habits.length; i++) {
       final prevBottom = adjustedY[i - 1] + cardData[i - 1].cardHeight;
       final naturalY = cardData[i].yTop;
-      adjustedY[i] = naturalY < prevBottom + _cardGap ? prevBottom + _cardGap : naturalY;
+      adjustedY[i] = naturalY < prevBottom + _cardGap
+          ? prevBottom + _cardGap
+          : naturalY;
     }
 
     final lastIdx = habits.length - 1;
@@ -930,30 +1002,35 @@ class _RoutineScreenState extends State<RoutineScreen> with TickerProviderStateM
       final cardCenter = yPosition + cardHeight / 2;
       final viewportCenter = scrollOffset + _viewportHeight / 2;
       final distanceFromCenter = (cardCenter - viewportCenter).abs();
-      final normalizedDistance = (distanceFromCenter / _viewportHeight).clamp(0.0, 1.0);
+      final normalizedDistance = (distanceFromCenter / _viewportHeight).clamp(
+        0.0,
+        1.0,
+      );
       final scale = 1.0 - (normalizedDistance * 0.05);
       final opacity = 1.0 - (normalizedDistance * 0.3);
 
-      cards.add(Positioned(
-        top: yPosition,
-        left: 56,
-        right: 24,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: opacity.clamp(0.7, 1.0),
-          child: AnimatedScale(
+      cards.add(
+        Positioned(
+          top: yPosition,
+          left: 56,
+          right: 24,
+          child: AnimatedOpacity(
             duration: const Duration(milliseconds: 200),
-            scale: scale.clamp(0.95, 1.0),
-            child: _TimelineHabitCard(
-              habit: habit,
-              selectedDate: _selectedDate,
-              height: cardHeight,
-              onTap: () => _openHabitTimer(habit),
-              isDark: isDark,
+            opacity: opacity.clamp(0.7, 1.0),
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 200),
+              scale: scale.clamp(0.95, 1.0),
+              child: _TimelineHabitCard(
+                habit: habit,
+                selectedDate: _selectedDate,
+                height: cardHeight,
+                onTap: () => _openHabitTimer(habit),
+                isDark: isDark,
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
     return cards;
   }
@@ -999,13 +1076,17 @@ class _DottedLinePainter extends CustomPainter {
     double startX = 0;
     while (startX < size.width) {
       canvas.drawLine(
-          Offset(startX, size.height / 2), Offset(startX + dashWidth, size.height / 2), paint);
+        Offset(startX, size.height / 2),
+        Offset(startX + dashWidth, size.height / 2),
+        paint,
+      );
       startX += dashWidth + dashSpace;
     }
   }
 
   @override
-  bool shouldRepaint(_DottedLinePainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(_DottedLinePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _TimelineHabitCard extends StatelessWidget {
@@ -1096,7 +1177,27 @@ class _TimelineHabitCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: _compact ? _buildCompactRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted) : _buildNormalRow(context, iconData, textColor, subtitleColor, startTime, endTime, duration, isCompleted),
+                child: _compact
+                    ? _buildCompactRow(
+                        context,
+                        iconData,
+                        textColor,
+                        subtitleColor,
+                        startTime,
+                        endTime,
+                        duration,
+                        isCompleted,
+                      )
+                    : _buildNormalRow(
+                        context,
+                        iconData,
+                        textColor,
+                        subtitleColor,
+                        startTime,
+                        endTime,
+                        duration,
+                        isCompleted,
+                      ),
               ),
             ),
           ),
@@ -1105,7 +1206,16 @@ class _TimelineHabitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactRow(BuildContext context, IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
+  Widget _buildCompactRow(
+    BuildContext context,
+    IconData iconData,
+    Color textColor,
+    Color subtitleColor,
+    int? startTime,
+    int? endTime,
+    int duration,
+    bool isCompleted,
+  ) {
     return Row(
       children: [
         Container(
@@ -1126,14 +1236,20 @@ class _TimelineHabitCard extends StatelessWidget {
             children: [
               Text(
                 habit.name,
-                style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600, color: textColor),
+                style: AppTypography.bodySmall(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
                 '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}  ·  ${_formatDuration(duration)}',
-                style: AppTypography.caption(context).copyWith(fontSize: 10, color: subtitleColor, fontWeight: FontWeight.w500),
+                style: AppTypography.caption(context).copyWith(
+                  fontSize: 10,
+                  color: subtitleColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -1146,7 +1262,16 @@ class _TimelineHabitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildNormalRow(BuildContext context, IconData iconData, Color textColor, Color subtitleColor, int? startTime, int? endTime, int duration, bool isCompleted) {
+  Widget _buildNormalRow(
+    BuildContext context,
+    IconData iconData,
+    Color textColor,
+    Color subtitleColor,
+    int? startTime,
+    int? endTime,
+    int duration,
+    bool isCompleted,
+  ) {
     return Row(
       children: [
         Container(
@@ -1167,7 +1292,9 @@ class _TimelineHabitCard extends StatelessWidget {
             children: [
               Text(
                 habit.name,
-                style: AppTypography.bodySmall(context).copyWith(fontWeight: FontWeight.w600, color: textColor),
+                style: AppTypography.bodySmall(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w600, color: textColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1176,37 +1303,67 @@ class _TimelineHabitCard extends StatelessWidget {
                 children: [
                   Text(
                     '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}',
-                    style: AppTypography.caption(context).copyWith(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.w500),
+                    style: AppTypography.caption(context).copyWith(
+                      fontSize: 11,
+                      color: subtitleColor,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text('·', style: AppTypography.caption(context).copyWith(color: subtitleColor, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      '·',
+                      style: AppTypography.caption(context).copyWith(
+                        color: subtitleColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: textColor.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       _formatDuration(duration),
-                      style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
+                      style: AppTypography.caption(context).copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: subtitleColor,
+                      ),
                     ),
                   ),
                   if (habit.actionSteps.isNotEmpty) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Text('·', style: AppTypography.caption(context).copyWith(color: subtitleColor, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        '·',
+                        style: AppTypography.caption(context).copyWith(
+                          color: subtitleColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: textColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${habit.actionSteps.length} steps',
-                        style: AppTypography.caption(context).copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: subtitleColor),
+                        style: AppTypography.caption(context).copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: subtitleColor,
+                        ),
                       ),
                     ),
                   ],
@@ -1250,10 +1407,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
   final HabitItem habit;
   final HabitCompletionFeedback? feedback;
 
-  const _CompletionDetailsSheet({
-    required this.habit,
-    required this.feedback,
-  });
+  const _CompletionDetailsSheet({required this.habit, required this.feedback});
 
   static const _moodData = <int, (String, String, Color)>{
     1: ('assets/moods/awful.png', 'Awful', AppColors.moodAwful),
@@ -1269,13 +1423,14 @@ class _CompletionDetailsSheet extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final iconData =
         habit.iconIndex != null && habit.iconIndex! < habitIcons.length
-            ? habitIcons[habit.iconIndex!].$1
-            : Icons.self_improvement;
+        ? habitIcons[habit.iconIndex!].$1
+        : Icons.self_improvement;
 
     final mood = feedback?.rating;
     final note = feedback?.note;
     final coins = feedback?.coinsEarned;
-    final hasDetails = feedback != null &&
+    final hasDetails =
+        feedback != null &&
         ((mood != null && mood > 0 && _moodData.containsKey(mood)) ||
             (note != null && note.isNotEmpty) ||
             (coins != null && coins > 0));
@@ -1336,8 +1491,11 @@ class _CompletionDetailsSheet extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.check_circle_rounded,
-                              size: 14, color: colorScheme.primary),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 14,
+                            color: colorScheme.primary,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Completed',
@@ -1353,8 +1511,10 @@ class _CompletionDetailsSheet extends StatelessWidget {
                 ),
                 if (coins != null && coins > 0)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.gold.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
@@ -1405,16 +1565,16 @@ class _CompletionDetailsSheet extends StatelessWidget {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    if (mood != null &&
-                        mood > 0 &&
-                        _moodData.containsKey(mood))
-                      _buildDetailRow(context,
+                    if (mood != null && mood > 0 && _moodData.containsKey(mood))
+                      _buildDetailRow(
+                        context,
                         moodAsset: _moodData[mood]!.$1,
                         label: 'Mood',
                         value: _moodData[mood]!.$2,
@@ -1424,11 +1584,14 @@ class _CompletionDetailsSheet extends StatelessWidget {
                         isLast: (note == null || note.isEmpty),
                       ),
                     if (note != null && note.isNotEmpty)
-                      _buildNoteRow(context,
+                      _buildNoteRow(
+                        context,
                         note: note,
                         colorScheme: colorScheme,
                         isFirst:
-                            mood == null || mood <= 0 || !_moodData.containsKey(mood),
+                            mood == null ||
+                            mood <= 0 ||
+                            !_moodData.containsKey(mood),
                       ),
                   ],
                 ),
@@ -1456,10 +1619,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Text(
-                  'Done',
-                  style: AppTypography.button(context),
-                ),
+                child: Text('Done', style: AppTypography.button(context)),
               ),
             ),
           ],
@@ -1468,7 +1628,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, {
+  Widget _buildDetailRow(
+    BuildContext context, {
     required String moodAsset,
     required String label,
     required String value,
@@ -1490,7 +1651,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             label,
-            style: AppTypography.secondary(context).copyWith(fontWeight: FontWeight.w500),
+            style: AppTypography.secondary(
+              context,
+            ).copyWith(fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Container(
@@ -1501,10 +1664,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
             ),
             child: Text(
               value,
-              style: AppTypography.bodySmall(context).copyWith(
-                fontWeight: FontWeight.w600,
-                color: valueColor,
-              ),
+              style: AppTypography.bodySmall(
+                context,
+              ).copyWith(fontWeight: FontWeight.w600, color: valueColor),
             ),
           ),
         ],
@@ -1512,7 +1674,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildNoteRow(BuildContext context, {
+  Widget _buildNoteRow(
+    BuildContext context, {
     required String note,
     required ColorScheme colorScheme,
     required bool isFirst,
@@ -1529,17 +1692,19 @@ class _CompletionDetailsSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(Icons.notes_rounded,
-                size: 22, color: colorScheme.onSurfaceVariant),
+            child: Icon(
+              Icons.notes_rounded,
+              size: 22,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               note,
-              style: AppTypography.bodySmall(context).copyWith(
-                color: colorScheme.onSurface,
-                height: 1.4,
-              ),
+              style: AppTypography.bodySmall(
+                context,
+              ).copyWith(color: colorScheme.onSurface, height: 1.4),
             ),
           ),
         ],

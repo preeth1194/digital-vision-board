@@ -454,6 +454,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
             width: imageSize,
             height: imageSize,
             fit: BoxFit.contain,
+            useGifAsDefault: true,
           ),
         ),
         if (showTitle) ...[

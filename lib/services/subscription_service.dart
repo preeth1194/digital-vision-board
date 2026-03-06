@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dv_auth_service.dart';
@@ -25,14 +26,29 @@ class SubscriptionPlan {
   });
 }
 
-/// Wraps the `in_app_purchase` plugin for App Store / Play Store subscriptions.
+/// Wraps RevenueCat subscriptions while preserving existing app contracts.
 class SubscriptionService {
   SubscriptionService._();
 
   static const String _subscribedKey = 'is_subscribed';
   static const String _activePlanKey = 'active_plan_id';
+  static const String _rcAnonUserIdKey = 'rc_anon_user_id_v1';
+  static const String _legacyGraceUntilMsKey = 'rc_legacy_grace_until_ms_v1';
+  static const String _entitlementId = String.fromEnvironment(
+    'REVENUECAT_ENTITLEMENT_ID',
+    defaultValue: 'Habit-Seeding-Pro',
+  );
+  static const String _appleApiKey = String.fromEnvironment(
+    'REVENUECAT_APPLE_API_KEY',
+    defaultValue: '',
+  );
+  static const String _googleApiKey = String.fromEnvironment(
+    'REVENUECAT_GOOGLE_API_KEY',
+    defaultValue: '',
+  );
+  static const int _legacyGraceMs = 14 * 24 * 60 * 60 * 1000;
 
-  static const List<SubscriptionPlan> plans = [
+  static const List<SubscriptionPlan> _fallbackPlans = [
     SubscriptionPlan(
       productId: 'dvb_premium_1month',
       label: '1 Month',
@@ -62,15 +78,21 @@ class SubscriptionService {
     ),
   ];
 
-  static Set<String> get _productIds =>
-      plans.map((p) => p.productId).toSet();
-
-  static StreamSubscription<List<PurchaseDetails>>? _subscription;
   static final ValueNotifier<bool> isSubscribed = ValueNotifier(false);
   static final ValueNotifier<String?> activePlanId = ValueNotifier(null);
+  static final ValueNotifier<List<SubscriptionPlan>> availablePlans =
+      ValueNotifier<List<SubscriptionPlan>>(List<SubscriptionPlan>.from(_fallbackPlans));
+  static final ValueNotifier<String?> configNotice = ValueNotifier<String?>(null);
 
-  // Cached product details from the store (populated after query).
-  static final Map<String, ProductDetails> storeProducts = {};
+  static List<SubscriptionPlan> get plans => availablePlans.value;
+  static String get entitlementId => _entitlementId;
+  static bool get isRevenueCatConfigured => _revenueCatEnabled && _configured;
+
+  static final Map<String, Package> _packagesByProductId = {};
+  static bool _configured = false;
+  static bool _listenerAttached = false;
+  static bool _revenueCatEnabled = false;
+  static SharedPreferences? _prefsRef;
 
   // ------------------------------------------------------------------
   // Initialization
@@ -78,31 +100,49 @@ class SubscriptionService {
 
   static Future<void> initialize({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
+    _prefsRef = p;
     isSubscribed.value = p.getBool(_subscribedKey) ?? false;
     activePlanId.value = p.getString(_activePlanKey);
+    availablePlans.value = List<SubscriptionPlan>.from(_fallbackPlans);
 
-    if (!await InAppPurchase.instance.isAvailable()) {
-      debugPrint('In-app purchases not available on this device.');
+    final apiKey = _platformRevenueCatApiKey();
+    if (kIsWeb || apiKey.isEmpty) {
+      configNotice.value =
+          'RevenueCat not configured. Add REVENUECAT_APPLE_API_KEY / REVENUECAT_GOOGLE_API_KEY.';
+      debugPrint(
+        'RevenueCat not configured for this platform. '
+        'Set REVENUECAT_APPLE_API_KEY / REVENUECAT_GOOGLE_API_KEY.',
+      );
       return;
     }
+    configNotice.value = null;
+    _revenueCatEnabled = true;
 
-    _subscription?.cancel();
-    _subscription =
-        InAppPurchase.instance.purchaseStream.listen(_onPurchaseUpdate);
-
-    // Fetch real prices from the store
-    final response =
-        await InAppPurchase.instance.queryProductDetails(_productIds);
-    for (final detail in response.productDetails) {
-      storeProducts[detail.id] = detail;
+    final appUserId = await _resolveRevenueCatAppUserId(p);
+    if (!_configured) {
+      final config = PurchasesConfiguration(apiKey)..appUserID = appUserId;
+      await Purchases.configure(config);
+      _configured = true;
+      debugPrint('RevenueCat configured (appUserId=$appUserId).');
     }
 
-    await InAppPurchase.instance.restorePurchases();
+    if (!_listenerAttached) {
+      Purchases.addCustomerInfoUpdateListener((customerInfo) async {
+        await _applyCustomerInfo(
+          customerInfo,
+          source: 'revenuecat_listener',
+          prefs: p,
+        );
+      });
+      _listenerAttached = true;
+    }
+
+    await _refreshOfferings();
+    await _refreshCustomerInfo(source: 'revenuecat_init', prefs: p);
   }
 
   static void dispose() {
-    _subscription?.cancel();
-    _subscription = null;
+    // Purchases SDK manages listener lifecycle; keep service stateful for app lifetime.
   }
 
   // ------------------------------------------------------------------
@@ -110,79 +150,266 @@ class SubscriptionService {
   // ------------------------------------------------------------------
 
   static Future<bool> buyPlan(String productId) async {
-    if (!await InAppPurchase.instance.isAvailable()) return false;
-
-    final detail = storeProducts[productId];
-    if (detail == null) {
-      // Fallback: query just this product
-      final response = await InAppPurchase.instance
-          .queryProductDetails({productId});
-      if (response.productDetails.isEmpty) {
-        debugPrint('No product found for $productId');
+    if (!_revenueCatEnabled) return false;
+    var pkg = _packagesByProductId[productId];
+    if (pkg == null) {
+      await _refreshOfferings();
+      pkg = _packagesByProductId[productId];
+      if (pkg == null) {
+        debugPrint('No RevenueCat package found for productId=$productId');
         return false;
       }
-      storeProducts[productId] = response.productDetails.first;
     }
-
-    final product = storeProducts[productId]!;
-    final param = PurchaseParam(productDetails: product);
-    return InAppPurchase.instance.buyNonConsumable(purchaseParam: param);
+    try {
+      await Purchases.purchase(PurchaseParams.package(pkg));
+      await _refreshCustomerInfo(source: 'revenuecat_purchase');
+      return true;
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code != PurchasesErrorCode.purchaseCancelledError) {
+        debugPrint('RevenueCat purchase failed ($code): ${e.message}');
+      }
+      return false;
+    } catch (e) {
+      debugPrint('RevenueCat purchase failed: $e');
+      return false;
+    }
   }
 
   /// Restore previous purchases (e.g. after reinstall).
   static Future<void> restorePurchases() async {
-    if (!await InAppPurchase.instance.isAvailable()) return;
-    await InAppPurchase.instance.restorePurchases();
-  }
-
-  /// Get the store price for a plan, falling back to the hardcoded price.
-  static String priceForPlan(SubscriptionPlan plan) {
-    final detail = storeProducts[plan.productId];
-    return detail?.price ?? plan.price;
-  }
-
-  // ------------------------------------------------------------------
-  // Purchase stream handler
-  // ------------------------------------------------------------------
-
-  static Future<void> _onPurchaseUpdate(
-      List<PurchaseDetails> purchases) async {
-    for (final purchase in purchases) {
-      if (purchase.status == PurchaseStatus.purchased ||
-          purchase.status == PurchaseStatus.restored) {
-        if (_productIds.contains(purchase.productID)) {
-          await _grantSubscription(purchase.productID, source: 'store');
-        }
-        if (purchase.pendingCompletePurchase) {
-          await InAppPurchase.instance.completePurchase(purchase);
-        }
-      } else if (purchase.status == PurchaseStatus.error) {
-        debugPrint('Purchase error: ${purchase.error}');
-        if (purchase.pendingCompletePurchase) {
-          await InAppPurchase.instance.completePurchase(purchase);
-        }
-      } else if (purchase.status == PurchaseStatus.pending) {
-        debugPrint('Purchase pending...');
-      }
+    if (!_revenueCatEnabled) return;
+    try {
+      await Purchases.restorePurchases();
+      await _refreshCustomerInfo(source: 'revenuecat_restore');
+    } catch (e) {
+      debugPrint('RevenueCat restore failed: $e');
     }
   }
 
-  static Future<void> _grantSubscription(String productId, {String? source}) async {
-    isSubscribed.value = true;
-    activePlanId.value = productId;
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(_subscribedKey, true);
-    await p.setString(_activePlanKey, productId);
-    unawaited(_syncSubscriptionToBackend(productId, true, source: source));
+  /// Get the store price for a plan, falling back to known/static price.
+  static String priceForPlan(SubscriptionPlan plan) {
+    String? fromOfferings;
+    for (final p in availablePlans.value) {
+      if (p.productId == plan.productId) {
+        fromOfferings = p.price;
+        break;
+      }
+    }
+    return fromOfferings ?? plan.price;
+  }
+
+  // ------------------------------------------------------------------
+  // RevenueCat state handling
+  // ------------------------------------------------------------------
+
+  static Future<void> _refreshOfferings() async {
+    if (!_revenueCatEnabled) return;
+    try {
+      final offerings = await Purchases.getOfferings();
+      final current = offerings.current;
+      if (current == null) {
+        availablePlans.value = List<SubscriptionPlan>.from(_fallbackPlans);
+        return;
+      }
+      final list = <SubscriptionPlan>[];
+      _packagesByProductId.clear();
+      for (final pkg in current.availablePackages) {
+        final product = pkg.storeProduct;
+        final productId = product.identifier;
+        _packagesByProductId[productId] = pkg;
+        list.add(
+          SubscriptionPlan(
+            productId: productId,
+            label: product.title,
+            duration: productId,
+            price: product.priceString,
+          ),
+        );
+      }
+      if (list.isNotEmpty) {
+        availablePlans.value = list;
+      } else {
+        availablePlans.value = List<SubscriptionPlan>.from(_fallbackPlans);
+      }
+      _logMissingExpectedPackages(current.availablePackages);
+    } catch (e) {
+      debugPrint('RevenueCat offerings fetch failed: $e');
+      availablePlans.value = List<SubscriptionPlan>.from(_fallbackPlans);
+    }
+  }
+
+  static Future<void> _refreshCustomerInfo({
+    String source = 'revenuecat_refresh',
+    SharedPreferences? prefs,
+  }) async {
+    if (!_revenueCatEnabled) return;
+    try {
+      final info = await Purchases.getCustomerInfo();
+      await _applyCustomerInfo(info, source: source, prefs: prefs);
+    } catch (e) {
+      debugPrint('RevenueCat customer info fetch failed: $e');
+      await _applyLegacyGraceIfNeeded(source: 'legacy_grace_fetch_failed', prefs: prefs);
+    }
+  }
+
+  static Future<void> refreshCustomerInfo({
+    String source = 'revenuecat_manual_refresh',
+  }) async {
+    await _refreshCustomerInfo(source: source);
+  }
+
+  static Future<void> _applyCustomerInfo(
+    CustomerInfo info, {
+    required String source,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? _prefsRef ?? await SharedPreferences.getInstance();
+    final activeEntitlement = info.entitlements.active[_entitlementId];
+    final productId = activeEntitlement?.productIdentifier ??
+        (info.activeSubscriptions.isNotEmpty ? info.activeSubscriptions.first : null);
+    final isActive = activeEntitlement != null || info.activeSubscriptions.isNotEmpty;
+
+    if (isActive) {
+      await _setSubscriptionState(
+        isActive: true,
+        planId: productId,
+        source: source,
+        prefs: p,
+      );
+      await p.remove(_legacyGraceUntilMsKey);
+      return;
+    }
+
+    await _applyLegacyGraceIfNeeded(source: source, prefs: p);
+  }
+
+  static Future<void> _applyLegacyGraceIfNeeded({
+    required String source,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? _prefsRef ?? await SharedPreferences.getInstance();
+    final hadLegacyAccess = p.getBool(_subscribedKey) ?? false;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    var graceUntilMs = p.getInt(_legacyGraceUntilMsKey);
+    if (hadLegacyAccess && graceUntilMs == null) {
+      graceUntilMs = nowMs + _legacyGraceMs;
+      await p.setInt(_legacyGraceUntilMsKey, graceUntilMs);
+    }
+    final graceActive = graceUntilMs != null && nowMs < graceUntilMs;
+    if (graceActive && hadLegacyAccess) {
+      await _setSubscriptionState(
+        isActive: true,
+        planId: activePlanId.value ?? p.getString(_activePlanKey),
+        source: 'legacy_migration_grace',
+        prefs: p,
+        syncBackend: false,
+      );
+      return;
+    }
+    await _setSubscriptionState(
+      isActive: false,
+      planId: null,
+      source: source,
+      prefs: p,
+    );
+  }
+
+  static Future<void> _setSubscriptionState({
+    required bool isActive,
+    required String? planId,
+    required String source,
+    SharedPreferences? prefs,
+    bool syncBackend = true,
+  }) async {
+    final p = prefs ?? _prefsRef ?? await SharedPreferences.getInstance();
+    final normalizedPlanId = (planId ?? '').trim().isEmpty ? null : planId!.trim();
+    isSubscribed.value = isActive;
+    activePlanId.value = normalizedPlanId;
+    await p.setBool(_subscribedKey, isActive);
+    if (normalizedPlanId != null) {
+      await p.setString(_activePlanKey, normalizedPlanId);
+    } else {
+      await p.remove(_activePlanKey);
+    }
+    if (syncBackend) {
+      unawaited(
+        _syncSubscriptionToBackend(
+          normalizedPlanId,
+          isActive,
+          source: source,
+        ),
+      );
+    }
+    debugPrint(
+      'Subscription state updated: active=$isActive plan=$normalizedPlanId source=$source',
+    );
+  }
+
+  static void _logMissingExpectedPackages(List<Package> packages) {
+    final hasWeekly = packages.any(
+      (p) =>
+          p.packageType == PackageType.weekly ||
+          p.identifier.toLowerCase().contains('weekly'),
+    );
+    final hasMonthly = packages.any(
+      (p) =>
+          p.packageType == PackageType.monthly ||
+          p.identifier.toLowerCase().contains('monthly'),
+    );
+    final hasYearly = packages.any(
+      (p) =>
+          p.packageType == PackageType.annual ||
+          p.identifier.toLowerCase().contains('yearly') ||
+          p.identifier.toLowerCase().contains('annual'),
+    );
+    final missing = <String>[
+      if (!hasWeekly) 'weekly',
+      if (!hasMonthly) 'monthly',
+      if (!hasYearly) 'yearly',
+    ];
+    if (missing.isNotEmpty) {
+      debugPrint(
+        'RevenueCat offerings missing expected package(s): ${missing.join(', ')}',
+      );
+    }
+  }
+
+  static String _platformRevenueCatApiKey() {
+    if (kIsWeb) return '';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return _appleApiKey;
+      case TargetPlatform.android:
+        return _googleApiKey;
+      default:
+        return '';
+    }
+  }
+
+  static Future<String> _resolveRevenueCatAppUserId(
+    SharedPreferences prefs,
+  ) async {
+    final userId = await DvAuthService.getUserId(prefs: prefs);
+    if (userId != null && userId.isNotEmpty) return userId;
+    final existingAnon = prefs.getString(_rcAnonUserIdKey);
+    if (existingAnon != null && existingAnon.isNotEmpty) return existingAnon;
+    final generated = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    await prefs.setString(_rcAnonUserIdKey, generated);
+    return generated;
   }
 
   static Future<void> _syncSubscriptionToBackend(
-      String planId, bool active, {String? source}) async {
+    String? planId,
+    bool active, {
+    String? source,
+  }) async {
     try {
       await DvAuthService.putUserSettings(
         subscriptionPlanId: planId,
         subscriptionActive: active,
-        subscriptionSource: source,
+        subscriptionSource: source ?? 'revenuecat',
       );
     } catch (e) {
       debugPrint('Subscription backend sync failed: $e');
@@ -203,6 +430,9 @@ class SubscriptionService {
       await p.setString(_activePlanKey, subscriptionPlanId);
     } else {
       await p.remove(_activePlanKey);
+    }
+    if (subscriptionActive) {
+      await p.remove(_legacyGraceUntilMsKey);
     }
   }
 
@@ -271,7 +501,11 @@ class SubscriptionService {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['ok'] == true) {
         final planId = body['plan_id'] as String? ?? 'dvb_premium_1year';
-        await _grantSubscription(planId);
+        await _setSubscriptionState(
+          isActive: true,
+          planId: planId,
+          source: 'gift_code',
+        );
         return (ok: true, planId: planId, error: null);
       }
       return (

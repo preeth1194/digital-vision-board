@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +10,37 @@ import '../../models/habit_item.dart';
 import '../../services/icon_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
+
+void _debugLogStepForm({
+  required String runId,
+  required String hypothesisId,
+  required String location,
+  required String message,
+  required Map<String, dynamic> data,
+}) {
+  final payload = <String, dynamic>{
+    'sessionId': '7739ce',
+    'runId': runId,
+    'hypothesisId': hypothesisId,
+    'location': location,
+    'message': message,
+    'data': data,
+    'timestamp': DateTime.now().millisecondsSinceEpoch,
+  };
+  () async {
+    try {
+      final client = HttpClient();
+      final req = await client.postUrl(
+        Uri.parse('http://127.0.0.1:7242/ingest/374160e6-9662-46f2-a15d-93097c3f6383'),
+      );
+      req.headers.set('Content-Type', 'application/json');
+      req.headers.set('X-Debug-Session-Id', '7739ce');
+      req.add(utf8.encode(jsonEncode(payload)));
+      await req.close();
+      client.close(force: true);
+    } catch (_) {}
+  }();
+}
 
 // --- STEP 6: ACTION STEPS ---
 class Step6Strategy extends StatefulWidget {
@@ -55,13 +89,132 @@ class Step6Strategy extends StatefulWidget {
 }
 
 class _Step6StrategyState extends State<Step6Strategy> {
+  static const int _allPlannerDays = 0;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _showSuggestions = false;
+  bool _plannerMode = false;
+  int _selectedPlannerWeek = 1;
+  int _selectedPlannerDay = DateTime.monday;
+  bool _loggedPlannerBucketSnapshot = false;
+  bool _loggedPlannerBucketFilter = false;
+
+  static const List<(int, String)> _plannerWeekOptions = [
+    (1, 'Week 1'),
+    (2, 'Week 2'),
+    (3, 'Week 3'),
+  ];
+  static const List<(int, String)> _plannerDayOptions = [
+    (DateTime.monday, 'Mon'),
+    (DateTime.tuesday, 'Tue'),
+    (DateTime.wednesday, 'Wed'),
+    (DateTime.thursday, 'Thu'),
+    (DateTime.friday, 'Fri'),
+    (DateTime.saturday, 'Sat'),
+    (DateTime.sunday, 'Sun'),
+  ];
+  static const List<(int, String)> _plannerDayFilterOptions = [
+    (_allPlannerDays, 'All'),
+    (DateTime.monday, 'Mon'),
+    (DateTime.tuesday, 'Tue'),
+    (DateTime.wednesday, 'Wed'),
+    (DateTime.thursday, 'Thu'),
+    (DateTime.friday, 'Fri'),
+    (DateTime.saturday, 'Sat'),
+    (DateTime.sunday, 'Sun'),
+  ];
+
+  bool _hasPlannerMetadata(List<HabitActionStep> steps) {
+    final hasPlannerSchedule = steps.any((s) => s.hasPlannerSchedule);
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run2',
+      hypothesisId: 'H6',
+      location: 'habit_form_strategy_section.dart:_hasPlannerMetadata',
+      message: 'Planner metadata detection result',
+      data: {
+        'stepsCount': steps.length,
+        'hasPlannerSchedule': hasPlannerSchedule,
+        'sample': steps.take(3).map((s) {
+          return {
+            'id': s.id,
+            'plannerDay': s.plannerDay,
+            'plannerWeek': s.plannerWeek,
+            'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
+            'normalizedPlannerWeek': s.normalizedPlannerWeek,
+            'hasPlannerSchedule': s.hasPlannerSchedule,
+          };
+        }).toList(),
+      },
+    );
+    // #endregion
+    return hasPlannerSchedule;
+  }
+
+  String _plannerDayKey(int weekday) {
+    if (weekday == _allPlannerDays) {
+      return 'mon';
+    }
+    switch (weekday) {
+      case DateTime.monday:
+        return 'mon';
+      case DateTime.tuesday:
+        return 'tue';
+      case DateTime.wednesday:
+        return 'wed';
+      case DateTime.thursday:
+        return 'thu';
+      case DateTime.friday:
+        return 'fri';
+      case DateTime.saturday:
+        return 'sat';
+      case DateTime.sunday:
+      default:
+        return 'sun';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _plannerMode = _hasPlannerMetadata(widget.actionSteps);
+    if (_plannerMode) {
+      final distinctWeekdays = widget.actionSteps
+          .map((s) => s.normalizedPlannerWeekday)
+          .whereType<int>()
+          .toSet();
+      if (distinctWeekdays.length > 1) {
+        _selectedPlannerDay = _allPlannerDays;
+      }
+    }
+    final initialBucketCount = widget.actionSteps.where((step) {
+      final weekMatches = step.normalizedPlannerWeek == null ||
+          step.normalizedPlannerWeek == _selectedPlannerWeek;
+      final dayMatches = _selectedPlannerDay == _allPlannerDays ||
+          step.normalizedPlannerWeekday == null ||
+          step.normalizedPlannerWeekday == _selectedPlannerDay;
+      return weekMatches && dayMatches;
+    }).length;
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run5',
+      hypothesisId: 'H11',
+      location: 'habit_form_strategy_section.dart:initState',
+      message: 'Step6Strategy initialized planner mode',
+      data: {
+        'plannerMode': _plannerMode,
+        'actionStepsCount': widget.actionSteps.length,
+        'selectedPlannerWeek': _selectedPlannerWeek,
+        'selectedPlannerDay': _selectedPlannerDay,
+        'initialBucketCount': initialBucketCount,
+        'plannerDayValues': widget.actionSteps
+            .map((s) => (s.plannerDay ?? '').trim())
+            .where((v) => v.isNotEmpty)
+            .toSet()
+            .toList(),
+      },
+    );
+    // #endregion
     if (widget.anchorHabitText.isNotEmpty) {
       _searchController.text = widget.anchorHabitText;
     }
@@ -75,6 +228,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
   @override
   void didUpdateWidget(covariant Step6Strategy oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.actionSteps != oldWidget.actionSteps &&
+        !_plannerMode &&
+        _hasPlannerMetadata(widget.actionSteps)) {
+      _plannerMode = true;
+    }
     if (widget.anchorHabitText != oldWidget.anchorHabitText &&
         widget.anchorHabitText != _searchController.text) {
       _searchController.text = widget.anchorHabitText;
@@ -97,19 +255,18 @@ class _Step6StrategyState extends State<Step6Strategy> {
   /// Builds the merged + filtered suggestion list from user habits and defaults.
   List<HabitSuggestion> _buildSuggestions() {
     final query = _searchController.text.trim().toLowerCase();
-    final existingNames =
-        widget.existingHabits.map((h) => h.name.toLowerCase()).toSet();
+    final existingNames = widget.existingHabits
+        .map((h) => h.name.toLowerCase())
+        .toSet();
 
     final List<HabitSuggestion> results = [];
 
     // User's own habits
     for (final h in widget.existingHabits) {
       if (query.isEmpty || h.name.toLowerCase().contains(query)) {
-        results.add(HabitSuggestion(
-          label: h.name,
-          habitId: h.id,
-          isDefault: false,
-        ));
+        results.add(
+          HabitSuggestion(label: h.name, habitId: h.id, isDefault: false),
+        );
       }
     }
 
@@ -117,11 +274,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
     for (final name in kDefaultStackingHabits) {
       if (!existingNames.contains(name.toLowerCase())) {
         if (query.isEmpty || name.toLowerCase().contains(query)) {
-          results.add(HabitSuggestion(
-            label: name,
-            habitId: null,
-            isDefault: true,
-          ));
+          results.add(
+            HabitSuggestion(label: name, habitId: null, isDefault: true),
+          );
         }
       }
     }
@@ -146,36 +301,50 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
   void _addStep() {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    steps.add(HabitActionStep(
-      id: 'step_${DateTime.now().millisecondsSinceEpoch}',
-      title: '',
-      iconCodePoint: Icons.check_circle_outline.codePoint,
-      order: steps.length,
-    ));
+    steps.add(
+      HabitActionStep(
+        id: 'step_${DateTime.now().millisecondsSinceEpoch}',
+        title: '',
+        iconCodePoint: Icons.check_circle_outline.codePoint,
+        order: steps.length,
+        plannerWeek: _plannerMode ? _selectedPlannerWeek : null,
+        plannerDay: _plannerMode ? _plannerDayKey(_selectedPlannerDay) : null,
+      ),
+    );
     widget.onActionStepsChanged(steps);
   }
 
-  void _deleteStep(int index) {
+  void _deleteStepById(String stepId) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    steps.removeAt(index);
+    steps.removeWhere((step) => step.id == stepId);
     for (int i = 0; i < steps.length; i++) {
       steps[i] = steps[i].copyWith(order: i);
     }
     widget.onActionStepsChanged(steps);
   }
 
-  void _updateStepTitle(int index, String title) {
+  void _updateStepById(String stepId, HabitActionStep updatedStep) {
     final steps = List<HabitActionStep>.from(widget.actionSteps);
-    final newIcon = title.trim().isNotEmpty
-        ? IconService.getIconCodePointForTitle(title.trim())
+    final index = steps.indexWhere((step) => step.id == stepId);
+    if (index < 0) return;
+    final computedTitle = updatedStep.displayTitle;
+    final newIcon = computedTitle.trim().isNotEmpty
+        ? IconService.getIconCodePointForTitle(computedTitle.trim())
         : steps[index].iconCodePoint;
-    steps[index] = steps[index].copyWith(title: title, iconCodePoint: newIcon);
+    steps[index] = updatedStep.copyWith(
+      title: computedTitle,
+      iconCodePoint: newIcon,
+    );
     widget.onActionStepsChanged(steps);
   }
 
   Widget _buildInlineAddButton(ColorScheme colorScheme) {
     return IconButton(
-      icon: Icon(Icons.add_circle_rounded, size: 22, color: colorScheme.primary),
+      icon: Icon(
+        Icons.add_circle_rounded,
+        size: 22,
+        color: colorScheme.primary,
+      ),
       onPressed: _addStep,
       visualDensity: VisualDensity.compact,
       tooltip: 'Add step',
@@ -191,7 +360,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Icon(Icons.add_circle_outline, size: 20, color: colorScheme.primary),
+              Icon(
+                Icons.add_circle_outline,
+                size: 20,
+                color: colorScheme.primary,
+              ),
               const SizedBox(width: 12),
               Text(
                 'Add a step',
@@ -205,6 +378,207 @@ class _Step6StrategyState extends State<Step6Strategy> {
         ),
       ),
     );
+  }
+
+  Widget _buildStepOptionsRow(ColorScheme colorScheme) {
+    final style = OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      side: BorderSide(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _addStep,
+              style: style,
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text('Add a step'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanningModeToggle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: CupertinoSlidingSegmentedControl<bool>(
+        groupValue: _plannerMode,
+        children: const {
+          false: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Simple Steps'),
+          ),
+          true: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Planner Mode'),
+          ),
+        },
+        onValueChanged: (value) {
+          if (value == null) return;
+          setState(() {
+            _plannerMode = value;
+          });
+          final steps = List<HabitActionStep>.from(widget.actionSteps);
+          var changed = false;
+          for (var i = 0; i < steps.length; i++) {
+            if (!value && steps[i].hasPlannerSchedule) {
+              steps[i] = steps[i].copyWith(
+                clearPlannerWeek: true,
+                clearPlannerDay: true,
+              );
+              changed = true;
+              continue;
+            }
+            if (value && !steps[i].hasPlannerSchedule) {
+              steps[i] = steps[i].copyWith(
+                plannerWeek: _selectedPlannerWeek,
+                plannerDay: _plannerDayKey(_selectedPlannerDay),
+              );
+              changed = true;
+            }
+          }
+          if (changed) {
+            widget.onActionStepsChanged(steps);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlannerBucketSelector() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              value: _selectedPlannerWeek,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Tracker Week',
+              ),
+              items: _plannerWeekOptions
+                  .map(
+                    (option) => DropdownMenuItem<int>(
+                      value: option.$1,
+                      child: Text(option.$2),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                // #region agent log
+                _debugLogStepForm(
+                  runId: 'run6',
+                  hypothesisId: 'H12',
+                  location: 'habit_form_strategy_section.dart:_buildPlannerBucketSelector',
+                  message: 'Tracker week selector changed',
+                  data: {
+                    'previousSelectedPlannerWeek': _selectedPlannerWeek,
+                    'nextSelectedPlannerWeek': value,
+                    'selectedPlannerDay': _selectedPlannerDay,
+                    'stepsCount': widget.actionSteps.length,
+                  },
+                );
+                // #endregion
+                setState(() => _selectedPlannerWeek = value);
+              },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              value: _selectedPlannerDay,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Weekday',
+              ),
+              items: _plannerDayFilterOptions
+                  .map(
+                    (option) => DropdownMenuItem<int>(
+                      value: option.$1,
+                      child: Text(option.$2),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedPlannerDay = value);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<HabitActionStep> get _plannerBucketSteps {
+    final bucket = widget.actionSteps
+        .where(
+          (step) {
+            final weekMatches = step.normalizedPlannerWeek == null ||
+                step.normalizedPlannerWeek == _selectedPlannerWeek;
+            final dayMatches = _selectedPlannerDay == _allPlannerDays ||
+                step.normalizedPlannerWeekday == null ||
+                step.normalizedPlannerWeekday == _selectedPlannerDay;
+            return weekMatches && dayMatches;
+          },
+        )
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    if (!_loggedPlannerBucketFilter) {
+      _loggedPlannerBucketFilter = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run4',
+        hypothesisId: 'H8',
+        location: 'habit_form_strategy_section.dart:_plannerBucketSteps',
+        message: 'Planner bucket filter result',
+        data: {
+          'bucketFilterVersion': 'wildcard_v2',
+          'selectedPlannerWeek': _selectedPlannerWeek,
+          'selectedPlannerDay': _selectedPlannerDay,
+          'totalSteps': widget.actionSteps.length,
+          'bucketCount': bucket.length,
+          'selectedStepsPlannerWeeks': bucket
+              .map((s) => s.normalizedPlannerWeek)
+              .toSet()
+              .toList(),
+          'firstStepEvaluation': widget.actionSteps.isEmpty
+              ? null
+              : {
+                  'weekMatches': widget.actionSteps.first.normalizedPlannerWeek ==
+                          null ||
+                      widget.actionSteps.first.normalizedPlannerWeek ==
+                          _selectedPlannerWeek,
+                  'dayMatches': _selectedPlannerDay == _allPlannerDays ||
+                      widget.actionSteps.first.normalizedPlannerWeekday ==
+                          null ||
+                      widget.actionSteps.first.normalizedPlannerWeekday ==
+                          _selectedPlannerDay,
+                },
+          'sample': widget.actionSteps.take(5).map((s) {
+            return {
+              'id': s.id,
+              'title': s.title,
+              'plannerDay': s.plannerDay,
+              'plannerWeek': s.plannerWeek,
+              'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
+              'normalizedPlannerWeek': s.normalizedPlannerWeek,
+            };
+          }).toList(),
+        },
+      );
+      // #endregion
+    }
+    return bucket;
   }
 
   void _reorderSteps(int oldIndex, int newIndex) {
@@ -221,6 +595,29 @@ class _Step6StrategyState extends State<Step6Strategy> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    if (_plannerMode && !_loggedPlannerBucketSnapshot) {
+      _loggedPlannerBucketSnapshot = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run4',
+        hypothesisId: 'H9',
+        location: 'habit_form_strategy_section.dart:build',
+        message: 'Planner mode first render snapshot',
+        data: {
+          'bucketFilterVersion': 'wildcard_v2',
+          'plannerMode': _plannerMode,
+          'selectedPlannerWeek': _selectedPlannerWeek,
+          'selectedPlannerDay': _selectedPlannerDay,
+          'actionStepsCount': widget.actionSteps.length,
+          'plannerDayValues': widget.actionSteps
+              .map((s) => (s.plannerDay ?? '').trim())
+              .where((v) => v.isNotEmpty)
+              .toSet()
+              .toList(),
+        },
+      );
+      // #endregion
+    }
 
     return CupertinoListSection.insetGrouped(
       header: Text(
@@ -244,9 +641,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
           ),
           title: Text(
             "Break into small steps",
-            style: AppTypography.body(context).copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTypography.body(
+              context,
+            ).copyWith(fontWeight: FontWeight.w500),
           ),
           trailing: CupertinoSwitch(
             value: widget.actionStepsEnabled,
@@ -256,7 +653,10 @@ class _Step6StrategyState extends State<Step6Strategy> {
           onTap: null,
         ),
         if (widget.actionStepsEnabled) ...[
-          if (widget.actionSteps.isNotEmpty)
+          _buildPlanningModeToggle(),
+          if (_plannerMode) _buildPlannerBucketSelector(),
+          _buildStepOptionsRow(colorScheme),
+          if (!_plannerMode && widget.actionSteps.isNotEmpty)
             ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -281,8 +681,8 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   step: step,
                   stepNumber: index + 1,
                   colorScheme: colorScheme,
-                  onTitleChanged: (title) => _updateStepTitle(index, title),
-                  onDelete: () => _deleteStep(index),
+                  onChanged: (nextStep) => _updateStepById(step.id, nextStep),
+                  onDelete: () => _deleteStepById(step.id),
                   reorderIndex: index,
                   trailing: index == widget.actionSteps.length - 1
                       ? _buildInlineAddButton(colorScheme)
@@ -290,16 +690,86 @@ class _Step6StrategyState extends State<Step6Strategy> {
                 );
               },
             )
+          else if (_plannerMode && _plannerBucketSteps.isNotEmpty)
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _plannerBucketSteps.length,
+              itemBuilder: (context, index) {
+                final step = _plannerBucketSteps[index];
+                return _ActionStepTile(
+                  key: ValueKey(step.id),
+                  step: step,
+                  stepNumber: index + 1,
+                  colorScheme: colorScheme,
+                  onChanged: (nextStep) => _updateStepById(step.id, nextStep),
+                  onDelete: () => _deleteStepById(step.id),
+                  reorderIndex: index,
+                  showPlannerControls: true,
+                  plannerWeekOptions: _plannerWeekOptions,
+                  plannerDayOptions: _plannerDayOptions,
+                  onPlannerWeekChanged: (week) {
+                    // #region agent log
+                    _debugLogStepForm(
+                      runId: 'run6',
+                      hypothesisId: 'H14',
+                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
+                      message: 'Per-step planner week changed',
+                      data: {
+                        'stepId': step.id,
+                        'previousPlannerWeek': step.plannerWeek,
+                        'nextPlannerWeek': week,
+                      },
+                    );
+                    // #endregion
+                    _updateStepById(step.id, step.copyWith(plannerWeek: week));
+                  },
+                  onPlannerDayChanged: (weekday) {
+                    // #region agent log
+                    _debugLogStepForm(
+                      runId: 'run6',
+                      hypothesisId: 'H14',
+                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
+                      message: 'Per-step planner day changed',
+                      data: {
+                        'stepId': step.id,
+                        'previousPlannerDay': step.plannerDay,
+                        'nextPlannerDay': _plannerDayKey(weekday),
+                      },
+                    );
+                    // #endregion
+                    _updateStepById(
+                      step.id,
+                      step.copyWith(plannerDay: _plannerDayKey(weekday)),
+                    );
+                  },
+                  plannerWeekFallback: _selectedPlannerWeek,
+                  trailing: index == _plannerBucketSteps.length - 1
+                      ? _buildInlineAddButton(colorScheme)
+                      : null,
+                );
+              },
+            )
           else
-            _buildAddStepRow(colorScheme),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _plannerMode
+                    ? 'No steps for this week/day bucket yet.'
+                    : 'Add at least one action step.',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           if (widget.actionStepsError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
                 widget.actionStepsError!,
-                style: AppTypography.caption(context).copyWith(
-                  color: colorScheme.error,
-                ),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: colorScheme.error),
               ),
             ),
         ],
@@ -315,9 +785,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
               ),
               title: Text(
                 "Anchor to an existing habit",
-                style: AppTypography.body(context).copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTypography.body(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
               ),
               trailing: CupertinoSwitch(
                 value: widget.habitStackingEnabled,
@@ -332,31 +802,44 @@ class _Step6StrategyState extends State<Step6Strategy> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Builder(builder: (context) {
-                      const options = ['Before', 'After'];
-                      final safeValue = options.contains(widget.relationship)
-                          ? widget.relationship
-                          : 'Before';
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButton<String>(
-                          dropdownColor: colorScheme.surfaceContainerHighest,
-                          value: safeValue,
-                          isExpanded: true,
-                          style: AppTypography.body(context),
-                          underline: const SizedBox(),
-                          icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurfaceVariant),
-                          items: ['Before', 'After']
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                              .toList(),
-                          onChanged: (v) => widget.onRelationshipChanged(v!),
-                        ),
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        const options = ['Before', 'After'];
+                        final safeValue = options.contains(widget.relationship)
+                            ? widget.relationship
+                            : 'Before';
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButton<String>(
+                            dropdownColor: colorScheme.surfaceContainerHighest,
+                            value: safeValue,
+                            isExpanded: true,
+                            style: AppTypography.body(context),
+                            underline: const SizedBox(),
+                            icon: Icon(
+                              Icons.keyboard_arrow_down,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            items: ['Before', 'After']
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => widget.onRelationshipChanged(v!),
+                          ),
+                        );
+                      },
+                    ),
                     SizedBox(height: kControlSpacing),
                     TextField(
                       controller: _searchController,
@@ -372,19 +855,29 @@ class _Step6StrategyState extends State<Step6Strategy> {
                       decoration: InputDecoration(
                         hintText: "Search or type a habit...",
                         hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         errorText: widget.anchorHabitError,
-                        errorStyle: AppTypography.caption(context).copyWith(color: colorScheme.error),
+                        errorStyle: AppTypography.caption(
+                          context,
+                        ).copyWith(color: colorScheme.error),
                         prefixIcon: Icon(
                           Icons.search,
                           color: widget.anchorHabitError != null
                               ? colorScheme.error
-                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              : colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                ),
                         ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear, size: 18, color: colorScheme.onSurfaceVariant),
+                                icon: Icon(
+                                  Icons.clear,
+                                  size: 18,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                                 onPressed: _clearSelection,
                               )
                             : null,
@@ -410,7 +903,10 @@ class _Step6StrategyState extends State<Step6Strategy> {
                                 : colorScheme.primary,
                           ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
                     ),
                     if (_showSuggestions) _buildSuggestionList(colorScheme),
@@ -428,10 +924,8 @@ class _Step6StrategyState extends State<Step6Strategy> {
     final query = _searchController.text.trim();
 
     // Split into user habits and default habits
-    final userHabits =
-        suggestions.where((s) => !s.isDefault).toList();
-    final defaultHabits =
-        suggestions.where((s) => s.isDefault).toList();
+    final userHabits = suggestions.where((s) => !s.isDefault).toList();
+    final defaultHabits = suggestions.where((s) => s.isDefault).toList();
 
     // Check if typed text matches any suggestion exactly
     final exactMatch = suggestions.any(
@@ -472,36 +966,34 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
             // User's own habits section
             if (userHabits.isNotEmpty) ...[
-              SectionLabel(
-                label: 'Your Habits',
-                colorScheme: colorScheme,
+              SectionLabel(label: 'Your Habits', colorScheme: colorScheme),
+              ...userHabits.map(
+                (s) => SuggestionTile(
+                  label: s.label,
+                  icon: Icons.person_outline,
+                  iconColor: colorScheme.primary,
+                  colorScheme: colorScheme,
+                  isSelected: widget.afterHabitId == s.habitId,
+                  onTap: () => _selectSuggestion(s),
+                ),
               ),
-              ...userHabits.map((s) => SuggestionTile(
-                    label: s.label,
-                    icon: Icons.person_outline,
-                    iconColor: colorScheme.primary,
-                    colorScheme: colorScheme,
-                    isSelected: widget.afterHabitId == s.habitId,
-                    onTap: () => _selectSuggestion(s),
-                  )),
             ],
 
             // Default habits section
             if (defaultHabits.isNotEmpty) ...[
-              SectionLabel(
-                label: 'Common Habits',
-                colorScheme: colorScheme,
+              SectionLabel(label: 'Common Habits', colorScheme: colorScheme),
+              ...defaultHabits.map(
+                (s) => SuggestionTile(
+                  label: s.label,
+                  icon: Icons.auto_awesome_outlined,
+                  iconColor: colorScheme.tertiary,
+                  colorScheme: colorScheme,
+                  isSelected:
+                      s.label == widget.anchorHabitText &&
+                      widget.afterHabitId == null,
+                  onTap: () => _selectSuggestion(s),
+                ),
               ),
-              ...defaultHabits.map((s) => SuggestionTile(
-                    label: s.label,
-                    icon: Icons.auto_awesome_outlined,
-                    iconColor: colorScheme.tertiary,
-                    colorScheme: colorScheme,
-                    isSelected:
-                        s.label == widget.anchorHabitText &&
-                            widget.afterHabitId == null,
-                    onTap: () => _selectSuggestion(s),
-                  )),
             ],
 
             // Empty state
@@ -512,8 +1004,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   'No matching habits found',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption(context).copyWith(
-                    color: colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -542,7 +1033,11 @@ class SectionLabel extends StatelessWidget {
   final String label;
   final ColorScheme colorScheme;
 
-  const SectionLabel({super.key, required this.label, required this.colorScheme});
+  const SectionLabel({
+    super.key,
+    required this.label,
+    required this.colorScheme,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -597,8 +1092,7 @@ class SuggestionTile extends StatelessWidget {
                 child: Text(
                   label,
                   style: AppTypography.body(context).copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ),
@@ -617,20 +1111,32 @@ class _ActionStepTile extends StatefulWidget {
   final HabitActionStep step;
   final int stepNumber;
   final ColorScheme colorScheme;
-  final ValueChanged<String> onTitleChanged;
+  final ValueChanged<HabitActionStep> onChanged;
   final VoidCallback onDelete;
   final int reorderIndex;
   final Widget? trailing;
+  final bool showPlannerControls;
+  final List<(int, String)> plannerWeekOptions;
+  final List<(int, String)> plannerDayOptions;
+  final ValueChanged<int>? onPlannerWeekChanged;
+  final ValueChanged<int>? onPlannerDayChanged;
+  final int plannerWeekFallback;
 
   const _ActionStepTile({
     super.key,
     required this.step,
     required this.stepNumber,
     required this.colorScheme,
-    required this.onTitleChanged,
+    required this.onChanged,
     required this.onDelete,
     required this.reorderIndex,
     this.trailing,
+    this.showPlannerControls = false,
+    this.plannerWeekOptions = const [],
+    this.plannerDayOptions = const [],
+    this.onPlannerWeekChanged,
+    this.onPlannerDayChanged,
+    this.plannerWeekFallback = 1,
   });
 
   @override
@@ -638,83 +1144,250 @@ class _ActionStepTile extends StatefulWidget {
 }
 
 class _ActionStepTileState extends State<_ActionStepTile> {
-  late TextEditingController _controller;
+  late TextEditingController _stepLabelController;
+  late TextEditingController _notesController;
+  bool _loggedWeekRender = false;
+
+  String _seedStepTitle(HabitActionStep step) {
+    final preferred = step.displayTitle.trim();
+    if (preferred.isNotEmpty) return preferred;
+    return (step.stepLabel ?? '').trim();
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.step.title);
+    final seededTitle = _seedStepTitle(widget.step);
+    _stepLabelController = TextEditingController(text: seededTitle);
+    _notesController = TextEditingController(text: widget.step.notes ?? '');
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run1',
+      hypothesisId: 'H4',
+      location: 'habit_form_strategy_section.dart:_ActionStepTileState.initState',
+      message: 'Planner tile initialized with source fields',
+      data: {
+        'stepId': widget.step.id,
+        'title': widget.step.title,
+        'displayTitle': widget.step.displayTitle,
+        'stepLabel': widget.step.stepLabel,
+        'seededInputTitle': seededTitle,
+        'productName': widget.step.productName,
+        'notes': widget.step.notes,
+        'plannerDay': widget.step.plannerDay,
+        'plannerWeek': widget.step.plannerWeek,
+      },
+    );
+    // #endregion
   }
 
   @override
   void didUpdateWidget(_ActionStepTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.step.id != widget.step.id) {
-      _controller.text = widget.step.title;
+      _stepLabelController.text = _seedStepTitle(widget.step);
+      _notesController.text = widget.step.notes ?? '';
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _stepLabelController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  void _emitChange() {
+    // #region agent log
+    _debugLogStepForm(
+      runId: 'run1',
+      hypothesisId: 'H5',
+      location: 'habit_form_strategy_section.dart:_ActionStepTileState._emitChange',
+      message: 'Step emit change before clearing product fields',
+      data: {
+        'stepId': widget.step.id,
+        'typedStepLabel': _stepLabelController.text,
+        'typedNotes': _notesController.text,
+        'existingProductType': widget.step.productType,
+        'existingProductName': widget.step.productName,
+      },
+    );
+    // #endregion
+    widget.onChanged(
+      widget.step.copyWith(
+        stepLabel: _stepLabelController.text,
+        // Clear product fields from this UI path so label/notes drive the step.
+        productType: '',
+        productName: '',
+        notes: _notesController.text,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = widget.colorScheme;
+    final selectedWeek =
+        widget.step.normalizedPlannerWeek ?? widget.plannerWeekFallback;
+    final selectedDay = widget.step.normalizedPlannerWeekday ?? DateTime.monday;
+    if (widget.showPlannerControls && !_loggedWeekRender) {
+      _loggedWeekRender = true;
+      // #region agent log
+      _debugLogStepForm(
+        runId: 'run6',
+        hypothesisId: 'H13',
+        location: 'habit_form_strategy_section.dart:_ActionStepTileState.build',
+        message: 'Planner step row rendered with week/day values',
+        data: {
+          'stepId': widget.step.id,
+          'stepTitle': widget.step.displayTitle,
+          'rawPlannerWeek': widget.step.plannerWeek,
+          'normalizedPlannerWeek': widget.step.normalizedPlannerWeek,
+          'renderedSelectedWeek': selectedWeek,
+          'rawPlannerDay': widget.step.plannerDay,
+          'normalizedPlannerWeekday': widget.step.normalizedPlannerWeekday,
+          'renderedSelectedDay': selectedDay,
+        },
+      );
+      // #endregion
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReorderableDragStartListener(
-            index: widget.reorderIndex,
-            child: Icon(Icons.drag_handle_rounded, size: 22, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: cs.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${widget.stepNumber}',
-              style: AppTypography.caption(context).copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: cs.onPrimary,
-                height: 1,
+          Row(
+            children: [
+              ReorderableDragStartListener(
+                index: widget.reorderIndex,
+                child: Icon(
+                  Icons.drag_handle_rounded,
+                  size: 22,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              maxLength: 200,
-              maxLengthEnforcement: MaxLengthEnforcement.enforced,
-              decoration: InputDecoration(
-                hintText: 'Step title...',
-                hintStyle: AppTypography.body(context).copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                counterText: '',
+              const SizedBox(width: 10),
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${widget.stepNumber}',
+                  style: AppTypography.caption(context).copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onPrimary,
+                    height: 1,
+                  ),
+                ),
               ),
-              style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w500),
-              onChanged: widget.onTitleChanged,
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _stepLabelController,
+                  maxLength: 40,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    hintText: widget.showPlannerControls
+                        ? 'Action step title'
+                        : 'Step/day label (e.g. 1, Monday)',
+                    hintStyle: AppTypography.body(context).copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    counterText: '',
+                  ),
+                  style: AppTypography.body(context).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  onChanged: (_) => _emitChange(),
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: cs.error.withValues(alpha: 0.7),
+                ),
+                onPressed: widget.onDelete,
+                tooltip: 'Remove',
+              ),
+              if (widget.trailing != null) widget.trailing!,
+            ],
+          ),
+          if (widget.showPlannerControls) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: selectedWeek,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Week',
+                    ),
+                    items: widget.plannerWeekOptions
+                        .map(
+                          (option) => DropdownMenuItem<int>(
+                            value: option.$1,
+                            child: Text(option.$2),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      widget.onPlannerWeekChanged?.call(value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: selectedDay,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Day',
+                    ),
+                    items: widget.plannerDayOptions
+                        .map(
+                          (option) => DropdownMenuItem<int>(
+                            value: option.$1,
+                            child: Text(option.$2),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      widget.onPlannerDayChanged?.call(value);
+                    },
+                  ),
+                ),
+              ],
             ),
+          ],
+          TextField(
+            controller: _notesController,
+            maxLength: 180,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            decoration: InputDecoration(
+              hintText: 'Notes',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              counterText: '',
+            ),
+            style: AppTypography.bodySmall(context).copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+            onChanged: (_) => _emitChange(),
           ),
-          IconButton(
-            icon: Icon(Icons.close_rounded, size: 20, color: cs.error.withValues(alpha: 0.7)),
-            onPressed: widget.onDelete,
-            tooltip: 'Remove',
-          ),
-          if (widget.trailing != null) widget.trailing!,
         ],
       ),
     );

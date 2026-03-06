@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
+import '../services/dv_auth_service.dart';
 import '../services/subscription_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import 'auth/auth_gateway_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -15,8 +18,104 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   int _selectedIndex = 3; // Default to 1-year (best value)
   bool _purchasing = false;
+  List<SubscriptionPlan> get _plans => SubscriptionService.plans;
 
-  final List<SubscriptionPlan> _plans = SubscriptionService.plans;
+  @override
+  void initState() {
+    super.initState();
+    SubscriptionService.availablePlans.addListener(_onPlansChanged);
+  }
+
+  @override
+  void dispose() {
+    SubscriptionService.availablePlans.removeListener(_onPlansChanged);
+    super.dispose();
+  }
+
+  void _onPlansChanged() {
+    if (!mounted) return;
+    final plans = _plans;
+    if (plans.isEmpty) return;
+    if (_selectedIndex >= plans.length) {
+      setState(() => _selectedIndex = plans.length - 1);
+      return;
+    }
+    setState(() {});
+  }
+
+  Future<PaywallResult?> _presentHostedPaywall() async {
+    try {
+      final result = await RevenueCatUI.presentPaywallIfNeeded(
+        SubscriptionService.entitlementId,
+        displayCloseButton: true,
+      );
+      await SubscriptionService.refreshCustomerInfo(
+        source: 'revenuecat_hosted_paywall',
+      );
+      if (!mounted) return null;
+      switch (result) {
+        case PaywallResult.purchased:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Subscription activated. Welcome to Pro!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return result;
+        case PaywallResult.restored:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchases restored.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return result;
+        case PaywallResult.error:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open paywall. You can use plan picker.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return result;
+        case PaywallResult.cancelled:
+        case PaywallResult.notPresented:
+          return result;
+      }
+    } catch (_) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hosted paywall unavailable. Use plan picker below.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return null;
+    }
+  }
+
+  Future<void> _openCustomerCenter() async {
+    try {
+      await RevenueCatUI.presentCustomerCenter(
+        onRestoreCompleted: (info) async {
+          await SubscriptionService.refreshCustomerInfo(
+            source: 'revenuecat_customer_center_restore',
+          );
+        },
+      );
+      await SubscriptionService.refreshCustomerInfo(
+        source: 'revenuecat_customer_center_close',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer Center unavailable. Try Restore Purchases.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +188,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               style: AppTypography.bodySmall(context).copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: _openCustomerCenter,
+              icon: const Icon(Icons.manage_accounts_rounded),
+              label: const Text('Manage Subscription'),
+            ),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
                 await SubscriptionService.restorePurchases();
@@ -193,6 +298,41 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   text: 'Support development',
                 ),
               ],
+            ),
+          ),
+        ),
+        if (!SubscriptionService.isRevenueCatConfigured)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: colorScheme.errorContainer.withValues(alpha: 0.45),
+                  border: Border.all(
+                    color: colorScheme.error.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Text(
+                  SubscriptionService.configNotice.value ??
+                      'RevenueCat is not configured for this build.',
+                  style: AppTypography.caption(context).copyWith(
+                    color: colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            child: OutlinedButton.icon(
+              onPressed: SubscriptionService.isRevenueCatConfigured
+                  ? _presentHostedPaywall
+                  : null,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: const Text('Try Hosted Paywall'),
             ),
           ),
         ),
@@ -487,6 +627,37 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _onSubscribe() async {
+    if (_plans.isEmpty) return;
+    final isGuest = await DvAuthService.isGuestSession();
+    if (isGuest) {
+      if (!mounted) return;
+      final signedIn = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const AuthGatewayScreen(forced: true),
+        ),
+      );
+      if (signedIn != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in to purchase Premium.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      await SubscriptionService.initialize();
+    }
+    if (SubscriptionService.isRevenueCatConfigured) {
+      final paywallResult = await _presentHostedPaywall();
+      if (SubscriptionService.isSubscribed.value) return;
+      if (paywallResult == PaywallResult.cancelled ||
+          paywallResult == PaywallResult.purchased ||
+          paywallResult == PaywallResult.restored) {
+        return;
+      }
+    }
     final plan = _plans[_selectedIndex];
     setState(() => _purchasing = true);
 

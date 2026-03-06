@@ -21,7 +21,6 @@ import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import '../../screens/routine_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
-import '../rituals/daily_progress_header.dart';
 import '../rituals/coin_animation_overlay.dart';
 import '../rituals/animated_habit_card.dart';
 import '../rituals/habit_completion_sheet.dart';
@@ -29,12 +28,21 @@ import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
 import '../habits/off_schedule_completion_dialog.dart';
 
-enum _HabitQuickFilter { all, today, upcoming, weekly, timer, location, completed }
+enum _HabitQuickFilter {
+  all,
+  today,
+  upcoming,
+  weekly,
+  timer,
+  location,
+  completed,
+}
 
 class AllBoardsHabitsTab extends StatefulWidget {
   final List<VisionBoardInfo> boards;
   final Map<String, List<VisionComponent>> componentsByBoardId;
-  final Future<void> Function(String boardId, List<VisionComponent> updated) onSaveBoardComponents;
+  final Future<void> Function(String boardId, List<VisionComponent> updated)
+  onSaveBoardComponents;
   final ValueNotifier<int>? coinNotifier;
   final GlobalKey? coinTargetKey;
   final VoidCallback? onSwitchToRoutine;
@@ -57,9 +65,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
   State<AllBoardsHabitsTab> createState() => _AllBoardsHabitsTabState();
 }
 
-class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
-    with SingleTickerProviderStateMixin {
-  static const double _dailyProgressHeaderHeight = 132;
+class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   final List<_PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
   List<HabitItem> _habits = [];
@@ -67,13 +73,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-  AnimationController? _viewTogglePulseController;
+  final PageController _flexibleHabitsPageController = PageController();
   double _scrollOffset = 0;
   Offset? _confettiOrigin;
   DateTime _selectedCalendarDate = LogicalDateService.now();
   String _searchQuery = '';
   _HabitQuickFilter _activeFilter = _HabitQuickFilter.all;
   bool _isFilterExpanded = false;
+  int _flexibleHabitPageIndex = 0;
 
   // Ad-related state
   static const int _freeHabitLimit = 3;
@@ -85,21 +92,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   void initState() {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
-    _ensureViewTogglePulseController();
     _scrollController.addListener(_onScroll);
     _loadHabits();
     _loadAdState();
-  }
-
-  AnimationController _ensureViewTogglePulseController() {
-    final existing = _viewTogglePulseController;
-    if (existing != null) return existing;
-    final created = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-    _viewTogglePulseController = created;
-    return created;
   }
 
   Future<void> _loadAdState() async {
@@ -126,7 +121,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       if (mounted) widget.coinNotifier!.value = coins;
     }
   }
-  
+
   void _onScroll() {
     final nextOffset = _scrollController.offset;
     if ((nextOffset - _scrollOffset).abs() < 12) return;
@@ -146,13 +141,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       _loadAdState();
     }
   }
-  
+
   @override
   void dispose() {
-    _viewTogglePulseController?.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
+    _flexibleHabitsPageController.dispose();
     super.dispose();
   }
 
@@ -161,29 +156,34 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   String _boardTitle(String? boardId) {
     if (boardId == null) return '';
     return widget.boards
-        .cast<VisionBoardInfo?>()
-        .firstWhere((b) => b?.id == boardId, orElse: () => null)
-        ?.title ?? '';
+            .cast<VisionBoardInfo?>()
+            .firstWhere((b) => b?.id == boardId, orElse: () => null)
+            ?.title ??
+        '';
   }
 
   Future<void> _addHabitGlobal() async {
     // Gate: non-subscribed users with 3+ habits must watch ads first
     if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
       // Session already complete — let user proceed to add the habit
-      if (_activeAdSession != null && _adWatchedCount >= AdService.requiredAdsPerHabit) {
+      if (_activeAdSession != null &&
+          _adWatchedCount >= AdService.requiredAdsPerHabit) {
         // Fall through to _proceedToAddHabit()
       } else if (_activeAdSession != null) {
         // Session in progress — tell user to watch the ads on the card above
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.'),
+            content: Text(
+              'Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
         return;
       } else {
         // No session yet — create one so the ad card appears
-        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        final sessionKey =
+            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
         await AdService.setActiveSession(sessionKey);
         if (!mounted) return;
         setState(() {
@@ -204,10 +204,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   }
 
   Future<void> _proceedToAddHabit() async {
-    final req = await showAddHabitModal(
-      context,
-      existingHabits: _habits,
-    );
+    final req = await showAddHabitModal(context, existingHabits: _habits);
     if (req == null || !mounted) return;
 
     final newHabit = HabitItem(
@@ -230,6 +227,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       completedDates: const [],
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
 
     await HabitStorageService.addHabit(newHabit);
@@ -289,14 +288,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
         return;
       }
     }
-    
+
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
-    
+
     if (isCompleted) {
-      await _toggleHabit(
-        habit: habit,
-        wasCompleted: true,
-      );
+      await _toggleHabit(habit: habit, wasCompleted: true);
     } else {
       // Determine coins based on card flip state
       final completionType = isFlipped
@@ -316,11 +312,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       if (result == null) return;
 
       final earnedCoins = result.coinsEarned;
-      
+
       // Get card position for confetti and coin flying animation
-      final RenderBox? cardBox = cardKey.currentContext?.findRenderObject() as RenderBox?;
-      final RenderBox? targetBox = widget.coinTargetKey?.currentContext?.findRenderObject() as RenderBox?;
-      
+      final RenderBox? cardBox =
+          cardKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? targetBox =
+          widget.coinTargetKey?.currentContext?.findRenderObject()
+              as RenderBox?;
+
       Offset? cardPosition;
       Offset? targetPosition;
 
@@ -334,7 +333,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
           Offset(targetBox.size.width / 2, targetBox.size.height / 2),
         );
       }
-      
+
       if (!mounted) return;
 
       // Convert coin target (app bar) position to local coordinates relative
@@ -352,11 +351,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
 
       // Queue flying coin animation
       if (cardPosition != null && targetPosition != null) {
-        _pendingAnimations.add(_PendingCoinAnimation(
-          source: cardPosition,
-          target: targetPosition,
-          coins: earnedCoins,
-        ));
+        _pendingAnimations.add(
+          _PendingCoinAnimation(
+            source: cardPosition,
+            target: targetPosition,
+            coins: earnedCoins,
+          ),
+        );
       }
 
       final feedback = HabitCompletionFeedback(
@@ -399,8 +400,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
 
     if (!wasCompleted && feedback != null) {
       final iso = _toIsoDate(now);
-      final updatedFeedback =
-          Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
+      final updatedFeedback = Map<String, HabitCompletionFeedback>.from(
+        toggled.feedbackByDate,
+      );
       updatedFeedback[iso] = feedback;
       toggled = toggled.copyWith(feedbackByDate: updatedFeedback);
 
@@ -415,10 +417,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
         final total = habit.actionSteps.length;
         final done = completedStepIds.length;
         final stepNames = completedStepIds
-            .map((id) => habit.actionSteps
-                .where((s) => s.id == id)
-                .map((s) => s.title)
-                .firstOrNull)
+            .map(
+              (id) => habit.actionSteps
+                  .where((s) => s.id == id)
+                  .map((s) => s.title)
+                  .firstOrNull,
+            )
             .whereType<String>()
             .toList();
         stepsText = 'Steps: $done/$total completed';
@@ -438,9 +442,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       }
 
       final noteText = (feedback.note ?? '').trim();
-      final dayLog = [moodText, trackingText, stepsText, noteText]
-          .where((s) => s.isNotEmpty)
-          .join('\n');
+      final dayLog = [
+        moodText,
+        trackingText,
+        stepsText,
+        noteText,
+      ].where((s) => s.isNotEmpty).join('\n');
       final hasMedia = audioPath != null || capturedImagePaths.isNotEmpty;
       if (dayLog.isNotEmpty || hasMedia) {
         JournalStorageService.appendOrCreateGoalLog(
@@ -465,14 +472,21 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
 
     // Backward compat: update component storage if habit belongs to a board
     if (habit.boardId != null && habit.boardId!.isNotEmpty) {
-      final components = _localComponents[habit.boardId!] ?? const <VisionComponent>[];
+      final components =
+          _localComponents[habit.boardId!] ?? const <VisionComponent>[];
       if (components.isNotEmpty && habit.componentId != null) {
         final comp = components.cast<VisionComponent?>().firstWhere(
-          (c) => c?.id == habit.componentId, orElse: () => null);
+          (c) => c?.id == habit.componentId,
+          orElse: () => null,
+        );
         if (comp != null) {
-          final updatedHabits = comp.habits.map((h) => h.id == habit.id ? toggled : h).toList();
+          final updatedHabits = comp.habits
+              .map((h) => h.id == habit.id ? toggled : h)
+              .toList();
           final updatedComponent = comp.copyWithCommon(habits: updatedHabits);
-          final updatedComponents = components.map((c) => c.id == comp.id ? updatedComponent : c).toList();
+          final updatedComponents = components
+              .map((c) => c.id == comp.id ? updatedComponent : c)
+              .toList();
           _isSaving = true;
           await widget.onSaveBoardComponents(habit.boardId!, updatedComponents);
           _localComponents[habit.boardId!] = updatedComponents;
@@ -500,17 +514,17 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     // Award coins on completion, or deduct on uncheck
     if (!wasCompleted && coinsEarned != null && coinsEarned > 0) {
       final newTotal = await CoinsService.addCoins(coinsEarned);
-      
+
       final streakBonus = await CoinsService.checkAndAwardStreakBonus(
         habit.id,
         toggled.currentStreak,
       );
-      
+
       if (mounted) {
         widget.coinNotifier?.value = streakBonus ?? newTotal;
-        
+
         HapticFeedback.heavyImpact();
-        
+
         if (streakBonus != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -531,9 +545,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       // Deduct the exact coins that were earned for this completion
       final iso = _toIsoDate(now);
       final savedFeedback = habit.feedbackByDate[iso];
-      final coinsToDeduct = savedFeedback?.coinsEarned ?? CoinsService.habitCompletionCoins;
+      final coinsToDeduct =
+          savedFeedback?.coinsEarned ?? CoinsService.habitCompletionCoins;
       final newTotal = await CoinsService.addCoins(-coinsToDeduct);
-      
+
       if (mounted) {
         final clamped = newTotal < 0 ? 0 : newTotal;
         widget.coinNotifier?.value = clamped;
@@ -544,29 +559,34 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
 
   void _openTimerForHabit(_HabitEntry entry) {
     final habit = entry.habit;
-    if (habit.timeBound?.enabled != true && habit.locationBound?.enabled != true) return;
+    if (habit.timeBound?.enabled != true &&
+        habit.locationBound?.enabled != true)
+      return;
 
-    final referenceDate =
-        widget.showCalendarMode ? _selectedCalendarDate : LogicalDateService.now();
+    final referenceDate = widget.showCalendarMode
+        ? _selectedCalendarDate
+        : LogicalDateService.now();
     final isCompleted = habit.isCompletedForCurrentPeriod(referenceDate);
     if (isCompleted) {
       _showTimelineCompletionDetails(habit, referenceDate);
       return;
     }
 
-    Navigator.of(context).push<List<String>>(
-      MaterialPageRoute(
-        builder: (_) => RoutineTimerScreen(
-          habit: habit,
-          onComplete: () => _loadHabits(),
-        ),
-      ),
-    ).then((completedStepIds) async {
-      await _loadHabits();
-      if (completedStepIds != null && mounted) {
-        await _handleTimerCompletion(habit, completedStepIds);
-      }
-    });
+    Navigator.of(context)
+        .push<List<String>>(
+          MaterialPageRoute(
+            builder: (_) => RoutineTimerScreen(
+              habit: habit,
+              onComplete: () => _loadHabits(),
+            ),
+          ),
+        )
+        .then((completedStepIds) async {
+          await _loadHabits();
+          if (completedStepIds != null && mounted) {
+            await _handleTimerCompletion(habit, completedStepIds);
+          }
+        });
   }
 
   void _showTimelineCompletionDetails(HabitItem habit, DateTime selectedDate) {
@@ -578,10 +598,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => _TimelineCompletionDetailsSheet(
-        habit: habit,
-        feedback: feedback,
-      ),
+      builder: (ctx) =>
+          _TimelineCompletionDetailsSheet(habit: habit, feedback: feedback),
     );
   }
 
@@ -589,7 +607,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     final currentCount = _habits.length;
     if (currentCount >= _freeHabitLimit && _shouldShowAds) {
       if (_activeAdSession == null) {
-        final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+        final sessionKey =
+            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
         AdService.setActiveSession(sessionKey);
         setState(() {
           _activeAdSession = sessionKey;
@@ -648,6 +667,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       completedDates: const [],
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
 
     await HabitStorageService.addHabit(newHabit);
@@ -663,7 +684,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     }
   }
 
-  Future<void> _handleTimerCompletion(HabitItem habit, List<String> completedStepIds) async {
+  Future<void> _handleTimerCompletion(
+    HabitItem habit,
+    List<String> completedStepIds,
+  ) async {
     final baseCoins = CoinsService.habitCompletionCoins;
     final result = await showHabitCompletionSheet(
       context,
@@ -727,6 +751,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
       clearStartTimeMinutes: req.startTimeMinutes == null,
     );
 
@@ -745,7 +771,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Habit'),
-        content: Text('Are you sure you want to delete "${entry.habit.name}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${entry.habit.name}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -753,7 +781,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -800,15 +830,53 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     });
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(String label, {Widget? trailing}) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Text(
-        label,
-        style: AppTypography.bodySmall(context).copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: AppTypography.bodySmall(context).copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (trailing != null) ...[
+            const Spacer(),
+            trailing,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildViewModeAction({
+    required String label,
+    required IconData icon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        widget.onCalendarModeChanged?.call(!widget.showCalendarMode);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: colorScheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTypography.bodySmall(context).copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -884,12 +952,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   }
 
   Widget _buildPinnedControlsRow() {
+    if (widget.showCalendarMode) {
+      return const SizedBox.shrink();
+    }
     final hasFilter = _activeFilter != _HabitQuickFilter.all;
     final showClear = _searchQuery.isNotEmpty;
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final monthYear = DateFormat('MMMM yyyy').format(_selectedCalendarDate);
-    final selectedDate = DateFormat('EEE, MMM d').format(_selectedCalendarDate);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ClipRRect(
@@ -900,9 +967,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -926,8 +991,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                             icon: const Icon(Icons.close),
                           ),
                         IconButton(
-                          tooltip:
-                              _isFilterExpanded ? 'Hide filters' : 'Show filters',
+                          tooltip: _isFilterExpanded
+                              ? 'Hide filters'
+                              : 'Show filters',
                           onPressed: () {
                             setState(() {
                               _isFilterExpanded = !_isFilterExpanded;
@@ -937,54 +1003,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                             isLabelVisible: hasFilter,
                             label: const Text('1'),
                             child: Icon(
-                              _isFilterExpanded ? Icons.expand_less : Icons.tune,
+                              _isFilterExpanded
+                                  ? Icons.expand_less
+                                  : Icons.tune,
                             ),
                           ),
                         ),
-                    IconButton(
-                      tooltip: widget.showCalendarMode
-                          ? 'Switch to list view'
-                          : 'Switch to timeline view',
-                      onPressed: () {
-                        widget.onCalendarModeChanged
-                            ?.call(!widget.showCalendarMode);
-                      },
-                      icon: AnimatedBuilder(
-                        animation: _ensureViewTogglePulseController(),
-                        builder: (context, child) {
-                          final t = _ensureViewTogglePulseController().value;
-                          final scale = 1.0 + (0.06 * t);
-                          final glowOpacity = 0.18 + (0.18 * t);
-                          final color = Theme.of(context).colorScheme.primary;
-                          return Transform.scale(
-                            scale: scale,
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: color.withValues(
-                                      alpha: glowOpacity.clamp(0.0, 0.36),
-                                    ),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                widget.showCalendarMode
-                                    ? Icons.view_list_rounded
-                                    : Icons.timeline_rounded,
-                                color: color,
-                                size: 20,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
                       ],
                     ),
                     border: OutlineInputBorder(
@@ -1003,59 +1027,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
-                if (widget.showCalendarMode)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: _openCalendarDatePicker,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.white.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.12)
-                                    : Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_month_rounded,
-                                  size: 14,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  monthYear,
-                                  style: AppTypography.bodySmall(context)
-                                      .copyWith(fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          selectedDate,
-                          style: AppTypography.bodySmall(context).copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),
@@ -1110,8 +1081,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
               hasSearch && hasFilter
                   ? 'Search + ${_filterLabel(_activeFilter)} filter active'
                   : hasSearch
-                      ? 'Search active'
-                      : '${_filterLabel(_activeFilter)} filter active',
+                  ? 'Search active'
+                  : '${_filterLabel(_activeFilter)} filter active',
               style: AppTypography.bodySmall(context),
             ),
           ),
@@ -1141,6 +1112,122 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     _setSelectedCalendarDate(picked);
   }
 
+  DateTime _weekStart(DateTime date) {
+    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
+    return DateTime(date.year, date.month, date.day - weekday);
+  }
+
+  Widget _buildTimelineDateHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selected = _selectedCalendarDate;
+    final todayNow = LogicalDateService.now();
+    final today = DateTime(todayNow.year, todayNow.month, todayNow.day);
+    final monthText = DateFormat('MMMM yyyy').format(selected);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.36),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.58),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      InkWell(
+                        onTap: _openCalendarDatePicker,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.white.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.14)
+                                  : Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                size: 14,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                monthText,
+                                style: AppTypography.bodySmall(context).copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () => _setSelectedCalendarDate(today),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Today',
+                          style: AppTypography.caption(context).copyWith(
+                            color: colorScheme.onPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 50,
+                  child: _MonthWeekScroller(
+                    selectedDate: _selectedCalendarDate,
+                    onDateSelected: _setSelectedCalendarDate,
+                    today: today,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _isTimedHabit(HabitItem habit) {
     if (habit.startTimeMinutes == null) return false;
     final tb = habit.timeBound;
@@ -1168,35 +1255,172 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     return '$hour12 $period';
   }
 
-  Future<int?> _showDurationPickerDialog() {
-    const options = <int>[15, 30, 45, 60, 90, 120];
-    return showDialog<int>(
+  Future<_TimelineScheduleSelection?> _showTimelineScheduleDialog({
+    required int initialStartMinutes,
+    required HabitItem habit,
+  }) {
+    const durationOptions = <int>[15, 30, 45, 60, 90, 120];
+    final initialDuration = _habitDurationMinutes(habit) > 0
+        ? _habitDurationMinutes(habit)
+        : 30;
+    final roundedStart = (initialStartMinutes ~/ 15) * 15;
+    final clampedStart = roundedStart.clamp(0, 23 * 60 + 45);
+    final startOptions = List<int>.generate(96, (index) => index * 15);
+    final normalizedInitialDuration = durationOptions.contains(initialDuration)
+        ? initialDuration
+        : 30;
+    return showDialog<_TimelineScheduleSelection>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Set duration'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: options
-              .map(
-                (minutes) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(minutes >= 60
-                      ? '${(minutes / 60).toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hr'
-                      : '$minutes min'),
-                  onTap: () => Navigator.of(ctx).pop(minutes),
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        var selectedStart =
+            startOptions.contains(clampedStart) ? clampedStart : startOptions[0];
+        var selectedDuration = normalizedInitialDuration;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.white.withValues(alpha: 0.46),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.16)
+                          : Colors.white.withValues(alpha: 0.62),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Set start time & duration',
+                        style: AppTypography.heading3(context).copyWith(
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Start time',
+                        style: AppTypography.caption(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        value: selectedStart,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.outline.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.white.withValues(alpha: 0.26),
+                        ),
+                        items: startOptions
+                            .map(
+                              (minutes) => DropdownMenuItem<int>(
+                                value: minutes,
+                                child: Text(_formatMinutesLabel(minutes)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => selectedStart = value);
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Duration',
+                        style: AppTypography.caption(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        value: selectedDuration,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.outline.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.white.withValues(alpha: 0.26),
+                        ),
+                        items: durationOptions
+                            .map(
+                              (minutes) => DropdownMenuItem<int>(
+                                value: minutes,
+                                child: Text(
+                                  minutes >= 60
+                                      ? '${(minutes / 60).toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hr'
+                                      : '$minutes min',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => selectedDuration = value);
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop(
+                                _TimelineScheduleSelection(
+                                  startMinutes: selectedStart,
+                                  durationMinutes: selectedDuration,
+                                ),
+                              );
+                            },
+                            child: const Text('Apply'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              )
-              .toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+              ),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1224,13 +1448,16 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     _FlexibleHabitDragData data,
     int startMinutes,
   ) async {
-    final pickedDuration = await _showDurationPickerDialog();
-    if (pickedDuration == null || !mounted) return;
+    final selection = await _showTimelineScheduleDialog(
+      initialStartMinutes: startMinutes,
+      habit: data.habit,
+    );
+    if (selection == null || !mounted) return;
 
     if (_hasTimelineConflict(
       movingHabit: data.habit,
-      startMinutes: startMinutes,
-      durationMinutes: pickedDuration,
+      startMinutes: selection.startMinutes,
+      durationMinutes: selection.durationMinutes,
       selectedDate: _selectedCalendarDate,
     )) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1246,16 +1473,16 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     final nextTimeBound = existingTimeBound == null
         ? HabitTimeBoundSpec(
             enabled: true,
-            duration: pickedDuration,
+            duration: selection.durationMinutes,
             unit: 'minutes',
           )
         : existingTimeBound.copyWith(
             enabled: true,
-            duration: pickedDuration,
+            duration: selection.durationMinutes,
             unit: 'minutes',
           );
     final updatedHabit = data.habit.copyWith(
-      startTimeMinutes: startMinutes,
+      startTimeMinutes: selection.startMinutes,
       timeBound: nextTimeBound,
     );
 
@@ -1267,7 +1494,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${updatedHabit.name} scheduled at ${_formatMinutesLabel(startMinutes)}',
+          '${updatedHabit.name} scheduled at ${_formatMinutesLabel(selection.startMinutes)}',
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -1291,24 +1518,28 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
-              Icon(Icons.schedule_rounded, size: 14, color: colorScheme.primary),
+              Icon(
+                Icons.schedule_rounded,
+                size: 14,
+                color: colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   habit.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySmall(context).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTypography.bodySmall(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${duration}m',
-                style: AppTypography.caption(context).copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -1323,7 +1554,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
     final cardKey = GlobalKey();
     final colorScheme = Theme.of(context).colorScheme;
-    Widget buildCard({required bool attachAnchorKey, required bool interactive}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Widget buildCard({
+      required bool attachAnchorKey,
+      required bool interactive,
+    }) {
       return Row(
         key: attachAnchorKey ? cardKey : null,
         children: [
@@ -1331,47 +1566,60 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
             isCompleted: isCompleted,
             onTap: interactive
                 ? () => _handleHabitTap(
-                      habit: habit,
-                      cardKey: cardKey,
-                      isFlipped: false,
-                    )
+                    habit: habit,
+                    cardKey: cardKey,
+                    isFlipped: false,
+                  )
                 : null,
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.drag_indicator_rounded,
-                      color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      habit.name,
-                      style: AppTypography.bodySmall(context).copyWith(
-                        fontWeight: FontWeight.w600,
-                        decoration:
-                            isCompleted ? TextDecoration.lineThrough : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.07)
+                        : Colors.white.withValues(alpha: 0.34),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.drag_indicator_rounded,
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          habit.name,
+                          style: AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Flexible',
+                        style: AppTypography.caption(
+                          context,
+                        ).copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Flexible',
-                    style: AppTypography.caption(context).copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1396,9 +1644,129 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     );
   }
 
-  Widget _buildCalendarTimeline({
-    required List<_HabitEntry> timedHabits,
+  Widget _buildFlexibleHabitsStickyCarousel({
+    required List<_HabitEntry> flexibleHabits,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final visibleIndex = flexibleHabits.isEmpty
+        ? 0
+        : _flexibleHabitPageIndex
+              .clamp(0, flexibleHabits.length - 1)
+              .toInt();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.38),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.55),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Flexible Habits',
+                        style: AppTypography.bodySmall(context).copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      _buildViewModeAction(
+                        label: 'List',
+                        icon: Icons.view_list_rounded,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _flexibleHabitsPageController,
+                    itemCount: flexibleHabits.length,
+                    onPageChanged: (index) {
+                      if (!mounted) return;
+                      setState(() => _flexibleHabitPageIndex = index);
+                    },
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+                        child: _buildFlexibleHabitCard(flexibleHabits[index]),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chevron_left_rounded,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Swipe to scroll, drag and drop in timeline',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                      if (flexibleHabits.length > 1)
+                        Row(
+                          children: List.generate(flexibleHabits.length, (index) {
+                            final isActive = index == visibleIndex;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                              width: isActive ? 14 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: isActive
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurfaceVariant.withValues(
+                                        alpha: 0.3,
+                                      ),
+                              ),
+                            );
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendarTimeline({required List<_HabitEntry> timedHabits}) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const leftLabelWidth = 52.0;
@@ -1410,8 +1778,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     final totalHeight = 24 * hourHeight;
 
     final sortedHabits = [...timedHabits]
-      ..sort((a, b) =>
-          (a.habit.startTimeMinutes ?? 0).compareTo(b.habit.startTimeMinutes ?? 0));
+      ..sort(
+        (a, b) => (a.habit.startTimeMinutes ?? 0).compareTo(
+          b.habit.startTimeMinutes ?? 0,
+        ),
+      );
     final positionedCards = <_TimelineCardLayout>[];
     double nextMinTop = 0;
     for (final entry in sortedHabits) {
@@ -1419,185 +1790,198 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
       final duration = _habitDurationMinutes(entry.habit).clamp(15, 180);
       final naturalTop = (start / 60.0) * hourHeight;
       final top = naturalTop < nextMinTop ? nextMinTop : naturalTop;
-      final height = ((duration / 60.0) * hourHeight).clamp(minCardHeight, 220.0);
+      final height = ((duration / 60.0) * hourHeight).clamp(
+        minCardHeight,
+        220.0,
+      );
       nextMinTop = top + height + cardGap;
-      positionedCards.add(_TimelineCardLayout(entry: entry, top: top, height: height));
+      positionedCards.add(
+        _TimelineCardLayout(entry: entry, top: top, height: height),
+      );
     }
 
     return SizedBox(
       height: totalHeight,
       child: Stack(
         children: [
-            Positioned(
-              top: 0,
-              bottom: 0,
-              left: leftLabelWidth,
-              width: 2,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? colorScheme.onSurface.withValues(alpha: 0.24)
-                      : colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(1),
-                ),
+          Positioned(
+            top: 0,
+            bottom: 0,
+            left: leftLabelWidth,
+            width: 2,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? colorScheme.onSurface.withValues(alpha: 0.24)
+                    : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(1),
               ),
             ),
-            ...List.generate(24, (hour) {
-              final y = hour * hourHeight;
-              final slotStart = hour * 60;
-              final halfLabel = '${(hour % 12 == 0 ? 12 : hour % 12)}:30';
-              return Stack(
-                children: [
-                  Positioned(
-                    top: y,
-                    left: 0,
-                    right: 0,
-                    height: hourHeight,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: leftLabelWidth,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 2, top: 1),
-                            child: Text(
-                              _formatHourLabel(hour),
-                              style: AppTypography.bodySmall(context).copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
+          ),
+          ...List.generate(24, (hour) {
+            final y = hour * hourHeight;
+            final slotStart = hour * 60;
+            final halfLabel = '${(hour % 12 == 0 ? 12 : hour % 12)}:30';
+            return Stack(
+              children: [
+                Positioned(
+                  top: y,
+                  left: 0,
+                  right: 0,
+                  height: hourHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: leftLabelWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 2, top: 1),
+                          child: Text(
+                            _formatHourLabel(hour),
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8, right: 8),
+                          child: Container(
+                            height: 1,
+                            color: isDark
+                                ? colorScheme.onSurface.withValues(alpha: 0.24)
+                                : colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: y + (hourHeight / 2),
+                  left: 0,
+                  right: 0,
+                  height: 16,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: leftLabelWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6, top: 1),
+                          child: Text(
+                            halfLabel,
+                            textAlign: TextAlign.left,
+                            style: AppTypography.caption(context).copyWith(
+                              fontSize: 10,
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.55,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8, right: 8),
-                            child: Container(
-                              height: 1,
-                              color: isDark
-                                  ? colorScheme.onSurface.withValues(alpha: 0.24)
-                                  : colorScheme.outlineVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Container(
+                            height: 1,
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.35,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    top: y + (hourHeight / 2),
-                    left: 0,
-                    right: 0,
-                    height: 16,
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: leftLabelWidth,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 6, top: 1),
-                            child: Text(
-                              halfLabel,
-                              textAlign: TextAlign.left,
-                              style: AppTypography.caption(context).copyWith(
-                                fontSize: 10,
-                                color: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.55),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Container(
-                              height: 1,
-                              color: colorScheme.outlineVariant
-                                  .withValues(alpha: 0.35),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    top: y,
-                    left: contentLeft,
-                    right: rightPad,
-                    height: hourHeight,
-                    child: DragTarget<_FlexibleHabitDragData>(
-                      onWillAcceptWithDetails: (_) => true,
-                      onAcceptWithDetails: (details) {
-                        _handleFlexibleDrop(details.data, slotStart);
-                      },
-                      builder: (context, candidates, rejected) {
-                        final isHovered = candidates.isNotEmpty;
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) {
-                            final localY = details.localPosition.dy.clamp(0.0, hourHeight);
-                            final minuteOffset = ((localY / hourHeight) * 60).toInt();
-                            final snapped = ((minuteOffset / 15).round() * 15).clamp(0, 59);
-                            final tappedMinute = slotStart + snapped;
-                            _handleTimelineSlotTap(tappedMinute);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 140),
-                            decoration: BoxDecoration(
-                              color: isHovered
-                                  ? colorScheme.primary.withValues(alpha: 0.1)
-                                  : Colors.transparent,
-                              border: isHovered
-                                  ? Border.all(
-                                      color: colorScheme.primary
-                                          .withValues(alpha: 0.45),
-                                    )
-                                  : null,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: isHovered
-                                ? Center(
-                                    child: Text(
-                                      'Drop at ${_formatMinutesLabel(slotStart)}',
-                                      style:
-                                          AppTypography.caption(context).copyWith(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                ),
+                Positioned(
+                  top: y,
+                  left: contentLeft,
+                  right: rightPad,
+                  height: hourHeight,
+                  child: DragTarget<_FlexibleHabitDragData>(
+                    onWillAcceptWithDetails: (_) => true,
+                    onAcceptWithDetails: (details) {
+                      _handleFlexibleDrop(details.data, slotStart);
+                    },
+                    builder: (context, candidates, rejected) {
+                      final isHovered = candidates.isNotEmpty;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: (details) {
+                          final localY = details.localPosition.dy.clamp(
+                            0.0,
+                            hourHeight,
+                          );
+                          final minuteOffset = ((localY / hourHeight) * 60)
+                              .toInt();
+                          final snapped = ((minuteOffset / 15).round() * 15)
+                              .clamp(0, 59);
+                          final tappedMinute = slotStart + snapped;
+                          _handleTimelineSlotTap(tappedMinute);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          decoration: BoxDecoration(
+                            color: isHovered
+                                ? colorScheme.primary.withValues(alpha: 0.1)
+                                : Colors.transparent,
+                            border: isHovered
+                                ? Border.all(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.45,
                                     ),
                                   )
                                 : null,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            }),
-            if (timedHabits.isEmpty)
-              Positioned(
-                top: hourHeight * 7,
-                left: contentLeft,
-                right: rightPad,
-                child: Text(
-                  'Drop flexible habits into a time slot',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySmall(context).copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+                          child: isHovered
+                              ? Center(
+                                  child: Text(
+                                    'Drop at ${_formatMinutesLabel(slotStart)}',
+                                    style: AppTypography.caption(context)
+                                        .copyWith(
+                                          color: colorScheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-            ...positionedCards.map(
-              (item) => Positioned(
-                top: item.top,
-                left: contentLeft + 4,
-                right: rightPad + 4,
-                height: item.height,
-                child: _buildTimelineHabitChip(item.entry),
+              ],
+            );
+          }),
+          if (timedHabits.isEmpty)
+            Positioned(
+              top: hourHeight * 7,
+              left: contentLeft,
+              right: rightPad,
+              child: Text(
+                'Drop flexible habits into a time slot',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
+          ...positionedCards.map(
+            (item) => Positioned(
+              top: item.top,
+              left: contentLeft + 4,
+              right: rightPad + 4,
+              height: item.height,
+              child: _buildTimelineHabitChip(item.entry),
+            ),
+          ),
         ],
       ),
     );
@@ -1678,49 +2062,29 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   }
 
   Widget _buildCalendarModeContent({
-    required List<_HabitEntry> flexibleHabits,
+    required List<_HabitEntry> dayHabits,
     required List<_HabitEntry> timedHabits,
-    required List<_HabitEntry> visibleHabits,
     required ColorScheme colorScheme,
   }) {
+    final selectedDateLabel = DateFormat('EEE, MMM d').format(
+      _selectedCalendarDate,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionLabel('Flexible Habits'),
-        if (flexibleHabits.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Column(
-              children: flexibleHabits
-                  .map((entry) => _buildFlexibleHabitCard(entry))
-                  .toList(),
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              'No flexible habits for this date.',
-              style: AppTypography.bodySmall(context).copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
         _buildSectionLabel('Timeline Habits'),
-        _buildCalendarTimeline(
-          timedHabits: timedHabits,
-        ),
+        _buildCalendarTimeline(timedHabits: timedHabits),
         if (timedHabits.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
               'No time-bound habits for this date. Drag a flexible habit into the timeline.',
-              style: AppTypography.bodySmall(context).copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.bodySmall(
+                context,
+              ).copyWith(color: colorScheme.onSurfaceVariant),
             ),
           ),
-        if (visibleHabits.isEmpty)
+        if (dayHabits.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Card(
@@ -1732,7 +2096,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'No habits match your search or filters.',
+                        'No habits scheduled for $selectedDateLabel.',
                         style: AppTypography.bodySmall(context),
                       ),
                     ),
@@ -1759,7 +2123,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionLabel('Today'),
+        _buildSectionLabel(
+          'Today',
+          trailing: _buildViewModeAction(
+            label: 'Timeline',
+            icon: Icons.timeline_rounded,
+          ),
+        ),
         if (todayHabits.isNotEmpty)
           ...todayHabits.asMap().entries.map((entry) {
             final index = entry.key;
@@ -1823,7 +2193,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final now = LogicalDateService.now();
-    
+
     // Gather all habits from standalone storage
     final List<_HabitEntry> allHabits = _habits.map((habit) {
       return _HabitEntry(
@@ -1838,36 +2208,26 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
         .where((e) => _matchesFilter(e, filterDate))
         .toList();
     final hasActiveSearchOrFilter =
-        _searchQuery.trim().isNotEmpty || _activeFilter != _HabitQuickFilter.all;
+        _searchQuery.trim().isNotEmpty ||
+        _activeFilter != _HabitQuickFilter.all;
     final todayHabits = visibleHabits
         .where((e) => e.habit.isScheduledOnDate(now))
         .toList();
     final upcomingHabits = visibleHabits
         .where((e) => !e.habit.isScheduledOnDate(now))
         .toList();
-    final calendarDateHabits = visibleHabits
+    final selectedDateHabits = visibleHabits
         .where((e) => e.habit.isScheduledOnDate(_selectedCalendarDate))
         .toList();
-    final timedHabits = calendarDateHabits
-        .where((e) => _isTimedHabit(e.habit))
-        .toList()
-      ..sort((a, b) =>
-          (a.habit.startTimeMinutes ?? 0).compareTo(b.habit.startTimeMinutes ?? 0));
-    final flexibleHabits = calendarDateHabits
+    final timedHabits =
+        selectedDateHabits.where((e) => _isTimedHabit(e.habit)).toList()..sort(
+          (a, b) => (a.habit.startTimeMinutes ?? 0).compareTo(
+            b.habit.startTimeMinutes ?? 0,
+          ),
+        );
+    final flexibleHabits = selectedDateHabits
         .where((e) => !_isTimedHabit(e.habit))
         .toList();
-
-    // Calculate progress stats for today
-    final scheduledToday = allHabits.where((e) => e.habit.isScheduledOnDate(now)).toList();
-    final completedToday = scheduledToday.where((e) => e.habit.isCompletedForCurrentPeriod(now)).length;
-    final totalScheduledToday = scheduledToday.length;
-
-    // Best current streak across all habits
-    int bestStreak = 0;
-    for (final e in allHabits) {
-      final s = e.habit.currentStreak;
-      if (s > bestStreak) bestStreak = s;
-    }
 
     return Stack(
       children: [
@@ -1878,14 +2238,27 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
             parent: AlwaysScrollableScrollPhysics(),
           ),
           slivers: [
+            if (widget.showCalendarMode)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedBoxHeaderDelegate(
+                  minExtentValue: MediaQuery.of(context).viewPadding.top + 6,
+                  maxExtentValue: MediaQuery.of(context).viewPadding.top + 6,
+                  child: Container(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                  ),
+                ),
+              ),
             // Reward ad card (shown when user needs to watch ads for new habit)
-            if (_activeAdSession != null &&
+            if (!widget.showCalendarMode &&
+                _activeAdSession != null &&
                 _shouldShowAds &&
                 _adWatchedCount < AdService.requiredAdsPerHabit)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16)
-                      .copyWith(top: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                  ).copyWith(top: 8),
                   child: RewardAdCard(
                     sessionKey: _activeAdSession!,
                     watchedCount: _adWatchedCount,
@@ -1895,41 +2268,44 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                 ),
               ),
             if (allHabits.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildPinnedControlsRow(),
-              ),
+              SliverToBoxAdapter(child: _buildPinnedControlsRow()),
             if (allHabits.isNotEmpty && _isFilterExpanded)
-              SliverToBoxAdapter(
-                child: _buildFilterStrip(),
-              ),
+              SliverToBoxAdapter(child: _buildFilterStrip()),
             if (allHabits.isNotEmpty)
+              SliverToBoxAdapter(child: _buildControlsSummaryRow()),
+            if (allHabits.isNotEmpty && widget.showCalendarMode)
+              SliverToBoxAdapter(child: _buildTimelineDateHeader()),
+            if (allHabits.isNotEmpty &&
+                widget.showCalendarMode &&
+                _activeAdSession != null &&
+                _shouldShowAds &&
+                _adWatchedCount < AdService.requiredAdsPerHabit)
               SliverToBoxAdapter(
-                child: _buildControlsSummaryRow(),
-              ),
-            // Sticky daily progress header
-            SliverAppBar(
-              primary: false,
-              pinned: true,
-              automaticallyImplyLeading: false,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              toolbarHeight: _dailyProgressHeaderHeight,
-              collapsedHeight: _dailyProgressHeaderHeight,
-              expandedHeight: _dailyProgressHeaderHeight,
-              flexibleSpace: Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  height: _dailyProgressHeaderHeight,
-                  child: DailyProgressHeader(
-                    completedCount: completedToday,
-                    totalCount: totalScheduledToday,
-                    bestStreak: bestStreak,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                  ).copyWith(bottom: 6),
+                  child: RewardAdCard(
+                    sessionKey: _activeAdSession!,
+                    watchedCount: _adWatchedCount,
+                    onAdWatched: _onRewardAdWatched,
+                    onAllAdsWatched: _onAllAdsWatched,
                   ),
                 ),
               ),
-            ),
+            if (allHabits.isNotEmpty &&
+                widget.showCalendarMode &&
+                flexibleHabits.isNotEmpty)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedBoxHeaderDelegate(
+                  minExtentValue: 156,
+                  maxExtentValue: 156,
+                  child: _buildFlexibleHabitsStickyCarousel(
+                    flexibleHabits: flexibleHabits,
+                  ),
+                ),
+              ),
             // Empty state
             if (allHabits.isEmpty)
               SliverFillRemaining(
@@ -1941,21 +2317,25 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                       Icon(
                         Icons.spa_outlined,
                         size: 64,
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No habits yet',
-                        style: AppTypography.heading2(context).copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppTypography.heading2(
+                          context,
+                        ).copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tap + to create your first habit\nand build your daily routine',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodySmall(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1987,9 +2367,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab>
                     ),
                     child: widget.showCalendarMode
                         ? _buildCalendarModeContent(
-                            flexibleHabits: flexibleHabits,
+                            dayHabits: selectedDateHabits,
                             timedHabits: timedHabits,
-                            visibleHabits: visibleHabits,
                             colorScheme: colorScheme,
                           )
                         : _buildDefaultModeContent(
@@ -2064,6 +2443,16 @@ class _FlexibleHabitDragData {
   const _FlexibleHabitDragData(this.habit);
 }
 
+class _TimelineScheduleSelection {
+  final int startMinutes;
+  final int durationMinutes;
+
+  const _TimelineScheduleSelection({
+    required this.startMinutes,
+    required this.durationMinutes,
+  });
+}
+
 class _TimelineCardLayout {
   final _HabitEntry entry;
   final double top;
@@ -2074,6 +2463,238 @@ class _TimelineCardLayout {
     required this.top,
     required this.height,
   });
+}
+
+class _PinnedBoxHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minExtentValue;
+  final double maxExtentValue;
+  final Widget child;
+
+  _PinnedBoxHeaderDelegate({
+    required this.minExtentValue,
+    required this.maxExtentValue,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minExtentValue;
+
+  @override
+  double get maxExtent => maxExtentValue;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedBoxHeaderDelegate oldDelegate) {
+    return minExtentValue != oldDelegate.minExtentValue ||
+        maxExtentValue != oldDelegate.maxExtentValue ||
+        child != oldDelegate.child;
+  }
+}
+
+class _MonthWeekScroller extends StatefulWidget {
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
+  final DateTime today;
+
+  const _MonthWeekScroller({
+    required this.selectedDate,
+    required this.onDateSelected,
+    required this.today,
+  });
+
+  @override
+  State<_MonthWeekScroller> createState() => _MonthWeekScrollerState();
+}
+
+class _MonthWeekScrollerState extends State<_MonthWeekScroller> {
+  late PageController _pageController;
+
+  DateTime get _monthStart =>
+      DateTime(widget.selectedDate.year, widget.selectedDate.month, 1);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _selectedWeekIndex());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MonthWeekScroller oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_sameMonth(widget.selectedDate, oldWidget.selectedDate)) {
+      final target = _selectedWeekIndex();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients) return;
+        final current = (_pageController.page ?? target.toDouble()).round();
+        if (current != target) {
+          _pageController.animateToPage(
+            target,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      });
+      return;
+    }
+    _pageController.dispose();
+    _pageController = PageController(initialPage: _selectedWeekIndex());
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  DateTime _weekStart(DateTime date) {
+    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
+    return DateTime(date.year, date.month, date.day - weekday);
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _sameMonth(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month;
+  }
+
+  List<DateTime> _monthWeekStarts() {
+    final first = _monthStart;
+    final nextMonth = DateTime(first.year, first.month + 1, 1);
+    final last = nextMonth.subtract(const Duration(days: 1));
+    final firstWeekStart = _weekStart(first);
+    final lastWeekStart = _weekStart(last);
+    final totalWeeks = (lastWeekStart.difference(firstWeekStart).inDays ~/ 7) + 1;
+    return List<DateTime>.generate(
+      totalWeeks,
+      (index) => firstWeekStart.add(Duration(days: index * 7)),
+    );
+  }
+
+  int _selectedWeekIndex() {
+    final starts = _monthWeekStarts();
+    for (var i = 0; i < starts.length; i++) {
+      final start = starts[i];
+      final end = start.add(const Duration(days: 6));
+      if (!widget.selectedDate.isBefore(start) && !widget.selectedDate.isAfter(end)) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final starts = _monthWeekStarts();
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: starts.length,
+      itemBuilder: (context, index) {
+        return _MonthWeekRow(
+          weekStart: starts[index],
+          month: widget.selectedDate.month,
+          selectedDate: widget.selectedDate,
+          today: widget.today,
+          onDateSelected: widget.onDateSelected,
+          sameDay: _sameDay,
+        );
+      },
+    );
+  }
+}
+
+class _MonthWeekRow extends StatelessWidget {
+  final DateTime weekStart;
+  final int month;
+  final DateTime selectedDate;
+  final DateTime today;
+  final ValueChanged<DateTime> onDateSelected;
+  final bool Function(DateTime a, DateTime b) sameDay;
+
+  const _MonthWeekRow({
+    required this.weekStart,
+    required this.month,
+    required this.selectedDate,
+    required this.today,
+    required this.onDateSelected,
+    required this.sameDay,
+  });
+
+  static const _weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final weekDates = List<DateTime>.generate(
+      7,
+      (index) => weekStart.add(Duration(days: index)),
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: weekDates.asMap().entries.map((entry) {
+        final index = entry.key;
+        final date = entry.value;
+        final inMonth = date.month == month;
+        final isSelected = sameDay(date, selectedDate);
+        final isToday = sameDay(date, today);
+        final textColor = inMonth
+            ? colorScheme.onSurface
+            : colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
+
+        return Expanded(
+          child: InkWell(
+            onTap: inMonth ? () => onDateSelected(date) : null,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? colorScheme.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: isToday && !isSelected
+                    ? Border.all(color: colorScheme.primary, width: 1.6)
+                    : null,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _weekdays[index],
+                    style: AppTypography.caption(context).copyWith(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected
+                          ? colorScheme.onPrimary.withValues(alpha: 0.86)
+                          : colorScheme.onSurfaceVariant
+                                .withValues(alpha: inMonth ? 1 : 0.55),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${date.day}',
+                    style: AppTypography.bodySmall(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? colorScheme.onPrimary : textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
 
 class _TimelineCompletionDetailsSheet extends StatelessWidget {
@@ -2100,7 +2721,8 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
     final mood = feedback?.rating;
     final note = feedback?.note;
     final coins = feedback?.coinsEarned;
-    final hasDetails = feedback != null &&
+    final hasDetails =
+        feedback != null &&
         ((mood != null && mood > 0 && _moodData.containsKey(mood)) ||
             (note != null && note.isNotEmpty));
 
@@ -2181,8 +2803,10 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                 ),
                 if (coins != null && coins > 0)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.gold.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
@@ -2231,15 +2855,14 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    if (mood != null &&
-                        mood > 0 &&
-                        _moodData.containsKey(mood))
+                    if (mood != null && mood > 0 && _moodData.containsKey(mood))
                       _buildDetailRow(
                         context,
                         moodAsset: _moodData[mood]!.$1,
@@ -2256,7 +2879,9 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                         note: note,
                         colorScheme: colorScheme,
                         isFirst:
-                            mood == null || mood <= 0 || !_moodData.containsKey(mood),
+                            mood == null ||
+                            mood <= 0 ||
+                            !_moodData.containsKey(mood),
                       ),
                   ],
                 ),
@@ -2282,10 +2907,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Text(
-                  'Done',
-                  style: AppTypography.button(context),
-                ),
+                child: Text('Done', style: AppTypography.button(context)),
               ),
             ),
           ],
@@ -2324,17 +2946,16 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: AppTypography.bodySmall(context).copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: AppTypography.bodySmall(
+                  context,
+                ).copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const Spacer(),
               Text(
                 value,
-                style: AppTypography.bodySmall(context).copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: valueColor,
-                ),
+                style: AppTypography.bodySmall(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w700, color: valueColor),
               ),
             ],
           ),
@@ -2388,16 +3009,16 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                   children: [
                     Text(
                       'Note',
-                      style: AppTypography.bodySmall(context).copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppTypography.bodySmall(
+                        context,
+                      ).copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       note,
-                      style: AppTypography.bodySmall(context).copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppTypography.bodySmall(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -2431,7 +3052,7 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   late AnimationController _controller;
   double _lastScrollOffset = 0;
   bool _isScrollingDown = false;
-  
+
   // Estimated item height for calculating visibility
   static const double _itemHeight = 80.0;
   static const double _headerHeight = 120.0;
@@ -2450,18 +3071,18 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   @override
   void didUpdateWidget(_ScrollAnimatedItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.scrollOffset != oldWidget.scrollOffset) {
       final delta = widget.scrollOffset - _lastScrollOffset;
       final isScrollingNow = delta.abs() > 0.5;
-      
+
       if (isScrollingNow) {
         _isScrollingDown = delta > 0;
-        
+
         // Calculate velocity-based scale
         final velocity = delta.abs().clamp(0.0, 30.0) / 30.0;
         final targetScale = 1.0 - (velocity * 0.03); // Max 3% scale reduction
-        
+
         // Apply subtle tilt based on scroll direction and item position
         if (!_controller.isAnimating) {
           _controller.value = targetScale;
@@ -2474,7 +3095,7 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
           curve: Curves.easeOutCubic,
         );
       }
-      
+
       _lastScrollOffset = widget.scrollOffset;
     }
   }
@@ -2491,14 +3112,15 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
       animation: _controller,
       builder: (context, child) {
         final scale = _controller.value;
-        
+
         // Calculate subtle rotation based on position and scroll direction
         final rotationFactor = _isScrollingDown ? 0.003 : -0.003;
         final rotation = (1.0 - scale) * rotationFactor * 10;
-        
+
         // Subtle horizontal offset for parallax effect
-        final horizontalOffset = (1.0 - scale) * (_isScrollingDown ? 2.0 : -2.0);
-        
+        final horizontalOffset =
+            (1.0 - scale) * (_isScrollingDown ? 2.0 : -2.0);
+
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
@@ -2710,8 +3332,10 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
         final revealOffset = _revealController.isAnimating
             ? _revealAnimation.value
             : _dragExtent;
-        final revealProgress =
-            (revealOffset.abs() / _revealWidth).clamp(0.0, 1.0);
+        final revealProgress = (revealOffset.abs() / _revealWidth).clamp(
+          0.0,
+          1.0,
+        );
         final flipValue = _flipController.value;
         final showBack = flipValue >= 0.5;
 
@@ -2756,8 +3380,9 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                                     child: Container(
                                       color: isDark
                                           ? colorScheme.onSurfaceVariant
-                                          : colorScheme.primary
-                                              .withValues(alpha: 0.85),
+                                          : colorScheme.primary.withValues(
+                                              alpha: 0.85,
+                                            ),
                                       alignment: Alignment.center,
                                       child: Icon(
                                         Icons.edit_outlined,
@@ -2812,9 +3437,10 @@ class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
                   child: showBack
                       ? _CopingPlanFace(
                           habit: widget.entry.habit,
-                          isCompleted: widget.entry.habit.isCompletedForCurrentPeriod(
-                            LogicalDateService.now(),
-                          ),
+                          isCompleted: widget.entry.habit
+                              .isCompletedForCurrentPeriod(
+                                LogicalDateService.now(),
+                              ),
                         )
                       : widget.child,
                 ),
@@ -2843,13 +3469,15 @@ class _CopingPlanFace extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cbt = habit.cbtEnhancements;
-    final hasContent = cbt != null &&
+    final hasContent =
+        cbt != null &&
         ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
             (cbt.ifThenPlan?.isNotEmpty ?? false));
 
     final textColor = colorScheme.onSurface;
-    final subtitleColor =
-        isDark ? colorScheme.onSurface.withValues(alpha: 0.6) : colorScheme.onSurfaceVariant;
+    final subtitleColor = isDark
+        ? colorScheme.onSurface.withValues(alpha: 0.6)
+        : colorScheme.onSurfaceVariant;
     final accentColor = AppColors.completedOrange;
 
     return Padding(
@@ -2859,184 +3487,208 @@ class _CopingPlanFace extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : Colors.white.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.7),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.25)
-                : Colors.black.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: hasContent
-          ? Row(
-              children: [
-                // Coping plan icon
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: isDark ? 0.25 : 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.psychology_rounded,
-                    color: accentColor,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // IF trigger
-                      if (cbt.predictedObstacle?.isNotEmpty ?? false) ...[
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colorScheme.error.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'IF',
-                                style: AppTypography.caption(context).copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: colorScheme.error,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                cbt.predictedObstacle!,
-                                style: AppTypography.bodySmall(context).copyWith(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: isCompleted
-                                      ? textColor.withValues(alpha: 0.5)
-                                      : textColor,
-                                  decoration: isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationColor: isCompleted
-                                      ? textColor.withValues(alpha: 0.5)
-                                      : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                      // THEN action
-                      if (cbt.ifThenPlan?.isNotEmpty ?? false)
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'THEN',
-                                style: AppTypography.caption(context).copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: colorScheme.primary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                cbt.ifThenPlan!,
-                                style: AppTypography.bodySmall(context).copyWith(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: isCompleted
-                                      ? textColor.withValues(alpha: 0.5)
-                                      : textColor,
-                                  decoration: isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationColor: isCompleted
-                                      ? textColor.withValues(alpha: 0.5)
-                                      : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-                // Micro version / reward chips
-                if (cbt.microVersion?.isNotEmpty ?? false) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Micro',
-                      style: AppTypography.caption(context).copyWith(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: accentColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            )
-          : Row(
-              children: [
-                Icon(
-                  Icons.psychology_outlined,
-                  color: subtitleColor,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'No coping plan set',
-                  style: AppTypography.bodySmall(context).copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: subtitleColor,
-                    fontStyle: FontStyle.italic,
-                  ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.7),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.25)
+                      : Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
+            child: hasContent
+                ? Row(
+                    children: [
+                      // Coping plan icon
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(
+                            alpha: isDark ? 0.25 : 0.12,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.psychology_rounded,
+                          color: accentColor,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // IF trigger
+                            if (cbt.predictedObstacle?.isNotEmpty ?? false) ...[
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.error.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'IF',
+                                      style: AppTypography.caption(context)
+                                          .copyWith(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: colorScheme.error,
+                                            letterSpacing: 0.5,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      cbt.predictedObstacle!,
+                                      style: AppTypography.bodySmall(context)
+                                          .copyWith(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: isCompleted
+                                                ? textColor.withValues(
+                                                    alpha: 0.5,
+                                                  )
+                                                : textColor,
+                                            decoration: isCompleted
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                            decorationColor: isCompleted
+                                                ? textColor.withValues(
+                                                    alpha: 0.5,
+                                                  )
+                                                : null,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                            // THEN action
+                            if (cbt.ifThenPlan?.isNotEmpty ?? false)
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'THEN',
+                                      style: AppTypography.caption(context)
+                                          .copyWith(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: colorScheme.primary,
+                                            letterSpacing: 0.5,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      cbt.ifThenPlan!,
+                                      style: AppTypography.bodySmall(context)
+                                          .copyWith(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: isCompleted
+                                                ? textColor.withValues(
+                                                    alpha: 0.5,
+                                                  )
+                                                : textColor,
+                                            decoration: isCompleted
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                            decorationColor: isCompleted
+                                                ? textColor.withValues(
+                                                    alpha: 0.5,
+                                                  )
+                                                : null,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Micro version / reward chips
+                      if (cbt.microVersion?.isNotEmpty ?? false) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Micro',
+                            style: AppTypography.caption(context).copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Icon(
+                        Icons.psychology_outlined,
+                        color: subtitleColor,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'No coping plan set',
+                        style: AppTypography.bodySmall(context).copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: subtitleColor,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),

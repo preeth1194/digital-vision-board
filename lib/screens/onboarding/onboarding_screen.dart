@@ -4,9 +4,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/dv_auth_service.dart';
+import '../../services/subscription_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
-import '../dashboard_screen.dart';
+import '../legal_consent_screen.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed_v1';
 
@@ -135,7 +136,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       Navigator.of(context).pop();
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const LegalConsentScreen()),
       );
     }
   }
@@ -163,6 +164,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         throw Exception('Could not get Firebase idToken.');
       }
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
+      await SubscriptionService.initialize();
       if (!mounted) return;
       await _finishOnboarding();
     } on GoogleSignInException catch (e) {
@@ -185,6 +187,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       await DvAuthService.continueAsGuest();
+      await SubscriptionService.initialize();
       if (!mounted) return;
       await _finishOnboarding();
     } catch (_) {

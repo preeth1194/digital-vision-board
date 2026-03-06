@@ -22,6 +22,8 @@ class InteractiveJournalBook extends StatefulWidget {
   final ValueChanged<bool>? onOpenChanged;
   final bool isActive;
   final bool isNewBook;
+  final bool isTitleEditable;
+  final VoidCallback? onTapOverride;
 
   const InteractiveJournalBook({
     super.key,
@@ -37,6 +39,8 @@ class InteractiveJournalBook extends StatefulWidget {
     this.onOpenChanged,
     this.isActive = true,
     this.isNewBook = false,
+    this.isTitleEditable = true,
+    this.onTapOverride,
   });
 
   @override
@@ -114,8 +118,12 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
   }
 
   void _toggleBook() {
+    if (widget.onTapOverride != null) {
+      widget.onTapOverride!.call();
+      return;
+    }
     if (_isEditingTitle) return;
-    
+
     setState(() => _isOpen = !_isOpen);
     if (_isOpen) {
       _controller.forward();
@@ -126,6 +134,7 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
   }
 
   void _startEditingTitle() {
+    if (!widget.isTitleEditable) return;
     setState(() => _isEditingTitle = true);
     _titleFocusNode.requestFocus();
     _titleController.selection = TextSelection(
@@ -143,18 +152,23 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
     final bottomNav = MediaQuery.of(context).padding.bottom + 80;
     final topBar = MediaQuery.of(context).padding.top + 56;
     final openHeight = size.height - topBar - bottomNav - 48;
-    final coverColor = Color(widget.book.coverColor ?? JournalBook.defaultCoverColor);
+    final coverColor = Color(
+      widget.book.coverColor ?? JournalBook.defaultCoverColor,
+    );
 
     final colorScheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _openAnimation,
       builder: (context, child) {
         // Interpolate width between closed and open
-        final currentWidth = bookWidth + (_openAnimation.value * (openWidth - bookWidth));
+        final currentWidth =
+            bookWidth + (_openAnimation.value * (openWidth - bookWidth));
 
-        final currentHeight = bookHeight + (_openAnimation.value * (openHeight - bookHeight));
+        final currentHeight =
+            bookHeight + (_openAnimation.value * (openHeight - bookHeight));
 
-        final extraPadding = 60.0 * (1.0 - _openAnimation.value) + 10.0 * _openAnimation.value;
+        final extraPadding =
+            60.0 * (1.0 - _openAnimation.value) + 10.0 * _openAnimation.value;
 
         return SizedBox(
           width: currentWidth + 40,
@@ -213,7 +227,9 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
               if (_openAnimation.value < 0.95)
                 GestureDetector(
                   onTap: _toggleBook,
-                  onLongPress: _startEditingTitle,
+                  onLongPress: widget.isTitleEditable
+                      ? _startEditingTitle
+                      : null,
                   child: Opacity(
                     opacity: 1.0 - _openAnimation.value,
                     child: Transform.scale(
@@ -228,7 +244,9 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                         isEditingTitle: _isEditingTitle,
                         titleController: _titleController,
                         titleFocusNode: _titleFocusNode,
-                        onTitleTap: _startEditingTitle,
+                        onTitleTap: widget.isTitleEditable
+                            ? _startEditingTitle
+                            : null,
                         onTitleSubmitted: (_) => _saveTitle(),
                         isOpen: _isOpen,
                       ),
@@ -254,7 +272,7 @@ class _BookCover extends StatelessWidget {
   final bool isEditingTitle;
   final TextEditingController titleController;
   final FocusNode titleFocusNode;
-  final VoidCallback onTitleTap;
+  final VoidCallback? onTitleTap;
   final ValueChanged<String> onTitleSubmitted;
   final bool isOpen;
 
@@ -276,9 +294,11 @@ class _BookCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final darkerColor = HSLColor.fromColor(color).withLightness(
-      (HSLColor.fromColor(color).lightness - 0.15).clamp(0.0, 1.0),
-    ).toColor();
+    final darkerColor = HSLColor.fromColor(color)
+        .withLightness(
+          (HSLColor.fromColor(color).lightness - 0.15).clamp(0.0, 1.0),
+        )
+        .toColor();
     final spineWidth = width * 0.08;
 
     return SizedBox(
@@ -381,11 +401,15 @@ class _BookCover extends StatelessWidget {
                                     controller: titleController,
                                     focusNode: titleFocusNode,
                                     textAlign: TextAlign.center,
-                                    style: AppTypography.heading3(context).copyWith(color: Colors.white),
+                                    style: AppTypography.heading3(
+                                      context,
+                                    ).copyWith(color: Colors.white),
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
                                     ),
                                     onSubmitted: onTitleSubmitted,
                                   )
@@ -394,16 +418,18 @@ class _BookCover extends StatelessWidget {
                                     child: Text(
                                       title,
                                       textAlign: TextAlign.center,
-                                      style: AppTypography.heading3(context).copyWith(
-                                        color: Colors.white,
-                                        shadows: [
-                                          Shadow(
-                                            color: colorScheme.shadow.withOpacity(0.5),
-                                            offset: const Offset(1, 1),
-                                            blurRadius: 3,
+                                      style: AppTypography.heading3(context)
+                                          .copyWith(
+                                            color: Colors.white,
+                                            shadows: [
+                                              Shadow(
+                                                color: colorScheme.shadow
+                                                    .withOpacity(0.5),
+                                                offset: const Offset(1, 1),
+                                                blurRadius: 3,
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
                                     ),
                                   ),
                           ),
@@ -435,7 +461,8 @@ class _BookCover extends StatelessWidget {
                                   shadows: coverImagePath != null
                                       ? [
                                           Shadow(
-                                            color: colorScheme.shadow.withOpacity(0.5),
+                                            color: colorScheme.shadow
+                                                .withOpacity(0.5),
                                             offset: const Offset(1, 1),
                                             blurRadius: 2,
                                           ),
@@ -549,8 +576,18 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
 
   String _formatDate(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month - 1]}, ${dt.year}';
   }
@@ -562,8 +599,11 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
     final isDark = theme.brightness == Brightness.dark;
     final darkerCover = HSLColor.fromColor(widget.coverColor)
         .withLightness(
-            (HSLColor.fromColor(widget.coverColor).lightness - 0.15)
-                .clamp(0.0, 1.0))
+          (HSLColor.fromColor(widget.coverColor).lightness - 0.15).clamp(
+            0.0,
+            1.0,
+          ),
+        )
         .toColor();
 
     return SizedBox(
@@ -609,15 +649,17 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                       children: [
                         Text(
                           widget.bookName,
-                          style: AppTypography.bodySmall(context).copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: AppTypography.bodySmall(
+                            context,
+                          ).copyWith(fontWeight: FontWeight.w700),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           '${widget.entries.length} ${widget.entries.length == 1 ? 'entry' : 'entries'}',
-                          style: AppTypography.caption(context).copyWith(fontSize: 11),
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(fontSize: 11),
                         ),
                       ],
                     ),
@@ -626,13 +668,19 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _HeaderActionBtn(
-                        icon: Icons.more_horiz_rounded,
-                        tooltip: 'More options',
-                        onTap: widget.onCustomize,
-                        isDark: isDark,
-                      ),
-                      if (widget.bookId != JournalBookStorageService.goalLogsBookId) ...[
+                      if (widget.bookId !=
+                          JournalBookStorageService.recipeBookId) ...[
+                        _HeaderActionBtn(
+                          icon: Icons.more_horiz_rounded,
+                          tooltip: 'More options',
+                          onTap: widget.onCustomize,
+                          isDark: isDark,
+                        ),
+                      ],
+                      if (widget.bookId !=
+                              JournalBookStorageService.goalLogsBookId &&
+                          widget.bookId !=
+                              JournalBookStorageService.recipeBookId) ...[
                         const SizedBox(width: 4),
                         _HeaderActionBtn(
                           icon: Icons.delete_outline_rounded,
@@ -672,16 +720,16 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, bool isDark, ColorScheme colorScheme) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    bool isDark,
+    ColorScheme colorScheme,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.note_add_outlined,
-            size: 32,
-            color: colorScheme.outline,
-          ),
+          Icon(Icons.note_add_outlined, size: 32, color: colorScheme.outline),
           const SizedBox(height: 10),
           Text(
             'No entries yet',
@@ -693,10 +741,9 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
           const SizedBox(height: 4),
           Text(
             'Tap + below to add your first entry',
-            style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
-              color: colorScheme.outline,
-            ),
+            style: AppTypography.caption(
+              context,
+            ).copyWith(fontSize: 11, color: colorScheme.outline),
           ),
         ],
       ),
@@ -793,7 +840,9 @@ class _EntryRowState extends State<_EntryRow> {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-              color: widget.colorScheme.shadow.withOpacity(widget.isDark ? 0.15 : 0.04),
+              color: widget.colorScheme.shadow.withOpacity(
+                widget.isDark ? 0.15 : 0.04,
+              ),
               offset: const Offset(0, 1),
               blurRadius: 3,
             ),

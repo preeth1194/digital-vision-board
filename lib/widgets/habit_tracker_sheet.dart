@@ -20,6 +20,7 @@ class HabitTrackerSheet extends StatefulWidget {
   final VisionComponent component;
   final ValueChanged<VisionComponent> onComponentUpdated;
   final bool fullScreen;
+
   /// 0: Tracker, 1: Todo
   final int initialTabIndex;
 
@@ -50,7 +51,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     final meta = _goalMetadataOrNull(widget.component);
     _todos = List<GoalTodoItem>.from(meta?.todoItems ?? const []);
     _todos = _todos.map((t) => t.copyWith(taskId: null)).toList();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptMissedReschedule());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybePromptMissedReschedule(),
+    );
     _loadHabitsFromService();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future<void>(() async {
@@ -82,7 +85,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
   void _emitComponent(VisionComponent base) {
     // Tasks are removed; always clear tasks on update.
-    final updatedComponent = base.copyWithCommon(habits: _habits, tasks: const []);
+    final updatedComponent = base.copyWithCommon(
+      habits: _habits,
+      tasks: const [],
+    );
     widget.onComponentUpdated(updatedComponent);
   }
 
@@ -118,10 +124,14 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       final all = await HabitStorageService.loadAll();
       final compId = widget.component.id;
       final existing = all.where((h) => h.componentId != compId).toList();
-      final updated = _habits.map((h) => h.copyWith(
-        boardId: widget.boardId ?? h.boardId,
-        componentId: compId,
-      )).toList();
+      final updated = _habits
+          .map(
+            (h) => h.copyWith(
+              boardId: widget.boardId ?? h.boardId,
+              componentId: compId,
+            ),
+          )
+          .toList();
       await HabitStorageService.saveAll([...existing, ...updated]);
     });
     // Keep geofence tracking in sync with the latest habit list.
@@ -175,7 +185,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     }
 
     if (!wasDone) {
-      Future<void>(() async => _maybeAskCompletionFeedback(habitId: habit.id, date: now));
+      Future<void>(
+        () async => _maybeAskCompletionFeedback(habitId: habit.id, date: now),
+      );
     }
   }
 
@@ -210,6 +222,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         iconIndex: req.iconIndex,
         actionSteps: req.actionSteps,
         startTimeMinutes: req.startTimeMinutes,
+        templateId: req.templateId,
+        templateVersion: req.templateVersion,
         clearStartTimeMinutes: req.startTimeMinutes == null,
       );
       _updateComponent();
@@ -255,6 +269,8 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           iconIndex: req.iconIndex,
           actionSteps: req.actionSteps,
           startTimeMinutes: req.startTimeMinutes,
+          templateId: req.templateId,
+          templateVersion: req.templateVersion,
           completedDates: const [],
         ),
       );
@@ -271,25 +287,33 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     });
   }
 
-  Future<void> _createHabitFromActionPlan(String microHabit, String? frequency, List<int> weeklyDays) async {
+  Future<void> _createHabitFromActionPlan(
+    String microHabit,
+    String? frequency,
+    List<int> weeklyDays,
+  ) async {
     final base = microHabit.trim();
     if (base.isEmpty) return;
     final freqLower = (frequency ?? '').trim().toLowerCase();
     final freqNorm = (freqLower == 'weekly')
         ? 'Weekly'
         : (freqLower == 'daily')
-            ? 'Daily'
-            : null;
+        ? 'Daily'
+        : null;
     final days = (freqNorm == 'Weekly')
-        ? (weeklyDays.isNotEmpty ? (weeklyDays.toList()..sort()) : <int>[DateTime.now().weekday])
+        ? (weeklyDays.isNotEmpty
+              ? (weeklyDays.toList()..sort())
+              : <int>[DateTime.now().weekday])
         : const <int>[];
 
-    final exists = _habits.any((h) => h.name.trim().toLowerCase() == base.toLowerCase());
+    final exists = _habits.any(
+      (h) => h.name.trim().toLowerCase() == base.toLowerCase(),
+    );
     if (exists) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Habit already exists: $base')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Habit already exists: $base')));
       }
       return;
     }
@@ -300,8 +324,14 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
         title: const Text('Create habit from action plan?'),
         content: Text('Add this habit?\n\n$base'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Add')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Add'),
+          ),
         ],
       ),
     );
@@ -345,9 +375,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     }
     _emitComponent(updated);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved goal details.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Saved goal details.')));
     }
   }
 
@@ -382,14 +412,23 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
 
     final m = missed;
 
-    final doReschedule = await showDialog<bool>(
+    final doReschedule =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Reschedule reminder?'),
-            content: Text('You missed the reminder for "${m.name}". Reschedule it later today?'),
+            content: Text(
+              'You missed the reminder for "${m.name}". Reschedule it later today?',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Reschedule')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('No'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Reschedule'),
+              ),
             ],
           ),
         ) ??
@@ -406,7 +445,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     await NotificationsService.scheduleSnoozeForToday(m, picked);
   }
 
-  Future<void> _maybeAskCompletionFeedback({required String habitId, required DateTime date}) async {
+  Future<void> _maybeAskCompletionFeedback({
+    required String habitId,
+    required DateTime date,
+  }) async {
     final idx = _habits.indexWhere((h) => h.id == habitId);
     if (idx == -1) return;
     final h = _habits[idx];
@@ -428,11 +470,10 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
       final latestIdx = _habits.indexWhere((x) => x.id == habitId);
       if (latestIdx == -1) return;
       final latest = _habits[latestIdx];
-      final next = Map<String, HabitCompletionFeedback>.from(latest.feedbackByDate);
-      next[iso] = HabitCompletionFeedback(
-        rating: res.rating,
-        note: res.note,
+      final next = Map<String, HabitCompletionFeedback>.from(
+        latest.feedbackByDate,
       );
+      next[iso] = HabitCompletionFeedback(rating: res.rating, note: res.note);
       _habits[latestIdx] = latest.copyWith(feedbackByDate: next);
       _updateComponent();
     });
@@ -476,7 +517,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
           height: height,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius: widget.fullScreen ? null : const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: widget.fullScreen
+                ? null
+                : const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
@@ -488,7 +531,9 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

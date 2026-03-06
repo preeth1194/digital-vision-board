@@ -3,14 +3,18 @@ import 'habit_action_step.dart';
 
 final class HabitTimeBoundSpec {
   final bool enabled;
+
   /// Duration amount in the selected unit.
   final int duration;
+
   /// 'minutes' | 'hours'
   final String unit;
+
   /// Per-habit notification sound identifier.
   /// Built-in: 'default', 'chime', 'bell', 'gentle', 'alert', 'none'.
   /// Custom: a file path string.
   final String? notificationSound;
+
   /// Per-habit vibration type: 'none', 'default', 'short', 'long'.
   final String? vibrationType;
 
@@ -30,12 +34,12 @@ final class HabitTimeBoundSpec {
   }
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'duration': duration,
-        'unit': unit,
-        'notificationSound': notificationSound,
-        'vibrationType': vibrationType,
-      };
+    'enabled': enabled,
+    'duration': duration,
+    'unit': unit,
+    'notificationSound': notificationSound,
+    'vibrationType': vibrationType,
+  };
 
   factory HabitTimeBoundSpec.fromJson(Map<String, dynamic> json) {
     final enabled = (json['enabled'] as bool?) ?? false;
@@ -74,10 +78,13 @@ final class HabitLocationBoundSpec {
   final double lat;
   final double lng;
   final int radiusMeters;
+
   /// 'arrival' | 'dwell' | 'both'
   final String triggerMode;
+
   /// Used when triggerMode is 'dwell' or 'both'
   final int? dwellMinutes;
+
   /// Human-readable address resolved via geocoding.
   final String? address;
 
@@ -92,24 +99,30 @@ final class HabitLocationBoundSpec {
   });
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'lat': lat,
-        'lng': lng,
-        'radiusMeters': radiusMeters,
-        'triggerMode': triggerMode,
-        'dwellMinutes': dwellMinutes,
-        'address': address,
-      };
+    'enabled': enabled,
+    'lat': lat,
+    'lng': lng,
+    'radiusMeters': radiusMeters,
+    'triggerMode': triggerMode,
+    'dwellMinutes': dwellMinutes,
+    'address': address,
+  };
 
   factory HabitLocationBoundSpec.fromJson(Map<String, dynamic> json) {
     final enabled = (json['enabled'] as bool?) ?? false;
     final lat = (json['lat'] as num?)?.toDouble() ?? 0.0;
     final lng = (json['lng'] as num?)?.toDouble() ?? 0.0;
-    final radiusMeters = (json['radiusMeters'] as num?)?.toInt() ??
+    final radiusMeters =
+        (json['radiusMeters'] as num?)?.toInt() ??
         (json['radius_meters'] as num?)?.toInt() ??
         150;
-    final triggerMode = (json['triggerMode'] as String?) ?? (json['trigger_mode'] as String?) ?? 'arrival';
-    final dwellMinutes = (json['dwellMinutes'] as num?)?.toInt() ?? (json['dwell_minutes'] as num?)?.toInt();
+    final triggerMode =
+        (json['triggerMode'] as String?) ??
+        (json['trigger_mode'] as String?) ??
+        'arrival';
+    final dwellMinutes =
+        (json['dwellMinutes'] as num?)?.toInt() ??
+        (json['dwell_minutes'] as num?)?.toInt();
     final address = json['address'] as String?;
     return HabitLocationBoundSpec(
       enabled: enabled,
@@ -163,10 +176,10 @@ final class HabitTrackingSpec {
   });
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'unitId': unitId,
-        'unitLabel': unitLabel,
-      };
+    'enabled': enabled,
+    'unitId': unitId,
+    'unitLabel': unitLabel,
+  };
 
   factory HabitTrackingSpec.fromJson(Map<String, dynamic> json) {
     return HabitTrackingSpec(
@@ -265,6 +278,10 @@ class HabitItem {
   /// Component/tile this habit belongs to (null for standalone habits).
   final String? componentId;
 
+  /// Optional action-step template linkage metadata.
+  final String? templateId;
+  final int? templateVersion;
+
   const HabitItem({
     required this.id,
     required this.name,
@@ -288,12 +305,14 @@ class HabitItem {
     this.startTimeMinutes,
     this.boardId,
     this.componentId,
+    this.templateId,
+    this.templateVersion,
   });
 
   Map<String, int> get stats => {
-        'streak': currentStreak,
-        'total_completions': completedDates.length,
-      };
+    'streak': currentStreak,
+    'total_completions': completedDates.length,
+  };
 
   /// Creates a copy of this habit with optional field overrides.
   ///
@@ -325,6 +344,8 @@ class HabitItem {
     bool clearStartTimeMinutes = false,
     String? boardId,
     String? componentId,
+    String? templateId,
+    int? templateVersion,
   }) {
     return HabitItem(
       id: id ?? this.id,
@@ -342,13 +363,19 @@ class HabitItem {
       cbtEnhancements: cbtEnhancements ?? this.cbtEnhancements,
       timeBound: clearTimeBound ? null : (timeBound ?? this.timeBound),
       locationBound: locationBound ?? this.locationBound,
-      trackingSpec: clearTrackingSpec ? null : (trackingSpec ?? this.trackingSpec),
+      trackingSpec: clearTrackingSpec
+          ? null
+          : (trackingSpec ?? this.trackingSpec),
       iconIndex: iconIndex ?? this.iconIndex,
       completedDates: completedDates ?? this.completedDates,
       actionSteps: actionSteps ?? this.actionSteps,
-      startTimeMinutes: clearStartTimeMinutes ? null : (startTimeMinutes ?? this.startTimeMinutes),
+      startTimeMinutes: clearStartTimeMinutes
+          ? null
+          : (startTimeMinutes ?? this.startTimeMinutes),
       boardId: boardId ?? this.boardId,
       componentId: componentId ?? this.componentId,
+      templateId: templateId ?? this.templateId,
+      templateVersion: templateVersion ?? this.templateVersion,
     );
   }
 
@@ -380,6 +407,8 @@ class HabitItem {
       'startTimeMinutes': startTimeMinutes,
       'boardId': boardId,
       'componentId': componentId,
+      'templateId': templateId,
+      'templateVersion': templateVersion,
     };
   }
 
@@ -410,7 +439,8 @@ class HabitItem {
 
   /// Creates from a map (for deserialization)
   factory HabitItem.fromJson(Map<String, dynamic> json) {
-    final List<dynamic> datesJson = json['completedDates'] as List<dynamic>? ?? [];
+    final List<dynamic> datesJson =
+        json['completedDates'] as List<dynamic>? ?? [];
     final List<DateTime> dates = datesJson
         .map((dateStr) => DateTime.parse(dateStr as String))
         .toList();
@@ -422,36 +452,49 @@ class HabitItem {
         .where((d) => d >= DateTime.monday && d <= DateTime.sunday)
         .toList();
     final normalizedFrequency = _normalizeFrequency(rawFreq, parsedWeeklyDays);
-    final normalizedWeeklyDays = _normalizeWeeklyDays(rawFreq, parsedWeeklyDays);
+    final normalizedWeeklyDays = _normalizeWeeklyDays(
+      rawFreq,
+      parsedWeeklyDays,
+    );
 
-    final timeLabel = (json['timeOfDay'] as String?) ?? (json['time_of_day'] as String?);
-    final reminderMinutes = (json['reminderMinutes'] as num?)?.toInt() ??
+    final timeLabel =
+        (json['timeOfDay'] as String?) ?? (json['time_of_day'] as String?);
+    final reminderMinutes =
+        (json['reminderMinutes'] as num?)?.toInt() ??
         (json['reminder_minutes'] as num?)?.toInt() ??
         _parseTimeLabelToMinutes(timeLabel);
-    final reminderEnabled = (json['reminderEnabled'] as bool?) ??
+    final reminderEnabled =
+        (json['reminderEnabled'] as bool?) ??
         (json['reminder_enabled'] as bool?) ??
         false;
-    final feedbackRaw = (json['feedbackByDate'] as Map<String, dynamic>?) ??
+    final feedbackRaw =
+        (json['feedbackByDate'] as Map<String, dynamic>?) ??
         (json['feedback_by_date'] as Map<String, dynamic>?) ??
         const <String, dynamic>{};
     final feedbackByDate = <String, HabitCompletionFeedback>{};
     for (final entry in feedbackRaw.entries) {
       if (entry.value is Map<String, dynamic>) {
-        feedbackByDate[entry.key] =
-            HabitCompletionFeedback.fromJson(entry.value as Map<String, dynamic>);
+        feedbackByDate[entry.key] = HabitCompletionFeedback.fromJson(
+          entry.value as Map<String, dynamic>,
+        );
       }
     }
 
-    final timeBoundRaw = (json['timeBound'] as Map<String, dynamic>?) ??
+    final timeBoundRaw =
+        (json['timeBound'] as Map<String, dynamic>?) ??
         (json['time_bound'] as Map<String, dynamic>?);
-    final locationBoundRaw = (json['locationBound'] as Map<String, dynamic>?) ??
+    final locationBoundRaw =
+        (json['locationBound'] as Map<String, dynamic>?) ??
         (json['location_bound'] as Map<String, dynamic>?);
-    final trackingSpecRaw = (json['trackingSpec'] as Map<String, dynamic>?) ??
+    final trackingSpecRaw =
+        (json['trackingSpec'] as Map<String, dynamic>?) ??
         (json['tracking_spec'] as Map<String, dynamic>?);
-    final iconIndex = (json['iconIndex'] as num?)?.toInt() ??
+    final iconIndex =
+        (json['iconIndex'] as num?)?.toInt() ??
         (json['icon_index'] as num?)?.toInt();
 
-    final actionStepsRaw = json['actionSteps'] as List<dynamic>? ??
+    final actionStepsRaw =
+        json['actionSteps'] as List<dynamic>? ??
         json['action_steps'] as List<dynamic>? ??
         const [];
     final actionSteps = actionStepsRaw
@@ -459,9 +502,10 @@ class HabitItem {
         .map((e) => HabitActionStep.fromJson(e))
         .toList();
 
-    final startTimeMinutes = (json['startTimeMinutes'] as num?)?.toInt() ??
+    final startTimeMinutes =
+        (json['startTimeMinutes'] as num?)?.toInt() ??
         (json['start_time_minutes'] as num?)?.toInt();
-    
+
     return HabitItem(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -478,19 +522,34 @@ class HabitItem {
           ? HabitChaining.fromJson(json['chaining'] as Map<String, dynamic>)
           : null,
       cbtEnhancements: (json['cbtEnhancements'] is Map<String, dynamic>)
-          ? CbtEnhancements.fromJson(json['cbtEnhancements'] as Map<String, dynamic>)
+          ? CbtEnhancements.fromJson(
+              json['cbtEnhancements'] as Map<String, dynamic>,
+            )
           : (json['cbt_enhancements'] is Map<String, dynamic>)
-              ? CbtEnhancements.fromJson(json['cbt_enhancements'] as Map<String, dynamic>)
-              : null,
-      timeBound: (timeBoundRaw != null) ? HabitTimeBoundSpec.fromJson(timeBoundRaw) : null,
-      locationBound: (locationBoundRaw != null) ? HabitLocationBoundSpec.fromJson(locationBoundRaw) : null,
-      trackingSpec: (trackingSpecRaw != null) ? HabitTrackingSpec.fromJson(trackingSpecRaw) : null,
+          ? CbtEnhancements.fromJson(
+              json['cbt_enhancements'] as Map<String, dynamic>,
+            )
+          : null,
+      timeBound: (timeBoundRaw != null)
+          ? HabitTimeBoundSpec.fromJson(timeBoundRaw)
+          : null,
+      locationBound: (locationBoundRaw != null)
+          ? HabitLocationBoundSpec.fromJson(locationBoundRaw)
+          : null,
+      trackingSpec: (trackingSpecRaw != null)
+          ? HabitTrackingSpec.fromJson(trackingSpecRaw)
+          : null,
       iconIndex: iconIndex,
       completedDates: dates,
       actionSteps: actionSteps,
       startTimeMinutes: startTimeMinutes,
       boardId: json['boardId'] as String?,
       componentId: json['componentId'] as String?,
+      templateId:
+          json['templateId'] as String? ?? json['template_id'] as String?,
+      templateVersion:
+          (json['templateVersion'] as num?)?.toInt() ??
+          (json['template_version'] as num?)?.toInt(),
     );
   }
 
@@ -504,7 +563,10 @@ class HabitItem {
     return f;
   }
 
-  static List<int> _normalizeWeeklyDays(String? rawFrequency, List<int> weeklyDays) {
+  static List<int> _normalizeWeeklyDays(
+    String? rawFrequency,
+    List<int> weeklyDays,
+  ) {
     final f = (rawFrequency ?? '').trim().toLowerCase();
     final unique = weeklyDays.toSet();
     if (f == 'weekly' && unique.length >= 7) return const <int>[];
@@ -512,6 +574,16 @@ class HabitItem {
   }
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// 3-week monthly tracker cycle:
+  /// - Days 1-7 => Week 1
+  /// - Days 8-14 => Week 2
+  /// - Days 15-21 => Week 3
+  /// - Days 22-31 => Week 1 (repeat)
+  static int trackerWeekForDate(DateTime date) {
+    final weekOfMonth = ((date.day - 1) ~/ 7) + 1;
+    return ((weekOfMonth - 1) % 3) + 1;
+  }
 
   static DateTime _weekStartMonday(DateTime date) {
     final d = _dateOnly(date);
@@ -526,6 +598,22 @@ class HabitItem {
   bool isScheduledOnDate(DateTime date) {
     if (!hasWeeklySchedule) return true;
     return weeklyDays.contains(_dateOnly(date).weekday);
+  }
+
+  List<HabitActionStep> activeActionStepsForDate(DateTime date) {
+    if (actionSteps.isEmpty) return const <HabitActionStep>[];
+    final targetDate = _dateOnly(date);
+    final trackerWeek = trackerWeekForDate(targetDate);
+    final hasPlannerSteps = actionSteps.any((s) => s.hasPlannerSchedule);
+    if (!hasPlannerSteps) {
+      return List<HabitActionStep>.from(actionSteps)
+        ..sort((a, b) => a.order.compareTo(b.order));
+    }
+    final filtered = actionSteps
+        .where((step) => step.appliesToDate(date: targetDate, trackerWeek: trackerWeek))
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return filtered;
   }
 
   /// Get the current streak count (consecutive days from today backwards)
@@ -563,11 +651,14 @@ class HabitItem {
     }
 
     // Daily + scheduled-weekly: Normalize all dates to date-only (remove time component)
-    final List<DateTime> normalizedDates = completedDates.map(_dateOnly).toList()
-      ..sort((a, b) => b.compareTo(a)); // Sort descending (most recent first)
+    final List<DateTime> normalizedDates =
+        completedDates.map(_dateOnly).toList()..sort(
+          (a, b) => b.compareTo(a),
+        ); // Sort descending (most recent first)
 
     // Remove duplicates
-    final List<DateTime> uniqueDates = normalizedDates.toSet().toList()..sort((a, b) => b.compareTo(a));
+    final List<DateTime> uniqueDates = normalizedDates.toSet().toList()
+      ..sort((a, b) => b.compareTo(a));
 
     if (uniqueDates.isEmpty) return 0;
 
@@ -617,7 +708,9 @@ class HabitItem {
           completedDates.map(_weekStartMonday).toSet().contains(weekStart);
     }
 
-    return completedDates.any((completedDate) => _dateOnly(completedDate) == normalizedDate);
+    return completedDates.any(
+      (completedDate) => _dateOnly(completedDate) == normalizedDate,
+    );
   }
 
   /// Toggle completion for today (adds if not present, removes if present)
@@ -625,15 +718,23 @@ class HabitItem {
     final normalized = _dateOnly(date);
     final iso = normalized.toIso8601String().split('T')[0];
     final updatedDates = List<DateTime>.from(completedDates);
-    final nextFeedback = Map<String, HabitCompletionFeedback>.from(feedbackByDate);
+    final nextFeedback = Map<String, HabitCompletionFeedback>.from(
+      feedbackByDate,
+    );
 
     if (isWeekly && !hasWeeklySchedule) {
       final weekStart = _weekStartMonday(normalized);
-      final exists = updatedDates.map(_weekStartMonday).toSet().contains(weekStart);
+      final exists = updatedDates
+          .map(_weekStartMonday)
+          .toSet()
+          .contains(weekStart);
       updatedDates.removeWhere((d) => _weekStartMonday(d) == weekStart);
       if (!exists) updatedDates.add(weekStart);
       if (exists) nextFeedback.remove(iso);
-      return copyWith(completedDates: updatedDates, feedbackByDate: nextFeedback);
+      return copyWith(
+        completedDates: updatedDates,
+        feedbackByDate: nextFeedback,
+      );
     }
 
     final exists = updatedDates.any((d) => _dateOnly(d) == normalized);
@@ -662,9 +763,11 @@ class HabitItem {
 final class HabitCompletionFeedback {
   final int rating; // 1..5
   final String? note;
+
   /// Total coins awarded for this completion (base + step bonus + media bonus).
   /// Stored so we can deduct the exact amount on uncheck.
   final int? coinsEarned;
+
   /// Optional measurement value logged during completion (e.g. 5.0 km).
   final double? trackingValue;
 
@@ -676,13 +779,14 @@ final class HabitCompletionFeedback {
   });
 
   Map<String, dynamic> toJson() => {
-        'rating': rating,
-        'note': note,
-        if (coinsEarned != null) 'coinsEarned': coinsEarned,
-        if (trackingValue != null) 'trackingValue': trackingValue,
-      };
+    'rating': rating,
+    'note': note,
+    if (coinsEarned != null) 'coinsEarned': coinsEarned,
+    if (trackingValue != null) 'trackingValue': trackingValue,
+  };
 
-  factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) => HabitCompletionFeedback(
+  factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) =>
+      HabitCompletionFeedback(
         rating: (json['rating'] as num?)?.toInt() ?? 0,
         note: json['note'] as String?,
         coinsEarned: (json['coinsEarned'] as num?)?.toInt(),
@@ -697,14 +801,15 @@ final class HabitChaining {
   const HabitChaining({this.anchorHabit, this.relationship});
 
   Map<String, dynamic> toJson() => {
-        'anchorHabit': anchorHabit,
-        'relationship': relationship,
-      };
+    'anchorHabit': anchorHabit,
+    'relationship': relationship,
+  };
 
   factory HabitChaining.fromJson(Map<String, dynamic> json) => HabitChaining(
-        anchorHabit: (json['anchorHabit'] as String?) ?? (json['anchor_habit'] as String?),
-        relationship: json['relationship'] as String?,
-      );
+    anchorHabit:
+        (json['anchorHabit'] as String?) ?? (json['anchor_habit'] as String?),
+    relationship: json['relationship'] as String?,
+  );
 }
 
 /// Result of the add/edit habit flow; used to create or update a [HabitItem].
@@ -728,6 +833,8 @@ final class HabitCreateRequest {
   final int? startTimeMinutes;
   final String? notificationSound;
   final String? vibrationType;
+  final String? templateId;
+  final int? templateVersion;
 
   const HabitCreateRequest({
     required this.name,
@@ -749,5 +856,7 @@ final class HabitCreateRequest {
     this.startTimeMinutes,
     this.notificationSound,
     this.vibrationType,
+    this.templateId,
+    this.templateVersion,
   });
 }

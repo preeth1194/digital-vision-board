@@ -16,6 +16,7 @@ import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
 import '../widgets/dialogs/completion_feedback_sheet.dart';
 import '../widgets/habits/off_schedule_completion_dialog.dart';
+
 /// Habits list UI; reads habits from [components] (component.habits, backward compat)
 /// and writes via [onComponentsUpdated]. Callers must sync to [HabitStorageService].
 class HabitsListScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class HabitsListScreen extends StatefulWidget {
   final List<VisionComponent> components;
   final ValueChanged<List<VisionComponent>> onComponentsUpdated;
   final bool showAppBar;
+
   /// Whether to show the "Due YYYY-MM-DD" chip/text in habit rows.
   ///
   /// Some contexts (e.g. embedded Habits tabs) want a cleaner list.
@@ -75,10 +77,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     _prefs = prefs;
-    
+
     final now = LogicalDateService.now();
     final todayIso = _toIsoDate(now);
-    
+
     // Load all microhabit completions for today
     final completions = <String, bool>{};
     for (final c in _components) {
@@ -88,19 +90,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         for (final h in c.habits) {
           if (h.isScheduledOnDate(now)) {
             final key = '${c.id}_${h.id}_$microhabit';
-            final isCompleted = await MicroHabitStorageService.isMicroHabitCompletedForHabit(
-              todayIso,
-              c.id,
-              h.id,
-              microhabit,
-              prefs: prefs,
-            );
+            final isCompleted =
+                await MicroHabitStorageService.isMicroHabitCompletedForHabit(
+                  todayIso,
+                  c.id,
+                  h.id,
+                  microhabit,
+                  prefs: prefs,
+                );
             completions[key] = isCompleted;
           }
         }
       }
     }
-    
+
     if (!mounted) return;
     setState(() {
       _microhabitCompletions = completions;
@@ -116,7 +119,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final todayIso = _toIsoDate(now);
     final key = '${componentId}_${habitId}_$microhabitText';
     final isCompleted = _microhabitCompletions[key] ?? false;
-    
+
     if (isCompleted) {
       await MicroHabitStorageService.unmarkMicroHabitCompletedForHabit(
         todayIso,
@@ -134,7 +137,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         prefs: _prefs,
       );
     }
-    
+
     if (!mounted) return;
     setState(() {
       _microhabitCompletions[key] = !isCompleted;
@@ -199,6 +202,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
       completedDates: const [],
     );
 
@@ -253,7 +258,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
     List<VisionComponent> updatedComponents = _components.map((c) {
       if (c.id != component.id) return c;
-      final updatedHabits = c.habits.map((h) => h.id == habit.id ? toggled : h).toList();
+      final updatedHabits = c.habits
+          .map((h) => h.id == habit.id ? toggled : h)
+          .toList();
       return c.copyWithCommon(habits: updatedHabits);
     }).toList();
 
@@ -285,13 +292,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         );
         if (res == null) return;
 
-        final nextFeedback = Map<String, HabitCompletionFeedback>.from(toggled.feedbackByDate);
-        nextFeedback[iso] = HabitCompletionFeedback(rating: res.rating, note: res.note);
+        final nextFeedback = Map<String, HabitCompletionFeedback>.from(
+          toggled.feedbackByDate,
+        );
+        nextFeedback[iso] = HabitCompletionFeedback(
+          rating: res.rating,
+          note: res.note,
+        );
         final withFeedback = toggled.copyWith(feedbackByDate: nextFeedback);
 
         updatedComponents = updatedComponents.map((c) {
           if (c.id != component.id) return c;
-          final updatedHabits = c.habits.map((h) => h.id == habit.id ? withFeedback : h).toList();
+          final updatedHabits = c.habits
+              .map((h) => h.id == habit.id ? withFeedback : h)
+              .toList();
           return c.copyWithCommon(habits: updatedHabits);
         }).toList();
 
@@ -331,7 +345,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     final req = await showEditHabitDialog(
       context,
       habit: baseHabit,
-      existingHabits: baseComponent.habits.where((h) => h.id != baseHabit.id).toList(),
+      existingHabits: baseComponent.habits
+          .where((h) => h.id != baseHabit.id)
+          .toList(),
     );
     if (req == null) return;
     if (!mounted) return;
@@ -354,11 +370,15 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       iconIndex: req.iconIndex,
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
 
     final nextComponents = _components.map((c) {
       if (c.id != baseComponent.id) return c;
-      final nextHabits = c.habits.map((h) => h.id == baseHabit.id ? updatedHabit : h).toList();
+      final nextHabits = c.habits
+          .map((h) => h.id == baseHabit.id ? updatedHabit : h)
+          .toList();
       return c.copyWithCommon(habits: nextHabits);
     }).toList();
 
@@ -371,7 +391,10 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         await HabitGeofenceTrackingService.instance.configureForComponent(
           boardId: boardId,
           componentId: baseComponent.id,
-          habits: nextComponents.where((c) => c.id == baseComponent.id).first.habits,
+          habits: nextComponents
+              .where((c) => c.id == baseComponent.id)
+              .first
+              .habits,
         );
       });
     }
@@ -387,19 +410,20 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   }
 
   Future<void> _deleteHabit(VisionComponent component, HabitItem habit) async {
-    final ok = await showDialog<bool>(
+    final ok =
+        await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Delete habit?'),
             content: Text('Delete "${habit.name}"?'),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(
-                  'Delete',
-                  style: AppTypography.error(context),
-                ),
+                child: Text('Delete', style: AppTypography.error(context)),
               ),
             ],
           ),
@@ -448,8 +472,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final componentsWithHabits =
-        _components.where((c) => c.habits.isNotEmpty).toList();
+    final componentsWithHabits = _components
+        .where((c) => c.habits.isNotEmpty)
+        .toList();
 
     if (componentsWithHabits.isEmpty) {
       return Center(
@@ -464,9 +489,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
             const SizedBox(height: 16),
             Text(
               'No habits found',
-              style: AppTypography.heading3(context).copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              style: AppTypography.heading3(
+                context,
+              ).copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
@@ -499,26 +524,34 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         ),
         const SizedBox(height: 12),
         ...componentsWithHabits.map((component) {
-          final displayTitle = ComponentLabelUtils.categoryOrTitleOrId(component);
+          final displayTitle = ComponentLabelUtils.categoryOrTitleOrId(
+            component,
+          );
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   width: double.infinity,
                   child: Text(
                     displayTitle,
-                    style: AppTypography.heading3(context).copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    style: AppTypography.heading3(
+                      context,
+                    ).copyWith(color: Theme.of(context).colorScheme.primary),
                   ),
                 ),
                 ...(() {
@@ -546,154 +579,250 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   Widget buildHabitRow(HabitItem habit) {
                     final scheduledToday = habit.isScheduledOnDate(now);
                     final isCompleted = habit.isCompletedForCurrentPeriod(now);
-                  final goal = _getGoalFromComponent(component);
-                  final microhabit = goal?.actionPlan?.microHabit?.trim();
-                  final hasMicrohabit = microhabit != null && microhabit.isNotEmpty;
-                  final microhabitKey = hasMicrohabit
-                      ? '${component.id}_${habit.id}_$microhabit'
-                      : null;
-                  final microhabitCompleted = microhabitKey != null
-                      ? (_microhabitCompletions[microhabitKey] ?? false)
-                      : false;
-                  
-                  return Container(
-                    color: (habit.locationBound?.enabled == true)
-                        ? Theme.of(context).colorScheme.tertiaryContainer
-                        : null,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          // Habit Column
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: isCompleted,
-                                  onChanged: (_) => _toggleHabit(component, habit),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              habit.name,
-                                              style: AppTypography.body(context).copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                                color: isCompleted
-                                                    ? Theme.of(context).colorScheme.surfaceVariant
-                                                    : null,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 2,
-                                            ),
-                                          ),
-                                          if (habit.timeBound?.enabled == true || habit.locationBound?.enabled == true)
-                                            IconButton(
-                                              tooltip: 'Timer',
-                                              icon: const Icon(
-                                                Icons.timer_outlined,
-                                                size: 18,
-                                              ),
-                                              onPressed: () async {
-                                                final latestComponent = _components
-                                                    .where((c) => c.id == component.id)
-                                                    .cast<VisionComponent?>()
-                                                    .firstWhere((_) => true, orElse: () => null);
-                                                final latestHabit = (latestComponent?.habits ?? const <HabitItem>[])
-                                                    .where((h) => h.id == habit.id)
-                                                    .cast<HabitItem?>()
-                                                    .firstWhere((_) => true, orElse: () => null);
-                                                final habitToUse = latestHabit ?? habit;
+                    final goal = _getGoalFromComponent(component);
+                    final microhabit = goal?.actionPlan?.microHabit?.trim();
+                    final hasMicrohabit =
+                        microhabit != null && microhabit.isNotEmpty;
+                    final microhabitKey = hasMicrohabit
+                        ? '${component.id}_${habit.id}_$microhabit'
+                        : null;
+                    final microhabitCompleted = microhabitKey != null
+                        ? (_microhabitCompletions[microhabitKey] ?? false)
+                        : false;
 
-                                                await Navigator.of(context).push(
-                                                  MaterialPageRoute<void>(
-                                                    builder: (_) => HabitTimerScreen(
-                                                            habit: habitToUse,
-                                                            onMarkCompleted: () async {
-                                                              final cNow = _components
-                                                                  .where((c) => c.id == component.id)
-                                                                  .cast<VisionComponent?>()
-                                                                  .firstWhere((_) => true, orElse: () => null);
-                                                              if (cNow == null) return;
-                                                              final hNow = cNow.habits
-                                                                  .where((h) => h.id == habit.id)
-                                                                  .cast<HabitItem?>()
-                                                                  .firstWhere((_) => true, orElse: () => null);
-                                                              if (hNow == null) return;
-                                                              final now = LogicalDateService.now();
-                                                              if (hNow.isCompletedForCurrentPeriod(now)) return;
-                                                              await _toggleHabit(cNow, hNow);
-                                                            },
-                                                          ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Wrap(
-                                        spacing: 10,
-                                        runSpacing: 4,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
-                                        children: [
-                                          if (!scheduledToday)
-                                            Text(
-                                              'Not scheduled today',
-                                              style: AppTypography.caption(context),
-                                            ),
-                                          if (habit.currentStreak > 0) ...[
-                                            Icon(
-                                              Icons.local_fire_department,
-                                              size: 14,
-                                              color: Theme.of(context).colorScheme.tertiary,
-                                            ),
-                                            Text(
-                                              '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
-                                              style: AppTypography.caption(context),
-                                            ),
-                                          ] else
-                                            Text(
-                                              'No streak yet',
-                                              style: AppTypography.caption(context),
-                                            ),
-                                          if (widget.showDueDate && (habit.deadline ?? '').trim().isNotEmpty)
-                                            Text(
-                                              'Due ${habit.deadline}',
-                                              style: AppTypography.caption(context),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
+                    return Container(
+                      color: (habit.locationBound?.enabled == true)
+                          ? Theme.of(context).colorScheme.tertiaryContainer
+                          : null,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            // Habit Column
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: isCompleted,
+                                    onChanged: (_) =>
+                                        _toggleHabit(component, habit),
                                   ),
-                                ),
-                                IconButton(
-                                  tooltip: 'Edit habit',
-                                  icon: const Icon(Icons.edit_outlined, size: 20),
-                                  onPressed: () => _editHabit(component, habit),
-                                ),
-                                IconButton(
-                                  tooltip: 'Delete habit',
-                                  icon: Icon(
-                                    Icons.delete_outline,
-                                    size: 20,
-                                    color: Theme.of(context).colorScheme.error,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                habit.name,
+                                                style:
+                                                    AppTypography.body(
+                                                      context,
+                                                    ).copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      decoration: isCompleted
+                                                          ? TextDecoration
+                                                                .lineThrough
+                                                          : null,
+                                                      color: isCompleted
+                                                          ? Theme.of(context)
+                                                                .colorScheme
+                                                                .surfaceVariant
+                                                          : null,
+                                                    ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 2,
+                                              ),
+                                            ),
+                                            if (habit.timeBound?.enabled ==
+                                                    true ||
+                                                habit.locationBound?.enabled ==
+                                                    true)
+                                              IconButton(
+                                                tooltip: 'Timer',
+                                                icon: const Icon(
+                                                  Icons.timer_outlined,
+                                                  size: 18,
+                                                ),
+                                                onPressed: () async {
+                                                  final latestComponent =
+                                                      _components
+                                                          .where(
+                                                            (c) =>
+                                                                c.id ==
+                                                                component.id,
+                                                          )
+                                                          .cast<
+                                                            VisionComponent?
+                                                          >()
+                                                          .firstWhere(
+                                                            (_) => true,
+                                                            orElse: () => null,
+                                                          );
+                                                  final latestHabit =
+                                                      (latestComponent
+                                                                  ?.habits ??
+                                                              const <
+                                                                HabitItem
+                                                              >[])
+                                                          .where(
+                                                            (h) =>
+                                                                h.id ==
+                                                                habit.id,
+                                                          )
+                                                          .cast<HabitItem?>()
+                                                          .firstWhere(
+                                                            (_) => true,
+                                                            orElse: () => null,
+                                                          );
+                                                  final habitToUse =
+                                                      latestHabit ?? habit;
+
+                                                  await Navigator.of(
+                                                    context,
+                                                  ).push(
+                                                    MaterialPageRoute<void>(
+                                                      builder: (_) => HabitTimerScreen(
+                                                        habit: habitToUse,
+                                                        onMarkCompleted: () async {
+                                                          final cNow = _components
+                                                              .where(
+                                                                (c) =>
+                                                                    c.id ==
+                                                                    component
+                                                                        .id,
+                                                              )
+                                                              .cast<
+                                                                VisionComponent?
+                                                              >()
+                                                              .firstWhere(
+                                                                (_) => true,
+                                                                orElse: () =>
+                                                                    null,
+                                                              );
+                                                          if (cNow == null)
+                                                            return;
+                                                          final hNow = cNow
+                                                              .habits
+                                                              .where(
+                                                                (h) =>
+                                                                    h.id ==
+                                                                    habit.id,
+                                                              )
+                                                              .cast<
+                                                                HabitItem?
+                                                              >()
+                                                              .firstWhere(
+                                                                (_) => true,
+                                                                orElse: () =>
+                                                                    null,
+                                                              );
+                                                          if (hNow == null)
+                                                            return;
+                                                          final now =
+                                                              LogicalDateService.now();
+                                                          if (hNow
+                                                              .isCompletedForCurrentPeriod(
+                                                                now,
+                                                              ))
+                                                            return;
+                                                          await _toggleHabit(
+                                                            cNow,
+                                                            hNow,
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            if (!scheduledToday)
+                                              Text(
+                                                'Not scheduled today',
+                                                style: AppTypography.caption(
+                                                  context,
+                                                ),
+                                              ),
+                                            if (habit.currentStreak > 0) ...[
+                                              Icon(
+                                                Icons.local_fire_department,
+                                                size: 14,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.tertiary,
+                                              ),
+                                              Text(
+                                                '${habit.currentStreak} ${habit.isWeekly ? 'week' : 'day'} streak',
+                                                style: AppTypography.caption(
+                                                  context,
+                                                ),
+                                              ),
+                                            ] else
+                                              Text(
+                                                'No streak yet',
+                                                style: AppTypography.caption(
+                                                  context,
+                                                ),
+                                              ),
+                                            if (widget.showDueDate &&
+                                                (habit.deadline ?? '')
+                                                    .trim()
+                                                    .isNotEmpty)
+                                              Text(
+                                                'Due ${habit.deadline}',
+                                                style: AppTypography.caption(
+                                                  context,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  onPressed: () => _deleteHabit(component, habit),
-                                ),
-                              ],
+                                  IconButton(
+                                    tooltip: 'Edit habit',
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      size: 20,
+                                    ),
+                                    onPressed: () =>
+                                        _editHabit(component, habit),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete habit',
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                                    onPressed: () =>
+                                        _deleteHabit(component, habit),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
+                    );
                   }
 
                   final rows = <Widget>[];
@@ -731,4 +860,3 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     );
   }
 }
-

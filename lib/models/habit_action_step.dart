@@ -6,42 +6,150 @@ class HabitActionStep {
   final String title;
   final int iconCodePoint;
   final int order;
+  final String? stepLabel;
+  final String? productType;
+  final String? productName;
+  final String? notes;
+  final String? plannerDay;
+  final int? plannerWeek;
 
   const HabitActionStep({
     required this.id,
     required this.title,
     required this.iconCodePoint,
     required this.order,
+    this.stepLabel,
+    this.productType,
+    this.productName,
+    this.notes,
+    this.plannerDay,
+    this.plannerWeek,
   });
+
+  static const Map<String, int> _plannerDayToWeekday = {
+    'mon': DateTime.monday,
+    'monday': DateTime.monday,
+    'tue': DateTime.tuesday,
+    'tues': DateTime.tuesday,
+    'tuesday': DateTime.tuesday,
+    'wed': DateTime.wednesday,
+    'wednesday': DateTime.wednesday,
+    'thu': DateTime.thursday,
+    'thur': DateTime.thursday,
+    'thurs': DateTime.thursday,
+    'thursday': DateTime.thursday,
+    'fri': DateTime.friday,
+    'friday': DateTime.friday,
+    'sat': DateTime.saturday,
+    'saturday': DateTime.saturday,
+    'sun': DateTime.sunday,
+    'sunday': DateTime.sunday,
+  };
+
+  static int? weekdayFromPlannerKey(String rawValue) {
+    final raw = rawValue.trim().toLowerCase();
+    if (raw.isEmpty) return null;
+    if (_plannerDayToWeekday.containsKey(raw)) return _plannerDayToWeekday[raw];
+    final parts = raw.split(RegExp(r'[_\s-]+'));
+    for (final part in parts) {
+      final mapped = _plannerDayToWeekday[part];
+      if (mapped != null) return mapped;
+    }
+    return null;
+  }
+
+  String get displayTitle {
+    final preferred = [productName, productType, stepLabel, title]
+        .map((e) => (e ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    return preferred;
+  }
 
   HabitActionStep copyWith({
     String? id,
     String? title,
     int? iconCodePoint,
     int? order,
+    String? stepLabel,
+    String? productType,
+    String? productName,
+    String? notes,
+    String? plannerDay,
+    int? plannerWeek,
+    bool clearPlannerDay = false,
+    bool clearPlannerWeek = false,
   }) {
     return HabitActionStep(
       id: id ?? this.id,
       title: title ?? this.title,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       order: order ?? this.order,
+      stepLabel: stepLabel ?? this.stepLabel,
+      productType: productType ?? this.productType,
+      productName: productName ?? this.productName,
+      notes: notes ?? this.notes,
+      plannerDay: clearPlannerDay ? null : (plannerDay ?? this.plannerDay),
+      plannerWeek: clearPlannerWeek ? null : (plannerWeek ?? this.plannerWeek),
     );
   }
 
+  int? get normalizedPlannerWeek {
+    final week = plannerWeek;
+    if (week == null) return null;
+    if (week >= 1 && week <= 3) return week;
+    return null;
+  }
+
+  int? get normalizedPlannerWeekday {
+    return weekdayFromPlannerKey(plannerDay ?? '');
+  }
+
+  bool get hasPlannerSchedule =>
+      (plannerDay ?? '').trim().isNotEmpty ||
+      normalizedPlannerWeek != null ||
+      normalizedPlannerWeekday != null;
+
+  bool appliesToDate({required DateTime date, required int trackerWeek}) {
+    final dayMatches =
+        normalizedPlannerWeekday == null ||
+        normalizedPlannerWeekday == date.weekday;
+    final weekMatches =
+        normalizedPlannerWeek == null || normalizedPlannerWeek == trackerWeek;
+    return dayMatches && weekMatches;
+  }
+
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'iconCodePoint': iconCodePoint,
-        'order': order,
-      };
+    'id': id,
+    'title': title,
+    'iconCodePoint': iconCodePoint,
+    'order': order,
+    'stepLabel': stepLabel,
+    'productType': productType,
+    'productName': productName,
+    'notes': notes,
+    'plannerDay': plannerDay,
+    'plannerWeek': plannerWeek,
+  };
 
   factory HabitActionStep.fromJson(Map<String, dynamic> json) {
     return HabitActionStep(
       id: json['id'] as String,
       title: json['title'] as String? ?? '',
-      iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
+      iconCodePoint:
+          (json['iconCodePoint'] as num?)?.toInt() ??
           Icons.check_circle_outline.codePoint,
       order: (json['order'] as num?)?.toInt() ?? 0,
+      stepLabel: json['stepLabel'] as String? ?? json['step_label'] as String?,
+      productType:
+          json['productType'] as String? ?? json['product_type'] as String?,
+      productName:
+          json['productName'] as String? ?? json['product_name'] as String?,
+      notes: json['notes'] as String?,
+      plannerDay:
+          json['plannerDay'] as String? ?? json['planner_day'] as String?,
+      plannerWeek:
+          (json['plannerWeek'] as num?)?.toInt() ??
+          (json['planner_week'] as num?)?.toInt(),
     );
   }
 

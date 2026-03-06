@@ -41,7 +41,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
   // Track which steps are completed locally (by step id)
   final Set<String> _completedStepIds = {};
 
-  List<HabitActionStep> get _steps => _habit.actionSteps;
+  List<HabitActionStep> get _steps => _habit.activeActionStepsForDate(DateTime.now());
 
   bool get _hasTimer {
     final tb = _habit.timeBound;
@@ -292,7 +292,9 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              step.title.isEmpty ? 'Step ${index + 1}' : step.title,
+                              step.displayTitle.isEmpty
+                                  ? 'Step ${index + 1}'
+                                  : step.displayTitle,
                               style: AppTypography.body(context).copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isCompleted

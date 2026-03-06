@@ -46,7 +46,7 @@ import MediaPlayer
           result(nil)
           return
         }
-        let groupId = (args["iosAppGroupId"] as? String) ?? "group.seerohabitseeding"
+        let groupId = (args["iosAppGroupId"] as? String) ?? "group.habitseeding"
         let ud = UserDefaults(suiteName: groupId)
         ud?.set(snapshot, forKey: self.snapshotKey)
         ud?.synchronize()
@@ -61,7 +61,7 @@ import MediaPlayer
         if let args = call.arguments as? [String: Any], let g = args["iosAppGroupId"] as? String {
           groupId = g
         } else {
-          groupId = "group.seerohabitseeding"
+          groupId = "group.habitseeding"
         }
         let ud = UserDefaults(suiteName: groupId)
         let raw = ud?.array(forKey: self.actionQueueKey) as? [[String: Any]] ?? []

@@ -39,6 +39,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import 'widget_guide_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'presets/preset_shop_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
 import 'subscription_screen.dart';
@@ -65,7 +66,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  static const String _addWidgetPromptShownKey = 'dv_add_widget_prompt_shown_v1';
+  static const String _addWidgetPromptShownKey =
+      'dv_add_widget_prompt_shown_v1';
   int _tabIndex = 1;
   bool _loading = true;
   bool _showHabitsCalendarMode = false;
@@ -93,8 +95,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // Profile avatar for app bar and drawer (refreshed when returning from Account)
   final ValueNotifier<({String? picPath, String initial, String displayName})>
-      _profileAvatarNotifier =
-          ValueNotifier((picPath: null, initial: '?', displayName: ''));
+  _profileAvatarNotifier = ValueNotifier((
+    picPath: null,
+    initial: '?',
+    displayName: '',
+  ));
 
   @override
   void initState() {
@@ -111,13 +116,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _loadProfileAvatar() async {
     final displayName = await DvAuthService.getDisplayName(prefs: _prefs);
-    final identifier = await DvAuthService.getUserDisplayIdentifier(prefs: _prefs);
+    final identifier = await DvAuthService.getUserDisplayIdentifier(
+      prefs: _prefs,
+    );
     final picPath = await DvAuthService.getProfilePicPath(prefs: _prefs);
     final initial = (displayName != null && displayName.isNotEmpty)
         ? displayName[0].toUpperCase()
         : (identifier != null && identifier.isNotEmpty)
-            ? identifier[0].toUpperCase()
-            : '?';
+        ? identifier[0].toUpperCase()
+        : '?';
 
     String resolvedName;
     if (displayName != null && displayName.isNotEmpty) {
@@ -166,7 +173,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _startAutoRefreshReminders() {
     _remindersAutoRefreshTimer?.cancel();
-    _remindersAutoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _remindersAutoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (
+      _,
+    ) {
       if (!mounted) return;
       _refreshReminders();
     });
@@ -267,7 +276,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _reloadRoutines() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final routines = await RoutineStorageService.loadRoutines(prefs: prefs);
-    final activeId = await RoutineStorageService.loadActiveRoutineId(prefs: prefs);
+    final activeId = await RoutineStorageService.loadActiveRoutineId(
+      prefs: prefs,
+    );
     if (!mounted) return;
     setState(() {
       _routines = routines;
@@ -281,7 +292,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     _prefs ??= prefs;
     setState(() => _loadingReminders = true);
     try {
-      final summary = await ReminderSummaryService.build(boards: _boards, prefs: prefs);
+      final summary = await ReminderSummaryService.build(
+        boards: _boards,
+        prefs: prefs,
+      );
       if (!mounted) return;
       setState(() => _reminderSummary = summary);
     } finally {
@@ -350,10 +364,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  border: Border.all(
-                    color: AppColors.amberBorder,
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: AppColors.amberBorder, width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.goldDark.withValues(alpha: 0.35),
@@ -378,13 +389,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                   return FadeTransition(
                     opacity: animation,
                     child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.4),
-                        end: Offset.zero,
-                      ).animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
-                      )),
+                      position:
+                          Tween<Offset>(
+                            begin: const Offset(0, 0.4),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          ),
                       child: child,
                     ),
                   );
@@ -435,7 +449,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     right: 0,
                     top: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(10),
@@ -464,9 +481,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openLandingScreen() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()));
     // Refresh data when returning from landing screen
     await _refreshReminders();
   }
@@ -475,13 +492,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
     final summary =
-        _reminderSummary ?? await ReminderSummaryService.build(boards: _boards, prefs: prefs);
+        _reminderSummary ??
+        await ReminderSummaryService.build(boards: _boards, prefs: prefs);
     if (!mounted) return;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final todayIso = ReminderSummaryService.toIsoDate(today);
-    final todayItems = summary.itemsByIsoDate[todayIso] ?? const <ReminderItem>[];
+    final todayItems =
+        summary.itemsByIsoDate[todayIso] ?? const <ReminderItem>[];
 
     await showModalBottomSheet<void>(
       context: context,
@@ -515,13 +534,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                         final leading = it.kind == ReminderKind.habit
                             ? const Icon(Icons.notifications_active_outlined)
                             : const Icon(Icons.event_outlined);
-                        final time = it.minutesSinceMidnight == null ? null : _timeLabel(it.minutesSinceMidnight!);
+                        final time = it.minutesSinceMidnight == null
+                            ? null
+                            : _timeLabel(it.minutesSinceMidnight!);
                         return Card(
                           margin: const EdgeInsets.only(bottom: 10),
                           child: ListTile(
                             leading: leading,
                             title: Text(it.label),
-                            subtitle: Text(time == null ? it.boardTitle : '${it.boardTitle} • $time'),
+                            subtitle: Text(
+                              time == null
+                                  ? it.boardTitle
+                                  : '${it.boardTitle} • $time',
+                            ),
                           ),
                         );
                       }),
@@ -536,7 +561,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Future<void> _maybePromptAddWidgetIfFirstBoardCreated({required int boardsBefore}) async {
+  Future<void> _maybePromptAddWidgetIfFirstBoardCreated({
+    required int boardsBefore,
+  }) async {
     if (boardsBefore != 0) return;
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
@@ -564,7 +591,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   style: AppTypography.heading3(context),
                 ),
                 const SizedBox(height: 8),
-                const Text('Get a quick view of today’s habits and mark them complete from your home screen.'),
+                const Text(
+                  'Get a quick view of today’s habits and mark them complete from your home screen.',
+                ),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
@@ -623,20 +652,25 @@ class _DashboardScreenState extends State<DashboardScreen>
     for (final board in _boards) {
       List<VisionComponent> components;
       if (board.layoutType == VisionBoardInfo.layoutGrid) {
-        final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: _prefs);
+        final tiles = await GridTilesStorageService.loadTiles(
+          board.id,
+          prefs: _prefs,
+        );
         components = tiles
             .where((t) => t.type != 'empty')
-            .map((t) => ImageComponent(
-                  id: t.id,
-                  position: Offset.zero,
-                  size: const Size(1, 1),
-                  rotation: 0,
-                  scale: 1,
-                  zIndex: t.index,
-                  imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-                  goal: t.goal,
-                  habits: t.habits,
-                ))
+            .map(
+              (t) => ImageComponent(
+                id: t.id,
+                position: Offset.zero,
+                size: const Size(1, 1),
+                rotation: 0,
+                scale: 1,
+                zIndex: t.index,
+                imagePath: (t.type == 'image') ? (t.content ?? '') : '',
+                goal: t.goal,
+                habits: t.habits,
+              ),
+            )
             .toList();
       } else {
         components = await VisionBoardComponentsStorageService.loadComponents(
@@ -664,7 +698,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
 
     if (shouldShowAds) {
-      final existingSession = await AdService.getChallengeSession(prefs: _prefs);
+      final existingSession = await AdService.getChallengeSession(
+        prefs: _prefs,
+      );
       if (existingSession != null) {
         final complete = await AdService.isChallengeSessionComplete(
           existingSession,
@@ -686,9 +722,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
     final res = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => ChallengeSetupScreen(
-          template: ChallengeTemplates.seventyFiveHard,
-        ),
+        builder: (_) =>
+            ChallengeSetupScreen(template: ChallengeTemplates.seventyFiveHard),
       ),
     );
     if (mounted && res == true) {
@@ -700,7 +735,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _openPuzzleGame() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
-    
+
     var imagePath = await PuzzleService.getCurrentPuzzleImage(
       boards: _boards,
       prefs: prefs,
@@ -721,10 +756,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final resolvedPath = imagePath;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PuzzleGameScreen(
-          imagePath: resolvedPath,
-          prefs: prefs,
-        ),
+        builder: (_) => PuzzleGameScreen(imagePath: resolvedPath, prefs: prefs),
       ),
     );
   }
@@ -779,7 +811,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (shouldShowAds) {
         final session = await AdService.getActiveSession(prefs: _prefs);
         if (session != null) {
-          final watched = await AdService.getWatchedCount(session, prefs: _prefs);
+          final watched = await AdService.getWatchedCount(
+            session,
+            prefs: _prefs,
+          );
           if (watched >= AdService.requiredAdsPerHabit) {
             // Session complete — allow and fall through
           } else {
@@ -788,7 +823,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             setState(() => _tabIndex = 7);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Watch ${AdService.requiredAdsPerHabit - watched} more ad(s) to unlock a new habit.'),
+                content: Text(
+                  'Watch ${AdService.requiredAdsPerHabit - watched} more ad(s) to unlock a new habit.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -796,7 +833,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           }
         } else {
           // Create a new ad session and switch to Habits tab
-          final sessionKey = 'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
+          final sessionKey =
+              'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
           await AdService.setActiveSession(sessionKey, prefs: _prefs);
           if (!mounted) return;
           setState(() => _tabIndex = 7);
@@ -838,6 +876,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       completedDates: const [],
       actionSteps: req.actionSteps,
       startTimeMinutes: req.startTimeMinutes,
+      templateId: req.templateId,
+      templateVersion: req.templateVersion,
     );
     await HabitStorageService.addHabit(newHabit, prefs: _prefs);
     _boardDataVersion.value++;
@@ -854,7 +894,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted && res == true) {
         await _reload();
         await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
+        await _maybePromptAddWidgetIfFirstBoardCreated(
+          boardsBefore: boardsBefore,
+        );
       }
       return;
     }
@@ -866,7 +908,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted && res == true) {
         await _reload();
         await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
+        await _maybePromptAddWidgetIfFirstBoardCreated(
+          boardsBefore: boardsBefore,
+        );
       }
       return;
     }
@@ -897,10 +941,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GoalCanvasEditorScreen(
-              boardId: id,
-              title: board.title,
-            ),
+        builder: (_) => GoalCanvasEditorScreen(boardId: id, title: board.title),
       ),
     );
     await _clearActiveBoard();
@@ -925,18 +966,19 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       final next = _boards.where((b) => b.id != board.id).toList();
       await _saveBoards(next);
-      if (_activeBoardId == board.id) await BoardsStorageService.clearActiveBoardId(prefs: prefs);
+      if (_activeBoardId == board.id)
+        await BoardsStorageService.clearActiveBoardId(prefs: prefs);
       if (!mounted) return;
       setState(() {
         _boards = next;
         if (_activeBoardId == board.id) _activeBoardId = null;
       });
       await _refreshReminders();
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted "${board.title}"')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Deleted "${board.title}"')));
       }
     } catch (e) {
       if (!mounted) return;
@@ -949,7 +991,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  Future<void> _openBoard(VisionBoardInfo board, {required bool startInEditMode}) async {
+  Future<void> _openBoard(
+    VisionBoardInfo board, {
+    required bool startInEditMode,
+  }) async {
     await _setActiveBoard(board.id);
     if (!mounted) return;
     final gridTemplate = GridTemplates.byId(board.templateId);
@@ -960,14 +1005,21 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (_) {
           return switch (board.layoutType) {
             VisionBoardInfo.layoutGrid => GridEditorScreen(
-                boardId: board.id,
-                title: board.title,
-                initialIsEditing: startInEditMode,
-                template: gridTemplate,
-              ),
-            _ => startInEditMode
-                ? GoalCanvasEditorScreen(boardId: board.id, title: board.title)
-                : GoalCanvasViewerScreen(boardId: board.id, title: board.title),
+              boardId: board.id,
+              title: board.title,
+              initialIsEditing: startInEditMode,
+              template: gridTemplate,
+            ),
+            _ =>
+              startInEditMode
+                  ? GoalCanvasEditorScreen(
+                      boardId: board.id,
+                      title: board.title,
+                    )
+                  : GoalCanvasViewerScreen(
+                      boardId: board.id,
+                      title: board.title,
+                    ),
           };
         },
       ),
@@ -979,9 +1031,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    const visibleTabIndices = <int>[1, 7, 6, 2]; // Dashboard, Rituals, Planner, Journal
+    const visibleTabIndices = <int>[
+      1,
+      7,
+      6,
+      2,
+    ]; // Dashboard, Rituals, Presets, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -1015,57 +1073,67 @@ class _DashboardScreenState extends State<DashboardScreen>
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+              ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
-                valueListenable: _profileAvatarNotifier,
-                builder: (context, profile, _) {
-                  return FutureBuilder<String?>(
-                    future: DvAuthService.getUserId(prefs: _prefs),
-                    builder: (context, snap) {
-                      final id = (snap.data ?? '').trim();
-                      final isGuest = id.isEmpty;
-                      final displayName = isGuest
-                          ? 'Guest session'
-                          : profile.displayName.isNotEmpty
+              child:
+                  ValueListenableBuilder<
+                    ({String? picPath, String initial, String displayName})
+                  >(
+                    valueListenable: _profileAvatarNotifier,
+                    builder: (context, profile, _) {
+                      return FutureBuilder<String?>(
+                        future: DvAuthService.getUserId(prefs: _prefs),
+                        builder: (context, snap) {
+                          final id = (snap.data ?? '').trim();
+                          final isGuest = id.isEmpty;
+                          final displayName = isGuest
+                              ? 'Guest session'
+                              : profile.displayName.isNotEmpty
                               ? profile.displayName
                               : 'Signed in';
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ProfileAvatar(
-                            initial: profile.initial,
-                            imagePath: profile.picPath,
-                            radius: 38,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            displayName,
-                            style: AppTypography.body(context).copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              _openAccount();
-                            },
-                            child: Text(
-                              isGuest ? 'Sign In / Sign Up' : 'View Profile',
-                              style: AppTypography.secondary(context).copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w500,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ProfileAvatar(
+                                initial: profile.initial,
+                                imagePath: profile.picPath,
+                                radius: 38,
                               ),
-                            ),
-                          ),
-                        ],
+                              const SizedBox(height: 8),
+                              Text(
+                                displayName,
+                                style: AppTypography.body(
+                                  context,
+                                ).copyWith(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  _openAccount();
+                                },
+                                child: Text(
+                                  isGuest
+                                      ? 'Sign In / Sign Up'
+                                      : 'View Profile',
+                                  style: AppTypography.secondary(context)
+                                      .copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
             ),
             ValueListenableBuilder<bool>(
               valueListenable: SubscriptionService.isSubscribed,
@@ -1074,19 +1142,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                 return ListTile(
                   leading: Icon(
                     Icons.workspace_premium_rounded,
-                    color: subscribed ? AppColors.coinGold : cs.onSurfaceVariant,
+                    color: subscribed
+                        ? AppColors.coinGold
+                        : cs.onSurfaceVariant,
                   ),
-                  title: Text(subscribed ? 'Premium Active' : 'Go Premium',
-                    style: AppTypography.body(context).copyWith(color: cs.onSurface)),
+                  title: Text(
+                    subscribed ? 'Premium Active' : 'Go Premium',
+                    style: AppTypography.body(
+                      context,
+                    ).copyWith(color: cs.onSurface),
+                  ),
                   trailing: subscribed
-                      ? Icon(Icons.check_circle_rounded,
-                          color: cs.secondary, size: 20)
+                      ? Icon(
+                          Icons.check_circle_rounded,
+                          color: cs.secondary,
+                          size: 20,
+                        )
                       : null,
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const SubscriptionScreen()),
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
                     );
                   },
                 );
@@ -1103,17 +1181,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                     final dcs = Theme.of(context).colorScheme;
                     if (!linked) {
                       return ListTile(
-                        leading: Icon(Icons.cloud_off_outlined,
-                            color: dcs.onSurfaceVariant),
-                        title: Text('Backup not set up',
-                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
-                        subtitle: Text('Tap to link Google account',
-                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
+                        leading: Icon(
+                          Icons.cloud_off_outlined,
+                          color: dcs.onSurfaceVariant,
+                        ),
+                        title: Text(
+                          'Backup not set up',
+                          style: AppTypography.body(
+                            context,
+                          ).copyWith(color: dcs.onSurface),
+                        ),
+                        subtitle: Text(
+                          'Tap to link Google account',
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(color: dcs.onSurfaceVariant),
+                        ),
                         onTap: () {
                           Navigator.of(context).pop();
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => const BackupRestoreScreen()),
+                              builder: (_) => const BackupRestoreScreen(),
+                            ),
                           );
                         },
                       );
@@ -1129,21 +1218,39 @@ class _DashboardScreenState extends State<DashboardScreen>
                             color: dcs.primary,
                           ),
                         ),
-                        title: Text('Syncing...',
-                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
-                        subtitle: Text('Encrypting and uploading',
-                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
+                        title: Text(
+                          'Syncing...',
+                          style: AppTypography.body(
+                            context,
+                          ).copyWith(color: dcs.onSurface),
+                        ),
+                        subtitle: Text(
+                          'Encrypting and uploading',
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(color: dcs.onSurfaceVariant),
+                        ),
                       );
                     }
 
                     if (syncState == SyncState.error) {
                       return ListTile(
-                        leading: Icon(Icons.cloud_off_outlined,
-                            color: dcs.error),
-                        title: Text('Sync failed',
-                          style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
-                        subtitle: Text('Tap sync to retry',
-                          style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant)),
+                        leading: Icon(
+                          Icons.cloud_off_outlined,
+                          color: dcs.error,
+                        ),
+                        title: Text(
+                          'Sync failed',
+                          style: AppTypography.body(
+                            context,
+                          ).copyWith(color: dcs.onSurface),
+                        ),
+                        subtitle: Text(
+                          'Tap sync to retry',
+                          style: AppTypography.caption(
+                            context,
+                          ).copyWith(color: dcs.onSurfaceVariant),
+                        ),
                         trailing: IconButton(
                           icon: const Icon(Icons.sync),
                           onPressed: () =>
@@ -1153,31 +1260,42 @@ class _DashboardScreenState extends State<DashboardScreen>
                           Navigator.of(context).pop();
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => const BackupRestoreScreen()),
+                              builder: (_) => const BackupRestoreScreen(),
+                            ),
                           );
                         },
                       );
                     }
 
                     return ListTile(
-                      leading: Icon(Icons.cloud_done_outlined,
-                          color: dcs.primary),
-                      title: Text(AutoSyncService.lastSyncText,
-                        style: AppTypography.body(context).copyWith(color: dcs.onSurface)),
+                      leading: Icon(
+                        Icons.cloud_done_outlined,
+                        color: dcs.primary,
+                      ),
+                      title: Text(
+                        AutoSyncService.lastSyncText,
+                        style: AppTypography.body(
+                          context,
+                        ).copyWith(color: dcs.onSurface),
+                      ),
                       subtitle: AutoSyncService.nextSyncText.isNotEmpty
-                          ? Text(AutoSyncService.nextSyncText,
-                              style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant))
+                          ? Text(
+                              AutoSyncService.nextSyncText,
+                              style: AppTypography.caption(
+                                context,
+                              ).copyWith(color: dcs.onSurfaceVariant),
+                            )
                           : null,
                       trailing: IconButton(
                         icon: const Icon(Icons.sync),
-                        onPressed: () =>
-                            AutoSyncService.syncNow(prefs: _prefs),
+                        onPressed: () => AutoSyncService.syncNow(prefs: _prefs),
                       ),
                       onTap: () {
                         Navigator.of(context).pop();
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const BackupRestoreScreen()),
+                            builder: (_) => const BackupRestoreScreen(),
+                          ),
                         );
                       },
                     );
@@ -1186,9 +1304,16 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: Icon(Icons.widgets_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              title: Text('Widget Guide',
-                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
+              leading: Icon(
+                Icons.widgets_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Widget Guide',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1197,9 +1322,34 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              title: Text('App Tour',
-                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
+              leading: Icon(
+                Icons.storefront_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Preset Shop',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PresetShopScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.info_outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'App Tour',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -1210,14 +1360,22 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              title: Text('Privacy Policy',
-                style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
+              leading: Icon(
+                Icons.privacy_tip_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Privacy Policy',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                      builder: (_) => const PrivacyPolicyScreen()),
+                    builder: (_) => const PrivacyPolicyScreen(),
+                  ),
                 );
               },
             ),
@@ -1227,9 +1385,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 final id = (snap.data ?? '').trim();
                 if (id.isEmpty) return const SizedBox.shrink();
                 return ListTile(
-                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  title: Text('Sign out',
-                    style: AppTypography.body(context).copyWith(color: Theme.of(context).colorScheme.onSurface)),
+                  leading: Icon(
+                    Icons.logout,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text(
+                    'Sign out',
+                    style: AppTypography.body(
+                      context,
+                    ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+                  ),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _signOut();
@@ -1241,67 +1406,84 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
-      // Hide app bar only for journal screen (tabIndex == 2)
-      appBar: (_tabIndex == 2) ? null : AppBar(
-        toolbarHeight: 72,
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              // Avatar with menu
-              Builder(
-                builder: (scaffoldContext) => GestureDetector(
-                  onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
-                    valueListenable: _profileAvatarNotifier,
-                    builder: (context, profile, _) => ProfileAvatar(
-                      initial: profile.initial,
-                      imagePath: profile.picPath,
-                      radius: 24,
+      // Hide app bar for journal and habits timeline mode.
+      appBar: (_tabIndex == 2 || (_tabIndex == 7 && _showHabitsCalendarMode))
+          ? null
+          : AppBar(
+              toolbarHeight: 72,
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+              titleSpacing: 0,
+              title: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    // Avatar with menu
+                    Builder(
+                      builder: (scaffoldContext) => GestureDetector(
+                        onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                        child:
+                            ValueListenableBuilder<
+                              ({
+                                String? picPath,
+                                String initial,
+                                String displayName,
+                              })
+                            >(
+                              valueListenable: _profileAvatarNotifier,
+                              builder: (context, profile, _) => ProfileAvatar(
+                                initial: profile.initial,
+                                imagePath: profile.picPath,
+                                radius: 24,
+                              ),
+                            ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child:
+                          ValueListenableBuilder<
+                            ({
+                              String? picPath,
+                              String initial,
+                              String displayName,
+                            })
+                          >(
+                            valueListenable: _profileAvatarNotifier,
+                            builder: (context, profile, _) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  profile.displayName.isNotEmpty
+                                      ? profile.displayName
+                                      : 'Guest User',
+                                  style: AppTypography.heading3(context),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  _getGreeting(),
+                                  style: AppTypography.secondary(context)
+                                      .copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    ),
+                    // Coin badge
+                    _buildCoinBadge(context),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ValueListenableBuilder<({String? picPath, String initial, String displayName})>(
-                  valueListenable: _profileAvatarNotifier,
-                  builder: (context, profile, _) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        profile.displayName.isNotEmpty
-                            ? profile.displayName
-                            : 'Guest User',
-                        style: AppTypography.heading3(context),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        _getGreeting(),
-                        style: AppTypography.secondary(context).copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Coin badge
-              _buildCoinBadge(context),
-            ],
-          ),
-        ),
-      ),
+            ),
       body: body,
       bottomNavigationBar: const _NavBarSpacer(),
     );
@@ -1338,7 +1520,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         AnimatedNavItem(
           icon: Icons.schedule_outlined,
           activeIcon: Icons.schedule_rounded,
-          label: 'Planner',
+          label: 'Presets',
         ),
         AnimatedNavItem(
           icon: Icons.book_outlined,
@@ -1356,12 +1538,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: [
           scaffold,
           if (_showCreatePanel) _buildCreatePanelOverlay(),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: navBar,
-          ),
+          Positioned(left: 0, right: 0, bottom: 0, child: navBar),
         ],
       ),
     );
@@ -1390,9 +1567,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _hideCreatePanel,
-                child: Container(
-                  color: Colors.black.withOpacity(0.35 * t),
-                ),
+                child: Container(color: Colors.black.withOpacity(0.35 * t)),
               ),
             ),
             // Panel sliding up from behind the nav bar
@@ -1440,13 +1615,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 16, bottom: 8),
+                                    padding: const EdgeInsets.only(
+                                      left: 16,
+                                      bottom: 8,
+                                    ),
                                     child: Text(
                                       'Create New',
-                                      style: AppTypography.body(context).copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurface,
-                                      ),
+                                      style: AppTypography.body(context)
+                                          .copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: colorScheme.onSurface,
+                                          ),
                                     ),
                                   ),
                                   _buildGlassMenuTile(
@@ -1462,7 +1641,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     icon: Icons.schedule_outlined,
                                     title: 'New Routine',
                                     subtitle: 'Habit with timer enabled',
-                                    onTap: () => _addHabitFromPanel(timerEnabled: true),
+                                    onTap: () =>
+                                        _addHabitFromPanel(timerEnabled: true),
                                   ),
                                   const SizedBox(height: 4),
                                   _buildGlassMenuTile(
@@ -1524,7 +1704,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               onTap: onTap,
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
                     Icon(icon, color: colorScheme.primary, size: 24),
@@ -1535,16 +1718,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                         children: [
                           Text(
                             title,
-                            style: AppTypography.body(context).copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppTypography.body(
+                              context,
+                            ).copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             subtitle,
-                            style: AppTypography.caption(context).copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: AppTypography.caption(
+                              context,
+                            ).copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -1587,17 +1770,21 @@ class _NotchedBottomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final rect = Path()
-      ..addRRect(RRect.fromRectAndCorners(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        topLeft: const Radius.circular(20),
-        topRight: const Radius.circular(20),
-      ));
+      ..addRRect(
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          topLeft: const Radius.circular(20),
+          topRight: const Radius.circular(20),
+        ),
+      );
 
     final cutout = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
-        radius: cutoutRadius,
-      ));
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+          radius: cutoutRadius,
+        ),
+      );
 
     return Path.combine(PathOperation.difference, rect, cutout);
   }

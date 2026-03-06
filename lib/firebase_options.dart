@@ -51,8 +51,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBkLBSVo93NBn8sUaR-s-yzMhBf2mwFI4w',
-    appId: '1:250088132481:android:58efb309692c363c4c2280',
+    apiKey: 'AIzaSyCpHppCqhj2Webv5pfjPuY4xNQuK60NCnk',
+    appId: '1:250088132481:android:a9c2393ae28d63054c2280',
     messagingSenderId: '250088132481',
     projectId: 'seerohabitseeding',
     storageBucket: 'seerohabitseeding.firebasestorage.app',
@@ -60,24 +60,24 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyANlBjsbvbaNiu8fu8bWOZdpx8IvICGzwU',
-    appId: '1:250088132481:ios:ccd42830caea93354c2280',
+    appId: '1:250088132481:ios:20581c71c14b242f4c2280',
     messagingSenderId: '250088132481',
     projectId: 'seerohabitseeding',
     storageBucket: 'seerohabitseeding.firebasestorage.app',
     androidClientId: '250088132481-6e6a0a3o9aqdcb5v3vqf475mn4k08e35.apps.googleusercontent.com',
-    iosClientId: '250088132481-9gvmteoc6gmksljefvmurv25ard5vm71.apps.googleusercontent.com',
-    iosBundleId: 'com.seerohabitseeding.app',
+    iosClientId: '250088132481-euubh7rh8nrpp6led5tg26cbuhe11pq2.apps.googleusercontent.com',
+    iosBundleId: 'com.habitseeding.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyANlBjsbvbaNiu8fu8bWOZdpx8IvICGzwU',
-    appId: '1:250088132481:ios:ccd42830caea93354c2280',
+    appId: '1:250088132481:ios:20581c71c14b242f4c2280',
     messagingSenderId: '250088132481',
     projectId: 'seerohabitseeding',
     storageBucket: 'seerohabitseeding.firebasestorage.app',
     androidClientId: '250088132481-6e6a0a3o9aqdcb5v3vqf475mn4k08e35.apps.googleusercontent.com',
-    iosClientId: '250088132481-9gvmteoc6gmksljefvmurv25ard5vm71.apps.googleusercontent.com',
-    iosBundleId: 'com.seerohabitseeding.app',
+    iosClientId: '250088132481-euubh7rh8nrpp6led5tg26cbuhe11pq2.apps.googleusercontent.com',
+    iosBundleId: 'com.habitseeding.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

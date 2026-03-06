@@ -1,4 +1,4 @@
-package com.seerohabitseeding.app
+package com.habitseeding.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

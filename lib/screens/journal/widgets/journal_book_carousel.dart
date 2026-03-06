@@ -40,6 +40,7 @@ class JournalBookCarousel extends StatefulWidget {
   final void Function(String bookId, String newTitle) onTitleChanged;
   final String? newBookId;
   final ValueChanged<bool>? onBookOpenChanged;
+  final ValueChanged<JournalBook>? onBookTap;
 
   const JournalBookCarousel({
     super.key,
@@ -57,6 +58,7 @@ class JournalBookCarousel extends StatefulWidget {
     required this.onTitleChanged,
     this.newBookId,
     this.onBookOpenChanged,
+    this.onBookTap,
   });
 
   @override
@@ -99,7 +101,8 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
   @override
   void didUpdateWidget(JournalBookCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.books.length > oldWidget.books.length && widget.newBookId != null) {
+    if (widget.books.length > oldWidget.books.length &&
+        widget.newBookId != null) {
       final newIdx = widget.books.indexWhere((b) => b.id == widget.newBookId);
       if (newIdx >= 0 && _pageController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,7 +133,9 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
     _pageController.dispose();
     _pageController = PageController(
       initialPage: page,
-      viewportFraction: isOpen ? _openViewportFraction : _closedViewportFraction,
+      viewportFraction: isOpen
+          ? _openViewportFraction
+          : _closedViewportFraction,
     );
     if (isOpen) {
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -257,6 +262,12 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
                       onTitleChanged: (title) =>
                           widget.onTitleChanged(book.id, title),
                       onOpenChanged: _onBookOpenChanged,
+                      isTitleEditable:
+                          book.id != JournalBookStorageService.recipeBookId,
+                      onTapOverride:
+                          book.id == JournalBookStorageService.recipeBookId
+                          ? () => widget.onBookTap?.call(book)
+                          : null,
                       isActive: isActive,
                       isNewBook: isNewBook,
                     ),
@@ -322,8 +333,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final panelHeight =
-        widget.mode == _OverlayMode.colorPicker ? 240.0 : 200.0;
+    final panelHeight = widget.mode == _OverlayMode.colorPicker ? 240.0 : 200.0;
 
     return AnimatedBuilder(
       animation: widget.animation,
@@ -341,9 +351,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
               Positioned.fill(
                 child: GestureDetector(
                   onTap: widget.onDismiss,
-                  child: ColoredBox(
-                    color: Colors.black.withOpacity(0.35 * t),
-                  ),
+                  child: ColoredBox(color: Colors.black.withOpacity(0.35 * t)),
                 ),
               ),
               // Panel sliding up from behind the nav bar
@@ -368,8 +376,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                         child: SizedBox(
                           height: panelHeight,
                           child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                             child: widget.mode == _OverlayMode.colorPicker
                                 ? _buildColorPickerContent(colorScheme)
                                 : _buildDeleteConfirmContent(colorScheme),
@@ -391,10 +398,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Choose Cover Color',
-          style: AppTypography.heading3(context),
-        ),
+        Text('Choose Cover Color', style: AppTypography.heading3(context)),
         const SizedBox(height: 20),
         Wrap(
           spacing: 14,
@@ -435,8 +439,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                   ],
                 ),
                 child: isSelected
-                    ? Icon(Icons.check,
-                        color: colorScheme.onPrimary, size: 20)
+                    ? Icon(Icons.check, color: colorScheme.onPrimary, size: 20)
                     : null,
               ),
             );
@@ -451,11 +454,15 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
             style: FilledButton.styleFrom(
               backgroundColor: Color(_pickerSelectedColor),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text('Apply',
-                style: AppTypography.button(context)
-                    .copyWith(color: Colors.white)),
+            child: Text(
+              'Apply',
+              style: AppTypography.button(
+                context,
+              ).copyWith(color: Colors.white),
+            ),
           ),
         ),
       ],
@@ -466,8 +473,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.warning_amber_rounded,
-            size: 36, color: colorScheme.error),
+        Icon(Icons.warning_amber_rounded, size: 36, color: colorScheme.error),
         const SizedBox(height: 12),
         Text('Delete Book?', style: AppTypography.heading3(context)),
         const SizedBox(height: 8),
@@ -478,9 +484,9 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
             '${widget.entryCount} '
             '${widget.entryCount == 1 ? 'entry' : 'entries'} in it. '
             'This cannot be undone.',
-            style: AppTypography.bodySmall(context).copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: AppTypography.bodySmall(
+              context,
+            ).copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ),
@@ -492,10 +498,10 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                 onPressed: widget.onDismiss,
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Cancel',
-                    style: AppTypography.bodySmall(context)),
+                child: Text('Cancel', style: AppTypography.bodySmall(context)),
               ),
             ),
             const SizedBox(width: 12),
@@ -505,11 +511,15 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                 style: FilledButton.styleFrom(
                   backgroundColor: colorScheme.error,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Delete',
-                    style: AppTypography.button(context)
-                        .copyWith(color: colorScheme.onError)),
+                child: Text(
+                  'Delete',
+                  style: AppTypography.button(
+                    context,
+                  ).copyWith(color: colorScheme.onError),
+                ),
               ),
             ),
           ],
@@ -525,10 +535,7 @@ class _AddBookCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
 
-  const _AddBookCard({
-    required this.onTap,
-    required this.isActive,
-  });
+  const _AddBookCard({required this.onTap, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
@@ -568,8 +575,7 @@ class _AddBookCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
                     offset: const Offset(4, 6),
                     blurRadius: 16,
                   ),
@@ -623,17 +629,21 @@ class _NotchedBottomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final rect = Path()
-      ..addRRect(RRect.fromRectAndCorners(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        topLeft: const Radius.circular(20),
-        topRight: const Radius.circular(20),
-      ));
+      ..addRRect(
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          topLeft: const Radius.circular(20),
+          topRight: const Radius.circular(20),
+        ),
+      );
 
     final cutout = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(size.width / 2, size.height + cutoutCenterOffset),
-        radius: cutoutRadius,
-      ));
+      ..addOval(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, size.height + cutoutCenterOffset),
+          radius: cutoutRadius,
+        ),
+      );
 
     return Path.combine(PathOperation.difference, rect, cutout);
   }

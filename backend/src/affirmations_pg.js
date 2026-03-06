@@ -4,10 +4,10 @@ import { randomId } from "./crypto.js";
 /**
  * Get all affirmations for a user, optionally filtered by category
  */
-export async function getAffirmationsPg(canvaUserId, category = null) {
+export async function getAffirmationsPg(userId, category = null) {
   return await withClient(async (c) => {
-    let query = "select affirmation_id, category, text, is_pinned, is_custom, created_at, updated_at from dv_affirmations where canva_user_id = $1";
-    const params = [canvaUserId];
+    let query = "select affirmation_id, category, text, is_pinned, is_custom, created_at, updated_at from dv_affirmations where user_id = $1";
+    const params = [userId];
     
     if (category !== null && category !== undefined) {
       query += " and (category = $2 or category is null)";
@@ -32,27 +32,27 @@ export async function getAffirmationsPg(canvaUserId, category = null) {
 /**
  * Get all affirmations for a user
  */
-export async function getAllAffirmationsPg(canvaUserId) {
-  return await getAffirmationsPg(canvaUserId, null);
+export async function getAllAffirmationsPg(userId) {
+  return await getAffirmationsPg(userId, null);
 }
 
 /**
  * Create or update an affirmation
  */
-export async function upsertAffirmationPg(canvaUserId, affirmation) {
+export async function upsertAffirmationPg(userId, affirmation) {
   return await withClient(async (c) => {
     const affirmationId = affirmation.id || randomId();
     await c.query(
-      `insert into dv_affirmations (canva_user_id, affirmation_id, category, text, is_pinned, is_custom)
+      `insert into dv_affirmations (user_id, affirmation_id, category, text, is_pinned, is_custom)
        values ($1, $2, $3, $4, $5, $6)
-       on conflict (canva_user_id, affirmation_id) do update set
+       on conflict (user_id, affirmation_id) do update set
          category = excluded.category,
          text = excluded.text,
          is_pinned = excluded.is_pinned,
          is_custom = excluded.is_custom,
          updated_at = now()`,
       [
-        canvaUserId,
+        userId,
         affirmationId,
         affirmation.category ?? null,
         affirmation.text,
@@ -67,11 +67,11 @@ export async function upsertAffirmationPg(canvaUserId, affirmation) {
 /**
  * Delete an affirmation
  */
-export async function deleteAffirmationPg(canvaUserId, affirmationId) {
+export async function deleteAffirmationPg(userId, affirmationId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "delete from dv_affirmations where canva_user_id = $1 and affirmation_id = $2",
-      [canvaUserId, affirmationId],
+      "delete from dv_affirmations where user_id = $1 and affirmation_id = $2",
+      [userId, affirmationId],
     );
     return r.rowCount > 0;
   });
@@ -80,13 +80,13 @@ export async function deleteAffirmationPg(canvaUserId, affirmationId) {
 /**
  * Pin or unpin an affirmation
  */
-export async function pinAffirmationPg(canvaUserId, affirmationId, isPinned) {
+export async function pinAffirmationPg(userId, affirmationId, isPinned) {
   return await withClient(async (c) => {
     const r = await c.query(
       `update dv_affirmations 
        set is_pinned = $3, updated_at = now()
-       where canva_user_id = $1 and affirmation_id = $2`,
-      [canvaUserId, affirmationId, isPinned ?? false],
+       where user_id = $1 and affirmation_id = $2`,
+      [userId, affirmationId, isPinned ?? false],
     );
     return r.rowCount > 0;
   });

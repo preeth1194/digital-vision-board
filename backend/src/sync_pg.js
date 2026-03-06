@@ -6,11 +6,11 @@ export function isLogicalDate(v) {
   return typeof v === "string" && DATE_RE.test(v);
 }
 
-export async function getUserSettingsPg(canvaUserId) {
+export async function getUserSettingsPg(userId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source, encryption_key from dv_user_settings where canva_user_id = $1",
-      [canvaUserId]
+      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source, encryption_key from dv_user_settings where user_id = $1",
+      [userId]
     );
     if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null, subscriptionPlanId: null, subscriptionActive: false, subscriptionUpdatedAt: null, subscriptionSource: null, encryptionKey: null };
     const row = r.rows[0];
@@ -31,39 +31,39 @@ export async function getUserSettingsPg(canvaUserId) {
   });
 }
 
-export async function getEncryptionKeyPg(canvaUserId) {
+export async function getEncryptionKeyPg(userId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select encryption_key from dv_user_settings where canva_user_id = $1",
-      [canvaUserId]
+      "select encryption_key from dv_user_settings where user_id = $1",
+      [userId]
     );
     return r.rowCount ? (r.rows[0].encryption_key ?? null) : null;
   });
 }
 
-export async function putEncryptionKeyPg(canvaUserId, encryptionKey) {
+export async function putEncryptionKeyPg(userId, encryptionKey) {
   return await withClient(async (c) => {
     await c.query(
-      `insert into dv_user_settings (canva_user_id, encryption_key)
+      `insert into dv_user_settings (user_id, encryption_key)
        values ($1, $2)
-       on conflict (canva_user_id) do update set
+       on conflict (user_id) do update set
          encryption_key = coalesce(dv_user_settings.encryption_key, excluded.encryption_key),
          updated_at = now()`,
-      [canvaUserId, encryptionKey]
+      [userId, encryptionKey]
     );
   });
 }
 
-export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource }) {
+export async function putUserSettingsPg(userId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource }) {
   return await withClient(async (c) => {
     const dobVal = dateOfBirth && typeof dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? dateOfBirth : null;
     const subActive = subscriptionActive != null ? Boolean(subscriptionActive) : null;
     const subPlan = typeof subscriptionPlanId === "string" && subscriptionPlanId.trim() ? subscriptionPlanId.trim() : null;
     const subSource = typeof subscriptionSource === "string" && subscriptionSource.trim() ? subscriptionSource.trim() : null;
     await c.query(
-      `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
+      `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
        values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end, $10)
-       on conflict (canva_user_id) do update set
+       on conflict (user_id) do update set
          home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
          gender = coalesce(excluded.gender, dv_user_settings.gender),
          display_name = coalesce(excluded.display_name, dv_user_settings.display_name),
@@ -75,16 +75,16 @@ export async function putUserSettingsPg(canvaUserId, { homeTimezone, gender, dis
          subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
          subscription_source = coalesce(excluded.subscription_source, dv_user_settings.subscription_source),
          updated_at = now()`,
-      [canvaUserId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null, subPlan, subActive, subSource],
+      [userId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null, subPlan, subActive, subSource],
     );
   });
 }
 
-export async function listBoardsPg(canvaUserId) {
+export async function listBoardsPg(userId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select board_id, board_json, updated_at from dv_boards where canva_user_id = $1 order by updated_at desc",
-      [canvaUserId],
+      "select board_id, board_json, updated_at from dv_boards where user_id = $1 order by updated_at desc",
+      [userId],
     );
     return r.rows.map((row) => ({
       boardId: row.board_id,
@@ -94,28 +94,28 @@ export async function listBoardsPg(canvaUserId) {
   });
 }
 
-export async function upsertBoardPg(canvaUserId, { boardId, boardJson }) {
+export async function upsertBoardPg(userId, { boardId, boardJson }) {
   return await withClient(async (c) => {
     await c.query(
-      `insert into dv_boards (canva_user_id, board_id, board_json)
+      `insert into dv_boards (user_id, board_id, board_json)
        values ($1, $2, $3::jsonb)
-       on conflict (canva_user_id, board_id) do update set
+       on conflict (user_id, board_id) do update set
          board_json = excluded.board_json,
          updated_at = now()`,
-      [canvaUserId, boardId, JSON.stringify(boardJson ?? {})],
+      [userId, boardId, JSON.stringify(boardJson ?? {})],
     );
   });
 }
 
-export async function getRecentHabitCompletionsPg(canvaUserId, days) {
+export async function getRecentHabitCompletionsPg(userId, days) {
   return await withClient(async (c) => {
     const r = await c.query(
       `select board_id, component_id, habit_id, logical_date::text as logical_date, rating, note, updated_at
        from dv_habit_completions
-       where canva_user_id = $1
+       where user_id = $1
          and logical_date >= (current_date - $2::int)
        order by logical_date desc, updated_at desc`,
-      [canvaUserId, days],
+      [userId, days],
     );
     return r.rows.map((row) => ({
       boardId: row.board_id,
@@ -129,15 +129,15 @@ export async function getRecentHabitCompletionsPg(canvaUserId, days) {
   });
 }
 
-export async function getRecentChecklistEventsPg(canvaUserId, days) {
+export async function getRecentChecklistEventsPg(userId, days) {
   return await withClient(async (c) => {
     const r = await c.query(
       `select board_id, component_id, task_id, item_id, logical_date::text as logical_date, rating, note, updated_at
        from dv_checklist_events
-       where canva_user_id = $1
+       where user_id = $1
          and logical_date >= (current_date - $2::int)
        order by logical_date desc, updated_at desc`,
-      [canvaUserId, days],
+      [userId, days],
     );
     return r.rows.map((row) => ({
       boardId: row.board_id,
@@ -152,7 +152,7 @@ export async function getRecentChecklistEventsPg(canvaUserId, days) {
   });
 }
 
-export async function applySyncPushPg(canvaUserId, { boards, userSettings, habitCompletions, checklistEvents, retainDays }) {
+export async function applySyncPushPg(userId, { boards, userSettings, habitCompletions, checklistEvents, retainDays }) {
   return await withClient(async (c) => {
     await c.query("begin");
     try {
@@ -170,9 +170,9 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
         const subPlan = typeof userSettings.subscriptionPlanId === "string" && userSettings.subscriptionPlanId.trim() ? userSettings.subscriptionPlanId.trim() : null;
         const subSource = typeof userSettings.subscriptionSource === "string" && userSettings.subscriptionSource.trim() ? userSettings.subscriptionSource.trim() : (subActive != null ? "store" : null);
         await c.query(
-          `insert into dv_user_settings (canva_user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
+          `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
            values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end, $10)
-           on conflict (canva_user_id) do update set
+           on conflict (user_id) do update set
              home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
              gender = coalesce(excluded.gender, dv_user_settings.gender),
              display_name = coalesce(excluded.display_name, dv_user_settings.display_name),
@@ -184,7 +184,7 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
              subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
              subscription_source = coalesce(excluded.subscription_source, dv_user_settings.subscription_source),
              updated_at = now()`,
-          [canvaUserId, tz, gender, displayName, weightKg, heightCm, dob, subPlan, subActive, subSource],
+          [userId, tz, gender, displayName, weightKg, heightCm, dob, subPlan, subActive, subSource],
         );
       }
 
@@ -193,12 +193,12 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           const boardId = typeof b?.boardId === "string" ? b.boardId : null;
           if (!boardId) continue;
           await c.query(
-            `insert into dv_boards (canva_user_id, board_id, board_json)
+            `insert into dv_boards (user_id, board_id, board_json)
              values ($1, $2, $3::jsonb)
-             on conflict (canva_user_id, board_id) do update set
+             on conflict (user_id, board_id) do update set
                board_json = excluded.board_json,
                updated_at = now()`,
-            [canvaUserId, boardId, JSON.stringify(b?.boardJson ?? {})],
+            [userId, boardId, JSON.stringify(b?.boardJson ?? {})],
           );
         }
       }
@@ -215,8 +215,8 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           if (deleted) {
             await c.query(
               `delete from dv_habit_completions
-               where canva_user_id = $1 and board_id = $2 and component_id = $3 and habit_id = $4 and logical_date = $5::date`,
-              [canvaUserId, boardId, componentId, habitId, logicalDate],
+               where user_id = $1 and board_id = $2 and component_id = $3 and habit_id = $4 and logical_date = $5::date`,
+              [userId, boardId, componentId, habitId, logicalDate],
             );
             continue;
           }
@@ -225,13 +225,13 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           const note = typeof h?.note === "string" ? h.note : null;
           await c.query(
             `insert into dv_habit_completions (
-               canva_user_id, board_id, component_id, habit_id, logical_date, rating, note
+               user_id, board_id, component_id, habit_id, logical_date, rating, note
              ) values ($1,$2,$3,$4,$5::date,$6,$7)
-             on conflict (canva_user_id, board_id, component_id, habit_id, logical_date) do update set
+             on conflict (user_id, board_id, component_id, habit_id, logical_date) do update set
                rating = excluded.rating,
                note = excluded.note,
                updated_at = now()`,
-            [canvaUserId, boardId, componentId, habitId, logicalDate, rating, note],
+            [userId, boardId, componentId, habitId, logicalDate, rating, note],
           );
         }
       }
@@ -249,8 +249,8 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           if (deleted) {
             await c.query(
               `delete from dv_checklist_events
-               where canva_user_id = $1 and board_id = $2 and component_id = $3 and task_id = $4 and item_id = $5 and logical_date = $6::date`,
-              [canvaUserId, boardId, componentId, taskId, itemId, logicalDate],
+               where user_id = $1 and board_id = $2 and component_id = $3 and task_id = $4 and item_id = $5 and logical_date = $6::date`,
+              [userId, boardId, componentId, taskId, itemId, logicalDate],
             );
             continue;
           }
@@ -259,25 +259,25 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
           const note = typeof e?.note === "string" ? e.note : null;
           await c.query(
             `insert into dv_checklist_events (
-               canva_user_id, board_id, component_id, task_id, item_id, logical_date, rating, note
+               user_id, board_id, component_id, task_id, item_id, logical_date, rating, note
              ) values ($1,$2,$3,$4,$5,$6::date,$7,$8)
-             on conflict (canva_user_id, board_id, component_id, task_id, item_id, logical_date) do update set
+             on conflict (user_id, board_id, component_id, task_id, item_id, logical_date) do update set
                rating = excluded.rating,
                note = excluded.note,
                updated_at = now()`,
-            [canvaUserId, boardId, componentId, taskId, itemId, logicalDate, rating, note],
+            [userId, boardId, componentId, taskId, itemId, logicalDate, rating, note],
           );
         }
       }
 
       if (typeof retainDays === "number" && Number.isFinite(retainDays) && retainDays > 0) {
         await c.query(
-          "delete from dv_habit_completions where canva_user_id = $1 and logical_date < (current_date - $2::int)",
-          [canvaUserId, retainDays],
+          "delete from dv_habit_completions where user_id = $1 and logical_date < (current_date - $2::int)",
+          [userId, retainDays],
         );
         await c.query(
-          "delete from dv_checklist_events where canva_user_id = $1 and logical_date < (current_date - $2::int)",
-          [canvaUserId, retainDays],
+          "delete from dv_checklist_events where user_id = $1 and logical_date < (current_date - $2::int)",
+          [userId, retainDays],
         );
       }
 
@@ -290,15 +290,15 @@ export async function applySyncPushPg(canvaUserId, { boards, userSettings, habit
   });
 }
 
-export async function cleanupOldLogsPg(canvaUserId, retainDays) {
+export async function cleanupOldLogsPg(userId, retainDays) {
   if (typeof retainDays !== "number" || !Number.isFinite(retainDays) || retainDays <= 0) return;
   return await withClient(async (c) => {
-    await c.query("delete from dv_habit_completions where canva_user_id = $1 and logical_date < (current_date - $2::int)", [
-      canvaUserId,
+    await c.query("delete from dv_habit_completions where user_id = $1 and logical_date < (current_date - $2::int)", [
+      userId,
       retainDays,
     ]);
-    await c.query("delete from dv_checklist_events where canva_user_id = $1 and logical_date < (current_date - $2::int)", [
-      canvaUserId,
+    await c.query("delete from dv_checklist_events where user_id = $1 and logical_date < (current_date - $2::int)", [
+      userId,
       retainDays,
     ]);
   });

@@ -3,13 +3,8 @@ import path from "node:path";
 
 import { hasDatabase } from "./db.js";
 import {
-  deletePkceStatePg,
   findUserByDvTokenPg,
-  getPkceStatePg,
-  getOauthPollTokenPg,
   getUserRecordPg,
-  putOauthPollTokenPg,
-  putPkceStatePg,
   putUserRecordPg,
 } from "./storage_pg.js";
 
@@ -37,52 +32,23 @@ async function readJson(filePath, fallback) {
   }
 }
 
-function userFile(canvaUserId) {
-  return path.join(dataDir, "users", `${canvaUserId}.json`);
+function userFile(userId) {
+  return path.join(dataDir, "users", `${userId}.json`);
 }
 
-function pkceFile() {
-  return path.join(dataDir, "pkce_states.json");
+export async function getUserRecord(userId) {
+  if (hasDatabase()) return await getUserRecordPg(userId);
+  return await readJson(userFile(userId), null);
 }
 
-function pollFile() {
-  return path.join(dataDir, "oauth_poll_tokens.json");
-}
-
-export async function getPkceState(state) {
-  if (hasDatabase()) return await getPkceStatePg(state);
-  const all = await readJson(pkceFile(), {});
-  return all[state] ?? null;
-}
-
-export async function putPkceState(state, record) {
-  if (hasDatabase()) return await putPkceStatePg(state, record);
-  const all = await readJson(pkceFile(), {});
-  all[state] = record;
-  await atomicWriteJson(pkceFile(), all);
-}
-
-export async function deletePkceState(state) {
-  if (hasDatabase()) return await deletePkceStatePg(state);
-  const all = await readJson(pkceFile(), {});
-  delete all[state];
-  await atomicWriteJson(pkceFile(), all);
-}
-
-export async function getUserRecord(canvaUserId) {
-  if (hasDatabase()) return await getUserRecordPg(canvaUserId);
-  return await readJson(userFile(canvaUserId), null);
-}
-
-export async function putUserRecord(canvaUserId, record) {
-  if (hasDatabase()) return await putUserRecordPg(canvaUserId, record);
-  await atomicWriteJson(userFile(canvaUserId), record);
+export async function putUserRecord(userId, record) {
+  if (hasDatabase()) return await putUserRecordPg(userId, record);
+  await atomicWriteJson(userFile(userId), record);
 }
 
 export async function findUserByDvToken(dvToken) {
   if (hasDatabase()) return await findUserByDvTokenPg(dvToken);
-  // Minimal implementation: scan user files (OK for dev; replace with DB later).
-  // Keeps task-1 simple while unblocking the Canva panel + Flutter import work.
+  // Dev-only fallback: scan user JSON files.
   const usersDir = path.join(dataDir, "users");
   await ensureDir(usersDir);
   const entries = await fs.readdir(usersDir);
@@ -92,28 +58,4 @@ export async function findUserByDvToken(dvToken) {
     if (rec?.dvToken === dvToken) return rec;
   }
   return null;
-}
-
-export async function putOauthPollToken(pollToken, { dvToken, canvaUserId }) {
-  if (hasDatabase()) return await putOauthPollTokenPg(pollToken, { dvToken, canvaUserId });
-  const all = await readJson(pollFile(), {});
-  all[pollToken] = {
-    dvToken: dvToken ?? null,
-    canvaUserId: canvaUserId ?? null,
-    updatedAt: Date.now(),
-  };
-  await atomicWriteJson(pollFile(), all);
-}
-
-export async function getOauthPollToken(pollToken) {
-  if (hasDatabase()) return await getOauthPollTokenPg(pollToken);
-  const all = await readJson(pollFile(), {});
-  const rec = all[pollToken] ?? null;
-  if (!rec) return null;
-  return {
-    pollToken,
-    dvToken: rec.dvToken ?? null,
-    canvaUserId: rec.canvaUserId ?? null,
-    updatedAt: rec.updatedAt ?? null,
-  };
 }

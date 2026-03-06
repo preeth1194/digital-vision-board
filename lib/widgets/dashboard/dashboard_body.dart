@@ -9,10 +9,9 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../services/habit_storage_service.dart';
 import '../../screens/journal/journal_notes_screen.dart';
-import '../../screens/habits_list_screen.dart';
 import '../../screens/todos_list_screen.dart';
 import '../../screens/affirmation_screen.dart';
-import '../../screens/routine_screen.dart';
+import '../../screens/planner_guide_screen.dart';
 import 'all_boards_habits_tab.dart';
 import 'all_boards_todos_tab.dart';
 import 'dashboard_tab.dart';
@@ -61,7 +60,10 @@ class DashboardBody extends StatelessWidget {
   });
 
   VisionBoardInfo? _boardById(String id) {
-    return boards.cast<VisionBoardInfo?>().firstWhere((b) => b?.id == id, orElse: () => null);
+    return boards.cast<VisionBoardInfo?>().firstWhere(
+      (b) => b?.id == id,
+      orElse: () => null,
+    );
   }
 
   List<VisionComponent> _componentsFromGridTiles(List<GridTileModel> tiles) {
@@ -86,17 +88,31 @@ class DashboardBody extends StatelessWidget {
     return comps;
   }
 
-  Future<List<VisionComponent>> _loadBoardComponents(VisionBoardInfo board) async {
+  Future<List<VisionComponent>> _loadBoardComponents(
+    VisionBoardInfo board,
+  ) async {
     if (board.layoutType == VisionBoardInfo.layoutGrid) {
-      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      final tiles = await GridTilesStorageService.loadTiles(
+        board.id,
+        prefs: prefs,
+      );
       return _componentsFromGridTiles(tiles);
     }
-    return VisionBoardComponentsStorageService.loadComponents(board.id, prefs: prefs);
+    return VisionBoardComponentsStorageService.loadComponents(
+      board.id,
+      prefs: prefs,
+    );
   }
 
-  Future<void> _saveBoardComponents(VisionBoardInfo board, List<VisionComponent> updated) async {
+  Future<void> _saveBoardComponents(
+    VisionBoardInfo board,
+    List<VisionComponent> updated,
+  ) async {
     if (board.layoutType == VisionBoardInfo.layoutGrid) {
-      final existingTiles = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      final existingTiles = await GridTilesStorageService.loadTiles(
+        board.id,
+        prefs: prefs,
+      );
       // Sync habits to HabitStorageService when writing to tiles.
       final previousHabitIds = <String, Set<String>>{};
       for (final t in existingTiles) {
@@ -114,16 +130,21 @@ class DashboardBody extends StatelessWidget {
         final c = byId[t.id];
         if (c == null) return t;
         final img = c is ImageComponent ? c : null;
-        return t.copyWith(
-          goal: img?.goal ?? t.goal,
-          habits: c.habits,
-        );
+        return t.copyWith(goal: img?.goal ?? t.goal, habits: c.habits);
       }).toList();
-      await GridTilesStorageService.saveTiles(board.id, nextTiles, prefs: prefs);
+      await GridTilesStorageService.saveTiles(
+        board.id,
+        nextTiles,
+        prefs: prefs,
+      );
       boardDataVersion.value = boardDataVersion.value + 1;
       return;
     }
-    await VisionBoardComponentsStorageService.saveComponents(board.id, updated, prefs: prefs);
+    await VisionBoardComponentsStorageService.saveComponents(
+      board.id,
+      updated,
+      prefs: prefs,
+    );
     boardDataVersion.value = boardDataVersion.value + 1;
   }
 
@@ -146,71 +167,80 @@ class DashboardBody extends StatelessWidget {
         final child = KeyedSubtree(
           key: ValueKey<int>(tabIndex),
           child: switch (tabIndex) {
-      1 => DashboardTab(
-          boards: boards,
-          activeBoardId: activeBoardId,
-          routines: routines,
-          activeRoutineId: activeRoutineId,
-          prefs: prefs,
-          dataVersion: version,
-          onCreateBoard: onCreateBoard,
-          onOpenEditor: onOpenEditor,
-          onOpenViewer: onOpenViewer,
-          onDeleteBoard: onDeleteBoard,
-          onStartChallenge: onStartChallenge,
-          onViewHabits: onViewHabits,
-        ),
-      6 => RoutineScreen(dataVersion: boardDataVersion),
-      7 => FutureBuilder<Map<String, List<VisionComponent>>>(
-          future: _loadAllBoardsComponents(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return AllBoardsHabitsTab(
+            1 => DashboardTab(
               boards: boards,
-              componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
-              showCalendarMode: showHabitsCalendarMode,
-              onCalendarModeChanged: onHabitsCalendarModeChanged,
-              onSaveBoardComponents: (id, updated) async {
-                final b = _boardById(id);
-                if (b == null) return;
-                await _saveBoardComponents(b, updated);
+              activeBoardId: activeBoardId,
+              routines: routines,
+              activeRoutineId: activeRoutineId,
+              prefs: prefs,
+              dataVersion: version,
+              onCreateBoard: onCreateBoard,
+              onOpenEditor: onOpenEditor,
+              onOpenViewer: onOpenViewer,
+              onDeleteBoard: onDeleteBoard,
+              onStartChallenge: onStartChallenge,
+              onViewHabits: onViewHabits,
+            ),
+            6 => PlannerGuideScreen(dataVersion: boardDataVersion),
+            7 => FutureBuilder<Map<String, List<VisionComponent>>>(
+              future: _loadAllBoardsComponents(),
+              builder: (context, snap) {
+                if (!snap.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                return AllBoardsHabitsTab(
+                  boards: boards,
+                  componentsByBoardId: Map<String, List<VisionComponent>>.from(
+                    snap.data!,
+                  ),
+                  showCalendarMode: showHabitsCalendarMode,
+                  onCalendarModeChanged: onHabitsCalendarModeChanged,
+                  onSaveBoardComponents: (id, updated) async {
+                    final b = _boardById(id);
+                    if (b == null) return;
+                    await _saveBoardComponents(b, updated);
+                  },
+                  coinNotifier: coinNotifier,
+                  coinTargetKey: coinTargetKey,
+                  onSwitchToRoutine: onSwitchToRoutine,
+                );
               },
-              coinNotifier: coinNotifier,
-              coinTargetKey: coinTargetKey,
-              onSwitchToRoutine: onSwitchToRoutine,
-            );
-          },
-        ),
-      2 => const JournalNotesScreen(embedded: true),
-      3 => AffirmationScreen(prefs: prefs),
-      5 when boardId != null && activeBoard != null => FutureBuilder<List<VisionComponent>>(
-          future: _loadBoardComponents(activeBoard),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return TodosListScreen(
-              components: snap.data ?? const <VisionComponent>[],
-              onComponentsUpdated: (updated) => _saveBoardComponents(activeBoard, updated),
-              onOpenComponent: (_) async {},
-              showAppBar: false,
-            );
-          },
-        ),
-      5 => FutureBuilder<Map<String, List<VisionComponent>>>(
-          future: _loadAllBoardsComponents(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            return AllBoardsTodosTab(
-              boards: boards,
-              componentsByBoardId: Map<String, List<VisionComponent>>.from(snap.data!),
-              onSaveBoardComponents: (id, updated) async {
-                final b = _boardById(id);
-                if (b == null) return;
-                await _saveBoardComponents(b, updated);
+            ),
+            2 => const JournalNotesScreen(embedded: true),
+            3 => AffirmationScreen(prefs: prefs),
+            5 when boardId != null && activeBoard != null =>
+              FutureBuilder<List<VisionComponent>>(
+                future: _loadBoardComponents(activeBoard),
+                builder: (context, snap) {
+                  if (!snap.hasData)
+                    return const Center(child: CircularProgressIndicator());
+                  return TodosListScreen(
+                    components: snap.data ?? const <VisionComponent>[],
+                    onComponentsUpdated: (updated) =>
+                        _saveBoardComponents(activeBoard, updated),
+                    onOpenComponent: (_) async {},
+                    showAppBar: false,
+                  );
+                },
+              ),
+            5 => FutureBuilder<Map<String, List<VisionComponent>>>(
+              future: _loadAllBoardsComponents(),
+              builder: (context, snap) {
+                if (!snap.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                return AllBoardsTodosTab(
+                  boards: boards,
+                  componentsByBoardId: Map<String, List<VisionComponent>>.from(
+                    snap.data!,
+                  ),
+                  onSaveBoardComponents: (id, updated) async {
+                    final b = _boardById(id);
+                    if (b == null) return;
+                    await _saveBoardComponents(b, updated);
+                  },
+                );
               },
-            );
-          },
-        ),
-      _ => const SizedBox.shrink(),
+            ),
+            _ => const SizedBox.shrink(),
           },
         );
 
@@ -224,13 +254,16 @@ class DashboardBody extends StatelessWidget {
               parent: animation,
               curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
             );
-            final slide = Tween<Offset>(
-              begin: const Offset(0, 0.03),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.03),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
 
             final isJournal = child.key == const ValueKey<int>(2);
             if (isJournal) {
@@ -257,4 +290,3 @@ class DashboardBody extends StatelessWidget {
     );
   }
 }
-

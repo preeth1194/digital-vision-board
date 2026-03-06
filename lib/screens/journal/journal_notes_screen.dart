@@ -12,6 +12,7 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../recipes/recipe_book_screen.dart';
 
 import 'journal_editor_screen.dart';
 import 'models/journal_editor_models.dart';
@@ -116,23 +117,30 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       final boards = await BoardsStorageService.loadBoards(prefs: prefs);
       final extracted = await _extractFromBoards(boards: boards, prefs: prefs);
       final journal = await JournalStorageService.loadEntries(prefs: prefs);
-      
+
       // Load books and ensure default book exists
-      final books = await JournalBookStorageService.ensureDefaultBook(prefs: prefs);
-      
+      final books = await JournalBookStorageService.ensureDefaultBook(
+        prefs: prefs,
+      );
+
       // Calculate entry counts per book
       final entryCounts = <String, int>{};
       for (final book in books) {
-        final count = await JournalStorageService.getEntryCountForBook(book.id, prefs: prefs);
+        final count = await JournalStorageService.getEntryCountForBook(
+          book.id,
+          prefs: prefs,
+        );
         entryCounts[book.id] = count;
       }
-      
+
       if (!mounted) return;
       setState(() {
         _goalTitles = extracted.goalTitles;
         _goals = extracted.goals;
         _feedbackAndTaggedJournalFeed = extracted.noteFeed;
-        _hasGoalLogs = extracted.noteFeed.any((n) => (n.goalTitle ?? '').trim().isNotEmpty);
+        _hasGoalLogs = extracted.noteFeed.any(
+          (n) => (n.goalTitle ?? '').trim().isNotEmpty,
+        );
         _journalEntries = journal;
         _books = books;
         _bookEntryCounts = entryCounts;
@@ -154,10 +162,10 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             JournalEntryEditorScreen(
-          goalTitles: _goalTitles,
-          existingTags: _allJournalTags(_journalEntries),
-          existingEntry: entry,
-        ),
+              goalTitles: _goalTitles,
+              existingTags: _allJournalTags(_journalEntries),
+              existingEntry: entry,
+            ),
         transitionsBuilder: _pageTransition,
         transitionDuration: const Duration(milliseconds: 400),
         reverseTransitionDuration: const Duration(milliseconds: 300),
@@ -177,7 +185,8 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
         set.add(s);
       }
     }
-    final out = set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final out = set.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return out;
   }
 
@@ -187,10 +196,10 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             JournalEntryEditorScreen(
-          goalTitles: _goalTitles,
-          existingTags: _allJournalTags(_journalEntries),
-          bookId: _selectedBookId,
-        ),
+              goalTitles: _goalTitles,
+              existingTags: _allJournalTags(_journalEntries),
+              bookId: _selectedBookId,
+            ),
         transitionsBuilder: _pageTransition,
         transitionDuration: const Duration(milliseconds: 400),
         reverseTransitionDuration: const Duration(milliseconds: 300),
@@ -218,17 +227,20 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             JournalEntryEditorScreen(
-          goalTitles: _goalTitles,
-          existingTags: _allJournalTags(_journalEntries),
-          autoShowVoiceRecorder: true,
-          bookId: _selectedBookId,
-        ),
+              goalTitles: _goalTitles,
+              existingTags: _allJournalTags(_journalEntries),
+              autoShowVoiceRecorder: true,
+              bookId: _selectedBookId,
+            ),
         transitionsBuilder: (context, animation, _, child) {
           final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
             CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
           );
           final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.6, curve: Curves.easeOut)),
+            CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+            ),
           );
           return FadeTransition(
             opacity: fade,
@@ -250,11 +262,15 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-    );
+    final scale = Tween<double>(
+      begin: 0.92,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
     final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.6, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
     );
     final slide = Tween<Offset>(
       begin: const Offset(0, 0.03),
@@ -269,7 +285,6 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       ),
     );
   }
-
 
   // ---------------------------------------------------------------------------
   // Journal Books
@@ -304,6 +319,20 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
 
   void _handleBookSelected(JournalBook book) {
     setState(() => _selectedBookId = book.id);
+  }
+
+  Future<void> _openRecipeBook() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const RecipeBookScreen()));
+  }
+
+  void _handleBookTap(JournalBook book) {
+    if (book.id == JournalBookStorageService.recipeBookId) {
+      _openRecipeBook();
+      return;
+    }
+    _handleBookSelected(book);
   }
 
   Future<void> _handleOpenEntry(JournalEntry entry) async {
@@ -345,7 +374,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   Future<void> _handleDeleteBook(String bookId) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
-    
+
     // Delete all entries in the book first
     final entries = _journalEntries.where((e) {
       if (e.bookId == null || e.bookId!.isEmpty) {
@@ -356,15 +385,15 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     for (final entry in entries) {
       await JournalStorageService.deleteEntry(entry.id, prefs: prefs);
     }
-    
+
     // Delete the book itself
     await JournalBookStorageService.deleteBook(bookId, prefs: prefs);
-    
+
     // Select another book if available
     if (_selectedBookId == bookId) {
       setState(() => _selectedBookId = null);
     }
-    
+
     await _reload(prefs: prefs);
   }
 
@@ -427,9 +456,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     return Column(
       children: [
         // Pinned header (acts like an app bar)
-        JournalBrowseSection(
-          onAddBook: _handleAddBook,
-        ),
+        JournalBrowseSection(onAddBook: _handleAddBook),
         // Scrollable content beneath
         Expanded(
           child: ListView(
@@ -453,6 +480,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                 onColorChanged: _handleColorChanged,
                 onTitleChanged: _handleTitleChanged,
                 newBookId: _newBookId,
+                onBookTap: _handleBookTap,
               ),
             ],
           ),
@@ -473,13 +501,20 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       list.sort((a, b) => b.at.compareTo(a.at));
     }
     final goalsWithNotes = _goals
-        .where((g) => (notesByGoal[g.title] ?? const <_NoteFeedItem>[]).isNotEmpty)
+        .where(
+          (g) => (notesByGoal[g.title] ?? const <_NoteFeedItem>[]).isNotEmpty,
+        )
         .toList();
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + padBottom),
       children: [
-        Text('Goal logs', style: AppTypography.heading2(context).copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          'Goal logs',
+          style: AppTypography.heading2(
+            context,
+          ).copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 8),
         if (goalsWithNotes.isEmpty) const Text('No habit feedback logged yet.'),
         for (final g in goalsWithNotes)
@@ -505,7 +540,8 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                         Text(
                           [
                             _fmtDateTime(n.at),
-                            if ((n.subtitle ?? '').trim().isNotEmpty) n.subtitle!,
+                            if ((n.subtitle ?? '').trim().isNotEmpty)
+                              n.subtitle!,
                           ].join(' • '),
                           style: AppTypography.caption(context),
                         ),
@@ -548,11 +584,11 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
                       : showGoalLogs
-                          ? TabBarView(
-                              key: const ValueKey<String>('with_goal_logs'),
-                              children: [_journalTab(), _notesTab()],
-                            )
-                          : _journalTab(),
+                      ? TabBarView(
+                          key: const ValueKey<String>('with_goal_logs'),
+                          children: [_journalTab(), _notesTab()],
+                        )
+                      : _journalTab(),
                 ),
               ],
             )
@@ -562,19 +598,20 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                 bottom: _loading
                     ? null
                     : showGoalLogs
-                        ? const TabBar(
-                            tabs: [
-                              Tab(text: 'Journal'),
-                              Tab(text: 'Goal logs'),
-                            ],
-                          )
-                        : null,
+                    ? const TabBar(
+                        tabs: [
+                          Tab(text: 'Journal'),
+                          Tab(text: 'Goal logs'),
+                        ],
+                      )
+                    : null,
                 actions: [
                   IconButton(
                     tooltip: 'Refresh',
                     icon: const Icon(Icons.refresh),
                     onPressed: () async {
-                      final prefs = _prefs ?? await SharedPreferences.getInstance();
+                      final prefs =
+                          _prefs ?? await SharedPreferences.getInstance();
                       _prefs ??= prefs;
                       await _reload(prefs: prefs);
                     },
@@ -584,11 +621,11 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
               body: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : showGoalLogs
-                      ? TabBarView(
-                          key: const ValueKey<String>('with_goal_logs'),
-                          children: [_journalTab(), _notesTab()],
-                        )
-                      : _journalTab(),
+                  ? TabBarView(
+                      key: const ValueKey<String>('with_goal_logs'),
+                      children: [_journalTab(), _notesTab()],
+                    )
+                  : _journalTab(),
             ),
     );
   }
@@ -660,7 +697,10 @@ Future<_ExtractedNotesResult> _extractFromBoards({
         );
       }
     } else {
-      final comps = await VisionBoardComponentsStorageService.loadComponents(b.id, prefs: prefs);
+      final comps = await VisionBoardComponentsStorageService.loadComponents(
+        b.id,
+        prefs: prefs,
+      );
       for (final c in comps) {
         _extractFeedbackFromComponent(
           component: c,
@@ -676,11 +716,16 @@ Future<_ExtractedNotesResult> _extractFromBoards({
   for (final g in goals) {
     uniqueGoals[g.title] = g;
   }
-  final goalsSorted = uniqueGoals.values.toList()..sort((a, b) => a.title.compareTo(b.title));
+  final goalsSorted = uniqueGoals.values.toList()
+    ..sort((a, b) => a.title.compareTo(b.title));
   final titlesSorted = goalTitlesSet.toList()..sort((a, b) => a.compareTo(b));
   feed.sort((a, b) => b.at.compareTo(a.at));
 
-  return _ExtractedNotesResult(goalTitles: titlesSorted, goals: goalsSorted, noteFeed: feed);
+  return _ExtractedNotesResult(
+    goalTitles: titlesSorted,
+    goals: goalsSorted,
+    noteFeed: feed,
+  );
 }
 
 void _extractCbtAndFeedbackFromTile({
@@ -693,7 +738,8 @@ void _extractCbtAndFeedbackFromTile({
     required String body,
     required String? subtitle,
     required String? goalTitle,
-  }) addFeedbackNote,
+  })
+  addFeedbackNote,
   required List<_NoteFeedItem> feed,
 }) {
   for (final h in tile.habits) {
@@ -705,7 +751,10 @@ void _extractCbtAndFeedbackFromTile({
         isoDate: e.key,
         title: e.key,
         body: note,
-        subtitle: [h.name, boardTitle].where((s) => s.trim().isNotEmpty).join(' • '),
+        subtitle: [
+          h.name,
+          boardTitle,
+        ].where((s) => s.trim().isNotEmpty).join(' • '),
         goalTitle: goalTitle,
       );
     }
@@ -722,7 +771,8 @@ void _extractFeedbackFromComponent({
     required String body,
     required String? subtitle,
     required String? goalTitle,
-  }) addFeedbackNote,
+  })
+  addFeedbackNote,
 }) {
   for (final h in component.habits) {
     for (final e in h.feedbackByDate.entries) {
@@ -732,7 +782,10 @@ void _extractFeedbackFromComponent({
         isoDate: e.key,
         title: e.key,
         body: note,
-        subtitle: [h.name, boardTitle].where((s) => s.trim().isNotEmpty).join(' • '),
+        subtitle: [
+          h.name,
+          boardTitle,
+        ].where((s) => s.trim().isNotEmpty).join(' • '),
         goalTitle: goalTitle,
       );
     }

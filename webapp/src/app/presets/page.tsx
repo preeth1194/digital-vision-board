@@ -4,7 +4,7 @@ import { backendServerFetch } from '@/lib/backend/server'
 import type { ActionTemplate } from '@/types'
 
 export const metadata: Metadata = {
-  title: 'My Presets',
+  title: 'Presets',
 }
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -31,14 +31,10 @@ export default async function PresetsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-forest-deep mb-1">My Presets</h1>
-          <p className="text-forest-deep/50 text-sm">
-            {submissions.length === 0
-              ? 'No presets yet'
-              : `${submissions.length} submission${submissions.length === 1 ? '' : 's'}`}
-          </p>
+          <h1 className="text-2xl font-extrabold text-forest-deep mb-1">Presets</h1>
+          <p className="text-forest-deep/50 text-sm">Your planners and community submissions.</p>
         </div>
         <Link
           href="/presets/upload"
@@ -51,14 +47,41 @@ export default async function PresetsPage() {
         </Link>
       </div>
 
+      {/* Skincare planner shortcut */}
+      <Link
+        href="/presets/skincare"
+        className="flex items-center gap-4 bg-white rounded-2xl border border-forest-deep/10 p-5 shadow-sm hover:shadow-md hover:border-sprout/40 transition-all mb-8 group"
+      >
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-2xl shrink-0">
+          ✨
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-bold text-forest-deep group-hover:text-sprout-dark transition-colors">Skincare Planner</h2>
+          <p className="text-xs text-forest-deep/50 mt-0.5">
+            Morning &amp; evening routines, weekly day assignments, and product tracking.
+          </p>
+        </div>
+        <svg className="w-5 h-5 text-forest-deep/30 group-hover:text-sprout-dark transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </Link>
+
+      {/* Community submissions */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-forest-deep">My Submissions</h2>
+        <span className="text-xs text-forest-deep/40">
+          {submissions.length === 0 ? 'None yet' : `${submissions.length} submission${submissions.length === 1 ? '' : 's'}`}
+        </span>
+      </div>
+
       {submissions.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-forest-deep/10 p-12 text-center">
+        <div className="bg-white rounded-2xl border border-forest-deep/10 p-10 text-center">
           <div className="w-14 h-14 bg-mist rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-7 h-7 text-forest-deep/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
             </svg>
           </div>
-          <h2 className="text-lg font-bold text-forest-deep mb-2">No presets yet</h2>
+          <h3 className="text-base font-bold text-forest-deep mb-2">No submissions yet</h3>
           <p className="text-forest-deep/50 text-sm mb-6">
             Share your favourite habits with the community by submitting a preset.
           </p>

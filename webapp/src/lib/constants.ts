@@ -1,7 +1,7 @@
-export const APP_NAME = 'Digital Vision Board'
+export const APP_NAME = 'Habit Seeding'
 export const APP_TAGLINE = 'Grow Your Life, One Habit at a Time'
 export const APP_DESCRIPTION =
-  'Plan your vision boards, build lasting habits, journal your journey, and live with intention — all in one beautiful app.'
+  'Build lasting habits, journal your journey, and live with intention - all in one beautiful app.'
 
 export const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=YOUR_PACKAGE_ID'

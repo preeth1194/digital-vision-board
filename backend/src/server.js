@@ -37,7 +37,7 @@ import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg } from "./stock_category_images_pg.js";
 import { getGiftCodePg, redeemGiftCodePg } from "./gift_codes_pg.js";
-import { insertContactMessagePg } from "./contact_pg.js";
+import { insertContactMessagePg, listContactMessagesPg } from "./contact_pg.js";
 
 const app = express();
 
@@ -992,6 +992,21 @@ app.post("/contact", async (req, res) => {
     return res.status(201).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: "contact_submit_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/contact/messages", requireDvAuth(), async (req, res) => {
+  try {
+    if (!ensureDbOr501(res)) return;
+    if (!isActionTemplateAdmin(req.dvUser?.userId)) {
+      return res.status(403).json({ error: "admin_required" });
+    }
+    const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 100;
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 500)) : 100;
+    const messages = await listContactMessagesPg({ limit });
+    return res.json({ ok: true, messages });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "contact_messages_failed", message: String(e?.message ?? e) });
   }
 });
 

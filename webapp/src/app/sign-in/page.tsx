@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -15,7 +15,7 @@ type ExchangeResponse = {
   userId: string
 }
 
-export default function SignInPage() {
+function SignInPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectedFrom') ?? '/profile'
@@ -126,5 +126,13 @@ export default function SignInPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[calc(100vh-8rem)]" />}>
+      <SignInPageContent />
+    </Suspense>
   )
 }

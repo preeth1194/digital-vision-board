@@ -852,16 +852,21 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
-    _guideOverlayCompleter?.complete('close');
+    final previousCompleter = _guideOverlayCompleter;
+    if (previousCompleter != null && !previousCompleter.isCompleted) {
+      previousCompleter.complete('close');
+    }
     _guideOverlayCompleter = Completer<String?>();
     setState(() => _activeGuideOverlay = overlay);
     return _guideOverlayCompleter!.future;
   }
 
   void _closeGuideOverlay(String action) {
-    if (_guideOverlayCompleter?.isCompleted == false) {
-      _guideOverlayCompleter!.complete(action);
+    final completer = _guideOverlayCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(action);
     }
+    _guideOverlayCompleter = null;
     if (mounted) {
       setState(() => _activeGuideOverlay = null);
     }

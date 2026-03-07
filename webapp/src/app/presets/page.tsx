@@ -47,24 +47,40 @@ export default async function PresetsPage() {
         </Link>
       </div>
 
-      {/* Skincare planner shortcut */}
-      <Link
-        href="/presets/skincare"
-        className="flex items-center gap-4 bg-white rounded-2xl border border-forest-deep/10 p-5 shadow-sm hover:shadow-md hover:border-sprout/40 transition-all mb-8 group"
-      >
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-2xl shrink-0">
-          ✨
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-forest-deep group-hover:text-sprout-dark transition-colors">Skincare Planner</h2>
-          <p className="text-xs text-forest-deep/50 mt-0.5">
-            Morning &amp; evening routines, weekly day assignments, and product tracking.
-          </p>
-        </div>
-        <svg className="w-5 h-5 text-forest-deep/30 group-hover:text-sprout-dark transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
-      </Link>
+      {/* Planner shortcuts */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        <Link
+          href="/presets/skincare"
+          className="flex items-center gap-4 bg-white rounded-2xl border border-forest-deep/10 p-5 shadow-sm hover:shadow-md hover:border-sprout/40 transition-all group"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl shrink-0">
+            ✨
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-forest-deep group-hover:text-sprout-dark transition-colors text-sm">Skincare Planner</h2>
+            <p className="text-xs text-forest-deep/50 mt-0.5">Morning &amp; evening routines + weekly plan</p>
+          </div>
+          <svg className="w-4 h-4 text-forest-deep/30 group-hover:text-sprout-dark transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </Link>
+
+        <Link
+          href="/presets/workout"
+          className="flex items-center gap-4 bg-white rounded-2xl border border-forest-deep/10 p-5 shadow-sm hover:shadow-md hover:border-sprout/40 transition-all group"
+        >
+          <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-xl shrink-0">
+            🏋️
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-forest-deep group-hover:text-sprout-dark transition-colors text-sm">Workout Presets</h2>
+            <p className="text-xs text-forest-deep/50 mt-0.5">M&amp;S programs with full plan preview</p>
+          </div>
+          <svg className="w-4 h-4 text-forest-deep/30 group-hover:text-sprout-dark transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </Link>
+      </div>
 
       {/* Community submissions */}
       <div className="flex items-center justify-between mb-4">

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 const sections = [
   {
     title: 'Acceptance of Terms',
-    body: 'By using Digital Vision Board, you agree to these terms. If you do not agree, please do not use the app.',
+    body: 'By using Habit Seeding, you agree to these terms. If you do not agree, please do not use the app.',
   },
   {
     title: 'Use of the App',
@@ -27,7 +27,7 @@ const sections = [
   },
   {
     title: 'Disclaimers',
-    body: 'The app is provided "as is" without warranties of any kind. Digital Vision Board is a productivity and wellness tool and is not a medical or emergency service.',
+    body: 'The app is provided "as is" without warranties of any kind. Habit Seeding is a productivity and wellness tool and is not a medical or emergency service.',
   },
   {
     title: 'Limitation of Liability',

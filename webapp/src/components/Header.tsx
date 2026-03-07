@@ -48,7 +48,7 @@ export default async function Header() {
               </Link>
               {isAdmin && (
                 <Link
-                  href="/admin/presets"
+                  href="/admin/contact"
                   className="text-sm text-sprout hover:text-sprout-light px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all"
                 >
                   Admin

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { backendServerFetch } from '@/lib/backend/server'
@@ -12,7 +13,10 @@ type ContactMessage = {
   id: number
   name: string
   email: string
+  subject: string
   message: string
+  kind: 'contact' | 'issue'
+  status: 'open' | 'in_progress' | 'resolved'
   createdAt: string | null
 }
 type ContactMessagesResponse = { ok: boolean; messages?: ContactMessage[] }
@@ -32,6 +36,22 @@ export default async function AdminContactPage() {
 
   const result = await backendServerFetch<ContactMessagesResponse>('/contact/messages?limit=200')
   const messages = result.messages ?? []
+
+  async function updateStatusAction(formData: FormData) {
+    'use server'
+
+    const id = Number(formData.get('id'))
+    const status = String(formData.get('status') ?? '').trim()
+    if (!Number.isFinite(id) || id <= 0) return
+    if (!['open', 'in_progress', 'resolved'].includes(status)) return
+
+    await backendServerFetch(`/contact/messages/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    revalidatePath('/admin/contact')
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
@@ -73,10 +93,34 @@ export default async function AdminContactPage() {
                   <a href={`mailto:${msg.email}`} className="text-sm text-sprout-dark hover:underline break-all">
                     {msg.email}
                   </a>
+                  {msg.subject ? <p className="text-xs text-forest-deep/60 mt-1">Subject: {msg.subject}</p> : null}
                 </div>
-                <time className="text-xs text-forest-deep/50 whitespace-nowrap">{formatDate(msg.createdAt)}</time>
+                <div className="text-right">
+                  <time className="text-xs text-forest-deep/50 whitespace-nowrap">{formatDate(msg.createdAt)}</time>
+                  <p className="text-xs text-forest-deep/50 mt-1 capitalize">{msg.kind.replace('_', ' ')}</p>
+                </div>
               </div>
               <p className="text-sm text-forest-deep/80 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+              {msg.kind === 'issue' ? (
+                <form action={updateStatusAction} className="mt-4 flex items-center gap-2">
+                  <input type="hidden" name="id" value={msg.id} />
+                  <select
+                    name="status"
+                    defaultValue={msg.status}
+                    className="text-sm rounded-lg border border-forest-deep/20 px-3 py-1.5 bg-white text-forest-deep"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                  <button
+                    type="submit"
+                    className="text-sm bg-forest-deep text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-forest-deep/90 transition-colors"
+                  >
+                    Update
+                  </button>
+                </form>
+              ) : null}
             </article>
           ))}
         </div>

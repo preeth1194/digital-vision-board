@@ -66,10 +66,26 @@ class CalorieStorageService {
     return updated;
   }
 
+  /// Adds a [FoodLogItem] to today's entry, accumulating its calories.
+  static Future<CalorieEntry> addFoodItem(
+    FoodLogItem item, {
+    SharedPreferences? prefs,
+  }) async {
+    final today = await loadToday(prefs: prefs);
+    final newCalories =
+        (today.calories + item.calories).clamp(0, today.goal * 3);
+    final updated = today.copyWith(
+      calories: newCalories,
+      foodItems: [...today.foodItems, item],
+    );
+    await save(updated, prefs: prefs);
+    return updated;
+  }
+
   /// Resets today's calorie count to 0.
   static Future<CalorieEntry> resetToday({SharedPreferences? prefs}) async {
     final today = await loadToday(prefs: prefs);
-    final updated = today.copyWith(calories: 0);
+    final updated = today.copyWith(calories: 0, foodItems: []);
     await save(updated, prefs: prefs);
     return updated;
   }

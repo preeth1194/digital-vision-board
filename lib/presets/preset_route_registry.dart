@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/action_step_template.dart';
 import '../screens/meal_prep/meal_prep_week_screen.dart';
 import '../screens/skincare/skincare_planner_screen.dart';
+import '../screens/workout/workout_preset_editor_screen.dart';
 import '../screens/workout/workout_preset_viewer_screen.dart';
 import 'models/preset_template_config.dart';
 import 'preset_template_adapter.dart';
@@ -124,7 +125,7 @@ class _WorkoutPresetTemplateAdapter extends PresetTemplateAdapter {
       icon: Icons.fitness_center_outlined,
       sections: [PresetTemplateSection.routinePreview],
       supportsAmPmSplit: false,
-      allowEdit: false,
+      allowEdit: true,
       allowCreateHabits: false,
       createButtonLabel: 'View Plan',
     );
@@ -134,13 +135,12 @@ class _WorkoutPresetTemplateAdapter extends PresetTemplateAdapter {
   Future<ActionStepTemplate?> openEditor(
     BuildContext context,
     ActionStepTemplate template,
-  ) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => WorkoutPresetViewerScreen(template: template),
+  ) {
+    return Navigator.of(context).push<ActionStepTemplate>(
+      MaterialPageRoute<ActionStepTemplate>(
+        builder: (_) => WorkoutPresetEditorScreen(template: template),
       ),
     );
-    return null;
   }
 
   @override

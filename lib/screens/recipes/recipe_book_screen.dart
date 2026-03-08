@@ -1004,6 +1004,16 @@ class _RecipeDetailScreen extends StatelessWidget {
                     ],
                   ),
 
+                  // Macros / Nutrition panel (if available)
+                  if (recipe.macros != null && !recipe.macros!.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    _DetailSection(
+                      icon: Icons.bar_chart_rounded,
+                      title: 'Nutrition (per serving)',
+                      child: _MacrosGrid(macros: recipe.macros!),
+                    ),
+                  ],
+
                   const SizedBox(height: 20),
 
                   // Ingredients
@@ -1174,7 +1184,105 @@ class _DetailSection extends StatelessWidget {
   }
 }
 
-// ── Recipe editor (unchanged logic, updated for new fields) ──────────────────
+// ── Macros grid display ───────────────────────────────────────────────────────
+
+class _MacrosGrid extends StatelessWidget {
+  final RecipeMacros macros;
+
+  const _MacrosGrid({required this.macros});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final items = [
+      if (macros.calories > 0)
+        _MacroTile(label: 'Calories', value: '${macros.calories.toInt()}', unit: 'kcal', color: const Color(0xFFFF7043)),
+      if (macros.proteinG > 0)
+        _MacroTile(label: 'Protein', value: macros.proteinG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF42A5F5)),
+      if (macros.carbsG > 0)
+        _MacroTile(label: 'Carbs', value: macros.carbsG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFFFCA28)),
+      if (macros.fatG > 0)
+        _MacroTile(label: 'Fat', value: macros.fatG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFEF5350)),
+      if (macros.fiberG > 0)
+        _MacroTile(label: 'Fiber', value: macros.fiberG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF66BB6A)),
+      if (macros.sodiumMg > 0)
+        _MacroTile(label: 'Sodium', value: macros.sodiumMg.toInt().toString(), unit: 'mg', color: cs.outline),
+      if (macros.sugarG > 0)
+        _MacroTile(label: 'Sugar', value: macros.sugarG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFAB47BC)),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items,
+    );
+  }
+}
+
+class _MacroTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+  final Color color;
+
+  const _MacroTile({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Recipe editor ─────────────────────────────────────────────────────────────
 
 class RecipeEditorScreen extends StatefulWidget {
   final Recipe? initial;
@@ -1197,6 +1305,17 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
   late final TextEditingController _servingsCtrl;
   late final TextEditingController _notesCtrl;
 
+  // Macro fields
+  late final TextEditingController _calCtrl;
+  late final TextEditingController _proteinCtrl;
+  late final TextEditingController _carbsCtrl;
+  late final TextEditingController _fatCtrl;
+  late final TextEditingController _fiberCtrl;
+  late final TextEditingController _sodiumCtrl;
+  late final TextEditingController _sugarCtrl;
+
+  bool _showMacros = false;
+
   @override
   void initState() {
     super.initState();
@@ -1217,6 +1336,24 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
     _servingsCtrl =
         TextEditingController(text: (r?.servings ?? 1).toString());
     _notesCtrl = TextEditingController(text: r?.notes ?? '');
+
+    final m = r?.macros;
+    _calCtrl = TextEditingController(
+        text: m != null && m.calories > 0 ? m.calories.toStringAsFixed(0) : '');
+    _proteinCtrl = TextEditingController(
+        text: m != null && m.proteinG > 0 ? m.proteinG.toStringAsFixed(1) : '');
+    _carbsCtrl = TextEditingController(
+        text: m != null && m.carbsG > 0 ? m.carbsG.toStringAsFixed(1) : '');
+    _fatCtrl = TextEditingController(
+        text: m != null && m.fatG > 0 ? m.fatG.toStringAsFixed(1) : '');
+    _fiberCtrl = TextEditingController(
+        text: m != null && m.fiberG > 0 ? m.fiberG.toStringAsFixed(1) : '');
+    _sodiumCtrl = TextEditingController(
+        text: m != null && m.sodiumMg > 0 ? m.sodiumMg.toStringAsFixed(0) : '');
+    _sugarCtrl = TextEditingController(
+        text: m != null && m.sugarG > 0 ? m.sugarG.toStringAsFixed(1) : '');
+
+    if (m != null && !m.isEmpty) _showMacros = true;
   }
 
   @override
@@ -1224,6 +1361,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
     for (final c in [
       _titleCtrl, _cuisineCtrl, _ingredientsCtrl, _stepsCtrl,
       _methodsCtrl, _dietCtrl, _prepCtrl, _cookCtrl, _servingsCtrl, _notesCtrl,
+      _calCtrl, _proteinCtrl, _carbsCtrl, _fatCtrl, _fiberCtrl, _sodiumCtrl, _sugarCtrl,
     ]) {
       c.dispose();
     }
@@ -1235,6 +1373,27 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
 
   List<String> _lines(String text) =>
       text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+  RecipeMacros? _buildMacros() {
+    if (!_showMacros) return null;
+    final cal = double.tryParse(_calCtrl.text.trim()) ?? 0;
+    final protein = double.tryParse(_proteinCtrl.text.trim()) ?? 0;
+    final carbs = double.tryParse(_carbsCtrl.text.trim()) ?? 0;
+    final fat = double.tryParse(_fatCtrl.text.trim()) ?? 0;
+    final fiber = double.tryParse(_fiberCtrl.text.trim()) ?? 0;
+    final sodium = double.tryParse(_sodiumCtrl.text.trim()) ?? 0;
+    final sugar = double.tryParse(_sugarCtrl.text.trim()) ?? 0;
+    if (cal == 0 && protein == 0 && carbs == 0 && fat == 0) return null;
+    return RecipeMacros(
+      calories: cal,
+      proteinG: protein,
+      carbsG: carbs,
+      fatG: fat,
+      fiberG: fiber,
+      sodiumMg: sodium,
+      sugarG: sugar,
+    );
+  }
 
   void _save() {
     final title = _titleCtrl.text.trim();
@@ -1256,12 +1415,14 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
         imageUrl: widget.initial?.imageUrl,
         linkedHabitIds: widget.initial?.linkedHabitIds ?? const [],
         updatedAtMs: now,
+        macros: _buildMacros(),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.initial == null ? 'New Recipe' : 'Edit Recipe'),
@@ -1303,6 +1464,64 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
             maxLines: 4,
             decoration: const InputDecoration(labelText: 'Notes'),
           ),
+          const SizedBox(height: 16),
+
+          // ── Macros section ─────────────────────────────────────────────
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _showMacros = !_showMacros),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 18, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _showMacros
+                          ? 'Nutrition / Macros (per serving)'
+                          : 'Add Nutrition / Macros (optional)',
+                      style: TextStyle(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _showMacros
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: cs.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_showMacros) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: _field(_calCtrl, 'Calories (kcal)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_proteinCtrl, 'Protein (g)', numeric: true)),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(child: _field(_carbsCtrl, 'Carbs (g)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_fatCtrl, 'Fat (g)', numeric: true)),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(child: _field(_fiberCtrl, 'Fiber (g)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_sugarCtrl, 'Sugar (g)', numeric: true)),
+              ],
+            ),
+            _field(_sodiumCtrl, 'Sodium (mg)', numeric: true),
+          ],
         ],
       ),
     );
@@ -1317,7 +1536,9 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: TextField(
         controller: ctrl,
-        keyboardType: numeric ? TextInputType.number : TextInputType.text,
+        keyboardType: numeric
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
         decoration: InputDecoration(labelText: label),
       ),
     );

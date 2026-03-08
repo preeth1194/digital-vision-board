@@ -39,6 +39,10 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import 'widget_guide_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'contact_us_screen.dart';
+import 'report_issue_screen.dart';
+import 'my_issues_screen.dart';
+import 'faq_screen.dart';
 import 'presets/preset_shop_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'earn_badges_screen.dart';
@@ -1323,6 +1327,60 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             ListTile(
               leading: Icon(
+                Icons.bug_report_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Report Issue',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReportIssueScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.mail_outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'Contact Us',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.assignment_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'My Issues',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MyIssuesScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
                 Icons.storefront_outlined,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -1336,6 +1394,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PresetShopScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.help_outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              title: Text(
+                'FAQ',
+                style: AppTypography.body(
+                  context,
+                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FaqScreen()),
                 );
               },
             ),

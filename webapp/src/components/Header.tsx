@@ -38,6 +38,12 @@ export default async function Header() {
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/faq"
+            className="text-sm text-mist/80 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all"
+          >
+            FAQ
+          </Link>
           {userLoggedIn ? (
             <>
               <Link

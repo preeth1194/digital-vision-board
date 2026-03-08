@@ -3,6 +3,7 @@ export const DEFAULT_SITE_URL = 'https://habitseeding.com'
 export const CRAWLABLE_PATHS = [
   '/',
   '/contact',
+  '/faq',
   '/privacy-policy',
   '/terms',
 ] as const

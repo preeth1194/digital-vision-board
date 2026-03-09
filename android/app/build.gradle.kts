@@ -45,6 +45,12 @@ tasks.named("preBuild").configure {
     dependsOn("cleanOldPackage")
 }
 
+configurations.configureEach {
+    // JitPack can intermittently fail (521). Use the vendored AAR below instead.
+    exclude(group = "com.github.Yalantis", module = "ucrop")
+    exclude(group = "com.github.yalantis", module = "ucrop")
+}
+
 android {
     namespace = "com.habitseeding.app"
     compileSdk = flutter.compileSdkVersion
@@ -122,5 +128,5 @@ flutter {
 dependencies {
     // Required by flutter_local_notifications (and other plugins) for Java 8+ library APIs on Android.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    
+    implementation(files("libs/ucrop-2.2.11.aar"))
 }

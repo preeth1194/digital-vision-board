@@ -140,13 +140,6 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                           AnimatedOpacity(
                             opacity: _isBookOpen ? 0.0 : 1.0,
                             duration: const Duration(milliseconds: 300),
-                            child: Text(
-                              'Here, your journal\ncomes to life',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.heading1(
-                                context,
-                              ).copyWith(height: 1.35),
-                            ),
                           ),
                           const SizedBox(height: 32),
                         ],

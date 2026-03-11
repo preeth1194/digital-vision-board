@@ -36,6 +36,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import 'settings_menu_screen.dart';
 import 'earn_badges_screen.dart';
+import 'presets/preset_shop_screen.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
 import '../models/vision_components.dart';
@@ -62,6 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _tabIndex = 1;
   bool _loading = true;
   bool _showHabitsCalendarMode = false;
+  DateTime _habitsSelectedDate = LogicalDateService.now();
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
   bool _checkedMandatoryLogin = false;
@@ -328,7 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       valueListenable: _coinNotifier,
       builder: (context, coins, _) {
         return GestureDetector(
-          onTap: _openEarnBadges,
+          onTap: _openPresetShop,
           behavior: HitTestBehavior.opaque,
           child: Row(
             key: _coinTargetKey,
@@ -639,6 +641,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openEarnBadges() async {
+    final allHabits = await _gatherAllHabits();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EarnBadgesScreen(
+          allHabits: allHabits,
+          totalCoins: _coinNotifier.value,
+          coinNotifier: _coinNotifier,
+        ),
+      ),
+    );
+  }
+
+  Future<List<HabitItem>> _gatherAllHabits() async {
     // Gather all habits from all boards (handles both freeform and grid layouts)
     final allHabits = <HabitItem>[];
     for (final board in _boards) {
@@ -674,13 +690,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         allHabits.addAll(comp.habits);
       }
     }
+    return allHabits;
+  }
+
+  Future<void> _openPresetShop() async {
+    final allHabits = await _gatherAllHabits();
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => EarnBadgesScreen(
-          allHabits: allHabits,
+        builder: (_) => PresetShopScreen(
           totalCoins: _coinNotifier.value,
           coinNotifier: _coinNotifier,
+          allHabits: allHabits,
         ),
       ),
     );
@@ -792,6 +813,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _addHabitFromPanel({bool timerEnabled = false}) async {
     _hideCreatePanel();
+    if (_isPastHabitsCalendarSelection()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
 
     final habits = await HabitStorageService.loadAll(prefs: _prefs);
     if (!mounted) return;
@@ -873,6 +898,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     await HabitStorageService.addHabit(newHabit, prefs: _prefs);
     _boardDataVersion.value++;
+  }
+
+  bool _isPastHabitsCalendarSelection() {
+    if (_tabIndex != 7 || !_showHabitsCalendarMode) return false;
+    final selected = DateTime(
+      _habitsSelectedDate.year,
+      _habitsSelectedDate.month,
+      _habitsSelectedDate.day,
+    );
+    final now = LogicalDateService.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return selected.isBefore(today);
+  }
+
+  void _showPastDateCreationBlockedMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You can only create habits for today or future dates.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _onTemplatePicked(String layoutType) async {
@@ -1047,6 +1093,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       showHabitsCalendarMode: _showHabitsCalendarMode,
       onHabitsCalendarModeChanged: (value) {
         setState(() => _showHabitsCalendarMode = value);
+      },
+      onHabitsSelectedDateChanged: (date) {
+        setState(() {
+          _habitsSelectedDate = DateTime(date.year, date.month, date.day);
+        });
       },
       onCreateBoard: _toggleCreatePanel,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),

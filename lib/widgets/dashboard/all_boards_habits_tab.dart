@@ -49,6 +49,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
   final VoidCallback? onSwitchToRoutine;
   final bool showCalendarMode;
   final ValueChanged<bool>? onCalendarModeChanged;
+  final ValueChanged<DateTime>? onSelectedCalendarDateChanged;
 
   const AllBoardsHabitsTab({
     super.key,
@@ -60,6 +61,7 @@ class AllBoardsHabitsTab extends StatefulWidget {
     this.onSwitchToRoutine,
     this.showCalendarMode = false,
     this.onCalendarModeChanged,
+    this.onSelectedCalendarDateChanged,
   });
 
   @override
@@ -164,6 +166,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _addHabitGlobal() async {
+    if (_isPastSelectedCalendarDate()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
     // Gate: non-subscribed users with 3+ habits must watch ads first
     if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
       // Session already complete — let user proceed to add the habit
@@ -205,6 +211,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _proceedToAddHabit() async {
+    if (_isPastSelectedCalendarDate()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
     final req = await showAddHabitModal(context, existingHabits: _habits);
     if (req == null || !mounted) return;
 
@@ -632,6 +642,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   void _handleTimelineSlotTap(int minutesFromMidnight) {
+    if (_isPastSelectedCalendarDate()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
     final currentCount = _habits.length;
     if (currentCount >= _freeHabitLimit && _shouldShowAds) {
       if (_activeAdSession == null) {
@@ -667,6 +681,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _openAddHabitAtTime(TimeOfDay time) async {
+    if (_isPastSelectedCalendarDate()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
     final req = await showAddHabitModal(
       context,
       existingHabits: _habits,
@@ -942,6 +960,26 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     }
   }
 
+  bool _isHabitVisibleOnDate(HabitItem habit, DateTime date) {
+    final selectedDay = DateTime(date.year, date.month, date.day);
+    final createdAt = _inferHabitCreatedAt(habit);
+    if (createdAt == null) return true;
+    final createdDay = DateTime(createdAt.year, createdAt.month, createdAt.day);
+    return !selectedDay.isBefore(createdDay);
+  }
+
+  DateTime? _inferHabitCreatedAt(HabitItem habit) {
+    final direct = int.tryParse(habit.id);
+    if (direct != null && direct > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(direct);
+    }
+    final match = RegExp(r'(\d{13})').firstMatch(habit.id);
+    if (match == null) return null;
+    final parsed = int.tryParse(match.group(1)!);
+    if (parsed == null || parsed <= 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(parsed);
+  }
+
   String _filterLabel(_HabitQuickFilter filter) {
     switch (filter) {
       case _HabitQuickFilter.all:
@@ -1126,9 +1164,31 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   void _setSelectedCalendarDate(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
     setState(() {
-      _selectedCalendarDate = DateTime(date.year, date.month, date.day);
+      _selectedCalendarDate = normalized;
     });
+    widget.onSelectedCalendarDateChanged?.call(normalized);
+  }
+
+  bool _isPastSelectedCalendarDate() {
+    final selected = DateTime(
+      _selectedCalendarDate.year,
+      _selectedCalendarDate.month,
+      _selectedCalendarDate.day,
+    );
+    final now = LogicalDateService.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return selected.isBefore(today);
+  }
+
+  void _showPastDateCreationBlockedMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You can only create habits for today or future dates.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _openCalendarDatePicker() async {
@@ -1156,34 +1216,28 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final monthText = DateFormat('MMMM yyyy').format(selected);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.36),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.58),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.9),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.16)
+                : Colors.white.withValues(alpha: 0.95),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     children: [
                       InkWell(
                         onTap: _openCalendarDatePicker,
-                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -1193,7 +1247,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                             color: isDark
                                 ? Colors.white.withValues(alpha: 0.08)
                                 : Colors.white.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isDark
                                   ? Colors.white.withValues(alpha: 0.14)
@@ -1250,9 +1303,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                     today: today,
                   ),
                 ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -1604,52 +1655,46 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.07)
-                        : Colors.white.withValues(alpha: 0.34),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.5),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.white.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.14)
+                      : Colors.white.withValues(alpha: 0.96),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.drag_indicator_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      habit.name,
+                      style: AppTypography.bodySmall(context).copyWith(
+                        fontWeight: FontWeight.w600,
+                        decoration: isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.drag_indicator_rounded,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          habit.name,
-                          style: AppTypography.bodySmall(context).copyWith(
-                            fontWeight: FontWeight.w600,
-                            decoration: isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Flexible',
-                        style: AppTypography.caption(
-                          context,
-                        ).copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'Flexible',
+                    style: AppTypography.caption(
+                      context,
+                    ).copyWith(color: colorScheme.onSurfaceVariant),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -1686,25 +1731,21 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
               .toInt();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.38),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.55),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.16)
+                : Colors.white.withValues(alpha: 0.95),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
                   child: Row(
@@ -1788,9 +1829,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -2236,6 +2275,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final visibleHabits = allHabits
         .where(_matchesQuery)
         .where((e) => _matchesFilter(e, filterDate))
+        .where((e) => _isHabitVisibleOnDate(e.habit, filterDate))
         .toList();
     final hasActiveSearchOrFilter =
         _searchQuery.trim().isNotEmpty ||
@@ -2272,8 +2312,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _PinnedBoxHeaderDelegate(
-                  minExtentValue: MediaQuery.of(context).viewPadding.top + 6,
-                  maxExtentValue: MediaQuery.of(context).viewPadding.top + 6,
+                  minExtentValue: MediaQuery.of(context).viewPadding.top,
+                  maxExtentValue: MediaQuery.of(context).viewPadding.top,
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor,
                   ),
@@ -2683,14 +2723,13 @@ class _MonthWeekRow extends StatelessWidget {
         return Expanded(
           child: InkWell(
             onTap: inMonth ? () => onDateSelected(date) : null,
-            borderRadius: BorderRadius.circular(12),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: EdgeInsets.symmetric(vertical: isSelected ? 7 : 5),
+              constraints: BoxConstraints(minHeight: isSelected ? 40 : 36),
               decoration: BoxDecoration(
                 color: isSelected ? colorScheme.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
                 border: isToday && !isSelected
                     ? Border.all(color: colorScheme.primary, width: 1.6)
                     : null,
@@ -2703,17 +2742,19 @@ class _MonthWeekRow extends StatelessWidget {
                     style: AppTypography.caption(context).copyWith(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
+                      height: 1,
                       color: isSelected
                           ? colorScheme.onPrimary.withValues(alpha: 0.86)
                           : colorScheme.onSurfaceVariant
                                 .withValues(alpha: inMonth ? 1 : 0.55),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     '${date.day}',
                     style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w700,
+                      height: 1,
                       color: isSelected ? colorScheme.onPrimary : textColor,
                     ),
                   ),

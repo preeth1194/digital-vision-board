@@ -228,10 +228,8 @@ class _Step6StrategyState extends State<Step6Strategy> {
   @override
   void didUpdateWidget(covariant Step6Strategy oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.actionSteps != oldWidget.actionSteps &&
-        !_plannerMode &&
-        _hasPlannerMetadata(widget.actionSteps)) {
-      _plannerMode = true;
+    if (widget.actionSteps != oldWidget.actionSteps) {
+      _plannerMode = _hasPlannerMetadata(widget.actionSteps);
     }
     if (widget.anchorHabitText != oldWidget.anchorHabitText &&
         widget.anchorHabitText != _searchController.text) {
@@ -401,53 +399,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlanningModeToggle() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: CupertinoSlidingSegmentedControl<bool>(
-        groupValue: _plannerMode,
-        children: const {
-          false: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Simple Steps'),
-          ),
-          true: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Planner Mode'),
-          ),
-        },
-        onValueChanged: (value) {
-          if (value == null) return;
-          setState(() {
-            _plannerMode = value;
-          });
-          final steps = List<HabitActionStep>.from(widget.actionSteps);
-          var changed = false;
-          for (var i = 0; i < steps.length; i++) {
-            if (!value && steps[i].hasPlannerSchedule) {
-              steps[i] = steps[i].copyWith(
-                clearPlannerWeek: true,
-                clearPlannerDay: true,
-              );
-              changed = true;
-              continue;
-            }
-            if (value && !steps[i].hasPlannerSchedule) {
-              steps[i] = steps[i].copyWith(
-                plannerWeek: _selectedPlannerWeek,
-                plannerDay: _plannerDayKey(_selectedPlannerDay),
-              );
-              changed = true;
-            }
-          }
-          if (changed) {
-            widget.onActionStepsChanged(steps);
-          }
-        },
       ),
     );
   }
@@ -653,7 +604,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
           onTap: null,
         ),
         if (widget.actionStepsEnabled) ...[
-          _buildPlanningModeToggle(),
           if (_plannerMode) _buildPlannerBucketSelector(),
           _buildStepOptionsRow(colorScheme),
           if (!_plannerMode && widget.actionSteps.isNotEmpty)

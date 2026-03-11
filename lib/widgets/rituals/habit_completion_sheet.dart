@@ -23,6 +23,8 @@ class HabitCompletionResult {
   final String? audioPath;
   final List<String> imagePaths;
   final double? trackingValue;
+  final Map<String, int> stepSetsById;
+  final Map<String, int> stepRepsById;
 
   const HabitCompletionResult({
     required this.coinsEarned,
@@ -32,6 +34,8 @@ class HabitCompletionResult {
     this.audioPath,
     this.imagePaths = const [],
     this.trackingValue,
+    this.stepSetsById = const {},
+    this.stepRepsById = const {},
   });
 }
 
@@ -137,6 +141,8 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _trackingController = TextEditingController();
   final Set<String> _completedStepIds = {};
+  final Map<String, TextEditingController> _stepSetsControllers = {};
+  final Map<String, TextEditingController> _stepRepsControllers = {};
   String? _audioPath;
   final List<String> _imagePaths = [];
 
@@ -148,6 +154,10 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
 
   List<HabitActionStep> get _activeSteps =>
       widget.habit.activeActionStepsForDate(DateTime.now());
+
+  bool get _showPresetStepReps {
+    return (widget.habit.templateId ?? '').trim().isNotEmpty && _showSteps;
+  }
 
   int get _totalCoins {
     final stepBonus = CoinsService.calculateStepBonus(
@@ -166,13 +176,55 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
     _completedStepIds.addAll(
       widget.preSelectedStepIds.where((id) => activeIds.contains(id)),
     );
+    if (_showPresetStepReps) {
+      for (final step in _activeSteps) {
+        final defaults = _presetSetsAndReps(step);
+        _stepSetsControllers.putIfAbsent(
+          step.id,
+          () => TextEditingController(text: defaults.$1),
+        );
+        _stepRepsControllers.putIfAbsent(
+          step.id,
+          () => TextEditingController(text: defaults.$2),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
     _noteController.dispose();
     _trackingController.dispose();
+    for (final controller in _stepSetsControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _stepRepsControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _onStepSetsChanged(String stepId, String value) {
+    if (!_showPresetStepReps) return;
+    _stepSetsControllers.putIfAbsent(stepId, TextEditingController.new);
+  }
+
+  void _onStepRepsChanged(String stepId, String value) {
+    if (!_showPresetStepReps) return;
+    _stepRepsControllers.putIfAbsent(stepId, TextEditingController.new);
+  }
+
+  (String, String) _presetSetsAndReps(HabitActionStep step) {
+    final label = (step.stepLabel ?? '').trim();
+    if (label.isEmpty) return ('', '');
+    final compact = label.toLowerCase().replaceAll(' ', '');
+    final exact = RegExp(r'(\d+)[x×](\d+)').firstMatch(compact);
+    if (exact != null) {
+      return (exact.group(1) ?? '', exact.group(2) ?? '');
+    }
+    final setsOnly = RegExp(r'^(\d+)').firstMatch(compact)?.group(1) ?? '';
+    final repsOnly = RegExp(r'[x×](\d+)').firstMatch(compact)?.group(1) ?? '';
+    return (setsOnly, repsOnly);
   }
 
   void _selectMood(int mood) {
@@ -240,6 +292,38 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
     final trackingText = _trackingController.text.trim();
     final trackingVal =
         trackingText.isNotEmpty ? double.tryParse(trackingText) : null;
+    final stepSetsById = <String, int>{};
+    final stepRepsById = <String, int>{};
+    if (_showPresetStepReps) {
+      for (final step in _activeSteps) {
+        if (!_completedStepIds.contains(step.id)) continue;
+        final setsRaw = _stepSetsControllers[step.id]?.text.trim() ?? '';
+        final raw = _stepRepsControllers[step.id]?.text.trim() ?? '';
+        if (setsRaw.isNotEmpty) {
+          final sets = int.tryParse(setsRaw);
+          if (sets == null || sets <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Enter sets as a positive number.'),
+              ),
+            );
+            return;
+          }
+          stepSetsById[step.id] = sets;
+        }
+        if (raw.isEmpty) continue;
+        final reps = int.tryParse(raw);
+        if (reps == null || reps <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Enter reps as a positive number.'),
+            ),
+          );
+          return;
+        }
+        stepRepsById[step.id] = reps;
+      }
+    }
 
     Navigator.of(context).pop(HabitCompletionResult(
       coinsEarned: _totalCoins,
@@ -249,6 +333,8 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
       audioPath: _audioPath,
       imagePaths: List.unmodifiable(_imagePaths),
       trackingValue: trackingVal,
+      stepSetsById: stepSetsById,
+      stepRepsById: stepRepsById,
     ));
   }
 
@@ -308,6 +394,11 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
               steps: _activeSteps,
               completedIds: _completedStepIds,
               onToggle: _toggleStep,
+              showRepsInput: _showPresetStepReps,
+              setsControllers: _stepSetsControllers,
+              repsControllers: _stepRepsControllers,
+              onSetsChanged: _onStepSetsChanged,
+              onRepsChanged: _onStepRepsChanged,
             ),
           ],
 
@@ -536,11 +627,21 @@ class _ActionStepsChecklist extends StatelessWidget {
   final List<HabitActionStep> steps;
   final Set<String> completedIds;
   final ValueChanged<String> onToggle;
+  final bool showRepsInput;
+  final Map<String, TextEditingController> setsControllers;
+  final Map<String, TextEditingController> repsControllers;
+  final void Function(String stepId, String value) onSetsChanged;
+  final void Function(String stepId, String value) onRepsChanged;
 
   const _ActionStepsChecklist({
     required this.steps,
     required this.completedIds,
     required this.onToggle,
+    required this.showRepsInput,
+    required this.setsControllers,
+    required this.repsControllers,
+    required this.onSetsChanged,
+    required this.onRepsChanged,
   });
 
   @override
@@ -568,6 +669,17 @@ class _ActionStepsChecklist extends StatelessWidget {
               step: step,
               isChecked: isChecked,
               onTap: () => onToggle(step.id),
+              showRepsInput: showRepsInput,
+              setsController: setsControllers.putIfAbsent(
+                step.id,
+                TextEditingController.new,
+              ),
+              repsController: repsControllers.putIfAbsent(
+                step.id,
+                TextEditingController.new,
+              ),
+              onSetsChanged: (value) => onSetsChanged(step.id, value),
+              onRepsChanged: (value) => onRepsChanged(step.id, value),
             );
           },
         ),
@@ -580,11 +692,21 @@ class _StepTile extends StatelessWidget {
   final HabitActionStep step;
   final bool isChecked;
   final VoidCallback onTap;
+  final bool showRepsInput;
+  final TextEditingController setsController;
+  final TextEditingController repsController;
+  final ValueChanged<String> onSetsChanged;
+  final ValueChanged<String> onRepsChanged;
 
   const _StepTile({
     required this.step,
     required this.isChecked,
     required this.onTap,
+    required this.showRepsInput,
+    required this.setsController,
+    required this.repsController,
+    required this.onSetsChanged,
+    required this.onRepsChanged,
   });
 
   @override
@@ -635,6 +757,67 @@ class _StepTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (showRepsInput) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 132,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: setsController,
+                        onChanged: onSetsChanged,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
+                        ],
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          labelText: 'Sets',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          hintText: '0',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 6,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextField(
+                        controller: repsController,
+                        onChanged: onRepsChanged,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(4),
+                        ],
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          labelText: 'Reps',
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          hintText: '0',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 6,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

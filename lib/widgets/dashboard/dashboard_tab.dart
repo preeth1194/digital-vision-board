@@ -4,12 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
 import 'affirmation_summary_card.dart';
+import 'calorie_tracker_card.dart';
 import 'challenge_progress_card.dart';
 import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
 import 'mood_tracker_card.dart';
 import 'vision_board_summary_card.dart';
+import 'water_intake_card.dart';
 
 class DashboardTab extends StatelessWidget {
   static const bool _showManifestCard = false;
@@ -106,6 +108,21 @@ class DashboardTab extends StatelessWidget {
                       ],
                     )
                   : const PuzzleSummaryCard(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Row 3: Water | Calories
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: const [
+                  Expanded(child: WaterIntakeCard()),
+                  SizedBox(width: 12),
+                  Expanded(child: CalorieTrackerCard()),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),

@@ -169,6 +169,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       List<HabitActionStep>? structuredSteps,
       required String setKey,
       Map<String, dynamic> metadata = const {},
+      int schemaVersion = 1,
     }) {
       final resolvedSteps =
           structuredSteps ??
@@ -185,7 +186,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         id: id,
         name: name,
         category: category,
-        schemaVersion: 1,
+        schemaVersion: schemaVersion,
         templateVersion: 1,
         setKey: setKey,
         isOfficial: true,
@@ -327,28 +328,527 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       ),
       t(
         id: 'default_set_beginner_workout',
-        name: 'Beginner Full Body Split',
+        name: 'Start from Scratch – 6 Week Full Body',
         category: ActionTemplateCategory.workout,
         habitCategory: 'Fitness',
         setKey: 'default_set_beginner',
-        steps: [
-          'Warm-up',
-          'Compound lift',
-          'Accessory work',
-          'Cooldown stretch',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Build Muscle & Strength',
+          'level': 'Beginner',
+          'durationWeeks': 6,
+          'daysPerWeek': 4,
+          'schedule': 'Mon / Tue / Thu / Fri',
+          'split': 'Full Body – Workout A + B alternating',
+          'timePerSession': '45–60 min',
+          'equipment': ['Barbell', 'Dumbbell', 'Cable Machine', 'Bench', 'Machine'],
+          'note':
+              'Two alternating full-body workouts. Use a 2-second tempo (up and down) on all reps. Warm-up sets required on marked exercises.',
+        },
+        structuredSteps: [
+          // Workout A – Mon & Thu
+          HabitActionStep(
+            id: 'w-a1', title: 'Barbell Bench Press',
+            iconCodePoint: 58728, order: 0,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 8–10',
+            productType: 'Chest', productName: 'Barbell',
+            notes: 'Warm-up set required. 2 sec up, 2 sec down.',
+          ),
+          HabitActionStep(
+            id: 'w-a2', title: 'Incline Dumbbell Press',
+            iconCodePoint: 58728, order: 1,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 10',
+            productType: 'Chest', productName: 'Dumbbell', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-a3', title: 'Bent-Over Barbell Row',
+            iconCodePoint: 58728, order: 2,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 8–10',
+            productType: 'Back', productName: 'Barbell',
+            notes: 'Keep back flat and neutral throughout',
+          ),
+          HabitActionStep(
+            id: 'w-a4', title: 'Lat Pulldown',
+            iconCodePoint: 58728, order: 3,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 10',
+            productType: 'Back', productName: 'Cable Machine', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-a5', title: 'Barbell Overhead Press',
+            iconCodePoint: 58728, order: 4,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 8–10',
+            productType: 'Shoulders', productName: 'Barbell',
+            notes: 'Press in a straight line overhead',
+          ),
+          HabitActionStep(
+            id: 'w-a6', title: 'Dumbbell Curl',
+            iconCodePoint: 58728, order: 5,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 10',
+            productType: 'Biceps', productName: 'Dumbbell', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-a7', title: 'Tricep Rope Pushdown',
+            iconCodePoint: 58728, order: 6,
+            plannerDay: 'Workout A – Mon & Thu', stepLabel: '2 × 10',
+            productType: 'Triceps', productName: 'Cable Machine', notes: '',
+          ),
+          // Workout B – Tue & Fri
+          HabitActionStep(
+            id: 'w-b1', title: 'Barbell Back Squat',
+            iconCodePoint: 58728, order: 7,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 10–12',
+            productType: 'Legs', productName: 'Barbell',
+            notes: 'Warm-up set required. Sit back, keep chest up.',
+          ),
+          HabitActionStep(
+            id: 'w-b2', title: 'Romanian Deadlift',
+            iconCodePoint: 58728, order: 8,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 10–12',
+            productType: 'Hamstrings', productName: 'Barbell',
+            notes: 'Feel the stretch at the bottom',
+          ),
+          HabitActionStep(
+            id: 'w-b3', title: 'Leg Press',
+            iconCodePoint: 58728, order: 9,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 12',
+            productType: 'Legs', productName: 'Machine', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-b4', title: 'Leg Curl',
+            iconCodePoint: 58728, order: 10,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 12',
+            productType: 'Hamstrings', productName: 'Machine', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-b5', title: 'Standing Calf Raise',
+            iconCodePoint: 58728, order: 11,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 15',
+            productType: 'Calves', productName: 'Machine', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-b6', title: 'Plank',
+            iconCodePoint: 58728, order: 12,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 30 sec',
+            productType: 'Core', productName: 'Bodyweight', notes: '',
+          ),
+          HabitActionStep(
+            id: 'w-b7', title: 'Crunches',
+            iconCodePoint: 58728, order: 13,
+            plannerDay: 'Workout B – Tue & Fri', stepLabel: '2 × 15–20',
+            productType: 'Core', productName: 'Bodyweight', notes: '',
+          ),
         ],
       ),
       t(
         id: 'default_set_structured_workout',
-        name: 'Structured Muscle Group Split',
+        name: '8-Week Mass Building Hypertrophy',
         category: ActionTemplateCategory.workout,
         habitCategory: 'Fitness',
         setKey: 'default_set_structured',
-        steps: [
-          'Primary muscle focus',
-          'Secondary muscle focus',
-          'Core finisher',
-          'Mobility',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Build Mass & Hypertrophy',
+          'level': 'Intermediate',
+          'durationWeeks': 8,
+          'daysPerWeek': 4,
+          'schedule': 'Mon / Tue / Thu / Fri',
+          'split': 'Chest & Delts / Back / Arms / Legs',
+          'timePerSession': '60–75 min',
+          'equipment': ['Barbell', 'Dumbbell', 'Cable Machine', 'Machine'],
+          'note':
+              'Uses Rest-Pause, Drop Sets, and Slow Negatives on final sets to maximise hypertrophy stimulus.',
+        },
+        structuredSteps: [
+          // Workout 1 – Mon
+          HabitActionStep(
+            id: 'h-1a', title: 'Incline Barbell Bench Press',
+            iconCodePoint: 58728, order: 0,
+            plannerDay: 'Workout 1 – Mon (Chest & Side Delts)',
+            stepLabel: '3 × 12, 10, 12*',
+            productType: 'Chest', productName: 'Barbell',
+            notes: '*Rest-Pause Set on final set',
+          ),
+          HabitActionStep(
+            id: 'h-1b', title: 'Flat Dumbbell Bench Press',
+            iconCodePoint: 58728, order: 1,
+            plannerDay: 'Workout 1 – Mon (Chest & Side Delts)',
+            stepLabel: '3 × 12, 10, 15+',
+            productType: 'Chest', productName: 'Dumbbell',
+            notes: '+Drop Set on final set',
+          ),
+          HabitActionStep(
+            id: 'h-1c', title: 'Cable Crossover',
+            iconCodePoint: 58728, order: 2,
+            plannerDay: 'Workout 1 – Mon (Chest & Side Delts)',
+            stepLabel: '3 × 12, 12, 12^',
+            productType: 'Chest', productName: 'Cable Machine',
+            notes: '^3–5 sec negatives on final set',
+          ),
+          HabitActionStep(
+            id: 'h-1d', title: 'Seated Lateral Raise',
+            iconCodePoint: 58728, order: 3,
+            plannerDay: 'Workout 1 – Mon (Chest & Side Delts)',
+            stepLabel: '3 × 12',
+            productType: 'Side Delts', productName: 'Dumbbell', notes: '',
+          ),
+          HabitActionStep(
+            id: 'h-1e', title: 'Cable Lateral Raise',
+            iconCodePoint: 58728, order: 4,
+            plannerDay: 'Workout 1 – Mon (Chest & Side Delts)',
+            stepLabel: '3 × 12',
+            productType: 'Side Delts', productName: 'Cable Machine', notes: '',
+          ),
+          // Workout 2 – Tue
+          HabitActionStep(
+            id: 'h-2a', title: 'Bent-Over Barbell Row',
+            iconCodePoint: 58728, order: 5,
+            plannerDay: 'Workout 2 – Tue (Back & Rear Delts)',
+            stepLabel: '3 × 12, 10, 12*',
+            productType: 'Back', productName: 'Barbell',
+            notes: '*Rest-Pause Set',
+          ),
+          HabitActionStep(
+            id: 'h-2b', title: 'Dumbbell Pullover',
+            iconCodePoint: 58728, order: 6,
+            plannerDay: 'Workout 2 – Tue (Back & Rear Delts)',
+            stepLabel: '3 × 12, 10, 15+',
+            productType: 'Back', productName: 'Dumbbell',
+            notes: '+Drop Set',
+          ),
+          HabitActionStep(
+            id: 'h-2c', title: 'Seated Cable Row',
+            iconCodePoint: 58728, order: 7,
+            plannerDay: 'Workout 2 – Tue (Back & Rear Delts)',
+            stepLabel: '3 × 12, 12, 12^',
+            productType: 'Back', productName: 'Cable Machine',
+            notes: '^Slow negatives on final set',
+          ),
+          HabitActionStep(
+            id: 'h-2d', title: 'Reverse Pec Deck',
+            iconCodePoint: 58728, order: 8,
+            plannerDay: 'Workout 2 – Tue (Back & Rear Delts)',
+            stepLabel: '3 × 12',
+            productType: 'Rear Delts', productName: 'Machine', notes: '',
+          ),
+          // Workout 3 – Thu
+          HabitActionStep(
+            id: 'h-3a', title: 'EZ Bar Curl',
+            iconCodePoint: 58728, order: 9,
+            plannerDay: 'Workout 3 – Thu (Arms)',
+            stepLabel: '3 × 12, 10, 12*',
+            productType: 'Biceps', productName: 'EZ Bar',
+            notes: '*Rest-Pause Set',
+          ),
+          HabitActionStep(
+            id: 'h-3b', title: 'Hammer Curl',
+            iconCodePoint: 58728, order: 10,
+            plannerDay: 'Workout 3 – Thu (Arms)',
+            stepLabel: '3 × 12',
+            productType: 'Biceps', productName: 'Dumbbell', notes: '',
+          ),
+          HabitActionStep(
+            id: 'h-3c', title: 'Skull Crushers',
+            iconCodePoint: 58728, order: 11,
+            plannerDay: 'Workout 3 – Thu (Arms)',
+            stepLabel: '3 × 12, 10, 15+',
+            productType: 'Triceps', productName: 'EZ Bar',
+            notes: '+Drop Set on final set',
+          ),
+          HabitActionStep(
+            id: 'h-3d', title: 'Cable Tricep Pushdown',
+            iconCodePoint: 58728, order: 12,
+            plannerDay: 'Workout 3 – Thu (Arms)',
+            stepLabel: '3 × 12',
+            productType: 'Triceps', productName: 'Cable Machine', notes: '',
+          ),
+          // Workout 4 – Fri
+          HabitActionStep(
+            id: 'h-4a', title: 'Barbell Back Squat',
+            iconCodePoint: 58728, order: 13,
+            plannerDay: 'Workout 4 – Fri (Legs)',
+            stepLabel: '3 × 12, 10, 12*',
+            productType: 'Quads', productName: 'Barbell',
+            notes: '*Rest-Pause Set',
+          ),
+          HabitActionStep(
+            id: 'h-4b', title: 'Romanian Deadlift',
+            iconCodePoint: 58728, order: 14,
+            plannerDay: 'Workout 4 – Fri (Legs)',
+            stepLabel: '3 × 12',
+            productType: 'Hamstrings', productName: 'Barbell', notes: '',
+          ),
+          HabitActionStep(
+            id: 'h-4c', title: 'Leg Extension',
+            iconCodePoint: 58728, order: 15,
+            plannerDay: 'Workout 4 – Fri (Legs)',
+            stepLabel: '3 × 12, 12, 15+',
+            productType: 'Quads', productName: 'Machine',
+            notes: '+Drop Set on final set',
+          ),
+          HabitActionStep(
+            id: 'h-4d', title: 'Seated Leg Curl',
+            iconCodePoint: 58728, order: 16,
+            plannerDay: 'Workout 4 – Fri (Legs)',
+            stepLabel: '3 × 12',
+            productType: 'Hamstrings', productName: 'Machine', notes: '',
+          ),
+          HabitActionStep(
+            id: 'h-4e', title: 'Standing Calf Raise',
+            iconCodePoint: 58728, order: 17,
+            plannerDay: 'Workout 4 – Fri (Legs)',
+            stepLabel: '4 × 12',
+            productType: 'Calves', productName: 'Machine', notes: '',
+          ),
+        ],
+      ),
+      // ── 3: No-Equipment Home Workout ─────────────────────────────────────
+      t(
+        id: 'default_home_bodyweight_workout',
+        name: 'No-Equipment Home HIIT – 4 Week',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Fitness',
+        setKey: 'default_set_home',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Fat Loss & Conditioning',
+          'level': 'Beginner–Intermediate',
+          'durationWeeks': 4,
+          'daysPerWeek': 3,
+          'schedule': 'Mon / Wed / Fri',
+          'split': 'Full-Body HIIT Circuits',
+          'timePerSession': '30 min',
+          'equipment': ['Bodyweight'],
+          'note': 'Work 40 sec / Rest 20 sec per exercise. Complete 3 rounds.',
+        },
+        structuredSteps: [
+          HabitActionStep(
+            id: 'hw-1', title: 'Jumping Jacks',
+            iconCodePoint: 58728, order: 0,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Cardio', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-2', title: 'Push-Ups',
+            iconCodePoint: 58728, order: 1,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Chest', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec — modify on knees if needed',
+          ),
+          HabitActionStep(
+            id: 'hw-3', title: 'Bodyweight Squat',
+            iconCodePoint: 58728, order: 2,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Legs', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-4', title: 'Mountain Climbers',
+            iconCodePoint: 58728, order: 3,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Core', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-5', title: 'Glute Bridges',
+            iconCodePoint: 58728, order: 4,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Glutes', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec — squeeze at the top',
+          ),
+          HabitActionStep(
+            id: 'hw-6', title: 'Plank Hold',
+            iconCodePoint: 58728, order: 5,
+            plannerDay: 'Circuit A – Mon',
+            stepLabel: '3 × 40 sec',
+            productType: 'Core', productName: 'Bodyweight',
+            notes: 'Rest: 60 sec between rounds',
+          ),
+          HabitActionStep(
+            id: 'hw-7', title: 'Burpees',
+            iconCodePoint: 58728, order: 6,
+            plannerDay: 'Circuit B – Wed',
+            stepLabel: '3 × 40 sec',
+            productType: 'Full Body', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-8', title: 'Reverse Lunges',
+            iconCodePoint: 58728, order: 7,
+            plannerDay: 'Circuit B – Wed',
+            stepLabel: '3 × 40 sec',
+            productType: 'Legs', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec — alternate legs',
+          ),
+          HabitActionStep(
+            id: 'hw-9', title: 'Superman Hold',
+            iconCodePoint: 58728, order: 8,
+            plannerDay: 'Circuit B – Wed',
+            stepLabel: '3 × 40 sec',
+            productType: 'Lower Back', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-10', title: 'Tricep Dips (Chair)',
+            iconCodePoint: 58728, order: 9,
+            plannerDay: 'Circuit B – Wed',
+            stepLabel: '3 × 40 sec',
+            productType: 'Triceps', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-11', title: 'High Knees',
+            iconCodePoint: 58728, order: 10,
+            plannerDay: 'Circuit C – Fri',
+            stepLabel: '3 × 40 sec',
+            productType: 'Cardio', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-12', title: 'Jump Squats',
+            iconCodePoint: 58728, order: 11,
+            plannerDay: 'Circuit C – Fri',
+            stepLabel: '3 × 40 sec',
+            productType: 'Legs', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-13', title: 'Side Plank (each side)',
+            iconCodePoint: 58728, order: 12,
+            plannerDay: 'Circuit C – Fri',
+            stepLabel: '3 × 20 sec',
+            productType: 'Core', productName: 'Bodyweight',
+            notes: 'Rest: 20 sec',
+          ),
+          HabitActionStep(
+            id: 'hw-14', title: 'Diamond Push-Ups',
+            iconCodePoint: 58728, order: 13,
+            plannerDay: 'Circuit C – Fri',
+            stepLabel: '3 × 40 sec',
+            productType: 'Triceps', productName: 'Bodyweight',
+            notes: 'Rest: 60 sec between rounds',
+          ),
+        ],
+      ),
+      // ── 4: Strength + Cardio PPL Split ─────────────────────────────────
+      t(
+        id: 'default_ppl_strength_workout',
+        name: 'Push / Pull / Legs – 6 Day Split',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Fitness',
+        setKey: 'default_set_ppl',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Strength & Size',
+          'level': 'Intermediate',
+          'durationWeeks': 10,
+          'daysPerWeek': 6,
+          'schedule': 'Mon–Sat',
+          'split': 'Push / Pull / Legs × 2 per week',
+          'timePerSession': '60–75 min',
+          'equipment': ['Barbell', 'Dumbbell', 'Cable Machine', 'Machine'],
+          'note': 'Rest 2–3 min on compound lifts, 60–90 sec on isolation work.',
+        },
+        structuredSteps: [
+          // Push – Mon
+          HabitActionStep(id: 'ppl-p1', title: 'Barbell Bench Press',
+            iconCodePoint: 58728, order: 0, plannerDay: 'Push – Mon',
+            stepLabel: '4 × 6–8', productType: 'Chest', productName: 'Barbell', notes: ''),
+          HabitActionStep(id: 'ppl-p2', title: 'Overhead Press',
+            iconCodePoint: 58728, order: 1, plannerDay: 'Push – Mon',
+            stepLabel: '3 × 8', productType: 'Shoulders', productName: 'Barbell', notes: ''),
+          HabitActionStep(id: 'ppl-p3', title: 'Incline Dumbbell Press',
+            iconCodePoint: 58728, order: 2, plannerDay: 'Push – Mon',
+            stepLabel: '3 × 10–12', productType: 'Chest', productName: 'Dumbbell', notes: ''),
+          HabitActionStep(id: 'ppl-p4', title: 'Cable Lateral Raise',
+            iconCodePoint: 58728, order: 3, plannerDay: 'Push – Mon',
+            stepLabel: '4 × 15', productType: 'Delts', productName: 'Cable Machine', notes: ''),
+          HabitActionStep(id: 'ppl-p5', title: 'Tricep Rope Pushdown',
+            iconCodePoint: 58728, order: 4, plannerDay: 'Push – Mon',
+            stepLabel: '3 × 12', productType: 'Triceps', productName: 'Cable Machine', notes: ''),
+          // Pull – Tue
+          HabitActionStep(id: 'ppl-l1', title: 'Weighted Pull-Ups',
+            iconCodePoint: 58728, order: 5, plannerDay: 'Pull – Tue',
+            stepLabel: '4 × 5–6', productType: 'Back', productName: 'Bodyweight', notes: ''),
+          HabitActionStep(id: 'ppl-l2', title: 'Barbell Row',
+            iconCodePoint: 58728, order: 6, plannerDay: 'Pull – Tue',
+            stepLabel: '3 × 8', productType: 'Back', productName: 'Barbell', notes: ''),
+          HabitActionStep(id: 'ppl-l3', title: 'Face Pulls',
+            iconCodePoint: 58728, order: 7, plannerDay: 'Pull – Tue',
+            stepLabel: '4 × 15', productType: 'Rear Delts', productName: 'Cable Machine', notes: ''),
+          HabitActionStep(id: 'ppl-l4', title: 'Hammer Curl',
+            iconCodePoint: 58728, order: 8, plannerDay: 'Pull – Tue',
+            stepLabel: '3 × 12', productType: 'Biceps', productName: 'Dumbbell', notes: ''),
+          // Legs – Wed
+          HabitActionStep(id: 'ppl-leg1', title: 'Barbell Back Squat',
+            iconCodePoint: 58728, order: 9, plannerDay: 'Legs – Wed',
+            stepLabel: '4 × 6', productType: 'Quads', productName: 'Barbell', notes: ''),
+          HabitActionStep(id: 'ppl-leg2', title: 'Romanian Deadlift',
+            iconCodePoint: 58728, order: 10, plannerDay: 'Legs – Wed',
+            stepLabel: '3 × 10', productType: 'Hamstrings', productName: 'Barbell', notes: ''),
+          HabitActionStep(id: 'ppl-leg3', title: 'Leg Press',
+            iconCodePoint: 58728, order: 11, plannerDay: 'Legs – Wed',
+            stepLabel: '3 × 12', productType: 'Quads', productName: 'Machine', notes: ''),
+          HabitActionStep(id: 'ppl-leg4', title: 'Seated Calf Raise',
+            iconCodePoint: 58728, order: 12, plannerDay: 'Legs – Wed',
+            stepLabel: '4 × 15', productType: 'Calves', productName: 'Machine', notes: ''),
+        ],
+      ),
+      // ── 5: 5×5 Powerlifting Strength ─────────────────────────────────────
+      t(
+        id: 'default_5x5_strength_workout',
+        name: '5×5 Powerlifting Strength – 12 Week',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Fitness',
+        setKey: 'default_set_5x5',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Maximum Strength',
+          'level': 'Intermediate–Advanced',
+          'durationWeeks': 12,
+          'daysPerWeek': 3,
+          'schedule': 'Mon / Wed / Fri',
+          'split': 'Squat / Bench / Deadlift alternating',
+          'timePerSession': '60–90 min',
+          'equipment': ['Barbell', 'Bench', 'Power Rack'],
+          'note': 'Add 2.5 kg each session. Deload every 4th week at 60% of working weight.',
+        },
+        structuredSteps: [
+          HabitActionStep(id: '5x5-a1', title: 'Barbell Back Squat',
+            iconCodePoint: 58728, order: 0, plannerDay: 'Workout A – Mon & Fri',
+            stepLabel: '5 × 5', productType: 'Legs', productName: 'Barbell',
+            notes: 'Progress load each session'),
+          HabitActionStep(id: '5x5-a2', title: 'Barbell Bench Press',
+            iconCodePoint: 58728, order: 1, plannerDay: 'Workout A – Mon & Fri',
+            stepLabel: '5 × 5', productType: 'Chest', productName: 'Barbell',
+            notes: 'Progress load each session'),
+          HabitActionStep(id: '5x5-a3', title: 'Barbell Row',
+            iconCodePoint: 58728, order: 2, plannerDay: 'Workout A – Mon & Fri',
+            stepLabel: '5 × 5', productType: 'Back', productName: 'Barbell',
+            notes: 'Progress load each session'),
+          HabitActionStep(id: '5x5-b1', title: 'Barbell Back Squat',
+            iconCodePoint: 58728, order: 3, plannerDay: 'Workout B – Wed',
+            stepLabel: '5 × 5', productType: 'Legs', productName: 'Barbell',
+            notes: 'Same weight as last Workout A'),
+          HabitActionStep(id: '5x5-b2', title: 'Overhead Press',
+            iconCodePoint: 58728, order: 4, plannerDay: 'Workout B – Wed',
+            stepLabel: '5 × 5', productType: 'Shoulders', productName: 'Barbell',
+            notes: 'Progress load each session'),
+          HabitActionStep(id: '5x5-b3', title: 'Conventional Deadlift',
+            iconCodePoint: 58728, order: 5, plannerDay: 'Workout B – Wed',
+            stepLabel: '1 × 5', productType: 'Full Body', productName: 'Barbell',
+            notes: 'Progress 5 kg each session — heaviest lift of the day'),
+          HabitActionStep(id: '5x5-acc1', title: 'Dips',
+            iconCodePoint: 58728, order: 6, plannerDay: 'Accessory (optional)',
+            stepLabel: '3 × 8–10', productType: 'Triceps', productName: 'Bodyweight', notes: ''),
+          HabitActionStep(id: '5x5-acc2', title: 'Pull-Ups',
+            iconCodePoint: 58728, order: 7, plannerDay: 'Accessory (optional)',
+            stepLabel: '3 × 6–8', productType: 'Back', productName: 'Bodyweight', notes: ''),
         ],
       ),
       t(
@@ -595,6 +1095,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       await _createSkincareHabitsFromTemplate(template);
       return;
     }
+    if (_isOneTapFitnessPreset(template)) {
+      await _createOneTapFitnessHabitFromTemplate(template);
+      return;
+    }
     final habitCategory = _habitCategoryForTemplate(template);
     // #region agent log
     _debugLog(
@@ -629,14 +1133,50 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     );
     if (request == null) return;
 
-    final newHabit = _buildHabitFromRequest(request);
-    await HabitStorageService.addHabit(newHabit);
-    widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Habit created from "${template.name}"')),
-    );
-    await _load();
+    try {
+      final newHabit = _buildHabitFromRequest(request);
+      await HabitStorageService.addHabit(newHabit);
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Habit created from "${template.name}"')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create habit right now. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  bool _isOneTapFitnessPreset(ActionStepTemplate template) {
+    return template.category == ActionTemplateCategory.workout &&
+        _habitCategoryForTemplate(template).toLowerCase() == 'fitness';
+  }
+
+  Future<void> _createOneTapFitnessHabitFromTemplate(
+    ActionStepTemplate template,
+  ) async {
+    final newHabit = _buildOneTapPresetHabit(template);
+    try {
+      await HabitStorageService.addHabit(newHabit);
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Habit created from "${template.name}"')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create habit right now. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _createSkincareHabitsFromTemplate(
@@ -706,43 +1246,52 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     final baseTitle = planner.title.trim().isEmpty
         ? template.name
         : planner.title.trim();
-    final createdNames = await SkincarePresetCompiler.createHabitsFromPlanner(
-      planner: planner,
-      baseTitle: baseTitle,
-      morningEnabled: morningEnabled,
-      eveningEnabled: eveningEnabled,
-    );
+    try {
+      final createdNames = await SkincarePresetCompiler.createHabitsFromPlanner(
+        planner: planner,
+        baseTitle: baseTitle,
+        morningEnabled: morningEnabled,
+        eveningEnabled: eveningEnabled,
+      );
 
-    if (createdNames.isEmpty) {
+      if (createdNames.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No skincare steps available to create habits.'),
+          ),
+        );
+        return;
+      }
+
+      // #region agent log
+      _debugLog(
+        runId: 'post-fix',
+        hypothesisId: 'H29',
+        location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
+        message: 'Planner guide created habit names summary',
+        data: {'createdCount': createdNames.length, 'createdNames': createdNames},
+      );
+      // #endregion
+
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Created ${createdNames.length == 1 ? 'habit' : 'habits'}: ${createdNames.join(' and ')}',
+          ),
+        ),
+      );
+      await _load();
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No skincare steps available to create habits.'),
+          content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
-      return;
     }
-
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H29',
-      location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
-      message: 'Planner guide created habit names summary',
-      data: {'createdCount': createdNames.length, 'createdNames': createdNames},
-    );
-    // #endregion
-
-    widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Created ${createdNames.length == 1 ? 'habit' : 'habits'}: ${createdNames.join(' and ')}',
-        ),
-      ),
-    );
-    await _load();
   }
 
   HabitItem _buildHabitFromRequest(HabitCreateRequest request) {
@@ -769,6 +1318,103 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       templateId: request.templateId,
       templateVersion: request.templateVersion,
     );
+  }
+
+  HabitItem _buildOneTapPresetHabit(ActionStepTemplate template) {
+    final weeklyDays = _weeklyDaysFromTemplate(template);
+    final normalizedSteps = List<HabitActionStep>.from(template.steps)
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return HabitItem(
+      id: 'preset-${DateTime.now().microsecondsSinceEpoch}',
+      name: _uniqueHabitNameFromTemplate(template.name),
+      category: _habitCategoryForTemplate(template),
+      frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
+      weeklyDays: weeklyDays,
+      completedDates: const [],
+      actionSteps: normalizedSteps,
+      templateId: template.id,
+      templateVersion: template.templateVersion,
+    );
+  }
+
+  String _uniqueHabitNameFromTemplate(String baseName) {
+    final trimmed = baseName.trim().isEmpty ? 'New Habit' : baseName.trim();
+    final existing = _existingHabits
+        .map((h) => h.name.trim().toLowerCase())
+        .toSet();
+    if (!existing.contains(trimmed.toLowerCase())) return trimmed;
+    var suffix = 2;
+    while (existing.contains('$trimmed ($suffix)'.toLowerCase())) {
+      suffix++;
+    }
+    return '$trimmed ($suffix)';
+  }
+
+  List<int> _weeklyDaysFromTemplate(ActionStepTemplate template) {
+    final fromSteps = <int>{};
+    for (final step in template.steps) {
+      for (final weekday in _extractWeekdays(step.plannerDay)) {
+        fromSteps.add(weekday);
+      }
+    }
+    if (fromSteps.isNotEmpty) {
+      final sorted = fromSteps.toList()..sort();
+      return sorted;
+    }
+
+    final scheduleMeta = template.metadata['schedule'];
+    if (scheduleMeta is String) {
+      final fromSchedule = _extractWeekdays(scheduleMeta);
+      if (fromSchedule.isNotEmpty) return fromSchedule;
+    }
+
+    final daysPerWeek = (template.metadata['daysPerWeek'] as num?)?.toInt();
+    if (daysPerWeek != null && daysPerWeek > 0) {
+      final clamped = daysPerWeek.clamp(1, 7);
+      return List<int>.generate(clamped, (index) => DateTime.monday + index);
+    }
+    return const [];
+  }
+
+  List<int> _extractWeekdays(String? text) {
+    final raw = (text ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return const [];
+
+    final tokenMap = <String, int>{
+      'monday': DateTime.monday,
+      'mon': DateTime.monday,
+      'tuesday': DateTime.tuesday,
+      'tue': DateTime.tuesday,
+      'tues': DateTime.tuesday,
+      'wednesday': DateTime.wednesday,
+      'wed': DateTime.wednesday,
+      'thursday': DateTime.thursday,
+      'thu': DateTime.thursday,
+      'thur': DateTime.thursday,
+      'thurs': DateTime.thursday,
+      'friday': DateTime.friday,
+      'fri': DateTime.friday,
+      'saturday': DateTime.saturday,
+      'sat': DateTime.saturday,
+      'sunday': DateTime.sunday,
+      'sun': DateTime.sunday,
+    };
+
+    final matches = RegExp(
+      r'\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b',
+    ).allMatches(raw);
+
+    final weekdays = <int>{};
+    for (final match in matches) {
+      final token = match.group(0);
+      if (token == null) continue;
+      final normalized = token.toLowerCase();
+      final mapped = tokenMap[normalized];
+      if (mapped != null) weekdays.add(mapped);
+    }
+
+    final sorted = weekdays.toList()..sort();
+    return sorted;
   }
 
   Future<void> _openGuidePreview(ActionStepTemplate template) async {
@@ -852,9 +1498,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
-    final previousCompleter = _guideOverlayCompleter;
-    if (previousCompleter != null && !previousCompleter.isCompleted) {
-      previousCompleter.complete('close');
+    // Guard against double-complete when users tap quickly.
+    if (_guideOverlayCompleter?.isCompleted == false) {
+      _guideOverlayCompleter!.complete('close');
     }
     _guideOverlayCompleter = Completer<String?>();
     setState(() => _activeGuideOverlay = overlay);
@@ -1555,16 +2201,45 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        widget.guideTitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              widget.guideTitle,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                             ),
+                                          ),
+                                          if (guide?.isOfficial == true)
+                                            Container(
+                                              margin: const EdgeInsets.only(left: 6),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colorScheme.primaryContainer,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                'Default',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      fontWeight: FontWeight.w700,
+                                                      color: colorScheme.onPrimaryContainer,
+                                                      fontSize: 9,
+                                                    ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                       const SizedBox(height: 2),
                                       Text(

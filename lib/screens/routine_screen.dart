@@ -351,6 +351,8 @@ class _RoutineScreenState extends State<RoutineScreen>
       note: result.note,
       coinsEarned: result.coinsEarned,
       trackingValue: result.trackingValue,
+      stepSetsByStepId: result.stepSetsById,
+      stepRepsByStepId: result.stepRepsById,
     );
     final updatedFeedback = Map<String, HabitCompletionFeedback>.from(
       toggled.feedbackByDate,

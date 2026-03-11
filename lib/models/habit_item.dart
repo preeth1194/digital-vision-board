@@ -771,11 +771,19 @@ final class HabitCompletionFeedback {
   /// Optional measurement value logged during completion (e.g. 5.0 km).
   final double? trackingValue;
 
+  /// Optional per-step sets logged during completion (stepId -> sets).
+  final Map<String, int> stepSetsByStepId;
+
+  /// Optional per-step reps logged during completion (stepId -> reps).
+  final Map<String, int> stepRepsByStepId;
+
   const HabitCompletionFeedback({
     required this.rating,
     required this.note,
     this.coinsEarned,
     this.trackingValue,
+    this.stepSetsByStepId = const {},
+    this.stepRepsByStepId = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -783,6 +791,8 @@ final class HabitCompletionFeedback {
     'note': note,
     if (coinsEarned != null) 'coinsEarned': coinsEarned,
     if (trackingValue != null) 'trackingValue': trackingValue,
+    if (stepSetsByStepId.isNotEmpty) 'stepSetsByStepId': stepSetsByStepId,
+    if (stepRepsByStepId.isNotEmpty) 'stepRepsByStepId': stepRepsByStepId,
   };
 
   factory HabitCompletionFeedback.fromJson(Map<String, dynamic> json) =>
@@ -791,6 +801,26 @@ final class HabitCompletionFeedback {
         note: json['note'] as String?,
         coinsEarned: (json['coinsEarned'] as num?)?.toInt(),
         trackingValue: (json['trackingValue'] as num?)?.toDouble(),
+        stepSetsByStepId: ((json['stepSetsByStepId'] as Map<String, dynamic>?) ??
+                (json['step_sets_by_step_id'] as Map<String, dynamic>?) ??
+                const <String, dynamic>{})
+            .map(
+              (key, value) => MapEntry(
+                key,
+                (value as num?)?.toInt() ?? 0,
+              ),
+            )
+          ..removeWhere((_, sets) => sets <= 0),
+        stepRepsByStepId: ((json['stepRepsByStepId'] as Map<String, dynamic>?) ??
+                (json['step_reps_by_step_id'] as Map<String, dynamic>?) ??
+                const <String, dynamic>{})
+            .map(
+              (key, value) => MapEntry(
+                key,
+                (value as num?)?.toInt() ?? 0,
+              ),
+            )
+          ..removeWhere((_, reps) => reps <= 0),
       );
 }
 

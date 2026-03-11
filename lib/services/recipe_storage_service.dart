@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/recipe_seed_data.dart';
 import '../models/recipe.dart';
 
 class RecipeStorageService {
@@ -9,7 +10,11 @@ class RecipeStorageService {
 
   static const _key = 'dv_recipes_v1';
 
-  static Future<List<Recipe>> loadAll({SharedPreferences? prefs}) async {
+  // ── User recipes (SharedPreferences) ──────────────────────────────────────
+
+  static Future<List<Recipe>> _loadUserRecipes({
+    SharedPreferences? prefs,
+  }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final raw = p.getString(_key);
     if (raw == null || raw.isEmpty) return [];
@@ -25,14 +30,23 @@ class RecipeStorageService {
     }
   }
 
+  /// Loads user-created recipes merged with the built-in catalog.
+  /// User recipes appear first (sorted by most-recently-updated).
+  static Future<List<Recipe>> loadAll({SharedPreferences? prefs}) async {
+    final userRecipes = await _loadUserRecipes(prefs: prefs);
+    return [...userRecipes, ...RecipeSeedData.catalog];
+  }
+
   static Future<void> saveAll(
     List<Recipe> recipes, {
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
+    // Only persist non-catalog recipes
+    final userOnly = recipes.where((r) => !r.isCatalog).toList();
     await p.setString(
       _key,
-      jsonEncode(recipes.map((e) => e.toJson()).toList()),
+      jsonEncode(userOnly.map((e) => e.toJson()).toList()),
     );
   }
 
@@ -41,10 +55,11 @@ class RecipeStorageService {
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final all = await loadAll(prefs: p);
+    final all = await _loadUserRecipes(prefs: p);
     final idx = all.indexWhere((e) => e.id == recipe.id);
     final next = recipe.copyWith(
       updatedAtMs: DateTime.now().millisecondsSinceEpoch,
+      isCatalog: false,
     );
     if (idx >= 0) {
       all[idx] = next;
@@ -59,7 +74,7 @@ class RecipeStorageService {
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final all = await loadAll(prefs: p);
+    final all = await _loadUserRecipes(prefs: p);
     all.removeWhere((e) => e.id == id);
     await saveAll(all, prefs: p);
   }

@@ -38,6 +38,8 @@ class RecipeSeedData {
       notes: 'Swap white rice for brown rice for extra fibre.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1512058454905-6b841e7ad132?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 520,
         proteinG: 48,
@@ -83,6 +85,8 @@ class RecipeSeedData {
       notes: 'Serving size is ¼ of the recipe. Leftovers keep for 3 days.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 480,
         proteinG: 34,
@@ -131,6 +135,8 @@ class RecipeSeedData {
       notes: 'Serve with basmati rice or naan bread.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 350,
         proteinG: 16,
@@ -173,6 +179,8 @@ class RecipeSeedData {
       notes: 'Do not chop feta too small; larger cubes hold their shape.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 260,
         proteinG: 8,
@@ -213,6 +221,8 @@ class RecipeSeedData {
       notes: 'Keeps in fridge for up to 3 days. Prep in batches for the week.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1614961233913-97e60e8bac65?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 440,
         proteinG: 36,
@@ -255,6 +265,8 @@ class RecipeSeedData {
       notes: 'Use low-sodium soy sauce to reduce sodium content.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 370,
         proteinG: 38,
@@ -299,6 +311,8 @@ class RecipeSeedData {
       notes: 'For vegan version, swap sour cream for cashew cream.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 420,
         proteinG: 16,
@@ -341,6 +355,8 @@ class RecipeSeedData {
       notes: 'Use ripe avocado for the creamiest spread.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1588137378633-dea1336ce1e2?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 490,
         proteinG: 22,
@@ -382,6 +398,8 @@ class RecipeSeedData {
       notes: 'Great for intermittent fasting windows — keeps you full for hours.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 580,
         proteinG: 38,
@@ -428,6 +446,8 @@ class RecipeSeedData {
       notes: 'Adjust curry paste for heat level. Serve with jasmine rice.',
       isCatalog: true,
       updatedAtMs: 0,
+      imageUrl:
+          'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=600&q=80',
       macros: RecipeMacros(
         calories: 380,
         proteinG: 18,

@@ -14,10 +14,20 @@ export async function ensureSchema() {
     .filter((n) => /^\d+_.+\.sql$/i.test(n))
     .sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 
+  // Helpful in deploy logs to verify exactly which migrations are being run.
+  // eslint-disable-next-line no-console
+  console.log("[migrate] SQL files:", sqlFiles.join(", "));
+
+  const mergedSqlParts = [];
   for (const file of sqlFiles) {
     const sqlPath = path.join(sqlDir, file);
     const sql = await fs.readFile(sqlPath, "utf-8");
-    await pool.query(sql);
+    mergedSqlParts.push(`-- >>> BEGIN ${file}\n${sql}\n-- <<< END ${file}\n`);
   }
+  const mergedSql = mergedSqlParts.join("\n");
+  if (!mergedSql.trim()) return;
+  // eslint-disable-next-line no-console
+  console.log("[migrate] Executing merged SQL migration batch.");
+  await pool.query(mergedSql);
 }
 

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../models/water_intake_entry.dart';
@@ -16,14 +18,33 @@ class WaterIntakeCard extends StatefulWidget {
   State<WaterIntakeCard> createState() => _WaterIntakeCardState();
 }
 
-class _WaterIntakeCardState extends State<WaterIntakeCard> {
+class _WaterIntakeCardState extends State<WaterIntakeCard>
+    with SingleTickerProviderStateMixin {
   WaterIntakeEntry? _entry;
   bool _saving = false;
+  bool _showSplash = false;
+  double _countScale = 1.0;
+  int _animToken = 0;
+  AnimationController? _waveController;
 
   @override
   void initState() {
     super.initState();
+    _ensureWaveController();
     _load();
+  }
+
+  void _ensureWaveController() {
+    _waveController ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 7200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _waveController?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -35,9 +56,22 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
     if (_saving) return;
     setState(() => _saving = true);
     final updated = await WaterIntakeStorageService.addGlass(delta);
-    if (mounted) setState(() {
+    if (!mounted) return;
+    setState(() {
       _entry = updated;
       _saving = false;
+      _showSplash = true;
+      _countScale = 1.08;
+      _animToken++;
+    });
+    final token = _animToken;
+    Future.delayed(const Duration(milliseconds: 360), () {
+      if (!mounted || token != _animToken) return;
+      setState(() => _countScale = 1.0);
+    });
+    Future.delayed(const Duration(milliseconds: 760), () {
+      if (!mounted || token != _animToken) return;
+      setState(() => _showSplash = false);
     });
   }
 
@@ -95,23 +129,87 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
 
   @override
   Widget build(BuildContext context) {
+    _ensureWaveController();
     final cs = Theme.of(context).colorScheme;
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     final entry = _entry;
     final glasses = entry?.glasses ?? 0;
     final goal = entry?.goal ?? 8;
     final progress = goal > 0 ? (glasses / goal).clamp(0.0, 1.0) : 0.0;
     final isDone = glasses >= goal;
 
-    // Blue/teal accent regardless of theme
-    const accentColor = Color(0xFF29B6F6); // light-blue-400
-    const accentDark = Color(0xFF0288D1);  // light-blue-700
+    final accentColor = isDarkTheme
+        ? const Color(0xFF29B6F6)
+        : const Color(0xFF039BE5);
+    final accentDark = isDarkTheme
+        ? const Color(0xFF0288D1)
+        : const Color(0xFF01579B);
 
     return GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
           children: [
+            // Background fill animation based on water progress.
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(end: progress),
+                  duration: const Duration(milliseconds: 1200),
+                  curve: Curves.easeInOutCubic,
+                  builder: (context, animatedProgress, child) {
+                    return FractionallySizedBox(
+                      heightFactor: animatedProgress,
+                      widthFactor: 1,
+                      alignment: Alignment.bottomCenter,
+                      child: AnimatedBuilder(
+                        animation: _waveController!,
+                        builder: (context, child) {
+                          return CustomPaint(
+                            painter: _WaterWavePainter(
+                              phase: _waveController!.value,
+                              topColor: accentColor.withValues(
+                                alpha: isDarkTheme ? 0.16 : 0.28,
+                              ),
+                              deepColor: accentColor.withValues(
+                                alpha: isDarkTheme ? 0.28 : 0.48,
+                              ),
+                              crestColor: accentDark.withValues(
+                                alpha: isDarkTheme ? 0.18 : 0.24,
+                              ),
+                            ),
+                            child: const SizedBox.expand(),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 420),
+                opacity: _showSplash ? 1.0 : 0.0,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Icon(
+                      Icons.water_drop_rounded,
+                      size: 14,
+                      color: accentColor.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             // ── Header ──────────────────────────────────────────────────
             Row(
               children: [
@@ -165,13 +263,18 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '$glasses',
-                        style: AppTypography.heading3(context).copyWith(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w800,
-                          color: isDone ? accentDark : cs.onSurface,
-                          height: 1,
+                      AnimatedScale(
+                        scale: _countScale,
+                        duration: const Duration(milliseconds: 360),
+                        curve: Curves.easeInOutCubic,
+                        child: Text(
+                          '$glasses',
+                          style: AppTypography.heading3(context).copyWith(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            color: isDone ? accentDark : cs.onSurface,
+                            height: 1,
+                          ),
                         ),
                       ),
                       Padding(
@@ -187,36 +290,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    isDone ? 'Goal reached! 💧' : 'glasses today',
-                    style: AppTypography.caption(context).copyWith(
-                      color: isDone
-                          ? accentDark
-                          : cs.onSurfaceVariant.withValues(alpha: 0.8),
-                      fontSize: 11,
-                    ),
-                  ),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Glass dots indicator ─────────────────────────────────────
-            _GlassDots(glasses: glasses, goal: goal, accentColor: accentColor),
-
-            const SizedBox(height: 12),
-
-            // ── Progress bar ─────────────────────────────────────────────
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 5,
-                backgroundColor: accentColor.withValues(alpha: 0.15),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isDone ? accentDark : accentColor,
-                ),
               ),
             ),
 
@@ -251,6 +325,9 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
                 ),
               ],
             ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -258,44 +335,56 @@ class _WaterIntakeCardState extends State<WaterIntakeCard> {
   }
 }
 
-// ── Glass dot row (up to 10 visible, then "..." indicator) ────────────────────
+class _WaterWavePainter extends CustomPainter {
+  final double phase;
+  final Color topColor;
+  final Color deepColor;
+  final Color crestColor;
 
-class _GlassDots extends StatelessWidget {
-  final int glasses;
-  final int goal;
-  final Color accentColor;
-
-  const _GlassDots({
-    required this.glasses,
-    required this.goal,
-    required this.accentColor,
+  const _WaterWavePainter({
+    required this.phase,
+    required this.topColor,
+    required this.deepColor,
+    required this.crestColor,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    const maxDots = 10;
-    final showDots = goal <= maxDots;
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final bgPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [topColor, deepColor],
+      ).createShader(rect);
+    canvas.drawRect(rect, bgPaint);
 
-    if (!showDots) {
-      // Fallback: plain fraction text for large goals
-      return const SizedBox.shrink();
+    final waveY = size.height * 0.18;
+    final amplitude = math.max(2.0, size.height * 0.045);
+    final waveLength = math.max(40.0, size.width * 0.5);
+    // One smooth horizontal cycle per controller loop.
+    final shift = phase * 2 * math.pi;
+
+    final path = Path()..moveTo(0, waveY);
+    for (double x = 0; x <= size.width; x += 2) {
+      final y = waveY + amplitude * math.sin((x / waveLength) * 2 * math.pi + shift);
+      path.lineTo(x, y);
     }
+    path
+      ..lineTo(size.width, 0)
+      ..lineTo(0, 0)
+      ..close();
 
-    return Wrap(
-      spacing: 5,
-      runSpacing: 5,
-      children: List.generate(goal, (i) {
-        final filled = i < glasses;
-        return Icon(
-          filled ? Icons.water_drop_rounded : Icons.water_drop_outlined,
-          size: 14,
-          color: filled
-              ? accentColor
-              : cs.onSurfaceVariant.withValues(alpha: 0.25),
-        );
-      }),
-    );
+    final wavePaint = Paint()..color = crestColor;
+    canvas.drawPath(path, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaterWavePainter oldDelegate) {
+    return oldDelegate.phase != phase ||
+        oldDelegate.topColor != topColor ||
+        oldDelegate.deepColor != deepColor ||
+        oldDelegate.crestColor != crestColor;
   }
 }
 

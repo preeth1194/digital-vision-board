@@ -678,6 +678,8 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                         ),
                       ],
                       if (widget.bookId !=
+                              JournalBookStorageService.defaultBookId &&
+                          widget.bookId !=
                               JournalBookStorageService.goalLogsBookId &&
                           widget.bookId !=
                               JournalBookStorageService.recipeBookId) ...[

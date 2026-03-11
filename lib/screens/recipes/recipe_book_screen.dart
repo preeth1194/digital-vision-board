@@ -847,33 +847,38 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            hasFilters
-                ? Icons.filter_list_off_rounded
-                : Icons.menu_book_rounded,
-            size: 56,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            hasFilters ? 'No recipes match your filters' : 'No recipes yet',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-          ),
-          if (!hasFilters) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Tap + to add your first recipe',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                  ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasFilters
+                  ? Icons.filter_list_off_rounded
+                  : Icons.menu_book_rounded,
+              size: 56,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.35),
             ),
+            const SizedBox(height: 16),
+            Text(
+              hasFilters ? 'No recipes match your filters' : 'No recipes yet',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            if (!hasFilters) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Tap + to add your first recipe',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

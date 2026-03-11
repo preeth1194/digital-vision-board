@@ -1508,9 +1508,11 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   void _closeGuideOverlay(String action) {
-    if (_guideOverlayCompleter?.isCompleted == false) {
-      _guideOverlayCompleter!.complete(action);
+    final completer = _guideOverlayCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(action);
     }
+    _guideOverlayCompleter = null;
     if (mounted) {
       setState(() => _activeGuideOverlay = null);
     }

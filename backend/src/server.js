@@ -6,6 +6,7 @@ import { randomId } from "./crypto.js";
 import { admin, ensureFirebaseAdmin } from "./firebase_admin.js";
 import {
   getUserRecord,
+  findUserByDvToken,
   putUserRecord,
 } from "./storage.js";
 import { requireDvAuth } from "./auth.js";
@@ -37,7 +38,12 @@ import { generateWizardRecommendationsWithGemini } from "./gemini.js";
 import { searchPexelsPhotos } from "./pexels.js";
 import { listStockCategoryImagesPg } from "./stock_category_images_pg.js";
 import { getGiftCodePg, redeemGiftCodePg } from "./gift_codes_pg.js";
-import { insertContactMessagePg, listContactMessagesPg } from "./contact_pg.js";
+import {
+  insertContactMessagePg,
+  listContactMessagesPg,
+  listMyIssueReportsPg,
+  updateContactMessageStatusPg,
+} from "./contact_pg.js";
 
 const app = express();
 
@@ -119,6 +125,31 @@ function isActionTemplateAdmin(dvUserId) {
     .filter(Boolean);
   if (!admins.length) return false;
   return admins.includes(String(dvUserId ?? ""));
+}
+
+const kContactKinds = new Set(["contact", "issue"]);
+const kIssueStatuses = new Set(["open", "in_progress", "resolved"]);
+
+function normalizeContactKind(raw) {
+  const key = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  return kContactKinds.has(key) ? key : "contact";
+}
+
+function normalizeIssueStatus(raw) {
+  const key = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  return kIssueStatuses.has(key) ? key : null;
+}
+
+async function resolveDvUserFromAuthorization(header) {
+  const raw = String(header ?? "").trim();
+  const m = /^Bearer\s+(.+)$/.exec(raw);
+  const token = m?.[1]?.trim();
+  if (!token) return null;
+  return await findUserByDvToken(token);
 }
 
 app.get("/", (req, res) => {
@@ -982,13 +1013,24 @@ app.post("/contact", async (req, res) => {
     if (!ensureDbOr501(res)) return;
     const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
     const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    const kind = normalizeContactKind(req.body?.kind);
 
     if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
     if (!email) return res.status(400).json({ ok: false, error: "missing_email" });
     if (!message) return res.status(400).json({ ok: false, error: "missing_message" });
 
-    await insertContactMessagePg({ name, email, message });
+    let userId = null;
+    if (kind === "issue") {
+      const user = await resolveDvUserFromAuthorization(req.headers.authorization);
+      if (!user?.userId) {
+        return res.status(401).json({ ok: false, error: "missing_auth" });
+      }
+      userId = String(user.userId);
+    }
+
+    await insertContactMessagePg({ name, email, subject, message, kind, userId });
     return res.status(201).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: "contact_submit_failed", message: String(e?.message ?? e) });
@@ -1007,6 +1049,43 @@ app.get("/contact/messages", requireDvAuth(), async (req, res) => {
     return res.json({ ok: true, messages });
   } catch (e) {
     return res.status(500).json({ ok: false, error: "contact_messages_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.get("/contact/issues", requireDvAuth(), async (req, res) => {
+  try {
+    if (!ensureDbOr501(res)) return;
+    const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 100;
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 500)) : 100;
+    const issues = await listMyIssueReportsPg({ userId: req.dvUser?.userId, limit });
+    return res.json({ ok: true, issues });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "contact_issues_failed", message: String(e?.message ?? e) });
+  }
+});
+
+app.patch("/contact/messages/:id/status", requireDvAuth(), async (req, res) => {
+  try {
+    if (!ensureDbOr501(res)) return;
+    if (!isActionTemplateAdmin(req.dvUser?.userId)) {
+      return res.status(403).json({ error: "admin_required" });
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ ok: false, error: "invalid_id" });
+    }
+    const status = normalizeIssueStatus(req.body?.status);
+    if (!status) {
+      return res.status(400).json({ ok: false, error: "invalid_status" });
+    }
+    const updated = await updateContactMessageStatusPg({ id, status });
+    if (!updated.ok) {
+      if (updated.error === "not_found") return res.status(404).json({ ok: false, error: "not_found" });
+      return res.status(400).json({ ok: false, error: updated.error ?? "status_update_failed" });
+    }
+    return res.json({ ok: true, id, status });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: "status_update_failed", message: String(e?.message ?? e) });
   }
 });
 

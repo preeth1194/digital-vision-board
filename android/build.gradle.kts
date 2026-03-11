@@ -1,7 +1,16 @@
 allprojects {
     repositories {
+        // Local fallback for transitive plugin artifacts when JitPack is unavailable.
+        maven(url = rootProject.file("local-maven").toURI())
         google()
         mavenCentral()
+        // Restrict JitPack to GitHub-hosted artifacts only (e.g. com.github.Yalantis:ucrop)
+        // so Flutter's io.flutter artifacts do not get resolved from JitPack.
+        maven(url = "https://jitpack.io") {
+            content {
+                includeGroupByRegex("com\\.github\\..*")
+            }
+        }
     }
 }
 

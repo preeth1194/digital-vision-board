@@ -3,6 +3,16 @@ import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { APP_NAME, APP_DESCRIPTION } from '@/lib/constants'
+import { getSiteUrl } from '@/lib/seo'
+
+const siteUrl = getSiteUrl()
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim()
+const bingVerification = process.env.BING_SITE_VERIFICATION?.trim()
+
+const verification: Metadata['verification'] = {
+  ...(googleVerification ? { google: googleVerification } : {}),
+  ...(bingVerification ? { other: { 'msvalidate.01': bingVerification } } : {}),
+}
 
 export const metadata: Metadata = {
   title: {
@@ -10,15 +20,17 @@ export const metadata: Metadata = {
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  metadataBase: new URL('https://digitalvisionboard.app'),
+  metadataBase: new URL(siteUrl),
   icons: {
     icon: '/app-icon.png',
     apple: '/app-icon.png',
   },
+  ...(Object.keys(verification).length ? { verification } : {}),
   openGraph: {
     title: APP_NAME,
     description: APP_DESCRIPTION,
     type: 'website',
+    url: siteUrl,
     images: [{ url: '/app-icon.png' }],
   },
 }

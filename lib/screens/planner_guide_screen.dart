@@ -1095,6 +1095,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       await _createSkincareHabitsFromTemplate(template);
       return;
     }
+    if (_isOneTapFitnessPreset(template)) {
+      await _createOneTapFitnessHabitFromTemplate(template);
+      return;
+    }
     final habitCategory = _habitCategoryForTemplate(template);
     // #region agent log
     _debugLog(
@@ -1129,14 +1133,50 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     );
     if (request == null) return;
 
-    final newHabit = _buildHabitFromRequest(request);
-    await HabitStorageService.addHabit(newHabit);
-    widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Habit created from "${template.name}"')),
-    );
-    await _load();
+    try {
+      final newHabit = _buildHabitFromRequest(request);
+      await HabitStorageService.addHabit(newHabit);
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Habit created from "${template.name}"')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create habit right now. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  bool _isOneTapFitnessPreset(ActionStepTemplate template) {
+    return template.category == ActionTemplateCategory.workout &&
+        _habitCategoryForTemplate(template).toLowerCase() == 'fitness';
+  }
+
+  Future<void> _createOneTapFitnessHabitFromTemplate(
+    ActionStepTemplate template,
+  ) async {
+    final newHabit = _buildOneTapPresetHabit(template);
+    try {
+      await HabitStorageService.addHabit(newHabit);
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Habit created from "${template.name}"')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create habit right now. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _createSkincareHabitsFromTemplate(
@@ -1206,43 +1246,52 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     final baseTitle = planner.title.trim().isEmpty
         ? template.name
         : planner.title.trim();
-    final createdNames = await SkincarePresetCompiler.createHabitsFromPlanner(
-      planner: planner,
-      baseTitle: baseTitle,
-      morningEnabled: morningEnabled,
-      eveningEnabled: eveningEnabled,
-    );
+    try {
+      final createdNames = await SkincarePresetCompiler.createHabitsFromPlanner(
+        planner: planner,
+        baseTitle: baseTitle,
+        morningEnabled: morningEnabled,
+        eveningEnabled: eveningEnabled,
+      );
 
-    if (createdNames.isEmpty) {
+      if (createdNames.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No skincare steps available to create habits.'),
+          ),
+        );
+        return;
+      }
+
+      // #region agent log
+      _debugLog(
+        runId: 'post-fix',
+        hypothesisId: 'H29',
+        location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
+        message: 'Planner guide created habit names summary',
+        data: {'createdCount': createdNames.length, 'createdNames': createdNames},
+      );
+      // #endregion
+
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Created ${createdNames.length == 1 ? 'habit' : 'habits'}: ${createdNames.join(' and ')}',
+          ),
+        ),
+      );
+      await _load();
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No skincare steps available to create habits.'),
+          content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
-      return;
     }
-
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H29',
-      location: 'planner_guide_screen.dart:_createSkincareHabitsFromTemplate',
-      message: 'Planner guide created habit names summary',
-      data: {'createdCount': createdNames.length, 'createdNames': createdNames},
-    );
-    // #endregion
-
-    widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Created ${createdNames.length == 1 ? 'habit' : 'habits'}: ${createdNames.join(' and ')}',
-        ),
-      ),
-    );
-    await _load();
   }
 
   HabitItem _buildHabitFromRequest(HabitCreateRequest request) {
@@ -1269,6 +1318,103 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       templateId: request.templateId,
       templateVersion: request.templateVersion,
     );
+  }
+
+  HabitItem _buildOneTapPresetHabit(ActionStepTemplate template) {
+    final weeklyDays = _weeklyDaysFromTemplate(template);
+    final normalizedSteps = List<HabitActionStep>.from(template.steps)
+      ..sort((a, b) => a.order.compareTo(b.order));
+    return HabitItem(
+      id: 'preset-${DateTime.now().microsecondsSinceEpoch}',
+      name: _uniqueHabitNameFromTemplate(template.name),
+      category: _habitCategoryForTemplate(template),
+      frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
+      weeklyDays: weeklyDays,
+      completedDates: const [],
+      actionSteps: normalizedSteps,
+      templateId: template.id,
+      templateVersion: template.templateVersion,
+    );
+  }
+
+  String _uniqueHabitNameFromTemplate(String baseName) {
+    final trimmed = baseName.trim().isEmpty ? 'New Habit' : baseName.trim();
+    final existing = _existingHabits
+        .map((h) => h.name.trim().toLowerCase())
+        .toSet();
+    if (!existing.contains(trimmed.toLowerCase())) return trimmed;
+    var suffix = 2;
+    while (existing.contains('$trimmed ($suffix)'.toLowerCase())) {
+      suffix++;
+    }
+    return '$trimmed ($suffix)';
+  }
+
+  List<int> _weeklyDaysFromTemplate(ActionStepTemplate template) {
+    final fromSteps = <int>{};
+    for (final step in template.steps) {
+      for (final weekday in _extractWeekdays(step.plannerDay)) {
+        fromSteps.add(weekday);
+      }
+    }
+    if (fromSteps.isNotEmpty) {
+      final sorted = fromSteps.toList()..sort();
+      return sorted;
+    }
+
+    final scheduleMeta = template.metadata['schedule'];
+    if (scheduleMeta is String) {
+      final fromSchedule = _extractWeekdays(scheduleMeta);
+      if (fromSchedule.isNotEmpty) return fromSchedule;
+    }
+
+    final daysPerWeek = (template.metadata['daysPerWeek'] as num?)?.toInt();
+    if (daysPerWeek != null && daysPerWeek > 0) {
+      final clamped = daysPerWeek.clamp(1, 7);
+      return List<int>.generate(clamped, (index) => DateTime.monday + index);
+    }
+    return const [];
+  }
+
+  List<int> _extractWeekdays(String? text) {
+    final raw = (text ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return const [];
+
+    final tokenMap = <String, int>{
+      'monday': DateTime.monday,
+      'mon': DateTime.monday,
+      'tuesday': DateTime.tuesday,
+      'tue': DateTime.tuesday,
+      'tues': DateTime.tuesday,
+      'wednesday': DateTime.wednesday,
+      'wed': DateTime.wednesday,
+      'thursday': DateTime.thursday,
+      'thu': DateTime.thursday,
+      'thur': DateTime.thursday,
+      'thurs': DateTime.thursday,
+      'friday': DateTime.friday,
+      'fri': DateTime.friday,
+      'saturday': DateTime.saturday,
+      'sat': DateTime.saturday,
+      'sunday': DateTime.sunday,
+      'sun': DateTime.sunday,
+    };
+
+    final matches = RegExp(
+      r'\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b',
+    ).allMatches(raw);
+
+    final weekdays = <int>{};
+    for (final match in matches) {
+      final token = match.group(0);
+      if (token == null) continue;
+      final normalized = token.toLowerCase();
+      final mapped = tokenMap[normalized];
+      if (mapped != null) weekdays.add(mapped);
+    }
+
+    final sorted = weekdays.toList()..sort();
+    return sorted;
   }
 
   Future<void> _openGuidePreview(ActionStepTemplate template) async {
@@ -1352,7 +1498,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
-    _guideOverlayCompleter?.complete('close');
+    // Guard against double-complete when users tap quickly.
+    if (_guideOverlayCompleter?.isCompleted == false) {
+      _guideOverlayCompleter!.complete('close');
+    }
     _guideOverlayCompleter = Completer<String?>();
     setState(() => _activeGuideOverlay = overlay);
     return _guideOverlayCompleter!.future;

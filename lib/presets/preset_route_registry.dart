@@ -126,8 +126,8 @@ class _WorkoutPresetTemplateAdapter extends PresetTemplateAdapter {
       sections: [PresetTemplateSection.routinePreview],
       supportsAmPmSplit: false,
       allowEdit: true,
-      allowCreateHabits: false,
-      createButtonLabel: 'View Plan',
+      allowCreateHabits: true,
+      createButtonLabel: 'Create habit',
     );
   }
 

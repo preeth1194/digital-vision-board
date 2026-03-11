@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';

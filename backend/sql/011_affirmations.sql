@@ -13,11 +13,29 @@ create table if not exists dv_affirmations (
   primary key (canva_user_id, affirmation_id)
 );
 
-create index if not exists dv_affirmations_user_category_idx 
-  on dv_affirmations (canva_user_id, category);
-
-create index if not exists dv_affirmations_user_pinned_idx 
-  on dv_affirmations (canva_user_id, is_pinned desc, created_at desc);
-
-create index if not exists dv_affirmations_user_updated_idx 
-  on dv_affirmations (canva_user_id, updated_at desc);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_affirmations' and column_name = 'user_id'
+  ) then
+    create index if not exists dv_affirmations_user_category_idx
+      on dv_affirmations (user_id, category);
+    create index if not exists dv_affirmations_user_pinned_idx
+      on dv_affirmations (user_id, is_pinned desc, created_at desc);
+    create index if not exists dv_affirmations_user_updated_idx
+      on dv_affirmations (user_id, updated_at desc);
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_affirmations' and column_name = 'canva_user_id'
+  ) then
+    create index if not exists dv_affirmations_user_category_idx
+      on dv_affirmations (canva_user_id, category);
+    create index if not exists dv_affirmations_user_pinned_idx
+      on dv_affirmations (canva_user_id, is_pinned desc, created_at desc);
+    create index if not exists dv_affirmations_user_updated_idx
+      on dv_affirmations (canva_user_id, updated_at desc);
+  end if;
+end $$;

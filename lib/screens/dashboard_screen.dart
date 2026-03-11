@@ -22,8 +22,6 @@ import '../services/reminder_summary_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/auto_sync_service.dart';
-import '../services/google_drive_backup_service.dart';
-import 'backup_restore_screen.dart';
 import '../services/logical_date_service.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
@@ -31,24 +29,13 @@ import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
 import 'templates/template_gallery_screen.dart';
-import 'journal/journal_notes_screen.dart';
 import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'challenge_setup_screen.dart';
 import 'vision_board_home_screen.dart';
 import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
-import 'widget_guide_screen.dart';
-import 'privacy_policy_screen.dart';
-import 'contact_us_screen.dart';
-import 'report_issue_screen.dart';
-import 'my_issues_screen.dart';
-import 'faq_screen.dart';
-import 'presets/preset_shop_screen.dart';
-import 'onboarding/onboarding_screen.dart';
+import 'settings_menu_screen.dart';
 import 'earn_badges_screen.dart';
-import 'subscription_screen.dart';
-import '../services/subscription_service.dart';
-import '../models/grid_tile_model.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
 import '../models/vision_components.dart';
@@ -334,17 +321,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     return '$hh:${m.toString().padLeft(2, '0')} $ampm';
   }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good Morning';
-    } else if (hour < 17) {
-      return 'Good Afternoon';
-    } else {
-      return 'Good Evening';
-    }
-  }
-
   Widget _buildCoinBadge(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -480,6 +456,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                   size: 22,
                 ),
               ),
+      ),
+    );
+  }
+
+  Future<void> _openSettingsMenu() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsMenuScreen(
+          prefs: _prefs,
+          onOpenAccount: _openAccount,
+          onSignOut: _signOut,
+        ),
       ),
     );
   }
@@ -1069,426 +1057,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       onViewHabits: () => setState(() => _tabIndex = 7),
     );
 
+    final colorScheme = Theme.of(context).colorScheme;
     final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
-      drawer: Drawer(
-        width: MediaQuery.of(context).size.width * 0.65,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child:
-                  ValueListenableBuilder<
-                    ({String? picPath, String initial, String displayName})
-                  >(
-                    valueListenable: _profileAvatarNotifier,
-                    builder: (context, profile, _) {
-                      return FutureBuilder<String?>(
-                        future: DvAuthService.getUserId(prefs: _prefs),
-                        builder: (context, snap) {
-                          final id = (snap.data ?? '').trim();
-                          final isGuest = id.isEmpty;
-                          final displayName = isGuest
-                              ? 'Guest session'
-                              : profile.displayName.isNotEmpty
-                              ? profile.displayName
-                              : 'Signed in';
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ProfileAvatar(
-                                initial: profile.initial,
-                                imagePath: profile.picPath,
-                                radius: 38,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                displayName,
-                                style: AppTypography.body(
-                                  context,
-                                ).copyWith(fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _openAccount();
-                                },
-                                child: Text(
-                                  isGuest
-                                      ? 'Sign In / Sign Up'
-                                      : 'View Profile',
-                                  style: AppTypography.secondary(context)
-                                      .copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: SubscriptionService.isSubscribed,
-              builder: (context, subscribed, _) {
-                final cs = Theme.of(context).colorScheme;
-                return ListTile(
-                  leading: Icon(
-                    Icons.workspace_premium_rounded,
-                    color: subscribed
-                        ? AppColors.coinGold
-                        : cs.onSurfaceVariant,
-                  ),
-                  title: Text(
-                    subscribed ? 'Premium Active' : 'Go Premium',
-                    style: AppTypography.body(
-                      context,
-                    ).copyWith(color: cs.onSurface),
-                  ),
-                  trailing: subscribed
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: cs.secondary,
-                          size: 20,
-                        )
-                      : null,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SubscriptionScreen(),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-            ValueListenableBuilder<SyncState>(
-              valueListenable: AutoSyncService.state,
-              builder: (context, syncState, _) {
-                return FutureBuilder<bool>(
-                  future: GoogleDriveBackupService.isLinked(prefs: _prefs),
-                  builder: (context, linkSnap) {
-                    final linked = linkSnap.data ?? false;
-
-                    final dcs = Theme.of(context).colorScheme;
-                    if (!linked) {
-                      return ListTile(
-                        leading: Icon(
-                          Icons.cloud_off_outlined,
-                          color: dcs.onSurfaceVariant,
-                        ),
-                        title: Text(
-                          'Backup not set up',
-                          style: AppTypography.body(
-                            context,
-                          ).copyWith(color: dcs.onSurface),
-                        ),
-                        subtitle: Text(
-                          'Tap to link Google account',
-                          style: AppTypography.caption(
-                            context,
-                          ).copyWith(color: dcs.onSurfaceVariant),
-                        ),
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const BackupRestoreScreen(),
-                            ),
-                          );
-                        },
-                      );
-                    }
-
-                    if (syncState == SyncState.syncing) {
-                      return ListTile(
-                        leading: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: dcs.primary,
-                          ),
-                        ),
-                        title: Text(
-                          'Syncing...',
-                          style: AppTypography.body(
-                            context,
-                          ).copyWith(color: dcs.onSurface),
-                        ),
-                        subtitle: Text(
-                          'Encrypting and uploading',
-                          style: AppTypography.caption(
-                            context,
-                          ).copyWith(color: dcs.onSurfaceVariant),
-                        ),
-                      );
-                    }
-
-                    if (syncState == SyncState.error) {
-                      return ListTile(
-                        leading: Icon(
-                          Icons.cloud_off_outlined,
-                          color: dcs.error,
-                        ),
-                        title: Text(
-                          'Sync failed',
-                          style: AppTypography.body(
-                            context,
-                          ).copyWith(color: dcs.onSurface),
-                        ),
-                        subtitle: Text(
-                          'Tap sync to retry',
-                          style: AppTypography.caption(
-                            context,
-                          ).copyWith(color: dcs.onSurfaceVariant),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.sync),
-                          onPressed: () =>
-                              AutoSyncService.syncNow(prefs: _prefs),
-                        ),
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const BackupRestoreScreen(),
-                            ),
-                          );
-                        },
-                      );
-                    }
-
-                    return ListTile(
-                      leading: Icon(
-                        Icons.cloud_done_outlined,
-                        color: dcs.primary,
-                      ),
-                      title: Text(
-                        AutoSyncService.lastSyncText,
-                        style: AppTypography.body(
-                          context,
-                        ).copyWith(color: dcs.onSurface),
-                      ),
-                      subtitle: AutoSyncService.nextSyncText.isNotEmpty
-                          ? Text(
-                              AutoSyncService.nextSyncText,
-                              style: AppTypography.caption(
-                                context,
-                              ).copyWith(color: dcs.onSurfaceVariant),
-                            )
-                          : null,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.sync),
-                        onPressed: () => AutoSyncService.syncNow(prefs: _prefs),
-                      ),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const BackupRestoreScreen(),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.widgets_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Widget Guide',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WidgetGuideScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.bug_report_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Report Issue',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ReportIssueScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.mail_outline,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Contact Us',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ContactUsScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.assignment_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'My Issues',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const MyIssuesScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.storefront_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Preset Shop',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PresetShopScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.help_outline,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'FAQ',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const FaqScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.info_outline,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'App Tour',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const OnboardingScreen(replayMode: true),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.privacy_tip_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Privacy Policy',
-                style: AppTypography.body(
-                  context,
-                ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-              ),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const PrivacyPolicyScreen(),
-                  ),
-                );
-              },
-            ),
-            FutureBuilder<String?>(
-              future: DvAuthService.getUserId(prefs: _prefs),
-              builder: (context, snap) {
-                final id = (snap.data ?? '').trim();
-                if (id.isEmpty) return const SizedBox.shrink();
-                return ListTile(
-                  leading: Icon(
-                    Icons.logout,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  title: Text(
-                    'Sign out',
-                    style: AppTypography.body(
-                      context,
-                    ).copyWith(color: Theme.of(context).colorScheme.onSurface),
-                  ),
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    await _signOut();
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
       // Hide app bar for journal and habits timeline mode.
       appBar: (_tabIndex == 2 || (_tabIndex == 7 && _showHabitsCalendarMode))
           ? null
           : AppBar(
               toolbarHeight: 72,
               automaticallyImplyLeading: false,
-              backgroundColor: Colors.transparent,
+              backgroundColor: colorScheme.surface,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               titleSpacing: 0,
@@ -1496,66 +1074,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    // Avatar with menu
-                    Builder(
-                      builder: (scaffoldContext) => GestureDetector(
-                        onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                        child:
-                            ValueListenableBuilder<
-                              ({
-                                String? picPath,
-                                String initial,
-                                String displayName,
-                              })
-                            >(
-                              valueListenable: _profileAvatarNotifier,
-                              builder: (context, profile, _) => ProfileAvatar(
-                                initial: profile.initial,
-                                imagePath: profile.picPath,
-                                radius: 24,
-                              ),
-                            ),
+                    GestureDetector(
+                      onTap: _openAccount,
+                      behavior: HitTestBehavior.opaque,
+                      child: ValueListenableBuilder<
+                        ({String? picPath, String initial, String displayName})
+                      >(
+                        valueListenable: _profileAvatarNotifier,
+                        builder: (context, profile, _) => ProfileAvatar(
+                          initial: profile.initial,
+                          imagePath: profile.picPath,
+                          radius: 24,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child:
-                          ValueListenableBuilder<
-                            ({
-                              String? picPath,
-                              String initial,
-                              String displayName,
-                            })
-                          >(
-                            valueListenable: _profileAvatarNotifier,
-                            builder: (context, profile, _) => Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  profile.displayName.isNotEmpty
-                                      ? profile.displayName
-                                      : 'Guest User',
-                                  style: AppTypography.heading3(context),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  _getGreeting(),
-                                  style: AppTypography.secondary(context)
-                                      .copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                    ),
                     // Coin badge
                     _buildCoinBadge(context),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _openSettingsMenu,
+                      icon: const Icon(Icons.menu_rounded),
+                      tooltip: 'Settings and activity',
+                    ),
                   ],
                 ),
               ),

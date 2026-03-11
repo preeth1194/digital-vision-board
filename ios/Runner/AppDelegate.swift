@@ -10,24 +10,23 @@ import MediaPlayer
   private let channelName = "dvb/habit_progress_widget"
   private let snapshotKey = "habit_progress_widget_snapshot_v1"
   private let actionQueueKey = "habit_progress_widget_action_queue_v1"
+  private var habitProgressChannel: FlutterMethodChannel?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  override func applicationDidFinishLaunching(_ application: UIApplication) {
-    super.applicationDidFinishLaunching(application)
-    if let registrar = registrar(forPlugin: "HabitProgressWidget") {
-      _registerHabitProgressChannel(messenger: registrar.messenger())
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    if let controller = window?.rootViewController as? FlutterViewController {
+      _registerHabitProgressChannel(messenger: controller.binaryMessenger)
     }
+    return result
   }
 
   private func _registerHabitProgressChannel(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(name: channelName, binaryMessenger: messenger)
+    habitProgressChannel = channel
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { return }
       switch call.method {

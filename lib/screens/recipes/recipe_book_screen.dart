@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/habit_action_step.dart';
@@ -5,6 +6,29 @@ import '../../models/habit_item.dart';
 import '../../models/recipe.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/recipe_storage_service.dart';
+
+// ── Canonical filter values ───────────────────────────────────────────────────
+
+const _kCuisines = [
+  'American', 'Brazilian', 'British', 'Caribbean', 'Chinese',
+  'Ethiopian', 'French', 'Greek', 'Indian', 'Italian',
+  'Japanese', 'Korean', 'Mediterranean', 'Mexican', 'Middle Eastern',
+  'Moroccan', 'Spanish', 'Thai', 'Turkish', 'Vietnamese',
+];
+
+const _kCookingTypes = [
+  'air fry', 'bake', 'boil', 'braise', 'fry', 'grill',
+  'no-cook', 'poach', 'pressure cook', 'roast', 'sauté',
+  'slow cook', 'smoke', 'steam', 'stir fry',
+];
+
+const _kDietTags = [
+  'dairy-free', 'gluten-free', 'high-protein', 'keto',
+  'low-carb', 'nut-free', 'paleo', 'vegan',
+  'vegetarian', 'whole30',
+];
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 
 class RecipeBookScreen extends StatefulWidget {
   const RecipeBookScreen({super.key});
@@ -14,29 +38,34 @@ class RecipeBookScreen extends StatefulWidget {
 }
 
 class _RecipeBookScreenState extends State<RecipeBookScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _ingredientFilterController =
-      TextEditingController();
-  final Set<String> _selectedMethods = <String>{};
-  final Set<String> _selectedDiets = <String>{};
+  final _searchCtrl = TextEditingController();
+  final _ingredientCtrl = TextEditingController();
+
+  final Set<String> _selectedCuisines = {};
+  final Set<String> _selectedMethods = {};
+  final Set<String> _selectedDiets = {};
   bool _matchAllIngredients = false;
+
   List<Recipe> _recipes = const [];
   bool _loading = true;
+
+  // Filter panel open/closed
+  bool _filtersExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRecipes();
+    _load();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _ingredientFilterController.dispose();
+    _searchCtrl.dispose();
+    _ingredientCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadRecipes() async {
+  Future<void> _load() async {
     final recipes = await RecipeStorageService.loadAll();
     if (!mounted) return;
     setState(() {
@@ -45,84 +74,105 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
     });
   }
 
-  List<Recipe> get _filteredRecipes {
-    final query = _searchController.text.trim().toLowerCase();
-    final ingredientTokens = _ingredientFilterController.text
+  // ── Filtering ──────────────────────────────────────────────────────────────
+
+  List<Recipe> get _filtered {
+    final query = _searchCtrl.text.trim().toLowerCase();
+    final ingredientTokens = _ingredientCtrl.text
         .split(',')
         .map((e) => e.trim().toLowerCase())
         .where((e) => e.isNotEmpty)
         .toList();
 
-    bool matchesIngredients(Recipe recipe) {
-      if (ingredientTokens.isEmpty) return true;
-      final ingredients = recipe.ingredients
-          .map((e) => e.toLowerCase())
-          .toList();
-      bool hasToken(String token) => ingredients.any((i) => i.contains(token));
-      if (_matchAllIngredients) {
-        return ingredientTokens.every(hasToken);
+    return _recipes.where((r) {
+      // Search
+      if (query.isNotEmpty) {
+        final haystack =
+            '${r.title} ${r.cuisine} ${r.ingredients.join(' ')}'.toLowerCase();
+        if (!haystack.contains(query)) return false;
       }
-      return ingredientTokens.any(hasToken);
-    }
-
-    bool matchesMethods(Recipe recipe) {
-      if (_selectedMethods.isEmpty) return true;
-      final methods = recipe.cookingMethods.map((e) => e.toLowerCase()).toSet();
-      return _selectedMethods.every(methods.contains);
-    }
-
-    bool matchesDiets(Recipe recipe) {
-      if (_selectedDiets.isEmpty) return true;
-      final tags = recipe.dietTags.map((e) => e.toLowerCase()).toSet();
-      return _selectedDiets.every(tags.contains);
-    }
-
-    bool matchesSearch(Recipe recipe) {
-      if (query.isEmpty) return true;
-      final title = recipe.title.toLowerCase();
-      final ingredients = recipe.ingredients.join(' ').toLowerCase();
-      return title.contains(query) || ingredients.contains(query);
-    }
-
-    return _recipes.where((recipe) {
-      return matchesSearch(recipe) &&
-          matchesIngredients(recipe) &&
-          matchesMethods(recipe) &&
-          matchesDiets(recipe);
+      // Ingredients
+      if (ingredientTokens.isNotEmpty) {
+        final ings = r.ingredients.map((e) => e.toLowerCase()).toList();
+        bool has(String t) => ings.any((i) => i.contains(t));
+        final ok = _matchAllIngredients
+            ? ingredientTokens.every(has)
+            : ingredientTokens.any(has);
+        if (!ok) return false;
+      }
+      // Cuisine
+      if (_selectedCuisines.isNotEmpty &&
+          !_selectedCuisines.contains(r.cuisine)) {
+        return false;
+      }
+      // Cooking method
+      if (_selectedMethods.isNotEmpty) {
+        final methods = r.cookingMethods.map((e) => e.toLowerCase()).toSet();
+        if (!_selectedMethods.every(methods.contains)) return false;
+      }
+      // Diet
+      if (_selectedDiets.isNotEmpty) {
+        final tags = r.dietTags.map((e) => e.toLowerCase()).toSet();
+        if (!_selectedDiets.every(tags.contains)) return false;
+      }
+      return true;
     }).toList();
   }
 
-  Set<String> get _allMethods {
-    final values = <String>{};
-    for (final recipe in _recipes) {
-      values.addAll(recipe.cookingMethods.map((e) => e.toLowerCase()));
-    }
-    return values;
+  int get _activeFilterCount =>
+      _selectedCuisines.length +
+      _selectedMethods.length +
+      _selectedDiets.length +
+      (_ingredientCtrl.text.trim().isNotEmpty ? 1 : 0);
+
+  void _clearFilters() {
+    setState(() {
+      _selectedCuisines.clear();
+      _selectedMethods.clear();
+      _selectedDiets.clear();
+      _ingredientCtrl.clear();
+      _matchAllIngredients = false;
+    });
   }
 
-  Set<String> get _allDietTags {
-    final values = <String>{};
-    for (final recipe in _recipes) {
-      values.addAll(recipe.dietTags.map((e) => e.toLowerCase()));
-    }
-    return values;
-  }
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   Future<void> _openEditor({Recipe? recipe}) async {
     final result = await Navigator.of(context).push<Recipe>(
-      MaterialPageRoute(builder: (_) => RecipeEditorScreen(initial: recipe)),
+      MaterialPageRoute(
+        builder: (_) => RecipeEditorScreen(initial: recipe),
+      ),
     );
     if (result == null) return;
     await RecipeStorageService.upsertRecipe(result);
-    await _loadRecipes();
+    await _load();
   }
 
   Future<void> _deleteRecipe(Recipe recipe) async {
-    await RecipeStorageService.deleteRecipe(recipe.id);
-    await _loadRecipes();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Recipe'),
+        content: Text('Delete "${recipe.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await RecipeStorageService.deleteRecipe(recipe.id);
+      await _load();
+    }
   }
 
-  Future<void> _createLinkedHabitFromRecipe(Recipe recipe) async {
+  Future<void> _createLinkedHabit(Recipe recipe) async {
     final newHabit = HabitItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: 'Cook: ${recipe.title}',
@@ -143,184 +193,1096 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
     await HabitStorageService.addHabit(newHabit);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Linked habit created for ${recipe.title}')),
+      SnackBar(content: Text('Habit created for "${recipe.title}"')),
     );
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final recipes = _filteredRecipes;
+    final cs = Theme.of(context).colorScheme;
+    final filtered = _loading ? const <Recipe>[] : _filtered;
+
     return Scaffold(
+      backgroundColor: cs.surface,
       appBar: AppBar(
         title: const Text('Recipe Book'),
         actions: [
+          // Filter toggle with badge
+          Stack(
+            alignment: Alignment.topRight,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _filtersExpanded
+                      ? Icons.filter_list_off_rounded
+                      : Icons.filter_list_rounded,
+                ),
+                tooltip: 'Filters',
+                onPressed: () =>
+                    setState(() => _filtersExpanded = !_filtersExpanded),
+              ),
+              if (_activeFilterCount > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: cs.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$_activeFilterCount',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: cs.onError,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             onPressed: () => _openEditor(),
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_rounded),
             tooltip: 'New recipe',
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      body: Column(
+        children: [
+          // ── Search bar ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                hintText: 'Search recipes, cuisines, ingredients…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () => setState(() => _searchCtrl.clear()),
+                      )
+                    : null,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+
+          // ── Filter panel (collapsible) ──────────────────────────────────
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            child: _filtersExpanded
+                ? _FilterPanel(
+                    ingredientCtrl: _ingredientCtrl,
+                    matchAllIngredients: _matchAllIngredients,
+                    selectedCuisines: _selectedCuisines,
+                    selectedMethods: _selectedMethods,
+                    selectedDiets: _selectedDiets,
+                    activeFilterCount: _activeFilterCount,
+                    onMatchAllChanged: (v) =>
+                        setState(() => _matchAllIngredients = v),
+                    onCuisineToggle: (v) => setState(
+                      () => _selectedCuisines.contains(v)
+                          ? _selectedCuisines.remove(v)
+                          : _selectedCuisines.add(v),
+                    ),
+                    onMethodToggle: (v) => setState(
+                      () => _selectedMethods.contains(v)
+                          ? _selectedMethods.remove(v)
+                          : _selectedMethods.add(v),
+                    ),
+                    onDietToggle: (v) => setState(
+                      () => _selectedDiets.contains(v)
+                          ? _selectedDiets.remove(v)
+                          : _selectedDiets.add(v),
+                    ),
+                    onIngredientChanged: () => setState(() {}),
+                    onClearAll: _clearFilters,
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          // ── Result count ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
               children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'Search recipes',
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _ingredientFilterController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.inventory_2_outlined),
-                    hintText: 'Filter by ingredients (comma separated)',
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Match all listed ingredients'),
-                  value: _matchAllIngredients,
-                  onChanged: (v) => setState(() => _matchAllIngredients = v),
-                ),
-                const SizedBox(height: 6),
-                _FilterChipsRow(
-                  label: 'Cooking Methods',
-                  allValues: _allMethods.toList()..sort(),
-                  selected: _selectedMethods,
-                  onToggle: (value) => setState(() {
-                    if (_selectedMethods.contains(value)) {
-                      _selectedMethods.remove(value);
-                    } else {
-                      _selectedMethods.add(value);
-                    }
-                  }),
-                ),
-                const SizedBox(height: 8),
-                _FilterChipsRow(
-                  label: 'Diet',
-                  allValues: _allDietTags.toList()..sort(),
-                  selected: _selectedDiets,
-                  onToggle: (value) => setState(() {
-                    if (_selectedDiets.contains(value)) {
-                      _selectedDiets.remove(value);
-                    } else {
-                      _selectedDiets.add(value);
-                    }
-                  }),
-                ),
-                const SizedBox(height: 12),
                 Text(
-                  '${recipes.length} recipe(s)',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-                const SizedBox(height: 8),
-                if (recipes.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No recipes match current filters.'),
-                    ),
-                  ),
-                for (final recipe in recipes)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            recipe.title,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Ingredients: ${recipe.ingredients.take(4).join(', ')}'
-                            '${recipe.ingredients.length > 4 ? '...' : ''}',
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            children: [
-                              for (final m in recipe.cookingMethods)
-                                Chip(label: Text(m)),
-                              for (final d in recipe.dietTags)
-                                Chip(label: Text(d)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () => _openEditor(recipe: recipe),
-                                child: const Text('Edit'),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    _createLinkedHabitFromRecipe(recipe),
-                                child: const Text('Create Linked Habit'),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                onPressed: () => _deleteRecipe(recipe),
-                                icon: const Icon(Icons.delete_outline),
-                              ),
-                            ],
-                          ),
-                        ],
+                  _loading
+                      ? 'Loading…'
+                      : '${filtered.length} recipe${filtered.length == 1 ? '' : 's'}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
                       ),
+                ),
+                if (_activeFilterCount > 0) ...[
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _clearFilters,
+                    child: Text(
+                      'Clear filters',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
+                ],
               ],
             ),
+          ),
+
+          // ── Recipe grid ─────────────────────────────────────────────────
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? _EmptyState(hasFilters: _activeFilterCount > 0 || _searchCtrl.text.isNotEmpty)
+                    : GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, i) => _RecipeCard(
+                          recipe: filtered[i],
+                          onTap: () => _showDetail(filtered[i]),
+                          onEdit: filtered[i].isCatalog
+                              ? null
+                              : () => _openEditor(recipe: filtered[i]),
+                          onDelete: filtered[i].isCatalog
+                              ? null
+                              : () => _deleteRecipe(filtered[i]),
+                          onFork: filtered[i].isCatalog
+                              ? () => _forkRecipe(filtered[i])
+                              : null,
+                          onLinkedHabit: () => _createLinkedHabit(filtered[i]),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetail(Recipe recipe) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _RecipeDetailScreen(
+          recipe: recipe,
+          onEdit: recipe.isCatalog ? null : () => _openEditor(recipe: recipe),
+          onFork: recipe.isCatalog ? () => _forkAndEdit(recipe) : null,
+          onLinkedHabit: () => _createLinkedHabit(recipe),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _forkRecipe(Recipe recipe) async {
+    // Fork a catalog recipe into the user's own copy and open the editor.
+    await _forkAndEdit(recipe);
+  }
+
+  Future<void> _forkAndEdit(Recipe recipe) async {
+    final forked = recipe.copyWith(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      isCatalog: false,
+      updatedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _openEditor(recipe: forked);
+  }
+}
+
+// ── Filter panel ──────────────────────────────────────────────────────────────
+
+class _FilterPanel extends StatelessWidget {
+  final TextEditingController ingredientCtrl;
+  final bool matchAllIngredients;
+  final Set<String> selectedCuisines;
+  final Set<String> selectedMethods;
+  final Set<String> selectedDiets;
+  final int activeFilterCount;
+  final ValueChanged<bool> onMatchAllChanged;
+  final ValueChanged<String> onCuisineToggle;
+  final ValueChanged<String> onMethodToggle;
+  final ValueChanged<String> onDietToggle;
+  final VoidCallback onIngredientChanged;
+  final VoidCallback onClearAll;
+
+  const _FilterPanel({
+    required this.ingredientCtrl,
+    required this.matchAllIngredients,
+    required this.selectedCuisines,
+    required this.selectedMethods,
+    required this.selectedDiets,
+    required this.activeFilterCount,
+    required this.onMatchAllChanged,
+    required this.onCuisineToggle,
+    required this.onMethodToggle,
+    required this.onDietToggle,
+    required this.onIngredientChanged,
+    required this.onClearAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      color: cs.surfaceContainerLow,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cuisine
+          _SectionLabel(label: 'Cuisine', icon: Icons.public_rounded),
+          const SizedBox(height: 6),
+          _ChipRow(
+            values: _kCuisines,
+            selected: selectedCuisines,
+            onToggle: onCuisineToggle,
+          ),
+          const SizedBox(height: 10),
+
+          // Cooking Type
+          _SectionLabel(
+            label: 'Cooking Method',
+            icon: Icons.outdoor_grill_rounded,
+          ),
+          const SizedBox(height: 6),
+          _ChipRow(
+            values: _kCookingTypes,
+            selected: selectedMethods,
+            onToggle: onMethodToggle,
+          ),
+          const SizedBox(height: 10),
+
+          // Diet
+          _SectionLabel(
+            label: 'Diet',
+            icon: Icons.eco_rounded,
+          ),
+          const SizedBox(height: 6),
+          _ChipRow(
+            values: _kDietTags,
+            selected: selectedDiets,
+            onToggle: onDietToggle,
+          ),
+          const SizedBox(height: 10),
+
+          // Ingredient filter
+          _SectionLabel(
+            label: 'Ingredients',
+            icon: Icons.inventory_2_outlined,
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: ingredientCtrl,
+            decoration: InputDecoration(
+              hintText: 'e.g. chicken, garlic, lemon',
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+            onChanged: (_) => onIngredientChanged(),
+          ),
+          Row(
+            children: [
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: matchAllIngredients,
+                  onChanged: onMatchAllChanged,
+                ),
+              ),
+              Text(
+                'Match ALL listed ingredients',
+                style: textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _FilterChipsRow extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
   final String label;
-  final List<String> allValues;
+  final IconData icon;
+  const _SectionLabel({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: cs.primary),
+        const SizedBox(width: 5),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChipRow extends StatelessWidget {
+  final List<String> values;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
 
-  const _FilterChipsRow({
-    required this.label,
-    required this.allValues,
+  const _ChipRow({
+    required this.values,
     required this.selected,
     required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (allValues.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
       children: [
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            for (final value in allValues)
-              FilterChip(
-                label: Text(value),
-                selected: selected.contains(value),
-                onSelected: (_) => onToggle(value),
-              ),
-          ],
-        ),
+        for (final v in values)
+          FilterChip(
+            label: Text(v),
+            selected: selected.contains(v),
+            onSelected: (_) => onToggle(v),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelStyle: const TextStyle(fontSize: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            visualDensity: VisualDensity.compact,
+          ),
       ],
     );
   }
 }
+
+// ── Recipe card (grid item) ───────────────────────────────────────────────────
+
+class _RecipeCard extends StatelessWidget {
+  final Recipe recipe;
+  final VoidCallback onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onFork;
+  final VoidCallback onLinkedHabit;
+
+  const _RecipeCard({
+    required this.recipe,
+    required this.onTap,
+    this.onEdit,
+    this.onDelete,
+    this.onFork,
+    required this.onLinkedHabit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            _RecipeImage(imageUrl: recipe.imageUrl, height: 110),
+
+            // Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Cuisine tag
+                    if (recipe.cuisine.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          recipe.cuisine,
+                          style: textTheme.labelSmall?.copyWith(
+                            color: cs.onPrimaryContainer,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                    // Title
+                    Text(
+                      recipe.title,
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const Spacer(),
+
+                    // Time + servings row
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${recipe.prepTimeMinutes + recipe.cookTimeMinutes} min',
+                          style: textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.people_outline_rounded,
+                          size: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${recipe.servings}',
+                          style: textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Diet chips (first 2)
+                    if (recipe.dietTags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Wrap(
+                          spacing: 3,
+                          children: [
+                            for (final tag in recipe.dietTags.take(2))
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.tertiaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    fontSize: 9,
+                                    color: cs.onTertiaryContainer,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                    // Action row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (onFork != null)
+                          _MiniIconBtn(
+                            icon: Icons.fork_right_rounded,
+                            tooltip: 'Fork & edit',
+                            onTap: onFork!,
+                          ),
+                        if (onEdit != null)
+                          _MiniIconBtn(
+                            icon: Icons.edit_outlined,
+                            tooltip: 'Edit',
+                            onTap: onEdit!,
+                          ),
+                        if (onDelete != null)
+                          _MiniIconBtn(
+                            icon: Icons.delete_outline_rounded,
+                            tooltip: 'Delete',
+                            onTap: onDelete!,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniIconBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _MiniIconBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(
+          icon,
+          size: 15,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Recipe image widget ───────────────────────────────────────────────────────
+
+class _RecipeImage extends StatelessWidget {
+  final String? imageUrl;
+  final double height;
+
+  const _RecipeImage({this.imageUrl, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return Container(
+        height: height,
+        color: cs.surfaceContainerHighest,
+        child: Icon(
+          Icons.restaurant_rounded,
+          size: 36,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl!,
+      height: height,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => Container(
+        height: height,
+        color: cs.surfaceContainerHighest,
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      errorWidget: (_, __, ___) => Container(
+        height: height,
+        color: cs.surfaceContainerHighest,
+        child: Icon(
+          Icons.restaurant_rounded,
+          size: 36,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final bool hasFilters;
+  const _EmptyState({required this.hasFilters});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasFilters
+                ? Icons.filter_list_off_rounded
+                : Icons.menu_book_rounded,
+            size: 56,
+            color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            hasFilters ? 'No recipes match your filters' : 'No recipes yet',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          if (!hasFilters) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Tap + to add your first recipe',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Recipe detail screen ──────────────────────────────────────────────────────
+
+class _RecipeDetailScreen extends StatelessWidget {
+  final Recipe recipe;
+  final VoidCallback? onEdit;
+  final VoidCallback? onFork;
+  final VoidCallback onLinkedHabit;
+
+  const _RecipeDetailScreen({
+    required this.recipe,
+    this.onEdit,
+    this.onFork,
+    required this.onLinkedHabit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 220,
+            pinned: true,
+            actions: [
+              if (onFork != null)
+                IconButton(
+                  icon: const Icon(Icons.fork_right_rounded),
+                  tooltip: 'Fork & edit',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onFork!();
+                  },
+                ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onEdit!();
+                  },
+                ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                recipe.title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              background: recipe.imageUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: recipe.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: cs.surfaceContainerHighest,
+                      ),
+                    )
+                  : Container(color: cs.surfaceContainerHighest),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Meta chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (recipe.cuisine.isNotEmpty)
+                        Chip(
+                          label: Text(recipe.cuisine),
+                          avatar: const Icon(Icons.public_rounded, size: 14),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      if (recipe.prepTimeMinutes + recipe.cookTimeMinutes > 0)
+                        Chip(
+                          label: Text(
+                            '${recipe.prepTimeMinutes + recipe.cookTimeMinutes} min',
+                          ),
+                          avatar: const Icon(Icons.schedule_rounded, size: 14),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      if (recipe.servings > 1)
+                        Chip(
+                          label: Text('${recipe.servings} servings'),
+                          avatar: const Icon(
+                            Icons.people_outline_rounded,
+                            size: 14,
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      for (final tag in recipe.cookingMethods)
+                        Chip(
+                          label: Text(tag),
+                          avatar: const Icon(
+                            Icons.outdoor_grill_rounded,
+                            size: 14,
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      for (final tag in recipe.dietTags)
+                        Chip(
+                          label: Text(tag),
+                          avatar: const Icon(Icons.eco_rounded, size: 14),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: cs.tertiaryContainer,
+                        ),
+                    ],
+                  ),
+
+                  // Macros / Nutrition panel (if available)
+                  if (recipe.macros != null && !recipe.macros!.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    _DetailSection(
+                      icon: Icons.bar_chart_rounded,
+                      title: 'Nutrition (per serving)',
+                      child: _MacrosGrid(macros: recipe.macros!),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // Ingredients
+                  _DetailSection(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Ingredients',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final ing in recipe.ingredients)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 5),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 5,
+                                    right: 8,
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 3,
+                                    backgroundColor: cs.primary,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    ing,
+                                    style: textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Method
+                  _DetailSection(
+                    icon: Icons.format_list_numbered_rounded,
+                    title: 'Method',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (int i = 0; i < recipe.methodSteps.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  margin: const EdgeInsets.only(
+                                    top: 1,
+                                    right: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cs.primaryContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: cs.onPrimaryContainer,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    recipe.methodSteps[i],
+                                    style: textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  if (recipe.notes != null &&
+                      recipe.notes!.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _DetailSection(
+                      icon: Icons.notes_rounded,
+                      title: 'Notes',
+                      child: Text(
+                        recipe.notes!,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Create habit button
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onLinkedHabit();
+                    },
+                    icon: const Icon(Icons.add_task_rounded),
+                    label: const Text('Create Linked Habit'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  const _DetailSection({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 15, color: cs.primary),
+            const SizedBox(width: 6),
+            Text(
+              title.toUpperCase(),
+              style: textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        child,
+      ],
+    );
+  }
+}
+
+// ── Macros grid display ───────────────────────────────────────────────────────
+
+class _MacrosGrid extends StatelessWidget {
+  final RecipeMacros macros;
+
+  const _MacrosGrid({required this.macros});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final items = [
+      if (macros.calories > 0)
+        _MacroTile(label: 'Calories', value: '${macros.calories.toInt()}', unit: 'kcal', color: const Color(0xFFFF7043)),
+      if (macros.proteinG > 0)
+        _MacroTile(label: 'Protein', value: macros.proteinG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF42A5F5)),
+      if (macros.carbsG > 0)
+        _MacroTile(label: 'Carbs', value: macros.carbsG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFFFCA28)),
+      if (macros.fatG > 0)
+        _MacroTile(label: 'Fat', value: macros.fatG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFEF5350)),
+      if (macros.fiberG > 0)
+        _MacroTile(label: 'Fiber', value: macros.fiberG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF66BB6A)),
+      if (macros.sodiumMg > 0)
+        _MacroTile(label: 'Sodium', value: macros.sodiumMg.toInt().toString(), unit: 'mg', color: cs.outline),
+      if (macros.sugarG > 0)
+        _MacroTile(label: 'Sugar', value: macros.sugarG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFAB47BC)),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items,
+    );
+  }
+}
+
+class _MacroTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+  final Color color;
+
+  const _MacroTile({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Recipe editor ─────────────────────────────────────────────────────────────
 
 class RecipeEditorScreen extends StatefulWidget {
   final Recipe? initial;
@@ -332,162 +1294,252 @@ class RecipeEditorScreen extends StatefulWidget {
 }
 
 class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
-  late final TextEditingController _titleController;
-  late final TextEditingController _ingredientsController;
-  late final TextEditingController _stepsController;
-  late final TextEditingController _methodsController;
-  late final TextEditingController _dietController;
-  late final TextEditingController _prepController;
-  late final TextEditingController _cookController;
-  late final TextEditingController _servingsController;
-  late final TextEditingController _notesController;
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _cuisineCtrl;
+  late final TextEditingController _ingredientsCtrl;
+  late final TextEditingController _stepsCtrl;
+  late final TextEditingController _methodsCtrl;
+  late final TextEditingController _dietCtrl;
+  late final TextEditingController _prepCtrl;
+  late final TextEditingController _cookCtrl;
+  late final TextEditingController _servingsCtrl;
+  late final TextEditingController _notesCtrl;
+
+  // Macro fields
+  late final TextEditingController _calCtrl;
+  late final TextEditingController _proteinCtrl;
+  late final TextEditingController _carbsCtrl;
+  late final TextEditingController _fatCtrl;
+  late final TextEditingController _fiberCtrl;
+  late final TextEditingController _sodiumCtrl;
+  late final TextEditingController _sugarCtrl;
+
+  bool _showMacros = false;
 
   @override
   void initState() {
     super.initState();
-    final initial = widget.initial;
-    _titleController = TextEditingController(text: initial?.title ?? '');
-    _ingredientsController = TextEditingController(
-      text: initial?.ingredients.join(', ') ?? '',
-    );
-    _stepsController = TextEditingController(
-      text: initial?.methodSteps.join('\n') ?? '',
-    );
-    _methodsController = TextEditingController(
-      text: initial?.cookingMethods.join(', ') ?? '',
-    );
-    _dietController = TextEditingController(
-      text: initial?.dietTags.join(', ') ?? '',
-    );
-    _prepController = TextEditingController(
-      text: (initial?.prepTimeMinutes ?? 0).toString(),
-    );
-    _cookController = TextEditingController(
-      text: (initial?.cookTimeMinutes ?? 0).toString(),
-    );
-    _servingsController = TextEditingController(
-      text: (initial?.servings ?? 1).toString(),
-    );
-    _notesController = TextEditingController(text: initial?.notes ?? '');
+    final r = widget.initial;
+    _titleCtrl = TextEditingController(text: r?.title ?? '');
+    _cuisineCtrl = TextEditingController(text: r?.cuisine ?? '');
+    _ingredientsCtrl =
+        TextEditingController(text: r?.ingredients.join(', ') ?? '');
+    _stepsCtrl =
+        TextEditingController(text: r?.methodSteps.join('\n') ?? '');
+    _methodsCtrl =
+        TextEditingController(text: r?.cookingMethods.join(', ') ?? '');
+    _dietCtrl = TextEditingController(text: r?.dietTags.join(', ') ?? '');
+    _prepCtrl =
+        TextEditingController(text: (r?.prepTimeMinutes ?? 0).toString());
+    _cookCtrl =
+        TextEditingController(text: (r?.cookTimeMinutes ?? 0).toString());
+    _servingsCtrl =
+        TextEditingController(text: (r?.servings ?? 1).toString());
+    _notesCtrl = TextEditingController(text: r?.notes ?? '');
+
+    final m = r?.macros;
+    _calCtrl = TextEditingController(
+        text: m != null && m.calories > 0 ? m.calories.toStringAsFixed(0) : '');
+    _proteinCtrl = TextEditingController(
+        text: m != null && m.proteinG > 0 ? m.proteinG.toStringAsFixed(1) : '');
+    _carbsCtrl = TextEditingController(
+        text: m != null && m.carbsG > 0 ? m.carbsG.toStringAsFixed(1) : '');
+    _fatCtrl = TextEditingController(
+        text: m != null && m.fatG > 0 ? m.fatG.toStringAsFixed(1) : '');
+    _fiberCtrl = TextEditingController(
+        text: m != null && m.fiberG > 0 ? m.fiberG.toStringAsFixed(1) : '');
+    _sodiumCtrl = TextEditingController(
+        text: m != null && m.sodiumMg > 0 ? m.sodiumMg.toStringAsFixed(0) : '');
+    _sugarCtrl = TextEditingController(
+        text: m != null && m.sugarG > 0 ? m.sugarG.toStringAsFixed(1) : '');
+
+    if (m != null && !m.isEmpty) _showMacros = true;
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _ingredientsController.dispose();
-    _stepsController.dispose();
-    _methodsController.dispose();
-    _dietController.dispose();
-    _prepController.dispose();
-    _cookController.dispose();
-    _servingsController.dispose();
-    _notesController.dispose();
+    for (final c in [
+      _titleCtrl, _cuisineCtrl, _ingredientsCtrl, _stepsCtrl,
+      _methodsCtrl, _dietCtrl, _prepCtrl, _cookCtrl, _servingsCtrl, _notesCtrl,
+      _calCtrl, _proteinCtrl, _carbsCtrl, _fatCtrl, _fiberCtrl, _sodiumCtrl, _sugarCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  List<String> _splitCsv(String text) =>
+  List<String> _csv(String text) =>
       text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
-  List<String> _splitLines(String text) =>
+  List<String> _lines(String text) =>
       text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+  RecipeMacros? _buildMacros() {
+    if (!_showMacros) return null;
+    final cal = double.tryParse(_calCtrl.text.trim()) ?? 0;
+    final protein = double.tryParse(_proteinCtrl.text.trim()) ?? 0;
+    final carbs = double.tryParse(_carbsCtrl.text.trim()) ?? 0;
+    final fat = double.tryParse(_fatCtrl.text.trim()) ?? 0;
+    final fiber = double.tryParse(_fiberCtrl.text.trim()) ?? 0;
+    final sodium = double.tryParse(_sodiumCtrl.text.trim()) ?? 0;
+    final sugar = double.tryParse(_sugarCtrl.text.trim()) ?? 0;
+    if (cal == 0 && protein == 0 && carbs == 0 && fat == 0) return null;
+    return RecipeMacros(
+      calories: cal,
+      proteinG: protein,
+      carbsG: carbs,
+      fatG: fat,
+      fiberG: fiber,
+      sodiumMg: sodium,
+      sugarG: sugar,
+    );
+  }
+
   void _save() {
-    final title = _titleController.text.trim();
+    final title = _titleCtrl.text.trim();
     if (title.isEmpty) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final recipe = Recipe(
-      id: widget.initial?.id ?? now.toString(),
-      title: title,
-      ingredients: _splitCsv(_ingredientsController.text),
-      methodSteps: _splitLines(_stepsController.text),
-      cookingMethods: _splitCsv(_methodsController.text),
-      dietTags: _splitCsv(_dietController.text),
-      prepTimeMinutes: int.tryParse(_prepController.text.trim()) ?? 0,
-      cookTimeMinutes: int.tryParse(_cookController.text.trim()) ?? 0,
-      servings: int.tryParse(_servingsController.text.trim()) ?? 1,
-      notes: _notesController.text.trim().isEmpty
-          ? null
-          : _notesController.text.trim(),
-      linkedHabitIds: widget.initial?.linkedHabitIds ?? const [],
-      updatedAtMs: now,
+    Navigator.of(context).pop(
+      Recipe(
+        id: widget.initial?.id ?? now.toString(),
+        title: title,
+        cuisine: _cuisineCtrl.text.trim(),
+        ingredients: _csv(_ingredientsCtrl.text),
+        methodSteps: _lines(_stepsCtrl.text),
+        cookingMethods: _csv(_methodsCtrl.text),
+        dietTags: _csv(_dietCtrl.text),
+        prepTimeMinutes: int.tryParse(_prepCtrl.text.trim()) ?? 0,
+        cookTimeMinutes: int.tryParse(_cookCtrl.text.trim()) ?? 0,
+        servings: int.tryParse(_servingsCtrl.text.trim()) ?? 1,
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        imageUrl: widget.initial?.imageUrl,
+        linkedHabitIds: widget.initial?.linkedHabitIds ?? const [],
+        updatedAtMs: now,
+        macros: _buildMacros(),
+      ),
     );
-    Navigator.of(context).pop(recipe);
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.initial == null ? 'New Recipe' : 'Edit Recipe'),
-        actions: [TextButton(onPressed: _save, child: const Text('Save'))],
+        actions: [
+          TextButton(onPressed: _save, child: const Text('Save')),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(
-            controller: _titleController,
-            decoration: const InputDecoration(labelText: 'Title'),
-          ),
-          TextField(
-            controller: _ingredientsController,
-            decoration: const InputDecoration(
-              labelText: 'Ingredients (comma separated)',
-            ),
-          ),
-          TextField(
-            controller: _methodsController,
-            decoration: const InputDecoration(
-              labelText: 'Cooking methods (comma separated)',
-            ),
-          ),
-          TextField(
-            controller: _dietController,
-            decoration: const InputDecoration(
-              labelText: 'Diet tags (comma separated)',
-            ),
-          ),
+          _field(_titleCtrl, 'Title'),
+          _field(_cuisineCtrl, 'Cuisine (e.g. Italian, Japanese)'),
+          _field(_ingredientsCtrl, 'Ingredients (comma separated)'),
+          _field(_methodsCtrl, 'Cooking methods (comma separated)'),
+          _field(_dietCtrl, 'Diet tags (comma separated)'),
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _prepController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Prep min'),
-                ),
-              ),
+              Expanded(child: _field(_prepCtrl, 'Prep min', numeric: true)),
+              const SizedBox(width: 12),
+              Expanded(child: _field(_cookCtrl, 'Cook min', numeric: true)),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
-                  controller: _cookController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Cook min'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _servingsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Servings'),
-                ),
+                child: _field(_servingsCtrl, 'Servings', numeric: true),
               ),
             ],
           ),
           TextField(
-            controller: _stepsController,
+            controller: _stepsCtrl,
             minLines: 4,
             maxLines: 8,
             decoration: const InputDecoration(
               labelText: 'Method steps (one per line)',
             ),
           ),
+          const SizedBox(height: 8),
           TextField(
-            controller: _notesController,
+            controller: _notesCtrl,
             minLines: 2,
             maxLines: 4,
             decoration: const InputDecoration(labelText: 'Notes'),
           ),
+          const SizedBox(height: 16),
+
+          // ── Macros section ─────────────────────────────────────────────
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _showMacros = !_showMacros),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 18, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _showMacros
+                          ? 'Nutrition / Macros (per serving)'
+                          : 'Add Nutrition / Macros (optional)',
+                      style: TextStyle(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _showMacros
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: cs.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_showMacros) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: _field(_calCtrl, 'Calories (kcal)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_proteinCtrl, 'Protein (g)', numeric: true)),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(child: _field(_carbsCtrl, 'Carbs (g)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_fatCtrl, 'Fat (g)', numeric: true)),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(child: _field(_fiberCtrl, 'Fiber (g)', numeric: true)),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_sugarCtrl, 'Sugar (g)', numeric: true)),
+              ],
+            ),
+            _field(_sodiumCtrl, 'Sodium (mg)', numeric: true),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController ctrl,
+    String label, {
+    bool numeric = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: ctrl,
+        keyboardType: numeric
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }

@@ -722,7 +722,35 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
               for (final tpl in _availableTemplates)
                 ListTile(
                   leading: const Icon(Icons.auto_awesome_outlined),
-                  title: Text(tpl.name),
+                  title: Row(
+                    children: [
+                      Expanded(child: Text(tpl.name)),
+                      if (tpl.isOfficial)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Default',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   subtitle: Text('${tpl.steps.length} steps'),
                   onTap: () => Navigator.of(context).pop(tpl),
                 ),

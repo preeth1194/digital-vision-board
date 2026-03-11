@@ -16,7 +16,24 @@ create table if not exists dv_boards (
   primary key (canva_user_id, board_id)
 );
 
-create index if not exists dv_boards_canva_user_id_updated_at_idx on dv_boards (canva_user_id, updated_at desc);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_boards' and column_name = 'user_id'
+  ) then
+    create index if not exists dv_boards_canva_user_id_updated_at_idx
+      on dv_boards (user_id, updated_at desc);
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_boards' and column_name = 'canva_user_id'
+  ) then
+    create index if not exists dv_boards_canva_user_id_updated_at_idx
+      on dv_boards (canva_user_id, updated_at desc);
+  end if;
+end $$;
 
 -- Habit completion log (recent-only retention enforced at API level initially)
 create table if not exists dv_habit_completions (
@@ -32,8 +49,28 @@ create table if not exists dv_habit_completions (
   primary key (canva_user_id, board_id, component_id, habit_id, logical_date)
 );
 
-create index if not exists dv_habit_completions_user_date_idx on dv_habit_completions (canva_user_id, logical_date desc);
-create index if not exists dv_habit_completions_user_habit_date_idx on dv_habit_completions (canva_user_id, habit_id, logical_date desc);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_habit_completions' and column_name = 'user_id'
+  ) then
+    create index if not exists dv_habit_completions_user_date_idx
+      on dv_habit_completions (user_id, logical_date desc);
+    create index if not exists dv_habit_completions_user_habit_date_idx
+      on dv_habit_completions (user_id, habit_id, logical_date desc);
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_habit_completions' and column_name = 'canva_user_id'
+  ) then
+    create index if not exists dv_habit_completions_user_date_idx
+      on dv_habit_completions (canva_user_id, logical_date desc);
+    create index if not exists dv_habit_completions_user_habit_date_idx
+      on dv_habit_completions (canva_user_id, habit_id, logical_date desc);
+  end if;
+end $$;
 
 -- Checklist/task completion events (per-item per-day; used for checklists and tasks)
 create table if not exists dv_checklist_events (
@@ -50,5 +87,22 @@ create table if not exists dv_checklist_events (
   primary key (canva_user_id, board_id, component_id, task_id, item_id, logical_date)
 );
 
-create index if not exists dv_checklist_events_user_date_idx on dv_checklist_events (canva_user_id, logical_date desc);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_checklist_events' and column_name = 'user_id'
+  ) then
+    create index if not exists dv_checklist_events_user_date_idx
+      on dv_checklist_events (user_id, logical_date desc);
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_name = 'dv_checklist_events' and column_name = 'canva_user_id'
+  ) then
+    create index if not exists dv_checklist_events_user_date_idx
+      on dv_checklist_events (canva_user_id, logical_date desc);
+  end if;
+end $$;
 

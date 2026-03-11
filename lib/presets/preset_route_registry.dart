@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/action_step_template.dart';
 import '../screens/meal_prep/meal_prep_week_screen.dart';
 import '../screens/skincare/skincare_planner_screen.dart';
+import '../screens/workout/workout_preset_editor_screen.dart';
+import '../screens/workout/workout_preset_viewer_screen.dart';
 import 'models/preset_template_config.dart';
 import 'preset_template_adapter.dart';
 import 'widgets/generic_preset_editor_screen.dart';
@@ -13,6 +15,7 @@ class PresetRouteRegistry {
   static final List<PresetTemplateAdapter> _adapters = [
     const _SkincarePresetTemplateAdapter(),
     const _MealPrepPresetTemplateAdapter(),
+    const _WorkoutPresetTemplateAdapter(),
     const _GenericPresetTemplateAdapter(),
   ];
 
@@ -99,6 +102,50 @@ class _MealPrepPresetTemplateAdapter extends PresetTemplateAdapter {
   @override
   bool supportsTemplate(ActionStepTemplate template) {
     return template.category == ActionTemplateCategory.mealPrep;
+  }
+}
+
+class _WorkoutPresetTemplateAdapter extends PresetTemplateAdapter {
+  const _WorkoutPresetTemplateAdapter();
+
+  @override
+  PresetTemplateConfig buildConfig(ActionStepTemplate template) {
+    final level = (template.metadata['level'] as String? ?? '').isNotEmpty
+        ? template.metadata['level'] as String
+        : 'Workout';
+    final durationWeeks = template.metadata['durationWeeks'];
+    final daysPerWeek = template.metadata['daysPerWeek'];
+    final subtitle = [
+      if (durationWeeks != null) '$durationWeeks weeks',
+      if (daysPerWeek != null) '$daysPerWeek days/week',
+    ].join(' · ');
+    return PresetTemplateConfig(
+      id: 'workout',
+      title: '$level Plan${subtitle.isNotEmpty ? ' — $subtitle' : ''}',
+      icon: Icons.fitness_center_outlined,
+      sections: [PresetTemplateSection.routinePreview],
+      supportsAmPmSplit: false,
+      allowEdit: true,
+      allowCreateHabits: true,
+      createButtonLabel: 'Create habit',
+    );
+  }
+
+  @override
+  Future<ActionStepTemplate?> openEditor(
+    BuildContext context,
+    ActionStepTemplate template,
+  ) {
+    return Navigator.of(context).push<ActionStepTemplate>(
+      MaterialPageRoute<ActionStepTemplate>(
+        builder: (_) => WorkoutPresetEditorScreen(template: template),
+      ),
+    );
+  }
+
+  @override
+  bool supportsTemplate(ActionStepTemplate template) {
+    return template.category == ActionTemplateCategory.workout;
   }
 }
 

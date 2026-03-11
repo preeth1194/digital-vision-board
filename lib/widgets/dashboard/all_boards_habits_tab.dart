@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/vision_components.dart';
@@ -365,6 +366,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         note: result.note,
         coinsEarned: earnedCoins,
         trackingValue: result.trackingValue,
+        stepSetsByStepId: result.stepSetsById,
+        stepRepsByStepId: result.stepRepsById,
       );
 
       await _toggleHabit(
@@ -441,11 +444,36 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         trackingText = 'Tracked: $display $unit';
       }
 
+      String setsRepsText = '';
+      if (completedStepIds.isNotEmpty &&
+          (feedback.stepSetsByStepId.isNotEmpty ||
+              feedback.stepRepsByStepId.isNotEmpty)) {
+        final perStepLogs = <String>[];
+        for (final stepId in completedStepIds) {
+          final step = habit.actionSteps
+              .where((s) => s.id == stepId)
+              .cast<HabitActionStep?>()
+              .firstWhere((_) => true, orElse: () => null);
+          if (step == null) continue;
+          final sets = feedback.stepSetsByStepId[stepId];
+          final reps = feedback.stepRepsByStepId[stepId];
+          if (sets == null && reps == null) continue;
+          final metric = sets != null && reps != null
+              ? '${sets}x$reps'
+              : (sets != null ? '$sets sets' : '$reps reps');
+          perStepLogs.add('${step.title}: $metric');
+        }
+        if (perStepLogs.isNotEmpty) {
+          setsRepsText = 'Sets/Reps: ${perStepLogs.join(' | ')}';
+        }
+      }
+
       final noteText = (feedback.note ?? '').trim();
       final dayLog = [
         moodText,
         trackingText,
         stepsText,
+        setsRepsText,
         noteText,
       ].where((s) => s.isNotEmpty).join('\n');
       final hasMedia = audioPath != null || capturedImagePaths.isNotEmpty;
@@ -716,6 +744,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         note: result.note,
         coinsEarned: result.coinsEarned,
         trackingValue: result.trackingValue,
+        stepSetsByStepId: result.stepSetsById,
+        stepRepsByStepId: result.stepRepsById,
       ),
       completedStepIds: result.completedStepIds,
       audioPath: result.audioPath,

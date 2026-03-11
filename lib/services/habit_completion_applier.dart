@@ -89,4 +89,29 @@ final class HabitCompletionApplier {
     );
     return true;
   }
+
+  /// Stores completion feedback for today's logical date.
+  static Future<bool> saveFeedbackForToday({
+    required String habitId,
+    required HabitCompletionFeedback feedback,
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await LogicalDateService.ensureInitialized(prefs: p);
+
+    final all = await HabitStorageService.loadAll(prefs: p);
+    final idx = all.indexWhere((h) => h.id == habitId);
+    if (idx == -1) return false;
+
+    final habit = all[idx];
+    final now = LogicalDateService.now();
+    final iso = LogicalDateService.toIsoDate(now);
+    final updatedFeedback = Map<String, HabitCompletionFeedback>.from(
+      habit.feedbackByDate,
+    );
+    updatedFeedback[iso] = feedback;
+    all[idx] = habit.copyWith(feedbackByDate: updatedFeedback);
+    await HabitStorageService.saveAll(all, prefs: p);
+    return true;
+  }
 }

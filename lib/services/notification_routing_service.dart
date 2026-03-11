@@ -5,6 +5,7 @@ import '../main.dart';
 import '../models/habit_item.dart';
 import '../widgets/rituals/habit_completion_sheet.dart';
 import 'coins_service.dart';
+import 'habit_completion_applier.dart';
 import 'habit_storage_service.dart';
 import 'logical_date_service.dart';
 
@@ -39,25 +40,19 @@ final class NotificationRoutingService {
 
     if (result == null) return;
 
-    final iso = LogicalDateService.isoToday();
-
     final feedback = HabitCompletionFeedback(
       rating: result.mood ?? 0,
       note: result.note,
       coinsEarned: result.coinsEarned,
       trackingValue: result.trackingValue,
+      stepSetsByStepId: result.stepSetsById,
+      stepRepsByStepId: result.stepRepsById,
     );
-
-    // Persist feedback to the already-completed habit.
-    final freshHabits = await HabitStorageService.loadAll(prefs: prefs);
-    final freshIdx = freshHabits.indexWhere((h) => h.id == habitId);
-    if (freshIdx == -1) return;
-
-    final freshHabit = freshHabits[freshIdx];
-    final updatedFeedback = Map<String, HabitCompletionFeedback>.from(freshHabit.feedbackByDate);
-    updatedFeedback[iso] = feedback;
-    freshHabits[freshIdx] = freshHabit.copyWith(feedbackByDate: updatedFeedback);
-    await HabitStorageService.saveAll(freshHabits, prefs: prefs);
+    await HabitCompletionApplier.saveFeedbackForToday(
+      habitId: habitId,
+      feedback: feedback,
+      prefs: prefs,
+    );
 
     await CoinsService.addCoins(result.coinsEarned, prefs: prefs);
   }

@@ -230,7 +230,7 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
                       width: isSelected ? 36 : 28,
                       height: isSelected ? 36 : 28,
                       decoration: BoxDecoration(

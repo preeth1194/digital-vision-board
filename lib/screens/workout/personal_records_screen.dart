@@ -187,7 +187,7 @@ class _PRCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
         child: Row(
           children: [
             Container(
@@ -225,7 +225,7 @@ class _PRCard extends StatelessWidget {
                     _formatDate(pr.achievedAt),
                     style: textTheme.bodySmall?.copyWith(
                       color: cs.onSurfaceVariant,
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
                   ),
                 ],

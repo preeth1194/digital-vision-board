@@ -158,7 +158,7 @@ class _WorkoutPresetEditorScreenState
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: cs.primaryContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: cs.primary.withValues(alpha: 0.3),
                 ),
@@ -267,10 +267,10 @@ class _ExerciseCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 14),
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -282,7 +282,7 @@ class _ExerciseCard extends StatelessWidget {
                   child: Text(
                     '${index + 1}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: cs.onPrimaryContainer,
                     ),
@@ -339,11 +339,11 @@ class _ExerciseCard extends StatelessWidget {
             ),
             if ((entry.step.plannerDay ?? '').isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Day: ${entry.step.plannerDay}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: cs.onSurfaceVariant,
                   ),
                 ),

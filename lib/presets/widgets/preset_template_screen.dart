@@ -47,7 +47,7 @@ class PresetTemplateScreen extends StatelessWidget {
             : null,
         child: _GlassSection(
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +98,7 @@ class PresetTemplateScreen extends StatelessWidget {
                           ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -144,9 +144,9 @@ class PresetTemplateScreen extends StatelessWidget {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.35),
@@ -174,7 +174,7 @@ class PresetTemplateScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           if (section.steps.isEmpty)
             Text(
               'No steps',

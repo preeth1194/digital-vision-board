@@ -87,16 +87,16 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
           GestureDetector(
             onTap: () => _showMonthPicker(context),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.08)
                         : Colors.white.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isDark
                           ? Colors.white.withValues(alpha: 0.12)
@@ -112,7 +112,7 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
                         size: 16,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: Text(
@@ -137,10 +137,10 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
               elevation: 1,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               minimumSize: Size.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: Text(
@@ -328,7 +328,7 @@ class _DateItem extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         width: 44,
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(12),
@@ -342,7 +342,7 @@ class _DateItem extends StatelessWidget {
             Text(
               _weekdays[date.weekday % 7],
               style: AppTypography.caption(context).copyWith(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: weekdayColor,
               ),

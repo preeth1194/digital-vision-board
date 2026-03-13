@@ -22,7 +22,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Privacy Policy', style: AppTypography.heading1(context)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Last updated: February 2026',
               style: AppTypography.secondary(context),
@@ -108,7 +108,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             title,
             style: AppTypography.heading3(context),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             body,
             style: AppTypography.bodySmall(context).copyWith(

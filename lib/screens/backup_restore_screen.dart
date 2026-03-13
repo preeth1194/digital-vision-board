@@ -201,7 +201,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             onPressed: syncing ? null : _backupNow,
             icon: syncing
                 ? const SizedBox(
-                    width: 18,
+                    width: 20,
                     height: 18,
                     child:
                         CircularProgressIndicator(strokeWidth: 2, color: Colors.white),

@@ -16,7 +16,7 @@ class EditorTagChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.only(left: 12, right: 4, top: 6, bottom: 6),
+      padding: const EdgeInsets.only(left: 12, right: 4, top: 8, bottom: 8),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(16),

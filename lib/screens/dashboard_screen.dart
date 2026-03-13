@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/image_service.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -336,35 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             key: _coinTargetKey,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppColors.goldLight, AppColors.goldDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(color: AppColors.amberBorder, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.goldDark.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.monetization_on_rounded,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Coin count
+              // Coin count first
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (child, animation) {
@@ -389,8 +362,43 @@ class _DashboardScreenState extends State<DashboardScreen>
                   '$coins',
                   key: ValueKey(coins),
                   style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: AppSpacing.coinAppBarSize,
+                height: AppSpacing.coinAppBarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.goldLight, AppColors.goldDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: isDark
+                        ? colorScheme.outline.withValues(alpha: 0.45)
+                        : colorScheme.surface.withValues(alpha: 0.95),
+                    width: 1.25,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.28)
+                          : AppColors.forestDeep.withValues(alpha: 0.14),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.monetization_on_rounded,
+                    size: AppSpacing.coinAppBarIcon,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -432,18 +440,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                     top: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
+                        horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         badgeCount > 99 ? '99+' : '$badgeCount',
                         style: AppTypography.caption(context).copyWith(
                           color: Theme.of(context).colorScheme.onError,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -532,7 +540,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ? null
                             : _timeLabel(it.minutesSinceMidnight!);
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
+                          margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
                             leading: leading,
                             title: Text(it.label),
@@ -1123,32 +1131,39 @@ class _DashboardScreenState extends State<DashboardScreen>
               titleSpacing: 0,
               title: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _openAccount,
-                      behavior: HitTestBehavior.opaque,
-                      child: ValueListenableBuilder<
-                        ({String? picPath, String initial, String displayName})
-                      >(
-                        valueListenable: _profileAvatarNotifier,
-                        builder: (context, profile, _) => ProfileAvatar(
-                          initial: profile.initial,
-                          imagePath: profile.picPath,
-                          radius: 24,
+                child: SizedBox(
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: _openSettingsMenu,
+                          icon: const Icon(Icons.menu_rounded),
+                          tooltip: 'Settings and activity',
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Coin badge
-                    _buildCoinBadge(context),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: _openSettingsMenu,
-                      icon: const Icon(Icons.menu_rounded),
-                      tooltip: 'Settings and activity',
-                    ),
-                  ],
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 84),
+                          child: Text(
+                            'Habit Seeding',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.heading3(context).copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildCoinBadge(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1374,7 +1389,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 14,
+                  vertical: 16,
                 ),
                 child: Row(
                   children: [

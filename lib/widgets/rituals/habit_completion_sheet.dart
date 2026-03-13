@@ -9,6 +9,7 @@ import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
 import '../../services/coins_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import '../../screens/journal/widgets/audio_embed.dart';
 import '../../services/journal_audio_storage_service.dart';
@@ -357,6 +358,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
   }
 
   Widget _buildContent(ColorScheme colorScheme) {
+    final isDark = colorScheme.brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       child: Column(
@@ -463,8 +465,8 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
               contentPadding: const EdgeInsets.only(
                 left: 4,
                 right: 4,
-                top: 14,
-                bottom: 14,
+                top: 16,
+                bottom: 16,
               ),
               counterText: '',
               prefixIcon: GestureDetector(
@@ -552,8 +554,8 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
+                          width: AppSpacing.coinChipSize,
+                          height: AppSpacing.coinChipSize,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -565,14 +567,25 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
                               end: Alignment.bottomRight,
                             ),
                             border: Border.all(
-                              color: AppColors.amberBorder,
-                              width: 1,
+                              color: isDark
+                                  ? colorScheme.outline.withValues(alpha: 0.45)
+                                  : colorScheme.surface.withValues(alpha: 0.9),
+                              width: 1.0,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.24)
+                                    : AppColors.forestDeep.withValues(alpha: 0.12),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.monetization_on_rounded,
-                              size: 11,
+                              size: AppSpacing.coinChipIcon,
                               color: Colors.white,
                             ),
                           ),
@@ -603,7 +616,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
                 Icon(Icons.cancel_outlined,
                     size: 18,
                     color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   'Cancel',
                   style: AppTypography.body(context).copyWith(
@@ -758,7 +771,7 @@ class _StepTile extends StatelessWidget {
               ),
             ),
             if (showRepsInput) ...[
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               SizedBox(
                 width: 132,
                 child: Row(
@@ -780,15 +793,15 @@ class _StepTile extends StatelessWidget {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 8,
-                            horizontal: 6,
+                            horizontal: 8,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: repsController,
@@ -806,10 +819,10 @@ class _StepTile extends StatelessWidget {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 8,
-                            horizontal: 6,
+                            horizontal: 8,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
@@ -851,7 +864,7 @@ class _MediaPreviews extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         if (audioPath != null)
           Container(
             padding:
@@ -866,7 +879,7 @@ class _MediaPreviews extends StatelessWidget {
               children: [
                 Icon(Icons.audiotrack_rounded,
                     size: 16, color: colorScheme.primary),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   'Voice note attached',
                   style: AppTypography.caption(context).copyWith(
@@ -874,7 +887,7 @@ class _MediaPreviews extends StatelessWidget {
                     color: colorScheme.primary,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: onRemoveAudio,
                   child: Icon(
@@ -899,7 +912,7 @@ class _MediaPreviews extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       child: Image.file(
                         File(imagePaths[index]),
                         width: 64,
@@ -1010,7 +1023,7 @@ class _MoodButtonState extends State<_MoodButton>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? widget.mood.color.withValues(alpha: 0.15)

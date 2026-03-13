@@ -282,7 +282,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? mood.color.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
@@ -303,11 +303,11 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               mood.label,
               style: AppTypography.caption(context).copyWith(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? mood.color : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
               ),
@@ -335,7 +335,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
               'Mood Analysis',
               style: AppTypography.heading2(context),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _buildRangeSelector(colorScheme),
             const SizedBox(height: 12),
             Row(
@@ -603,11 +603,11 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                 if (label.isEmpty) return const SizedBox.shrink();
                 final today = isTodayIndex(value);
                 return Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     label,
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: today ? FontWeight.w700 : FontWeight.w400,
                       color: today
                           ? colorScheme.primary

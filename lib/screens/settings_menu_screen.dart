@@ -5,6 +5,8 @@ import '../services/auto_sync_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/subscription_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/profile_avatar.dart';
 import 'backup_restore_screen.dart';
@@ -82,10 +84,14 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
   @override
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
+    final isDark = dcs.brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: dcs.surface,
       appBar: AppBar(
-        title: const Text('Settings and activity'),
+        title: Text(
+          'Settings and activity',
+          style: AppTypography.heading3(context),
+        ),
         backgroundColor: dcs.surface,
         surfaceTintColor: Colors.transparent,
       ),
@@ -99,12 +105,23 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 initial: '?',
                 picPath: null,
               );
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-             
-              const SizedBox(height: 18),
+          return Container(
+            decoration: AppColors.skyDecoration(isDark: isDark),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.lg,
+              ),
+              children: [
+              const SizedBox(height: AppSpacing.md),
               const _SectionHeader('Account'),
+              _ProfileListItem(
+                profile: profile,
+                busy: _busy,
+                onTap: _runAccountFlow,
+              ),
               ValueListenableBuilder<bool>(
                 valueListenable: SubscriptionService.isSubscribed,
                 builder: (context, subscribed, _) => _MenuRow(
@@ -152,7 +169,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                   onTap: _runSignOut,
                 ),
               
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.md),
               const _SectionHeader('Tools'),
               _MenuRow(
                 icon: Icons.storefront_outlined,
@@ -169,7 +186,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 label: 'App Tour',
                 onTap: () => _open(const OnboardingScreen(replayMode: true)),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.md),
               const _SectionHeader('Help'),
               _MenuRow(
                 icon: Icons.bug_report_outlined,
@@ -191,7 +208,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 label: 'FAQ',
                 onTap: () => _open(const FaqScreen()),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.md),
               const _SectionHeader('Legal'),
               _MenuRow(
                 icon: Icons.privacy_tip_outlined,
@@ -199,6 +216,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 onTap: () => _open(const PrivacyPolicyScreen()),
               ),
             ],
+            ),
           );
         },
       ),
@@ -221,13 +239,13 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       onTap: busy ? null : onTap,
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: dcs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: dcs.outline.withValues(alpha: 0.18)),
         ),
         child: Row(
@@ -260,6 +278,48 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
+class _ProfileListItem extends StatelessWidget {
+  const _ProfileListItem({
+    required this.profile,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final _MenuProfile profile;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dcs = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      minVerticalPadding: 4,
+      visualDensity: VisualDensity.standard,
+      leading: ProfileAvatar(
+        initial: profile.initial,
+        imagePath: profile.picPath,
+        radius: 20,
+      ),
+      title: Text(
+        profile.displayName,
+        style: AppTypography.bodySmall(context).copyWith(
+          color: dcs.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        profile.isGuest ? 'Sign In / Sign Up' : 'View Profile',
+        style: AppTypography.caption(context).copyWith(
+          color: dcs.onSurfaceVariant,
+        ),
+      ),
+      trailing: Icon(Icons.chevron_right, size: 22, color: dcs.onSurfaceVariant),
+      onTap: busy ? null : onTap,
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader(this.label);
 
@@ -269,7 +329,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, AppSpacing.sm),
       child: Text(
         label,
         style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant, fontWeight: FontWeight.w600),
@@ -295,12 +355,16 @@ class _MenuRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
-      minVerticalPadding: 0,
-      leading: Icon(icon, color: dcs.onSurfaceVariant),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      minVerticalPadding: 4,
+      visualDensity: VisualDensity.standard,
+      leading: Icon(icon, size: 24, color: dcs.onSurfaceVariant),
       title: Text(
         label,
-        style: AppTypography.body(context).copyWith(color: dcs.onSurface),
+        style: AppTypography.bodySmall(context).copyWith(
+          color: dcs.onSurface,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       subtitle: subtitle == null
           ? null
@@ -308,7 +372,7 @@ class _MenuRow extends StatelessWidget {
               subtitle!,
               style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant),
             ),
-      trailing: Icon(Icons.chevron_right, color: dcs.onSurfaceVariant),
+      trailing: Icon(Icons.chevron_right, size: 22, color: dcs.onSurfaceVariant),
       onTap: onTap,
     );
   }

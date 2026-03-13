@@ -23,7 +23,7 @@ class WidgetGuideScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
           Text('Home Screen Widgets', style: AppTypography.heading1(context)),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'Add widgets to your home screen for quick access to habits and puzzles.',
             style: AppTypography.secondary(context),
@@ -175,13 +175,13 @@ class _PlatformSteps extends StatelessWidget {
         Row(
           children: [
             Icon(icon, size: 18, color: scheme.primary),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(label,
                 style: AppTypography.body(context)
                     .copyWith(fontWeight: FontWeight.w600)),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         for (int i = 0; i < steps.length; i++)
           Padding(
             padding: const EdgeInsets.only(left: 24, bottom: 4),

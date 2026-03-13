@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_colors.dart';
-
 /// Standardized typography system for the app.
 /// All text styles use Inter font, theme-aware colors, and consistent sizing.
 /// Headings use the theme's onSurface (dark warm brown / cream) for readability.
@@ -34,6 +32,11 @@ class AppTypography {
       color: _headingColor(context),
       letterSpacing: -0.3,
     );
+  }
+
+  /// Section title - canonical section heading style (20sp, semi-bold).
+  static TextStyle sectionTitle(BuildContext context) {
+    return heading2(context);
   }
 
   /// Heading 3 - 18sp, semi-bold

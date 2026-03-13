@@ -1767,7 +1767,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                             Icons.cloud_off_outlined,
                             color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(child: Text(_error!)),
                         ],
                       ),
@@ -1798,7 +1798,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                           icon: const Icon(Icons.storefront_outlined),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: 10,
+                          vertical: 12,
                         ),
                       ),
                     ),
@@ -1880,7 +1880,7 @@ class _GuideCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2052,7 +2052,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
         child: _GlassSection(
           zDepth: widget.zDepth,
           radius: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
             children: [
               InkWell(
@@ -2087,7 +2087,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                           color: colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -2110,7 +2110,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                         ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -2184,7 +2184,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                 alignment: Alignment.topCenter,
                 child: expanded
                     ? Padding(
-                        padding: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.only(top: 12),
                         child: Column(
                           children: [
                             Divider(
@@ -2218,14 +2218,14 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                           ),
                                           if (guide?.isOfficial == true)
                                             Container(
-                                              margin: const EdgeInsets.only(left: 6),
+                                              margin: const EdgeInsets.only(left: 8),
                                               padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
+                                                horizontal: 8,
                                                 vertical: 2,
                                               ),
                                               decoration: BoxDecoration(
                                                 color: colorScheme.primaryContainer,
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 'Default',
@@ -2235,7 +2235,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                                     ?.copyWith(
                                                       fontWeight: FontWeight.w700,
                                                       color: colorScheme.onPrimaryContainer,
-                                                      fontSize: 9,
+                                                      fontSize: 12,
                                                     ),
                                               ),
                                             ),

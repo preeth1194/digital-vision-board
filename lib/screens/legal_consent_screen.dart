@@ -59,7 +59,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                   constraints: const BoxConstraints(maxWidth: 560),
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -88,7 +88,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                             icon: const Icon(Icons.description_outlined),
                             label: const Text('Read Terms & Conditions'),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: () {
                               Navigator.of(context).push(
@@ -100,7 +100,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                             icon: const Icon(Icons.privacy_tip_outlined),
                             label: const Text('Read Privacy Policy'),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
                           CheckboxListTile(
                             value: _agreed,
                             onChanged: (value) {
@@ -119,7 +119,7 @@ class _LegalConsentScreenState extends State<LegalConsentScreen> {
                                 (_agreed && !_saving) ? _acceptAndContinue : null,
                             child: _saving
                                 ? const SizedBox(
-                                    height: 18,
+                                    height: 20,
                                     width: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,

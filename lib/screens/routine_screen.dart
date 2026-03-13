@@ -11,6 +11,7 @@ import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/logical_date_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/ads/reward_ad_card.dart';
 import '../widgets/rituals/add_habit_modal.dart';
@@ -787,7 +788,7 @@ class _RoutineScreenState extends State<RoutineScreen>
               const SizedBox(width: 4),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 7, right: 16),
+                  padding: const EdgeInsets.only(top: 8, right: 16),
                   child: Container(
                     height: 1,
                     color: isDark
@@ -821,7 +822,6 @@ class _RoutineScreenState extends State<RoutineScreen>
                   child: Text(
                     halfLabel,
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 10,
                       fontWeight: FontWeight.w400,
                       color: isDark
                           ? colorScheme.onSurface.withValues(alpha: 0.38)
@@ -833,7 +833,7 @@ class _RoutineScreenState extends State<RoutineScreen>
               const SizedBox(width: 4),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 5, right: 16),
+                  padding: const EdgeInsets.only(top: 8, right: 16),
                   child: CustomPaint(
                     size: const Size(double.infinity, 1),
                     painter: _DottedLinePainter(
@@ -1159,8 +1159,8 @@ class _TimelineHabitCard extends StatelessWidget {
               child: Container(
                 height: height.clamp(54, 200),
                 padding: EdgeInsets.symmetric(
-                  horizontal: _compact ? 10 : 12,
-                  vertical: _compact ? 6 : 8,
+                  horizontal: _compact ? 12 : 12,
+                  vertical: _compact ? 8 : 8,
                 ),
                 decoration: BoxDecoration(
                   color: tileColor.withOpacity(isDark ? 0.7 : 0.75),
@@ -1229,7 +1229,7 @@ class _TimelineHabitCard extends StatelessWidget {
           ),
           child: Icon(iconData, size: 16, color: textColor),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1248,7 +1248,6 @@ class _TimelineHabitCard extends StatelessWidget {
               Text(
                 '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}  ·  ${_formatDuration(duration)}',
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 10,
                   color: subtitleColor,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1257,7 +1256,7 @@ class _TimelineHabitCard extends StatelessWidget {
           ),
         ),
         if (isCompleted) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Icon(Icons.check_circle, size: 20, color: textColor.withOpacity(0.7)),
         ],
       ],
@@ -1281,11 +1280,11 @@ class _TimelineHabitCard extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             color: textColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(iconData, size: 18, color: textColor),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1300,19 +1299,18 @@ class _TimelineHabitCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Text(
                     '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}',
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 11,
                       color: subtitleColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       '·',
                       style: AppTypography.caption(context).copyWith(
@@ -1323,7 +1321,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
+                      horizontal: 8,
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
@@ -1333,7 +1331,6 @@ class _TimelineHabitCard extends StatelessWidget {
                     child: Text(
                       _formatDuration(duration),
                       style: AppTypography.caption(context).copyWith(
-                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: subtitleColor,
                       ),
@@ -1341,7 +1338,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   ),
                   if (habit.actionSteps.isNotEmpty) ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
                         '·',
                         style: AppTypography.caption(context).copyWith(
@@ -1352,7 +1349,7 @@ class _TimelineHabitCard extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
+                        horizontal: 8,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
@@ -1362,7 +1359,6 @@ class _TimelineHabitCard extends StatelessWidget {
                       child: Text(
                         '${habit.actionSteps.length} steps',
                         style: AppTypography.caption(context).copyWith(
-                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: subtitleColor,
                         ),
@@ -1422,6 +1418,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final iconData =
         habit.iconIndex != null && habit.iconIndex! < habitIcons.length
@@ -1475,11 +1472,11 @@ class _CompletionDetailsSheet extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(iconData, size: 24, color: colorScheme.primary),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1514,19 +1511,21 @@ class _CompletionDetailsSheet extends StatelessWidget {
                 if (coins != null && coins > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: isDark
+                          ? colorScheme.tertiaryContainer.withValues(alpha: 0.28)
+                          : AppColors.seedChampagne,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
+                          width: AppSpacing.coinChipSize,
+                          height: AppSpacing.coinChipSize,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -1535,14 +1534,25 @@ class _CompletionDetailsSheet extends StatelessWidget {
                               end: Alignment.bottomRight,
                             ),
                             border: Border.all(
-                              color: AppColors.amberBorder,
+                              color: isDark
+                                  ? colorScheme.outline.withValues(alpha: 0.45)
+                                  : colorScheme.surface.withValues(alpha: 0.9),
                               width: 1,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.24)
+                                    : AppColors.forestDeep.withValues(alpha: 0.12),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.monetization_on_rounded,
-                              size: 11,
+                              size: AppSpacing.coinChipIcon,
                               color: Colors.white,
                             ),
                           ),
@@ -1552,7 +1562,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
                           '+$coins',
                           style: AppTypography.bodySmall(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.gold,
+                            color: isDark
+                                ? colorScheme.onTertiaryContainer
+                                : AppColors.honeyText,
                           ),
                         ),
                       ],
@@ -1618,7 +1630,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
                 style: FilledButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: Text('Done', style: AppTypography.button(context)),
@@ -1644,8 +1656,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: isFirst ? 14 : 0,
-        bottom: isLast ? 14 : 0,
+        top: isFirst ? 16 : 0,
+        bottom: isLast ? 16 : 0,
       ),
       child: Row(
         children: [
@@ -1659,7 +1671,7 @@ class _CompletionDetailsSheet extends StatelessWidget {
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: valueColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -1686,8 +1698,8 @@ class _CompletionDetailsSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: isFirst ? 14 : 6,
-        bottom: 14,
+        top: isFirst ? 16 : 8,
+        bottom: 16,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -938,7 +938,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                       textAlign: TextAlign.center,
                       style: AppTypography.caption(context).copyWith(
                         color: colorScheme.onSurfaceVariant,
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -957,10 +957,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           right: 8,
           bottom: 8,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               title,

@@ -232,7 +232,7 @@ class _AddNameAndCategoryDialogState extends State<_AddNameAndCategoryDialog> {
                   },
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               PopupMenuButton<String>(
                 tooltip: 'Pick category',
                 enabled: suggestions.isNotEmpty,

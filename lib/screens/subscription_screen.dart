@@ -127,7 +127,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Go Premium'),
+        title: Text(
+          'Habit Seeding',
+          style: AppTypography.heading3(context),
+        ),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
@@ -210,9 +213,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               label: const Text('Restore Purchases'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                    horizontal: 24, vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
@@ -225,227 +228,109 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   // ── Subscription picker ────────────────────────────────────────────
 
   Widget _buildSubscriptionPicker(bool isDark, ColorScheme colorScheme) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
-      slivers: [
-        // Hero section
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-            child: Column(
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [
-                              colorScheme.secondary,
-                              colorScheme.primary,
-                            ]
-                          : [
-                              colorScheme.primary,
-                              colorScheme.primaryContainer,
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.workspace_premium_rounded,
-                    color: colorScheme.onPrimary,
-                    size: 36,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Unlock Premium',
-                  style: AppTypography.heading1(context),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Remove all ads and unlock unlimited habits',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySmall(context).copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-              ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.7),
             ),
           ),
-        ),
-
-        // Benefits
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: Column(
-              children: [
-                _BenefitRow(
-                  icon: Icons.block_rounded,
-                  text: 'No ads ever',
-                ),
-                const SizedBox(height: 12),
-                _BenefitRow(
-                  icon: Icons.all_inclusive_rounded,
-                  text: 'Unlimited habits',
-                ),
-                const SizedBox(height: 12),
-                _BenefitRow(
-                  icon: Icons.star_rounded,
-                  text: 'Support development',
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (!SubscriptionService.isRevenueCatConfigured)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: colorScheme.errorContainer.withValues(alpha: 0.45),
-                  border: Border.all(
-                    color: colorScheme.error.withValues(alpha: 0.45),
-                  ),
+                  shape: BoxShape.circle,
+                  color: colorScheme.primary.withValues(alpha: 0.12),
                 ),
-                child: Text(
-                  SubscriptionService.configNotice.value ??
-                      'RevenueCat is not configured for this build.',
-                  style: AppTypography.caption(context).copyWith(
-                    color: colorScheme.onErrorContainer,
-                  ),
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: colorScheme.primary,
+                  size: 22,
                 ),
               ),
-            ),
-          ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-            child: OutlinedButton.icon(
-              onPressed: SubscriptionService.isRevenueCatConfigured
-                  ? _presentHostedPaywall
-                  : null,
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: const Text('Try Hosted Paywall'),
-            ),
-          ),
-        ),
-
-        // Plan cards
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final plan = _plans[index];
-                final isSelected = _selectedIndex == index;
-                return _PlanCard(
-                  plan: plan,
-                  isSelected: isSelected,
-                  isDark: isDark,
-                  colorScheme: colorScheme,
-                  onTap: () => setState(() => _selectedIndex = index),
-                );
-              },
-              childCount: _plans.length,
-            ),
-          ),
-        ),
-
-        // Subscribe button
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: FilledButton(
-              onPressed: _purchasing ? null : _onSubscribe,
-              style: FilledButton.styleFrom(
-                backgroundColor: colorScheme.secondary,
-                foregroundColor: colorScheme.onSecondary,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                textStyle: AppTypography.button(context),
-              ),
-              child: _purchasing
-                  ? SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: colorScheme.onSecondary,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Premium',
+                      style: AppTypography.heading3(context).copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                    )
-                  : Text(
-                      'Subscribe — ${SubscriptionService.priceForPlan(_plans[_selectedIndex])}'),
-            ),
-          ),
-        ),
-
-        // Restore purchases
-        SliverToBoxAdapter(
-          child: Center(
-            child: TextButton(
-              onPressed: () async {
-                await SubscriptionService.restorePurchases();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Purchases restored.'),
-                      behavior: SnackBarBehavior.floating,
                     ),
-                  );
-                }
-              },
-              child: Text(
-                'Restore Purchases',
-                style: AppTypography.secondary(context),
-              ),
-            ),
-          ),
-        ),
-
-        // Redeem gift code
-        SliverToBoxAdapter(
-          child: Center(
-            child: TextButton.icon(
-              onPressed: () => _showRedeemGiftCodeDialog(colorScheme),
-              icon: Icon(Icons.card_giftcard_rounded, size: 18,
-                  color: colorScheme.secondary),
-              label: Text(
-                'Redeem Gift Code',
-                style: AppTypography.secondary(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.secondary,
+                    const SizedBox(height: 2),
+                    Text(
+                      'No ads. Unlimited habits. Full access.',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
           ),
         ),
-
-        // Legal text
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 4, 32, 40),
-            child: Text(
-              'Payment will be charged to your App Store or Google Play account. '
-              'Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. '
-              'Manage subscriptions in your device settings.',
-              textAlign: TextAlign.center,
-              style: AppTypography.caption(context).copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? 0.35
-                        : 0.7),
-                height: 1.5,
+        const SizedBox(height: 16),
+        if (!SubscriptionService.isRevenueCatConfigured)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: colorScheme.errorContainer.withValues(alpha: 0.45),
+              border: Border.all(
+                color: colorScheme.error.withValues(alpha: 0.45),
               ),
             ),
+            child: Text(
+              SubscriptionService.configNotice.value ??
+                  'RevenueCat is not configured for this build.',
+              style: AppTypography.caption(context).copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+        if (!SubscriptionService.isRevenueCatConfigured)
+          const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: SubscriptionService.isRevenueCatConfigured
+              ? _presentHostedPaywall
+              : null,
+          icon: const Icon(Icons.auto_awesome_rounded),
+          label: const Text('Continue to paywall'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _openCustomerCenter,
+          icon: const Icon(Icons.manage_accounts_rounded),
+          label: const Text('Manage subscription'),
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: () async {
+            await SubscriptionService.restorePurchases();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Purchases restored.'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+          child: Text(
+            'Restore Purchases',
+            style: AppTypography.secondary(context),
           ),
         ),
       ],
@@ -471,7 +356,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 children: [
                   Icon(Icons.card_giftcard_rounded,
                       color: colorScheme.secondary, size: 24),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   const Expanded(child: Text('Redeem Gift Code')),
                 ],
               ),
@@ -491,7 +376,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       ),
                       prefixIcon: const Icon(Icons.vpn_key_rounded, size: 20),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                          horizontal: 16, vertical: 16),
                     ),
                     onChanged: (_) {
                       if (errorText != null) {
@@ -545,7 +430,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                   child: loading
                       ? const SizedBox(
-                          width: 18,
+                          width: 20,
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
@@ -710,7 +595,7 @@ class _BenefitRow extends StatelessWidget {
                 : colorScheme.secondary,
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Text(
           text,
           style: AppTypography.bodySmall(context).copyWith(
@@ -753,8 +638,8 @@ class _PlanCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark
@@ -763,7 +648,7 @@ class _PlanCard extends StatelessWidget {
               : (isDark
                   ? colorScheme.surfaceContainerHigh
                   : colorScheme.surface),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? colorScheme.secondary
@@ -829,7 +714,7 @@ class _PlanCard extends StatelessWidget {
                           child: Text(
                             plan.savings!,
                             style: AppTypography.caption(context).copyWith(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: isDark
                                   ? colorScheme.primaryContainer

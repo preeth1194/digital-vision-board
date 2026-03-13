@@ -73,7 +73,7 @@ Future<GridTemplate?> showGridTemplateSelectorSheet(BuildContext context) {
                 'Pick a layout',
                 style: AppTypography.heading3(context),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 'Choose a template first, then fill in the blanks.',
                 style: AppTypography.secondary(context),
@@ -240,7 +240,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
               'Core value',
               style: AppTypography.heading3(context),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Pick one major focus for this board.',
               style: AppTypography.secondary(context),
@@ -262,7 +262,7 @@ class _NewBoardDialogState extends State<_NewBoardDialog> {
                           backgroundColor: cv.tileColor,
                           child: Icon(cv.icon, size: 16, color: colorScheme.onSurface),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Text(cv.label),
                       ],
                     ),

@@ -24,7 +24,7 @@ class _GoalDetailsSheet extends StatelessWidget {
   Widget _kv(BuildContext context, String label, String? value) {
     if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -85,25 +85,25 @@ class _GoalDetailsSheet extends StatelessWidget {
           if (cbt != null) ...[
             const Divider(),
             Text('Mindset & coping', style: AppTypography.heading3(context)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _kv(context, 'Core value', cbt.coreValue),
             _kv(context, 'Visualization', cbt.visualization),
             _kv(context, 'Limiting belief', cbt.limitingBelief),
             _kv(context, 'Reframed truth', cbt.reframedTruth),
             if (cbt.obstacles.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text('Obstacles', style: AppTypography.heading3(context)),
               const SizedBox(height: 8),
               ...cbt.obstacles.map(
                 (o) => Card(
-                  margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: 12),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(o.trigger, style: AppTypography.heading3(context)),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(o.copingStrategy, style: AppTypography.body(context)),
                       ],
                     ),
@@ -115,7 +115,7 @@ class _GoalDetailsSheet extends StatelessWidget {
           if (plan != null) ...[
             const Divider(),
             Text('Action plan', style: AppTypography.heading3(context)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _kv(context, 'Micro habit', plan.microHabit),
             _kv(context, 'Frequency', plan.frequency),
             if ((weeklyDaysStr ?? '').trim().isNotEmpty) _kv(context, 'Weekly days', weeklyDaysStr),

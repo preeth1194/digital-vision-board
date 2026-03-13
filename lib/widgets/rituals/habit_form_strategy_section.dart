@@ -355,7 +355,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
       child: InkWell(
         onTap: _addStep,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               Icon(
@@ -380,11 +380,11 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
   Widget _buildStepOptionsRow(ColorScheme colorScheme) {
     final style = OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       side: BorderSide(
         color: colorScheme.outlineVariant.withValues(alpha: 0.7),
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -443,7 +443,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
               },
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<int>(
               value: _selectedPlannerDay,
@@ -855,7 +855,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 14,
+                          vertical: 16,
                         ),
                       ),
                     ),
@@ -1033,7 +1033,7 @@ class SuggestionTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               Icon(icon, size: 18, color: iconColor),
@@ -1203,7 +1203,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1217,7 +1217,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Container(
                 width: 26,
                 height: 26,
@@ -1229,7 +1229,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                 child: Text(
                   '${widget.stepNumber}',
                   style: AppTypography.caption(context).copyWith(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: cs.onPrimary,
                     height: 1,
@@ -1297,7 +1297,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
                     value: selectedDay,
@@ -1330,7 +1330,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               hintText: 'Notes',
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
               counterText: '',
             ),
             style: AppTypography.bodySmall(context).copyWith(

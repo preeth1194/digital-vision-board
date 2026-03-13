@@ -293,7 +293,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
                   ),
                   if (challenge.restartCount > 0) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: cs.error.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -301,7 +301,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
                       child: Text(
                         '${challenge.restartCount}x restarted',
                         style: AppTypography.caption(context).copyWith(
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: cs.error,
                         ),
@@ -370,7 +370,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       ..._challengeHabits.map((h) {
                         final done = h.isCompletedOnDate(today);
                         final iconIdx = h.iconIndex ?? 0;
@@ -390,7 +390,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
                                     ? cs.primary
                                     : accent.withValues(alpha: 0.35),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Icon(iconData,
                                   size: 14,
                                   color: accent.withValues(alpha: 0.5)),

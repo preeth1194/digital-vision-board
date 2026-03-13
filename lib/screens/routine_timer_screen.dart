@@ -315,7 +315,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                                     horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: scheme.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text('${index + 1}/$total',
                                     style: AppTypography.caption(context).copyWith(
@@ -329,7 +329,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: successColor.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text('Done',
                                       style: AppTypography.caption(context).copyWith(
@@ -413,7 +413,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
           label: Text(_running ? 'Pause' : 'Start'),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(width: 12),
@@ -423,7 +423,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
           label: const Text('Reset'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ]),
@@ -501,7 +501,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
                         icon: const Icon(Icons.done_all),
                         label: const Text('Done'),
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size(double.infinity, 0),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),

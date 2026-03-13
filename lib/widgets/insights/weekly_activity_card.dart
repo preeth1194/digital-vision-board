@@ -177,10 +177,10 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 200),
@@ -216,7 +216,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
             onSelected: (_) => setState(() => _selectedRange = range),
             selectedColor: colorScheme.primary,
             labelStyle: AppTypography.caption(context).copyWith(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: selected
                   ? colorScheme.onPrimary
@@ -260,7 +260,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
           padding: const EdgeInsets.symmetric(horizontal: 4),
           physics: const BouncingScrollPhysics(),
           itemCount: widget.habits.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 14),
+          separatorBuilder: (_, __) => const SizedBox(width: 16),
           itemBuilder: (context, index) {
             final color = _colorForHabit(index);
             final name = widget.habits[index].name;
@@ -279,7 +279,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                 Text(
                   name,
                   style: AppTypography.caption(context).copyWith(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -772,11 +772,11 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               return const SizedBox.shrink();
             }
             return Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: 8),
               child: Text(
                 value.toInt().toString(),
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 10,
+                  fontSize: 12,
                   color:
                       colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
@@ -799,11 +799,11 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
             if (label.isEmpty) return const SizedBox.shrink();
             final today = isTodayIndex(value);
             return Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: 12),
               child: Text(
                 label,
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: today ? FontWeight.w700 : FontWeight.w400,
                   color: today
                       ? colorScheme.primary

@@ -408,7 +408,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
   Widget _infoChip(IconData icon, String label, ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.primary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
@@ -453,11 +453,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(iconData, color: iconColor, size: 22),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: TextField(
                   controller: habit.nameController,
@@ -478,11 +478,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           if (habit.description.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 50, bottom: 6),
+              padding: const EdgeInsets.only(left: 50, bottom: 8),
               child: Text(
                 habit.description,
                 style: TextStyle(

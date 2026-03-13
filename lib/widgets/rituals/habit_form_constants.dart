@@ -155,7 +155,7 @@ final List<(String, List<Color>)> habitColors = [
 ];
 
 const double kControlSpacing = 20.0;
-const double kSectionSpacing = 10.0;
+const double kSectionSpacing = 12.0;
 
 /// Weekday labels displayed in the habit schedule chips (Sunday-first order).
 const List<String> kWeekdayLabelsSundayFirst = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -237,7 +237,7 @@ BoxDecoration habitSectionDecoration(ColorScheme colorScheme) {
     color: isDark
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.55),
-    borderRadius: BorderRadius.circular(10),
+    borderRadius: BorderRadius.circular(12),
     border: Border.all(
       color: isDark
           ? Colors.white.withValues(alpha: 0.12)

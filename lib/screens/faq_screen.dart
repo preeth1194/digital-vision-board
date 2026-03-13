@@ -29,19 +29,19 @@ class FaqScreen extends StatelessWidget {
               'Quick answers about accounts, sync, subscriptions, and support.',
               style: AppTypography.secondary(context),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             ...kFaqItems.map(
               (item) => Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: dcs.surfaceContainerHighest.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                    childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     title: Text(
                       item.question,
                       style: AppTypography.body(

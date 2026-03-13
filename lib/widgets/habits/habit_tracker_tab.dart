@@ -228,7 +228,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
 
     Widget sectionLabel(String text) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
         child: Text(
           text,
           style: AppTypography.bodySmall(context).copyWith(
@@ -327,7 +327,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                       ],
                     ),
                     if (isTimerHabit) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
@@ -346,7 +346,7 @@ class _HabitTrackerTabState extends State<HabitTrackerTab> {
                         ],
                       ),
                       if (scheduledToday && !isTodayCompleted && targetMs > 0) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

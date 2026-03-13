@@ -182,14 +182,14 @@ class EditorAppBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 14,
+              width: 16,
               height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: colorScheme.primary,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               'Saving',
               style: AppTypography.caption(context),

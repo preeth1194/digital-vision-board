@@ -257,7 +257,7 @@ class _AddonToggleRow extends StatelessWidget {
             size: 24,
             color: isActive ? accentColor : colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,10 +271,10 @@ class _AddonToggleRow extends StatelessWidget {
                       ),
                     ),
                     if (locked) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 8,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
@@ -293,7 +293,7 @@ class _AddonToggleRow extends StatelessWidget {
                             Text(
                               'Premium',
                               style: AppTypography.caption(context).copyWith(
-                                fontSize: 10,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.primary,
                               ),
@@ -319,7 +319,7 @@ class _AddonToggleRow extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
           Expanded(
@@ -328,7 +328,7 @@ class _AddonToggleRow extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: onRowTap,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: labelPart,

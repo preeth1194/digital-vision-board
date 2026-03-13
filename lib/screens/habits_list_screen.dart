@@ -565,7 +565,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
 
                   Widget buildSectionLabel(String text) {
                     return Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                       child: Text(
                         text,
                         style: AppTypography.bodySmall(context).copyWith(

@@ -446,7 +446,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
       body = Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: Row(
               children: [
                 Expanded(
@@ -466,7 +466,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 SizedBox(
                   height: 40,
                   child: FilledButton(
@@ -489,7 +489,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
           ? Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                   child: Row(
                     children: [
                       Expanded(
@@ -509,7 +509,7 @@ class _TodosListScreenState extends State<TodosListScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       SizedBox(
                         height: 40,
                         child: FilledButton(

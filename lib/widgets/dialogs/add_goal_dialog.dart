@@ -168,7 +168,7 @@ Future<AddGoalResult?> showAddGoalDialog(
                           child: const Text('Clear deadline'),
                         ),
                     ],
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () {
                         final nm = nameC.text.trim();
@@ -186,7 +186,7 @@ Future<AddGoalResult?> showAddGoalDialog(
                       },
                       child: Text(initialName == null ? 'Add goal' : 'Save goal'),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
                       child: const Text('Cancel'),

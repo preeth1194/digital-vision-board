@@ -82,7 +82,7 @@ class _Step extends StatelessWidget {
             ),
             child: Text(n, style: AppTypography.caption(context).copyWith(fontWeight: FontWeight.w800, color: scheme.onPrimaryContainer)),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(child: Text(text)),
         ],
       ),

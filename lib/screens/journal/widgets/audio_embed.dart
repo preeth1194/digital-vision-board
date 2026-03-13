@@ -133,7 +133,7 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 320),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
             color: isDark
                 ? colorScheme.surfaceContainerHigh
@@ -193,7 +193,7 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               // Waveform / progress
               Expanded(
                 child: Column(
@@ -585,7 +585,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                         foregroundColor: colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
-                          vertical: 14,
+                          vertical: 16,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -619,7 +619,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                         foregroundColor: colorScheme.onError,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 32,
-                          vertical: 14,
+                          vertical: 16,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -671,7 +671,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                         foregroundColor: colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
-                          vertical: 14,
+                          vertical: 16,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),

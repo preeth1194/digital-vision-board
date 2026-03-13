@@ -99,7 +99,7 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
             style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           if ((widget.subtitle ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(widget.subtitle!, style: AppTypography.secondary(context)),
           ],
           const SizedBox(height: 12),

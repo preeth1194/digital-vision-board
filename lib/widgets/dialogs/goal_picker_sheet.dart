@@ -72,7 +72,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
               style: AppTypography.heading2(context),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           TextField(
             decoration: const InputDecoration(
               hintText: 'Search goals…',
@@ -81,7 +81,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
             ),
             onChanged: (v) => setState(() => _query = v),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Flexible(
             child: filtered.isEmpty
                 ? Padding(

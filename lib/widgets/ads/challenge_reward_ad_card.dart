@@ -133,7 +133,7 @@ class _ChallengeRewardAdCardState extends State<ChallengeRewardAdCard>
           transform: Matrix4.identity()
             ..setEntry(0, 0, _isPressed ? 0.98 : 1.0)
             ..setEntry(1, 1, _isPressed ? 0.98 : 1.0),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: isDark
                 ? colorScheme.surfaceContainerHigh
@@ -183,7 +183,7 @@ class _ChallengeRewardAdCardState extends State<ChallengeRewardAdCard>
                         size: 24,
                       ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -139,7 +139,7 @@ class _GenericPresetEditorScreenState extends State<GenericPresetEditorScreen> {
             Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     SizedBox(width: 28, child: Text('${i + 1}')),

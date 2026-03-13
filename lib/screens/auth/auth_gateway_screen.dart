@@ -394,13 +394,13 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           onPressed: _loading ? null : _continueAsGuest,
           child: _loading
               ? const SizedBox(
-                  height: 18,
+                  height: 20,
                   width: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Continue as Guest'),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         ExpansionTile(
           title: Text('Why login?', style: AppTypography.body(context)),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

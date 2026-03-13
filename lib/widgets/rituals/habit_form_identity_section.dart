@@ -105,7 +105,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
               colors: hueSpectrumColors,
               stops: [0, 1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6, 1],
@@ -203,7 +203,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                           : colorScheme.primary,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+                  contentPadding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
                   suffixIcon: GestureDetector(
                     onTap: () {
                       final next = !widget.colorPickerExpanded;
@@ -237,7 +237,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
               ),
               if (widget.colorPickerExpanded)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -353,7 +353,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: kHabitCategories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 6),
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (ctx, index) {
                           final cat = kHabitCategories[index];
                           final isSelected = widget.selectedCategory == cat;
@@ -394,7 +394,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     SizedBox(
                       height: 50,
                       child: ListView.separated(

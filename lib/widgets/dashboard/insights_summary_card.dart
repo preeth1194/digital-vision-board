@@ -89,7 +89,7 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
                   color: colorScheme.onPrimaryContainer,
                   size: 16,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Insights',

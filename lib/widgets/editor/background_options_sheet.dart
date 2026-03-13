@@ -58,7 +58,7 @@ Future<void> showBackgroundOptionsSheet(
                           height: 42,
                           decoration: BoxDecoration(
                             color: c,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                             ),

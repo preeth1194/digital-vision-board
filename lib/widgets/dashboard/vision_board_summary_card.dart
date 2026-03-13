@@ -128,7 +128,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                   color: colorScheme.onPrimaryContainer,
                   size: 16,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Manifest',
@@ -164,7 +164,7 @@ class _VisionBoardSummaryCardState extends State<VisionBoardSummaryCard>
                         child: Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                             child: Image(
                               image: _heroImage!,
                               fit: BoxFit.cover,

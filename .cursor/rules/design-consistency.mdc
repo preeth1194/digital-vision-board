@@ -1,0 +1,14 @@
+---
+description: Enforce consistent spacing and sizing in UI design updates
+alwaysApply: true
+---
+
+# Design Consistency
+
+- Use `AppTypography` styles for all visible text; avoid ad-hoc font sizes.
+- Keep layout spacing on the 4pt grid (`4, 8, 12, 16, 24, 32, 48`).
+- Keep touch targets at least `48x48`.
+- Reuse system radii (`6, 8, 12, 20, 24`) and avoid one-off border radii.
+- Prefer tokenized colors from `Theme.of(context).colorScheme` and approved `AppColors`.
+- For editable forms, keep label/input sizing consistent across rows.
+- For section headers and app bars, match established header scale before introducing larger text.

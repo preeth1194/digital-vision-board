@@ -29,6 +29,7 @@ class JournalBookCarousel extends StatefulWidget {
   final List<JournalBook> books;
   final String? selectedBookId;
   final Map<String, int> entryCounts;
+  final int recipeCount;
   final Map<String, List<JournalEntry>> entriesByBook;
   final ValueChanged<JournalBook> onBookSelected;
   final VoidCallback onAddBook;
@@ -47,6 +48,7 @@ class JournalBookCarousel extends StatefulWidget {
     required this.books,
     required this.selectedBookId,
     required this.entryCounts,
+    this.recipeCount = 0,
     required this.entriesByBook,
     required this.onBookSelected,
     required this.onAddBook,
@@ -74,6 +76,14 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
 
   static const double _closedViewportFraction = 0.65;
   static const double _openViewportFraction = 0.95;
+
+  int _displayCountForBook(JournalBook book) {
+    final isRecipeBook =
+        book.id == JournalBookStorageService.recipeBookId ||
+        book.name.trim().toLowerCase() == 'recipe book';
+    if (isRecipeBook) return widget.recipeCount;
+    return widget.entryCounts[book.id] ?? 0;
+  }
 
   late AnimationController _overlayController;
   OverlayEntry? _overlayEntry;
@@ -157,7 +167,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
         animation: _overlayController,
         mode: mode,
         book: book,
-        entryCount: widget.entryCounts[book.id] ?? 0,
+        entryCount: _displayCountForBook(book),
         onDismiss: _hideOverlay,
         onColorApplied: (color) {
           widget.onColorChanged(book.id, color);
@@ -241,7 +251,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
 
               final book = widget.books[index];
               final isActive = _currentPage == index;
-              final entryCount = widget.entryCounts[book.id] ?? 0;
+              final entryCount = _displayCountForBook(book);
               final entries = widget.entriesByBook[book.id] ?? [];
               final isNewBook = book.id == widget.newBookId;
 

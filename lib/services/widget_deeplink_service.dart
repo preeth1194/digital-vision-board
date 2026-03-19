@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'habit_completion_applier.dart';
 import 'habit_progress_widget_snapshot_service.dart';
 import 'logical_date_service.dart';
+import 'widget_action_refresh_notifier.dart';
 
 /// Handles deep links used by native home-screen widgets.
 ///
@@ -47,6 +48,7 @@ final class WidgetDeepLinkService {
       if (!ok) return;
 
       await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
+      WidgetActionRefreshNotifier.bump();
     }
 
     try {

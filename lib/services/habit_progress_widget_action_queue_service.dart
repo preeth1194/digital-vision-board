@@ -7,13 +7,15 @@ import 'habit_completion_applier.dart';
 import 'habit_progress_widget_native_bridge.dart';
 import 'habit_progress_widget_snapshot_service.dart';
 import 'logical_date_service.dart';
+import 'widget_action_refresh_notifier.dart';
 
 /// iOS 17+ WidgetKit AppIntents can't directly invoke Flutter code, so they
 /// enqueue actions into the app group. The app consumes them on startup/resume.
 final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
   HabitProgressWidgetActionQueueService._();
 
-  static final HabitProgressWidgetActionQueueService instance = HabitProgressWidgetActionQueueService._();
+  static final HabitProgressWidgetActionQueueService instance =
+      HabitProgressWidgetActionQueueService._();
   bool _started = false;
   bool _draining = false;
 
@@ -35,26 +37,32 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
     if (_draining) return;
     _draining = true;
     try {
-      final actions = await HabitProgressWidgetNativeBridge.readAndClearQueuedWidgetActionsBestEffort();
+      final actions =
+          await HabitProgressWidgetNativeBridge.readAndClearQueuedWidgetActionsBestEffort();
       if (actions.isEmpty) return;
 
       final prefs = await SharedPreferences.getInstance();
       await LogicalDateService.ensureInitialized(prefs: prefs);
       final iso = LogicalDateService.isoToday();
+      var appliedAny = false;
 
       for (final a in actions) {
         final kind = (a['kind'] ?? '').trim();
         if (kind != 'toggle') continue;
         final habitId = (a['habitId'] ?? '').trim();
         if (habitId.isEmpty) continue;
-        await HabitCompletionApplier.toggleForToday(
+        final ok = await HabitCompletionApplier.toggleForToday(
           habitId: habitId,
           logicalDateIso: iso,
           prefs: prefs,
         );
+        if (ok) appliedAny = true;
       }
 
       await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
+      if (appliedAny) {
+        WidgetActionRefreshNotifier.bump();
+      }
     } catch (_) {
       // ignore
     } finally {

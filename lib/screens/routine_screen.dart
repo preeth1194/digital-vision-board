@@ -9,6 +9,7 @@ import '../services/ad_free_service.dart';
 import '../services/ad_service.dart';
 import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/habit_progress_widget_snapshot_service.dart';
 import '../services/logical_date_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
@@ -178,6 +179,12 @@ class _RoutineScreenState extends State<RoutineScreen>
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final all = await HabitStorageService.loadAll(prefs: prefs);
     if (mounted) setState(() => _habits = all);
+  }
+
+  Future<void> _refreshWidgetSnapshotBestEffort() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
   }
 
   void _onDateSelected(DateTime date) {
@@ -366,6 +373,7 @@ class _RoutineScreenState extends State<RoutineScreen>
     await CoinsService.addCoins(result.coinsEarned);
 
     await _loadHabits();
+    await _refreshWidgetSnapshotBestEffort();
   }
 
   void _showCompletionDetails(HabitItem habit) {
@@ -503,6 +511,7 @@ class _RoutineScreenState extends State<RoutineScreen>
 
     await _loadHabits();
     await _loadAdState();
+    await _refreshWidgetSnapshotBestEffort();
   }
 
   Future<void> _onRewardAdWatched() async {
@@ -1247,10 +1256,9 @@ class _TimelineHabitCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '${_formatTimeShort(startTime)} – ${_formatTimeShort(endTime)}  ·  ${_formatDuration(duration)}',
-                style: AppTypography.caption(context).copyWith(
-                  color: subtitleColor,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: subtitleColor, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -1516,7 +1524,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? colorScheme.tertiaryContainer.withValues(alpha: 0.28)
+                          ? colorScheme.tertiaryContainer.withValues(
+                              alpha: 0.28,
+                            )
                           : AppColors.seedChampagne,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1543,7 +1553,9 @@ class _CompletionDetailsSheet extends StatelessWidget {
                               BoxShadow(
                                 color: isDark
                                     ? Colors.black.withValues(alpha: 0.24)
-                                    : AppColors.forestDeep.withValues(alpha: 0.12),
+                                    : AppColors.forestDeep.withValues(
+                                        alpha: 0.12,
+                                      ),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
                               ),

@@ -852,6 +852,84 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ],
       ),
       t(
+        id: 'default_weekly_muscle_split_daypart',
+        name: 'Weekly Muscle Group Split',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Fitness',
+        setKey: 'default_set_muscle_split',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Muscle Group Focus',
+          'level': 'Beginner–Intermediate',
+          'durationWeeks': 8,
+          'daysPerWeek': 5,
+          'schedule': 'Mon–Fri (Sat/Sun Rest)',
+          'split':
+              'Mon Chest · Tue Back · Wed Shoulders · Thu Legs · Fri Arms',
+          'timePerSession': '45–60 min',
+          'supportsDaypartByWeekday': true,
+          'note':
+              'Select Morning and/or Evening for each training day. Keep Sat/Sun as rest unless manually enabled.',
+        },
+        structuredSteps: [
+          HabitActionStep(
+            id: 'muscle-split-mon',
+            title: 'Chest Session',
+            iconCodePoint: 58728,
+            order: 0,
+            plannerDay: 'mon',
+            stepLabel: '4 exercises',
+            productType: 'Chest',
+            productName: 'Gym',
+            notes: 'Focus: upper + mid chest',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-tue',
+            title: 'Back Session',
+            iconCodePoint: 58728,
+            order: 1,
+            plannerDay: 'tue',
+            stepLabel: '4 exercises',
+            productType: 'Back',
+            productName: 'Gym',
+            notes: 'Focus: lats + upper back',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-wed',
+            title: 'Shoulders Session',
+            iconCodePoint: 58728,
+            order: 2,
+            plannerDay: 'wed',
+            stepLabel: '4 exercises',
+            productType: 'Shoulders',
+            productName: 'Gym',
+            notes: 'Focus: front + side + rear delts',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-thu',
+            title: 'Legs Session',
+            iconCodePoint: 58728,
+            order: 3,
+            plannerDay: 'thu',
+            stepLabel: '5 exercises',
+            productType: 'Legs',
+            productName: 'Gym',
+            notes: 'Focus: quads + hamstrings + calves',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-fri',
+            title: 'Arms Session',
+            iconCodePoint: 58728,
+            order: 4,
+            plannerDay: 'fri',
+            stepLabel: '4 exercises',
+            productType: 'Arms (Biceps & Triceps)',
+            productName: 'Gym',
+            notes: 'Focus: biceps + triceps',
+          ),
+        ],
+      ),
+      t(
         id: 'default_set_beginner_meal_prep',
         name: 'Beginner Weekly Meal Prep',
         category: ActionTemplateCategory.mealPrep,
@@ -1613,12 +1691,74 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       ];
     }
+    if (template.category == ActionTemplateCategory.workout) {
+      final weeklyMuscleSummary = _weeklyWorkoutMuscleSummary(template);
+      return [
+        PresetPreviewSection(
+          title: 'Weekly Muscle Focus',
+          icon: Icons.calendar_month_outlined,
+          steps: weeklyMuscleSummary,
+        ),
+        PresetPreviewSection(
+          title: 'Preset Steps',
+          icon: Icons.playlist_add_check_outlined,
+          steps: template.steps,
+        ),
+      ];
+    }
     return [
       PresetPreviewSection(
         title: 'Preset Steps',
         icon: Icons.playlist_add_check_outlined,
         steps: template.steps,
       ),
+    ];
+  }
+
+  List<HabitActionStep> _weeklyWorkoutMuscleSummary(ActionStepTemplate template) {
+    final weekdayOrder = <int>[
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+      DateTime.sunday,
+    ];
+    final dayLabel = <int, String>{
+      DateTime.monday: 'Mon',
+      DateTime.tuesday: 'Tue',
+      DateTime.wednesday: 'Wed',
+      DateTime.thursday: 'Thu',
+      DateTime.friday: 'Fri',
+      DateTime.saturday: 'Sat',
+      DateTime.sunday: 'Sun',
+    };
+    final musclesByDay = <int, Set<String>>{
+      for (final day in weekdayOrder) day: <String>{},
+    };
+
+    for (final step in template.steps) {
+      final days = _extractWeekdays(step.plannerDay);
+      if (days.isEmpty) continue;
+      final muscle = (step.productType ?? '').trim().isNotEmpty
+          ? (step.productType ?? '').trim()
+          : step.title.trim();
+      if (muscle.isEmpty) continue;
+      for (final day in days) {
+        musclesByDay.putIfAbsent(day, () => <String>{}).add(muscle);
+      }
+    }
+
+    return [
+      for (int i = 0; i < weekdayOrder.length; i++)
+        HabitActionStep(
+          id: 'workout-weekly-summary-$i',
+          title:
+              '${dayLabel[weekdayOrder[i]]}: ${musclesByDay[weekdayOrder[i]]!.isEmpty ? 'Rest' : musclesByDay[weekdayOrder[i]]!.join(' + ')}',
+          iconCodePoint: Icons.check_circle_outline.codePoint,
+          order: i,
+        ),
     ];
   }
 

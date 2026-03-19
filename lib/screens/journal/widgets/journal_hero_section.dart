@@ -18,6 +18,7 @@ class JournalHeroSection extends StatefulWidget {
 
   /// Entry counts per book (bookId -> count).
   final Map<String, int> entryCounts;
+  final int recipeCount;
 
   /// Entries grouped by book ID.
   final Map<String, List<JournalEntry>> entriesByBook;
@@ -54,6 +55,7 @@ class JournalHeroSection extends StatefulWidget {
     this.books = const [],
     this.selectedBookId,
     this.entryCounts = const {},
+    this.recipeCount = 0,
     this.entriesByBook = const {},
     this.onBookSelected,
     this.onBookTap,
@@ -158,6 +160,7 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                   books: widget.books,
                   selectedBookId: widget.selectedBookId,
                   entryCounts: widget.entryCounts,
+                  recipeCount: widget.recipeCount,
                   entriesByBook: widget.entriesByBook,
                   onBookSelected: widget.onBookSelected!,
                   onAddBook: widget.onAddBook!,

@@ -36,7 +36,8 @@ class _WorkoutPresetViewerScreenState
   void initState() {
     super.initState();
     _byDay = _groupByDay(widget.template.steps);
-    _dayOrder = _byDay.keys.toList();
+    _dayOrder = _byDay.keys.toList()
+      ..sort((a, b) => _daySortKey(a).compareTo(_daySortKey(b)));
     if (_dayOrder.isNotEmpty) _expanded.add(_dayOrder.first);
     _loadBests();
   }
@@ -56,6 +57,57 @@ class _WorkoutPresetViewerScreenState
       result.putIfAbsent(bucket, () => []).add(step);
     }
     return result;
+  }
+
+  int _daySortKey(String rawValue) {
+    final raw = rawValue.trim().toLowerCase();
+    final weekday = HabitActionStep.weekdayFromPlannerKey(raw);
+    final dayBase = weekday ?? 99;
+    final isAm = RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw);
+    final isPm = RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw);
+    final partOffset = isAm
+        ? 0
+        : (isPm ? 1 : 0);
+    return dayBase * 10 + partOffset;
+  }
+
+  String _formatDayLabel(String rawValue) {
+    final raw = rawValue.trim().toLowerCase();
+    final weekday = HabitActionStep.weekdayFromPlannerKey(raw);
+    if (weekday == null) return rawValue;
+    String day;
+    switch (weekday) {
+      case DateTime.monday:
+        day = 'Mon';
+        break;
+      case DateTime.tuesday:
+        day = 'Tue';
+        break;
+      case DateTime.wednesday:
+        day = 'Wed';
+        break;
+      case DateTime.thursday:
+        day = 'Thu';
+        break;
+      case DateTime.friday:
+        day = 'Fri';
+        break;
+      case DateTime.saturday:
+        day = 'Sat';
+        break;
+      case DateTime.sunday:
+        day = 'Sun';
+        break;
+      default:
+        day = '';
+    }
+    if (RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw)) {
+      return '$day • Morning';
+    }
+    if (RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw)) {
+      return '$day • Evening';
+    }
+    return day;
   }
 
   String _meta(String key, {String fallback = '—'}) {
@@ -194,7 +246,7 @@ class _WorkoutPresetViewerScreenState
           // ── Workout day accordion ─────────────────────────────────────────
           SliverList.separated(
             itemCount: _dayOrder.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final day = _dayOrder[index];
               final exercises = _byDay[day]!;
@@ -260,7 +312,7 @@ class _WorkoutPresetViewerScreenState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      day,
+                                      _formatDayLabel(day),
                                       style: textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
                                       ),

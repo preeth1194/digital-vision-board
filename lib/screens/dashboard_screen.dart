@@ -24,6 +24,7 @@ import '../services/dv_auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/auto_sync_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/widget_action_refresh_notifier.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
 import 'wizard/create_board_wizard_screen.dart';
@@ -81,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
   VoidCallback? _syncAuthListener;
+  VoidCallback? _widgetActionRefreshListener;
   final ValueNotifier<int> _boardDataVersion = ValueNotifier<int>(0);
 
   // Coin state shared with the habits tab
@@ -106,6 +108,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     _init();
     _loadCoins();
     _startAutoRefreshReminders();
+    _widgetActionRefreshListener = _onWidgetActionRefresh;
+    WidgetActionRefreshNotifier.version.addListener(
+      _widgetActionRefreshListener!,
+    );
   }
 
   Future<void> _loadProfileAvatar() async {
@@ -148,6 +154,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_syncAuthListener != null) {
       SyncService.authExpired.removeListener(_syncAuthListener!);
     }
+    if (_widgetActionRefreshListener != null) {
+      WidgetActionRefreshNotifier.version.removeListener(
+        _widgetActionRefreshListener!,
+      );
+    }
     _boardDataVersion.dispose();
     _coinNotifier.dispose();
     _profileAvatarNotifier.dispose();
@@ -163,6 +174,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       _maybeShowAuthGatewayIfMandatoryAfterTenDays();
       unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
     }
+  }
+
+  void _onWidgetActionRefresh() {
+    if (!mounted) return;
+    _boardDataVersion.value++;
+    _loadCoins();
+    _refreshReminders();
   }
 
   void _startAutoRefreshReminders() {
@@ -1119,8 +1137,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     final colorScheme = Theme.of(context).colorScheme;
     final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
-      // Hide app bar for journal and habits timeline mode.
-      appBar: (_tabIndex == 2 || (_tabIndex == 7 && _showHabitsCalendarMode))
+      // Hide app bar only for habits timeline calendar mode.
+      appBar: (_tabIndex == 7 && _showHabitsCalendarMode)
           ? null
           : AppBar(
               toolbarHeight: 72,
@@ -1152,9 +1170,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                            style: AppTypography.heading3(context).copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: AppTypography.heading3(
+                              context,
+                            ).copyWith(fontWeight: FontWeight.w500),
                           ),
                         ),
                       ),

@@ -28,8 +28,13 @@ import '../widgets/rituals/add_habit_modal.dart';
 
 class PlannerGuideScreen extends StatefulWidget {
   final ValueNotifier<int>? dataVersion;
+  final VoidCallback? onOpenChallengePreset;
 
-  const PlannerGuideScreen({super.key, this.dataVersion});
+  const PlannerGuideScreen({
+    super.key,
+    this.dataVersion,
+    this.onOpenChallengePreset,
+  });
 
   @override
   State<PlannerGuideScreen> createState() => _PlannerGuideScreenState();
@@ -147,7 +152,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
   }
 
-  String _guideSummaryText(ActionStepTemplate? guide) {
+  String _guideSummaryTextForCategory(
+    String category,
+    ActionStepTemplate? guide,
+  ) {
+    if (category == _challengeGuideCategory) {
+      return 'Unlock this challenge with 20 coins.';
+    }
     if (guide == null) return 'Try again after refresh.';
     if (guide.category == ActionTemplateCategory.skincare &&
         _liveSkincareGuideStepCount != null) {
@@ -156,7 +167,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return '${guide.steps.length} action steps';
   }
 
-  String _guideTitleText(ActionStepTemplate? guide) {
+  String _guideTitleTextForCategory(String category, ActionStepTemplate? guide) {
+    if (category == _challengeGuideCategory) return '75 Hard';
     if (guide == null) return 'No preset available';
     if (guide.category == ActionTemplateCategory.skincare) {
       final live = (_liveSkincarePresetTitle ?? '').trim();
@@ -2025,6 +2037,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     'Finance',
     'Creativity',
   ];
+  static const String _challengeGuideCategory = 'Challenges';
   static const String _mealPrepGuideCategory = 'Weekly Meal Prep';
   static const double _categoryDeckCardHeight = 156;
   static const double _categoryDeckPeekHeight = 66;
@@ -2047,6 +2060,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         return Icons.account_balance_wallet_outlined;
       case 'Creativity':
         return Icons.palette_outlined;
+      case _challengeGuideCategory:
+        return Icons.military_tech_outlined;
       case _mealPrepGuideCategory:
         return Icons.calendar_month_outlined;
       case 'Other':
@@ -2057,6 +2072,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   List<String> get _plannerGuideCategories => [
     ..._habitCategoriesInOrder,
+    _challengeGuideCategory,
     _mealPrepGuideCategory,
   ];
 
@@ -2067,7 +2083,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ? base.toList()
         : base.where((category) {
             if (category.toLowerCase().contains(q)) return true;
-            final presetName = _guideTitleText(
+            final presetName = _guideTitleTextForCategory(
+              category,
               _primaryGuideForPlannerCategory(category),
             ).toLowerCase();
             return presetName.contains(q);
@@ -2103,6 +2120,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         return 'Track spending, saving, and money habits.';
       case 'Creativity':
         return 'Turn ideas into repeatable creative flow.';
+      case _challengeGuideCategory:
+        return 'Commit to signature challenge presets.';
       case _mealPrepGuideCategory:
         return 'Plan weekly meal prep and connect recipes to habits.';
       default:
@@ -2111,6 +2130,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   int _guideCountForPlannerCategory(String category) {
+    if (category == _challengeGuideCategory) return 1;
     return _primaryGuideForPlannerCategory(category) == null ? 0 : 1;
   }
 
@@ -2121,6 +2141,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
+    if (category == _challengeGuideCategory) {
+      widget.onOpenChallengePreset?.call();
+      return;
+    }
     final guide = _primaryGuideForPlannerCategory(category);
     if (guide == null) return;
     await _openGuidePreview(guide);
@@ -2141,7 +2165,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       data: {
         'healthTemplateName': healthGuide?.name,
         'liveSkincarePresetTitle': _liveSkincarePresetTitle,
-        'healthCardDisplayTitle': _guideTitleText(healthGuide),
+        'healthCardDisplayTitle': _guideTitleTextForCategory(
+          'Health',
+          healthGuide,
+        ),
       },
     );
     // #endregion
@@ -2230,8 +2257,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                       guideForCategory: _primaryGuideForPlannerCategory,
                       onTapCategory: _onPlannerCategoryTap,
                       onTapGuide: _onPlannerGuideTap,
-                      guideTitleForCard: _guideTitleText,
-                      guideSummaryTextForCard: _guideSummaryText,
+                      guideTitleForCard: _guideTitleTextForCategory,
+                      guideSummaryTextForCard: _guideSummaryTextForCategory,
                     ),
                 ],
               ),
@@ -2316,8 +2343,10 @@ class _CategoryDeck extends StatelessWidget {
   final ActionStepTemplate? Function(String) guideForCategory;
   final Future<void> Function(String category) onTapCategory;
   final Future<void> Function(String category) onTapGuide;
-  final String Function(ActionStepTemplate? guide) guideTitleForCard;
-  final String Function(ActionStepTemplate? guide) guideSummaryTextForCard;
+  final String Function(String category, ActionStepTemplate? guide)
+  guideTitleForCard;
+  final String Function(String category, ActionStepTemplate? guide)
+  guideSummaryTextForCard;
 
   const _CategoryDeck({
     required this.categories,
@@ -2371,11 +2400,15 @@ class _CategoryDeck extends StatelessWidget {
                 expandedPanelHeight: expandedPanelHeight,
                 isExpanded: categories[i] == expandedCategory,
                 guide: guideForCategory(categories[i]),
-                guideTitle: guideTitleForCard(guideForCategory(categories[i])),
+                guideTitle: guideTitleForCard(
+                  categories[i],
+                  guideForCategory(categories[i]),
+                ),
                 zDepth: (i + 1).toDouble(),
                 onTap: () => onTapCategory(categories[i]),
                 onTapGuide: () => onTapGuide(categories[i]),
                 guideSummaryText: guideSummaryTextForCard(
+                  categories[i],
                   guideForCategory(categories[i]),
                 ),
               ),

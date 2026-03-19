@@ -761,12 +761,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
     final res = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
-        builder: (_) =>
-            ChallengeSetupScreen(template: ChallengeTemplates.seventyFiveHard),
+        builder: (_) => ChallengeSetupScreen(
+          template: ChallengeTemplates.seventyFiveHard,
+          requireStartCoins: true,
+          startCoinCost: CoinsService.presetHabitCreationCoins,
+        ),
       ),
     );
     final started = res == true || (res is Map && res['started'] == true);
     if (mounted && started) {
+      await _loadCoins();
       _boardDataVersion.value++;
       setState(() => _tabIndex = 7);
       if (res is Map) {
@@ -1356,17 +1360,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     subtitle: 'Habit with timer enabled',
                                     onTap: () =>
                                         _addHabitFromPanel(timerEnabled: true),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  _buildGlassMenuTile(
-                                    context: context,
-                                    icon: Icons.military_tech_rounded,
-                                    title: '75 Hard Challenge',
-                                    subtitle: '75-day mental toughness program',
-                                    onTap: () {
-                                      _hideCreatePanel();
-                                      _openChallengeSetup();
-                                    },
                                   ),
                                 ],
                               ),

@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
 import 'affirmation_summary_card.dart';
-import 'challenge_progress_card.dart';
 import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
@@ -53,17 +52,6 @@ class DashboardTab extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          // Challenge progress (or start prompt)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ChallengeProgressCard(
-              dataVersion: dataVersion,
-              onStartChallenge: onStartChallenge,
-              onViewHabits: onViewHabits,
-              hideWhenActive: true,
-            ),
-          ),
-          const SizedBox(height: 12),
           // Habit progress completion
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -89,7 +77,24 @@ class DashboardTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Row 2: Puzzle (Manifest card temporarily hidden)
+          // Row 2: Water + Reward ads
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(child: WaterIntakeCard()),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: RewardAdsCoinCard(coinNotifier: coinNotifier),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Row 3: Puzzle (Manifest card temporarily hidden)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
@@ -111,23 +116,6 @@ class DashboardTab extends StatelessWidget {
                       ],
                     )
                   : const PuzzleSummaryCard(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Row 3: Water + Reward ads
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Expanded(child: WaterIntakeCard()),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RewardAdsCoinCard(coinNotifier: coinNotifier),
-                  ),
-                ],
-              ),
             ),
           ),
           const SizedBox(height: 12),

@@ -7,6 +7,7 @@ import '../models/challenge.dart';
 import '../models/challenge_template.dart';
 import '../models/habit_item.dart';
 import '../services/challenge_storage_service.dart';
+import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
@@ -16,8 +17,15 @@ import '../widgets/rituals/habit_form_constants.dart';
 /// and tracker targets, pick a start date, and launch the challenge.
 class ChallengeSetupScreen extends StatefulWidget {
   final ChallengeTemplate template;
+  final bool requireStartCoins;
+  final int startCoinCost;
 
-  const ChallengeSetupScreen({super.key, required this.template});
+  const ChallengeSetupScreen({
+    super.key,
+    required this.template,
+    this.requireStartCoins = false,
+    this.startCoinCost = CoinsService.presetHabitCreationCoins,
+  });
 
   @override
   State<ChallengeSetupScreen> createState() => _ChallengeSetupScreenState();
@@ -146,10 +154,24 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
   Future<void> _startChallenge() async {
     if (_saving) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (widget.requireStartCoins) {
+      final totalCoins = await CoinsService.getTotalCoins(prefs: prefs);
+      if (totalCoins < widget.startCoinCost) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Need ${widget.startCoinCost} coins to start this challenge.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     setState(() => _saving = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       final template = widget.template;
       final startIso = _startDate.toIso8601String().split('T')[0];
       final deadlineDate = _startDate.add(Duration(days: template.durationDays - 1));
@@ -221,6 +243,9 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
       );
       await ChallengeStorageService.addChallenge(challenge, prefs: prefs);
       await ChallengeStorageService.setActiveChallengeId(challenge.id, prefs: prefs);
+      if (widget.requireStartCoins) {
+        await CoinsService.addCoins(-widget.startCoinCost, prefs: prefs);
+      }
 
       if (mounted) {
         Navigator.of(context).pop(<String, dynamic>{

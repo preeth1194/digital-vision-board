@@ -184,7 +184,10 @@ class DashboardBody extends StatelessWidget {
               onStartChallenge: onStartChallenge,
               onViewHabits: onViewHabits,
             ),
-            6 => PlannerGuideScreen(dataVersion: boardDataVersion),
+            6 => PlannerGuideScreen(
+              dataVersion: boardDataVersion,
+              onOpenChallengePreset: onStartChallenge,
+            ),
             7 => FutureBuilder<Map<String, List<VisionComponent>>>(
               future: _loadAllBoardsComponents(),
               builder: (context, snap) {

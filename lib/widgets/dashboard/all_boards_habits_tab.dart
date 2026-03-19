@@ -1232,16 +1232,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        decoration: BoxDecoration(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.9),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.16)
-                : Colors.white.withValues(alpha: 0.95),
-          ),
-        ),
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1295,6 +1286,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(6)),
+                      ),
                     ),
                     child: Text(
                       'Today',
@@ -2744,6 +2738,7 @@ class _MonthWeekRow extends StatelessWidget {
         return Expanded(
           child: InkWell(
             onTap: inMonth ? () => onDateSelected(date) : null,
+            borderRadius: BorderRadius.circular(6),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -2751,6 +2746,7 @@ class _MonthWeekRow extends StatelessWidget {
               constraints: BoxConstraints(minHeight: isSelected ? 40 : 36),
               decoration: BoxDecoration(
                 color: isSelected ? colorScheme.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
                 border: isToday && !isSelected
                     ? Border.all(color: colorScheme.primary, width: 1.6)
                     : null,

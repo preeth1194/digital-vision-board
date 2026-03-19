@@ -138,6 +138,8 @@ class _HabitCompletionSheetContent extends StatefulWidget {
 }
 
 class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetContent> {
+  static const String _mealPrepTemplateId = 'meal_prep_auto_plan_v1';
+
   int? _selectedMood;
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _trackingController = TextEditingController();
@@ -157,7 +159,10 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
       widget.habit.activeActionStepsForDate(DateTime.now());
 
   bool get _showPresetStepReps {
-    return (widget.habit.templateId ?? '').trim().isNotEmpty && _showSteps;
+    final templateId = (widget.habit.templateId ?? '').trim().toLowerCase();
+    final category = (widget.habit.category ?? '').trim().toLowerCase();
+    final isMealHabit = templateId == _mealPrepTemplateId || category == 'nutrition';
+    return !isMealHabit && templateId.isNotEmpty && _showSteps;
   }
 
   int get _totalCoins {

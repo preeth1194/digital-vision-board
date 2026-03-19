@@ -24,6 +24,9 @@ final class DvAuthService {
   static const _userHeightKey = 'dv_user_height_cm_v1';
   static const _userDobKey = 'dv_user_dob_v1';
   static const _userProfilePicKey = 'dv_user_profile_pic_v1';
+  static const _activityLevelKey = 'dv_user_activity_level_v1';
+  static const _dietPreferenceKey = 'dv_user_diet_preference_v1';
+  static const _allergiesKey = 'dv_user_allergies_v1';
 
   static String backendBaseUrl() {
     const raw = String.fromEnvironment(
@@ -52,8 +55,11 @@ final class DvAuthService {
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final em = (email ?? '').trim();
-    if (em.isNotEmpty) await p.setString(_userEmailKey, em);
-    else await p.remove(_userEmailKey);
+    if (em.isNotEmpty) {
+      await p.setString(_userEmailKey, em);
+    } else {
+      await p.remove(_userEmailKey);
+    }
   }
 
   /// Returns email for display. Null if not set.
@@ -86,16 +92,78 @@ final class DvAuthService {
     return n;
   }
 
+  static Future<void> setWeightKg(double? weightKg, {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    if (weightKg == null) {
+      await p.remove(_userWeightKey);
+    } else {
+      await p.setString(_userWeightKey, weightKg.toString());
+    }
+  }
+
+  static Future<void> setHeightCm(double? heightCm, {SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    if (heightCm == null) {
+      await p.remove(_userHeightKey);
+    } else {
+      await p.setString(_userHeightKey, heightCm.toString());
+    }
+  }
+
   static Future<String?> getDateOfBirth({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final v = (p.getString(_userDobKey) ?? '').trim();
     return v.isEmpty ? null : v;
   }
 
+  static Future<void> setDateOfBirth(
+    String? dateOfBirth, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (dateOfBirth ?? '').trim();
+    if (v.isEmpty) {
+      await p.remove(_userDobKey);
+    } else {
+      await p.setString(_userDobKey, v);
+    }
+  }
+
   static Future<String?> getProfilePicPath({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final v = (p.getString(_userProfilePicKey) ?? '').trim();
     return v.isEmpty ? null : v;
+  }
+
+  static Future<String> getActivityLevel({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_activityLevelKey) ?? '').trim().toLowerCase();
+    if (v.isEmpty) return 'moderate';
+    return v;
+  }
+
+  static Future<String?> getDietPreference({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (p.getString(_dietPreferenceKey) ?? '').trim().toLowerCase();
+    return v.isEmpty ? null : v;
+  }
+
+  static Future<List<String>> getAllergies({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final raw = p.getString(_allergiesKey);
+    if (raw == null || raw.trim().isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<String>()
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   static Future<void> setProfilePicPath(String? path, {SharedPreferences? prefs}) async {
@@ -113,19 +181,58 @@ final class DvAuthService {
     double? weightKg,
     double? heightCm,
     String? dateOfBirth,
+    String? activityLevel,
+    String? dietPreference,
+    List<String>? allergies,
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final dn = (displayName ?? '').trim();
-    if (dn.isNotEmpty) await p.setString(_userDisplayNameKey, dn);
-    else await p.remove(_userDisplayNameKey);
-    if (weightKg != null) await p.setString(_userWeightKey, weightKg.toString());
-    else await p.remove(_userWeightKey);
-    if (heightCm != null) await p.setString(_userHeightKey, heightCm.toString());
-    else await p.remove(_userHeightKey);
+    if (dn.isNotEmpty) {
+      await p.setString(_userDisplayNameKey, dn);
+    } else {
+      await p.remove(_userDisplayNameKey);
+    }
+    if (weightKg != null) {
+      await p.setString(_userWeightKey, weightKg.toString());
+    } else {
+      await p.remove(_userWeightKey);
+    }
+    if (heightCm != null) {
+      await p.setString(_userHeightKey, heightCm.toString());
+    } else {
+      await p.remove(_userHeightKey);
+    }
     final dob = (dateOfBirth ?? '').trim();
-    if (dob.isNotEmpty) await p.setString(_userDobKey, dob);
-    else await p.remove(_userDobKey);
+    if (dob.isNotEmpty) {
+      await p.setString(_userDobKey, dob);
+    } else {
+      await p.remove(_userDobKey);
+    }
+    final activity = (activityLevel ?? '').trim().toLowerCase();
+    if (activity.isNotEmpty) {
+      await p.setString(_activityLevelKey, activity);
+    } else {
+      await p.remove(_activityLevelKey);
+    }
+    final diet = (dietPreference ?? '').trim().toLowerCase();
+    if (diet.isNotEmpty) {
+      await p.setString(_dietPreferenceKey, diet);
+    } else {
+      await p.remove(_dietPreferenceKey);
+    }
+    if (allergies != null) {
+      final normalized = allergies
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList();
+      if (normalized.isEmpty) {
+        await p.remove(_allergiesKey);
+      } else {
+        await p.setString(_allergiesKey, jsonEncode(normalized));
+      }
+    }
   }
 
   static Future<bool> isProfileComplete({SharedPreferences? prefs}) async {
@@ -218,6 +325,49 @@ final class DvAuthService {
     await p.setString(_genderKey, v.isEmpty ? 'prefer_not_to_say' : v);
   }
 
+  static Future<void> setActivityLevel(
+    String? activityLevel, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (activityLevel ?? '').trim().toLowerCase();
+    if (v.isEmpty) {
+      await p.remove(_activityLevelKey);
+    } else {
+      await p.setString(_activityLevelKey, v);
+    }
+  }
+
+  static Future<void> setDietPreference(
+    String? dietPreference, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final v = (dietPreference ?? '').trim().toLowerCase();
+    if (v.isEmpty) {
+      await p.remove(_dietPreferenceKey);
+    } else {
+      await p.setString(_dietPreferenceKey, v);
+    }
+  }
+
+  static Future<void> setAllergies(
+    List<String>? allergies, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final values = (allergies ?? const <String>[])
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
+    if (values.isEmpty) {
+      await p.remove(_allergiesKey);
+      return;
+    }
+    await p.setString(_allergiesKey, jsonEncode(values));
+  }
+
   static Uri _url(String path) => Uri.parse('${backendBaseUrl()}$path');
 
   /// Exchange a Firebase Auth ID token for a dvToken used by this backend.
@@ -267,6 +417,9 @@ final class DvAuthService {
     double? weightKg,
     double? heightCm,
     String? dateOfBirth,
+    String? activityLevel,
+    String? dietPreference,
+    List<String>? allergies,
     String? subscriptionPlanId,
     bool? subscriptionActive,
     String? subscriptionSource,
@@ -282,6 +435,9 @@ final class DvAuthService {
     if (weightKg != null) body['weight_kg'] = weightKg;
     if (heightCm != null) body['height_cm'] = heightCm;
     if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
+    if (activityLevel != null) body['activity_level'] = activityLevel;
+    if (dietPreference != null) body['diet_preference'] = dietPreference;
+    if (allergies != null) body['allergies'] = allergies;
     if (subscriptionPlanId != null) body['subscription_plan_id'] = subscriptionPlanId;
     if (subscriptionActive != null) body['subscription_active'] = subscriptionActive;
     if (subscriptionSource != null) body['subscription_source'] = subscriptionSource;
@@ -314,6 +470,9 @@ final class DvAuthService {
     await p.remove(_userHeightKey);
     await p.remove(_userDobKey);
     await p.remove(_userProfilePicKey);
+    await p.remove(_activityLevelKey);
+    await p.remove(_dietPreferenceKey);
+    await p.remove(_allergiesKey);
   }
 
   /// Sign out: clear Firebase/Google sessions, auth state, and backup keys.

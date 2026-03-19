@@ -59,7 +59,8 @@ class HabitActionStep {
   }
 
   String get displayTitle {
-    final preferred = [productName, productType, stepLabel, title]
+    // Exercise-first display. Equipment and muscle remain optional metadata.
+    final preferred = [title, productType, stepLabel, productName]
         .map((e) => (e ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     return preferred;

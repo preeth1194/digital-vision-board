@@ -1,12 +1,15 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
 import '../models/action_step_template.dart';
 import '../models/habit_action_step.dart';
 import '../models/habit_item.dart';
+import '../models/meal_prep_week.dart';
+import '../models/recipe.dart';
 import '../models/skincare_planner.dart';
 import '../presets/models/preset_preview_section.dart';
 import '../presets/models/preset_template_config.dart';
@@ -17,6 +20,8 @@ import '../screens/presets/preset_shop_screen.dart';
 import '../services/action_templates_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/meal_prep_storage_service.dart';
+import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
@@ -1238,13 +1243,59 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   Future<void> _createOneTapFitnessHabitFromTemplate(
     ActionStepTemplate template,
   ) async {
-    final newHabit = _buildOneTapPresetHabit(template);
+    developer.log(
+      'Workout preset create requested',
+      name: 'planner_guide.workout_create',
+      error: {
+        'templateId': template.id,
+        'templateVersion': template.templateVersion,
+        'templateName': template.name,
+        'rawSteps': template.steps.length,
+      },
+    );
+    final newHabits = _buildOneTapPresetHabits(template);
+    if (newHabits.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No preset exercises available.')),
+      );
+      return;
+    }
     try {
-      await HabitStorageService.addHabit(newHabit);
+      developer.log(
+        'Workout preset split computed',
+        name: 'planner_guide.workout_create',
+        error: {
+          'templateId': template.id,
+          'templateVersion': template.templateVersion,
+          'createdHabits': newHabits
+              .map(
+                (h) => {
+                  'name': h.name,
+                  'weeklyDays': h.weeklyDays,
+                  'steps': h.actionSteps.length,
+                },
+              )
+              .toList(),
+          'firstHabitSteps': newHabits.isEmpty
+              ? const []
+              : newHabits.first.actionSteps
+                    .take(5)
+                    .map((s) => s.title)
+                    .toList(),
+        },
+      );
+      for (final habit in newHabits) {
+        await HabitStorageService.addHabit(habit);
+      }
       widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Habit created from "${template.name}"')),
+        SnackBar(
+          content: Text(
+            'Created ${newHabits.length} ${newHabits.length == 1 ? 'habit' : 'habits'} from "${template.name}"',
+          ),
+        ),
       );
       await _load();
     } catch (_) {
@@ -1398,39 +1449,120 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     );
   }
 
-  HabitItem _buildOneTapPresetHabit(ActionStepTemplate template) {
-    final weeklyDays = _weeklyDaysFromTemplate(template);
+  List<HabitItem> _buildOneTapPresetHabits(ActionStepTemplate template) {
     final normalizedSteps = List<HabitActionStep>.from(template.steps)
       ..sort((a, b) => a.order.compareTo(b.order));
-    return HabitItem(
-      id: 'preset-${DateTime.now().microsecondsSinceEpoch}',
-      name: _uniqueHabitNameFromTemplate(template.name),
-      category: _habitCategoryForTemplate(template),
-      frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
-      weeklyDays: weeklyDays,
-      completedDates: const [],
-      actionSteps: normalizedSteps,
-      templateId: template.id,
-      templateVersion: template.templateVersion,
-    );
-  }
+    final exerciseNamedSteps = normalizedSteps
+        .map((s) {
+          final fallback = s.displayTitle.trim();
+          final title = s.title.trim();
+          return s.copyWith(title: title.isEmpty ? fallback : title);
+        })
+        .toList();
 
-  String _uniqueHabitNameFromTemplate(String baseName) {
-    final trimmed = baseName.trim().isEmpty ? 'New Habit' : baseName.trim();
-    final existing = _existingHabits
+    final amSteps = <HabitActionStep>[];
+    final pmSteps = <HabitActionStep>[];
+    final unslottedSteps = <HabitActionStep>[];
+    for (final step in exerciseNamedSteps) {
+      final part = _daypartFromPlannerKey(step.plannerDay);
+      if (part == 'am') {
+        amSteps.add(step);
+      } else if (part == 'pm') {
+        pmSteps.add(step);
+      } else {
+        unslottedSteps.add(step);
+      }
+    }
+
+    final hasAm = amSteps.isNotEmpty;
+    final hasPm = pmSteps.isNotEmpty;
+    developer.log(
+      'Workout template daypart buckets',
+      name: 'planner_guide.workout_create',
+      error: {
+        'templateId': template.id,
+        'templateVersion': template.templateVersion,
+        'hasAm': hasAm,
+        'hasPm': hasPm,
+        'amSteps': amSteps.length,
+        'pmSteps': pmSteps.length,
+        'unslottedSteps': unslottedSteps.length,
+      },
+    );
+    final existingNames = _existingHabits
         .map((h) => h.name.trim().toLowerCase())
         .toSet();
-    if (!existing.contains(trimmed.toLowerCase())) return trimmed;
-    var suffix = 2;
-    while (existing.contains('$trimmed ($suffix)'.toLowerCase())) {
-      suffix++;
+    final createdNames = <String>{};
+
+    String uniqueName(String base) {
+      final trimmed = base.trim().isEmpty ? 'New Habit' : base.trim();
+      if (!existingNames.contains(trimmed.toLowerCase()) &&
+          !createdNames.contains(trimmed.toLowerCase())) {
+        createdNames.add(trimmed.toLowerCase());
+        return trimmed;
+      }
+      var suffix = 2;
+      while (existingNames.contains('$trimmed ($suffix)'.toLowerCase()) ||
+          createdNames.contains('$trimmed ($suffix)'.toLowerCase())) {
+        suffix++;
+      }
+      final resolved = '$trimmed ($suffix)';
+      createdNames.add(resolved.toLowerCase());
+      return resolved;
     }
-    return '$trimmed ($suffix)';
+
+    HabitItem buildHabit({
+      required String name,
+      required List<HabitActionStep> steps,
+    }) {
+      final weeklyDays = _weeklyDaysFromSteps(steps, template);
+      return HabitItem(
+        id: 'preset-${DateTime.now().microsecondsSinceEpoch}-${steps.length}',
+        name: uniqueName(name),
+        category: _habitCategoryForTemplate(template),
+        frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
+        weeklyDays: weeklyDays,
+        completedDates: const [],
+        actionSteps: steps,
+        templateId: template.id,
+        templateVersion: template.templateVersion,
+      );
+    }
+
+    if (!hasAm && !hasPm) {
+      return [
+        buildHabit(name: template.name, steps: exerciseNamedSteps),
+      ];
+    }
+
+    final habits = <HabitItem>[];
+    if (hasAm) {
+      final steps = [
+        ...amSteps,
+        ...unslottedSteps,
+      ]..sort((a, b) => a.order.compareTo(b.order));
+      habits.add(
+        buildHabit(name: '${template.name} (Morning)', steps: steps),
+      );
+    }
+    if (hasPm) {
+      final steps = [
+        ...pmSteps,
+        ...unslottedSteps,
+      ]..sort((a, b) => a.order.compareTo(b.order));
+      habits.add(
+        buildHabit(name: '${template.name} (Evening)', steps: steps),
+      );
+    }
+    return habits;
   }
 
-  List<int> _weeklyDaysFromTemplate(ActionStepTemplate template) {
+  List<int> _weeklyDaysFromSteps(
+    List<HabitActionStep> steps,
+    ActionStepTemplate template,
+  ) {
     final fromSteps = <int>{};
-    for (final step in template.steps) {
+    for (final step in steps) {
       for (final weekday in _extractWeekdays(step.plannerDay)) {
         fromSteps.add(weekday);
       }
@@ -1454,11 +1586,19 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return const [];
   }
 
+  String? _daypartFromPlannerKey(String? rawValue) {
+    final raw = (rawValue ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return null;
+    if (RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw)) return 'am';
+    if (RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw)) return 'pm';
+    return null;
+  }
+
   List<int> _extractWeekdays(String? text) {
     final raw = (text ?? '').trim().toLowerCase();
     if (raw.isEmpty) return const [];
 
-    final tokenMap = <String, int>{
+    const tokenMap = <String, int>{
       'monday': DateTime.monday,
       'mon': DateTime.monday,
       'tuesday': DateTime.tuesday,
@@ -1478,16 +1618,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       'sun': DateTime.sunday,
     };
 
-    final matches = RegExp(
-      r'\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b',
-    ).allMatches(raw);
-
     final weekdays = <int>{};
-    for (final match in matches) {
-      final token = match.group(0);
-      if (token == null) continue;
-      final normalized = token.toLowerCase();
-      final mapped = tokenMap[normalized];
+    final tokens = raw
+        .split(RegExp(r'[^a-z]+'))
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty);
+    for (final token in tokens) {
+      final mapped = tokenMap[token];
       if (mapped != null) weekdays.add(mapped);
     }
 
@@ -1505,6 +1642,14 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     final skincarePlanner = template.category == ActionTemplateCategory.skincare
         ? await SkincarePlannerStorageService.loadOrDefault()
         : null;
+    MealPrepWeek? mealPrepWeek;
+    Map<String, Recipe> recipesById = const {};
+    if (template.category == ActionTemplateCategory.mealPrep) {
+      final weeks = await MealPrepStorageService.loadAll();
+      mealPrepWeek = weeks.isEmpty ? null : weeks.first;
+      final recipes = await RecipeStorageService.loadAll();
+      recipesById = {for (final recipe in recipes) recipe.id: recipe};
+    }
     final resolvedPresetName =
         template.category == ActionTemplateCategory.skincare
         ? ((skincarePlanner?.title ?? '').trim().isNotEmpty
@@ -1526,13 +1671,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       template: template,
       config: config,
       skincarePlanner: skincarePlanner,
+      mealPrepWeek: mealPrepWeek,
+      recipesById: recipesById,
     );
+    final resolvedTotalSteps = previewSections.isEmpty
+        ? template.steps.length
+        : previewSections.fold<int>(0, (sum, section) => sum + section.steps.length);
 
     final action = await _showGuideOverlay(
       _PlannerGuideOverlayData(
         presetName: resolvedPresetName,
         habitCategory: _habitCategoryForTemplate(template),
-        totalSteps: template.steps.length,
+        totalSteps: resolvedTotalSteps,
         config: config,
         previewSections: previewSections,
         bottomInset: navClearance,
@@ -1547,12 +1697,20 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
               .map((t) => t.id == edited.id ? edited : t)
               .toList();
         });
+        if (!mounted) return;
+        await _openGuidePreview(edited);
         return;
       }
       await _load();
       return;
     }
     if (action == 'create') {
+      if (template.category == ActionTemplateCategory.mealPrep) {
+        await adapter.openEditor(context, template);
+        if (!mounted) return;
+        await _load();
+        return;
+      }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1642,6 +1800,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     required ActionStepTemplate template,
     required PresetTemplateConfig config,
     required SkincarePlanner? skincarePlanner,
+    required MealPrepWeek? mealPrepWeek,
+    required Map<String, Recipe> recipesById,
   }) {
     if (!config.sections.contains(PresetTemplateSection.routinePreview)) {
       return const [];
@@ -1706,6 +1866,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       ];
     }
+    if (template.category == ActionTemplateCategory.mealPrep) {
+      final planned = _mealPrepPreviewSteps(mealPrepWeek, recipesById);
+      if (planned.isNotEmpty) {
+        return [
+          PresetPreviewSection(
+            title: 'Weekly Meal Plan',
+            icon: Icons.calendar_month_outlined,
+            steps: planned,
+          ),
+        ];
+      }
+    }
     return [
       PresetPreviewSection(
         title: 'Preset Steps',
@@ -1713,6 +1885,64 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         steps: template.steps,
       ),
     ];
+  }
+
+  List<HabitActionStep> _mealPrepPreviewSteps(
+    MealPrepWeek? week,
+    Map<String, Recipe> recipesById,
+  ) {
+    if (week == null) return const [];
+    const dayOrder = <String>[
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    const dayLabel = <String, String>{
+      'monday': 'Mon',
+      'tuesday': 'Tue',
+      'wednesday': 'Wed',
+      'thursday': 'Thu',
+      'friday': 'Fri',
+      'saturday': 'Sat',
+      'sunday': 'Sun',
+    };
+    const slotOrder = <String>['breakfast', 'lunch', 'dinner', 'snack'];
+    const slotLabel = <String, String>{
+      'breakfast': 'Breakfast',
+      'lunch': 'Lunch',
+      'dinner': 'Dinner',
+      'snack': 'Snack',
+    };
+
+    final planned = <HabitActionStep>[];
+    for (final day in dayOrder) {
+      final slots = week.recipeIdByDayAndSlot[day] ?? const <String, String>{};
+      for (final slot in slotOrder) {
+        final recipeId = slots[slot];
+        if (recipeId == null || recipeId.trim().isEmpty) continue;
+        final recipe = recipesById[recipeId];
+        final title = recipe?.title.trim().isNotEmpty == true
+            ? recipe!.title.trim()
+            : recipeId;
+        final calories = (recipe?.macros?.calories ?? 0) > 0
+            ? '${recipe!.macros!.calories.round()} kcal'
+            : '';
+        planned.add(
+          HabitActionStep(
+            id: 'meal-preview-$day-$slot-${planned.length}',
+            title:
+                '${dayLabel[day] ?? day} • ${slotLabel[slot] ?? slot}: $title${calories.isNotEmpty ? ' ($calories)' : ''}',
+            iconCodePoint: Icons.restaurant_menu.codePoint,
+            order: planned.length,
+          ),
+        );
+      }
+    }
+    return planned;
   }
 
   List<HabitActionStep> _weeklyWorkoutMuscleSummary(ActionStepTemplate template) {

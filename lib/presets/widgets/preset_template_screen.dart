@@ -200,9 +200,11 @@ class PresetTemplateScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      section.steps[i].displayTitle.isEmpty
-                          ? 'Step ${i + 1}'
-                          : section.steps[i].displayTitle,
+                      section.steps[i].title.trim().isEmpty
+                          ? (section.steps[i].displayTitle.isEmpty
+                                ? 'Step ${i + 1}'
+                                : section.steps[i].displayTitle)
+                          : section.steps[i].title.trim(),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),

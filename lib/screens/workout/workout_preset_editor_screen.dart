@@ -40,6 +40,7 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     'Chest',
     'Back',
     'Shoulders',
+    'Side Delts',
     'Legs',
     'Arms (Biceps & Triceps)',
     'Core',
@@ -54,6 +55,11 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     _exercises = parsed.exercises;
     _daypartByWeekday = parsed.dayparts;
     _musclesByWeekday = parsed.muscles;
+    final generated = _buildExercisesFromSelectedMuscleGroups();
+    for (final e in _exercises) {
+      e.dispose();
+    }
+    _exercises = generated;
   }
 
   @override
@@ -141,10 +147,10 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () {
-                          setState(() {
-                            _musclesByWeekday[weekday] = selected;
-                          });
-                          _normalizeExerciseMusclesForDay(weekday);
+                          _applyMuscleSelectionForDay(
+                            weekday: weekday,
+                            selectedMuscles: selected,
+                          );
                           Navigator.of(ctx).pop();
                         },
                         child: const Text('Done'),
@@ -174,6 +180,48 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     });
   }
 
+  void _applyMuscleSelectionForDay({
+    required int weekday,
+    required Set<String> selectedMuscles,
+  }) {
+    final normalized = selectedMuscles
+        .map((m) => m.trim())
+        .where((m) => m.isNotEmpty)
+        .toSet();
+
+    setState(() {
+      _musclesByWeekday[weekday] = normalized;
+      final generated = _buildExercisesFromSelectedMuscleGroups();
+      for (final e in _exercises) {
+        e.dispose();
+      }
+      _exercises = generated;
+    });
+  }
+
+  List<_ExerciseEntry> _buildExercisesFromSelectedMuscleGroups() {
+    final generated = <_ExerciseEntry>[];
+    for (final weekday in _weekdayOrder) {
+      final muscles = _muscleOptionsForDay(weekday);
+      if (muscles.isEmpty) continue;
+      final plannerDay = _plannerDayKey(weekday);
+      for (final muscle in muscles) {
+        generated.add(
+          _ExerciseEntry.blank(
+            order: generated.length,
+            weekday: weekday,
+            plannerDay: plannerDay,
+            selectedMuscle: muscle,
+            title: '$muscle Exercise',
+            sets: '3',
+            reps: '10-12',
+          ),
+        );
+      }
+    }
+    return generated;
+  }
+
   bool _isSelectedMuscleValidForDay(_ExerciseEntry entry) {
     final weekday = entry.weekday;
     if (weekday == null) return true;
@@ -181,21 +229,6 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     if (selected.isEmpty) return true;
     final options = _muscleOptionsForDay(weekday);
     return options.contains(selected);
-  }
-
-  void _normalizeExerciseMusclesForDay(int weekday) {
-    final allowed = _muscleOptionsForDay(weekday).toSet();
-    setState(() {
-      for (int i = 0; i < _exercises.length; i++) {
-        final entry = _exercises[i];
-        if (entry.weekday != weekday) continue;
-        final selected = (entry.selectedMuscle ?? '').trim();
-        if (selected.isEmpty) continue;
-        if (!allowed.contains(selected)) {
-          _exercises[i] = entry.copyWith(selectedMuscle: null);
-        }
-      }
-    });
   }
 
   void _removeExercise(int index) {
@@ -238,16 +271,19 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
         }
         final setCount = int.tryParse(sets);
         if (setCount != null) {
-          final segmentCount = reps
+          final repSegments = reps
               .split('-')
               .map((s) => s.trim())
               .where((s) => s.isNotEmpty)
-              .length;
-          if (segmentCount != setCount) {
+              .toList();
+          final segmentCount = repSegments.length;
+          final isRangeNotation = setCount > 1 && segmentCount == 2;
+          if (!isRangeNotation && segmentCount != setCount) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Reps for "$title" must have $setCount values separated by hyphens.',
+                  'Reps for "$title" must have $setCount values (e.g. 10-10-10) '
+                  'or a range like 10-12.',
                 ),
               ),
             );
@@ -259,6 +295,8 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
           ? const <String>[]
           : _muscleOptionsForDay(e.weekday!);
       final selectedMuscle = (e.selectedMuscle ?? '').trim();
+      final equipment = e.equipmentCtrl.text.trim();
+      final resolvedEquipment = equipment.isEmpty ? null : equipment;
       final resolvedMuscle = selectedMuscle.isNotEmpty
           ? selectedMuscle
           : (dayOptions.isNotEmpty
@@ -278,7 +316,7 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
               fallback: e.step.stepLabel,
             ),
             productType: resolvedMuscle,
-            productName: e.step.productName,
+            productName: resolvedEquipment,
             notes: e.step.notes,
             plannerDay: e.step.plannerDay,
             plannerWeek: e.step.plannerWeek,
@@ -491,6 +529,18 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     return 'Not selected';
   }
 
+  String _createdMuscleLabelForDay(int weekday) {
+    final byDay = _exercises
+        .where((e) => e.weekday == weekday)
+        .map((e) => (e.selectedMuscle ?? e.step.productType ?? '').trim())
+        .where((m) => m.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    if (byDay.isNotEmpty) return byDay.join(', ');
+    return _muscleLabelForDay(weekday);
+  }
+
   List<int> _extractWeekdaysFromPlannerKey(String? rawValue) {
     final raw = (rawValue ?? '').trim().toLowerCase();
     if (raw.isEmpty) return const [];
@@ -629,86 +679,100 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
                   for (final weekday in _weekdayOrder)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          Text(
+                            _weekdayLabel(weekday),
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: double.infinity,
+                            constraints: const BoxConstraints(minHeight: 52),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: cs.outline),
+                              borderRadius: BorderRadius.circular(10),
+                              color: cs.surface,
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  _weekdayLabel(weekday),
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _showMuscleSelector(weekday),
+                                    borderRadius: const BorderRadius.horizontal(
+                                      left: Radius.circular(10),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              _muscleLabelForDay(weekday),
+                                              style: textTheme.bodySmall
+                                                  ?.copyWith(color: cs.onSurface),
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.checklist_rounded,
+                                            size: 18,
+                                            color: cs.primary,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                InkWell(
-                                  onTap: () => _showMuscleSelector(weekday),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
+                                Container(
+                                  width: 1,
+                                  height: 52,
+                                  color: cs.outlineVariant,
+                                ),
+                                SizedBox(
+                                  width: 56,
+                                  child: Center(
+                                    child: Switch(
+                                      value:
+                                          _daypartByWeekday[weekday]?.morning ??
+                                          false,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          final current =
+                                              _daypartByWeekday[weekday] ??
+                                              const _DaypartSelection();
+                                          _daypartByWeekday[weekday] = current
+                                              .copyWith(morning: value);
+                                        });
+                                      },
                                     ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: cs.outline),
-                                      borderRadius: BorderRadius.circular(8),
-                                      color: cs.surface,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            _muscleLabelForDay(weekday),
-                                            style: textTheme.bodySmall
-                                                ?.copyWith(color: cs.onSurface),
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.checklist_rounded,
-                                          size: 18,
-                                          color: cs.primary,
-                                        ),
-                                      ],
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 56,
+                                  child: Center(
+                                    child: Switch(
+                                      value:
+                                          _daypartByWeekday[weekday]?.evening ??
+                                          false,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          final current =
+                                              _daypartByWeekday[weekday] ??
+                                              const _DaypartSelection();
+                                          _daypartByWeekday[weekday] = current
+                                              .copyWith(evening: value);
+                                        });
+                                      },
                                     ),
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 56,
-                            child: Switch(
-                              value:
-                                  _daypartByWeekday[weekday]?.morning ?? false,
-                              onChanged: (value) {
-                                setState(() {
-                                  final current =
-                                      _daypartByWeekday[weekday] ??
-                                      const _DaypartSelection();
-                                  _daypartByWeekday[weekday] = current.copyWith(
-                                    morning: value,
-                                  );
-                                });
-                              },
-                            ),
-                          ),
-                          SizedBox(
-                            width: 56,
-                            child: Switch(
-                              value:
-                                  _daypartByWeekday[weekday]?.evening ?? false,
-                              onChanged: (value) {
-                                setState(() {
-                                  final current =
-                                      _daypartByWeekday[weekday] ??
-                                      const _DaypartSelection();
-                                  _daypartByWeekday[weekday] = current.copyWith(
-                                    evening: value,
-                                  );
-                                });
-                              },
                             ),
                           ),
                         ],
@@ -788,7 +852,7 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _muscleLabelForDay(day),
+                        _createdMuscleLabelForDay(day),
                         style: textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
@@ -824,6 +888,7 @@ class _ExerciseEntry {
   final TextEditingController titleCtrl;
   final TextEditingController setsCtrl;
   final TextEditingController repsCtrl;
+  final TextEditingController equipmentCtrl;
   final int? weekday;
   final String? selectedMuscle;
   int order;
@@ -833,6 +898,7 @@ class _ExerciseEntry {
     required this.titleCtrl,
     required this.setsCtrl,
     required this.repsCtrl,
+    required this.equipmentCtrl,
     required this.weekday,
     required this.selectedMuscle,
     required this.order,
@@ -849,6 +915,7 @@ class _ExerciseEntry {
       titleCtrl: TextEditingController(text: step.title),
       setsCtrl: TextEditingController(text: parsed.$1),
       repsCtrl: TextEditingController(text: parsed.$2),
+      equipmentCtrl: TextEditingController(text: step.productName ?? ''),
       weekday:
           assignedWeekday ??
           HabitActionStep.weekdayFromPlannerKey(step.plannerDay ?? ''),
@@ -863,21 +930,27 @@ class _ExerciseEntry {
     required int order,
     int? weekday,
     String? plannerDay,
+    String? selectedMuscle,
+    String? title,
+    String? sets,
+    String? reps,
+    String? equipment,
   }) {
     final id = 'custom-ex-${DateTime.now().microsecondsSinceEpoch}';
     return _ExerciseEntry(
       step: HabitActionStep(
         id: id,
-        title: '',
+        title: title ?? '',
         iconCodePoint: 58728,
         order: order,
         plannerDay: plannerDay,
       ),
-      titleCtrl: TextEditingController(),
-      setsCtrl: TextEditingController(),
-      repsCtrl: TextEditingController(),
+      titleCtrl: TextEditingController(text: title ?? ''),
+      setsCtrl: TextEditingController(text: sets ?? ''),
+      repsCtrl: TextEditingController(text: reps ?? ''),
+      equipmentCtrl: TextEditingController(text: equipment ?? ''),
       weekday: weekday,
-      selectedMuscle: null,
+      selectedMuscle: selectedMuscle,
       order: order,
     );
   }
@@ -893,6 +966,7 @@ class _ExerciseEntry {
       titleCtrl: titleCtrl,
       setsCtrl: setsCtrl,
       repsCtrl: repsCtrl,
+      equipmentCtrl: equipmentCtrl,
       weekday: weekday,
       selectedMuscle: selectedMuscle,
       order: order,
@@ -903,6 +977,7 @@ class _ExerciseEntry {
     titleCtrl.dispose();
     setsCtrl.dispose();
     repsCtrl.dispose();
+    equipmentCtrl.dispose();
   }
 
   static (String, String) _parseStepLabel(String? raw) {
@@ -1045,6 +1120,16 @@ class _ExerciseCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: entry.equipmentCtrl,
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Equipment (optional)',
+                hintText: 'e.g. Barbell, Dumbbell, Machine',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 8),
             if (muscleOptions.isEmpty)

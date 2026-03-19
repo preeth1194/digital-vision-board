@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
+import '../../services/google_sign_in_config.dart';
 import '../../services/image_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
@@ -42,7 +43,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     try {
       // google_sign_in v7+ uses a singleton instance (no default constructor).
       final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await initializeGoogleSignIn();
       final googleUser = await googleSignIn.authenticate();
       final auth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(

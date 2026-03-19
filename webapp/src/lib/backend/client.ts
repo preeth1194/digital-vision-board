@@ -1,4 +1,4 @@
-import { DV_TOKEN_COOKIE, getBackendBaseUrl } from '@/lib/session'
+import { DV_TOKEN_COOKIE } from '@/lib/session'
 
 function getCookieValue(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -23,7 +23,8 @@ export async function backendClientFetch<T>(
     headers.set('authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`${getBackendBaseUrl()}${path}`, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const response = await fetch(`/api/backend${normalizedPath}`, {
     ...init,
     headers,
     cache: 'no-store',

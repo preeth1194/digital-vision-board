@@ -6,8 +6,8 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { APP_NAME } from '@/lib/constants'
 import { backendClientFetch, setDvTokenCookie } from '@/lib/backend/client'
-import { firebaseAuth } from '@/lib/firebase/client'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { firebaseAuth, googleProvider } from '@/lib/firebase/client'
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
 
 type ExchangeResponse = {
   ok: boolean
@@ -29,10 +29,16 @@ function SignInPageContent() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    console.info('[sign-in] Email sign-in started', { redirectTo })
 
     try {
       const cred = await signInWithEmailAndPassword(firebaseAuth, email, password)
+      console.info('[sign-in] Firebase email auth success', {
+        uid: cred.user.uid,
+        hasEmail: Boolean(cred.user.email),
+      })
       const idToken = await cred.user.getIdToken()
+      console.info('[sign-in] ID token acquired for email flow')
       const exchange = await backendClientFetch<ExchangeResponse>(
         '/auth/firebase/exchange',
         {
@@ -47,10 +53,49 @@ function SignInPageContent() {
       }
 
       setDvTokenCookie(exchange.dvToken)
+      console.info('[sign-in] Backend token exchange success (email)')
       router.push(redirectTo)
       router.refresh()
     } catch (err: unknown) {
+      console.error('[sign-in] Email sign-in failed', err)
       setError(err instanceof Error ? err.message : 'Sign in failed')
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError('')
+    setLoading(true)
+    console.info('[sign-in] Google sign-in started', { redirectTo })
+
+    try {
+      const cred = await signInWithPopup(firebaseAuth, googleProvider)
+      console.info('[sign-in] Firebase Google auth success', {
+        uid: cred.user.uid,
+        hasEmail: Boolean(cred.user.email),
+      })
+      const idToken = await cred.user.getIdToken()
+      console.info('[sign-in] ID token acquired for Google flow')
+      const exchange = await backendClientFetch<ExchangeResponse>(
+        '/auth/firebase/exchange',
+        {
+          method: 'POST',
+          body: JSON.stringify({ idToken }),
+        },
+        { auth: false }
+      )
+
+      if (!exchange.ok || !exchange.dvToken) {
+        throw new Error('Failed to create backend session')
+      }
+
+      setDvTokenCookie(exchange.dvToken)
+      console.info('[sign-in] Backend token exchange success (google)')
+      router.push(redirectTo)
+      router.refresh()
+    } catch (err: unknown) {
+      console.error('[sign-in] Google sign-in failed', err)
+      setError(err instanceof Error ? err.message : 'Google sign in failed')
       setLoading(false)
     }
   }
@@ -115,6 +160,24 @@ function SignInPageContent() {
             className="w-full bg-forest-deep text-white font-bold py-2.5 rounded-xl hover:bg-sprout-dark transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow text-sm"
           >
             {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-forest-deep/15" />
+            </div>
+            <div className="relative text-center">
+              <span className="bg-white px-3 text-xs text-forest-deep/45">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full border border-forest-deep/20 text-forest-deep font-semibold py-2.5 rounded-xl hover:bg-forest-deep/5 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+          >
+            Continue with Google
           </button>
         </form>
 

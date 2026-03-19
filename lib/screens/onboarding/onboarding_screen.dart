@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/dv_auth_service.dart';
+import '../../services/google_sign_in_config.dart';
 import '../../services/subscription_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
@@ -149,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await initializeGoogleSignIn();
       final googleUser = await googleSignIn.authenticate();
       final auth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(idToken: auth.idToken);

@@ -41,53 +41,51 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCCXvAbvOhPLjje6DfrO43-jiupGwh-Lao',
-    appId: '1:250088132481:web:58453f7c98fa1ee54c2280',
-    messagingSenderId: '250088132481',
-    projectId: 'seerohabitseeding',
-    authDomain: 'seerohabitseeding.firebaseapp.com',
-    storageBucket: 'seerohabitseeding.firebasestorage.app',
-    measurementId: 'G-3Q89HQYGQV',
+    apiKey: 'AIzaSyBxMb8VRtABCQZr5cHKzPPs6EFFhCmG8I0',
+    appId: '1:612736301895:web:70986d26c495c49dac2a62',
+    messagingSenderId: '612736301895',
+    projectId: 'habitseeding-prod',
+    authDomain: 'habitseeding-prod.firebaseapp.com',
+    storageBucket: 'habitseeding-prod.firebasestorage.app',
+    measurementId: 'G-R3DWZM8RLX',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCpHppCqhj2Webv5pfjPuY4xNQuK60NCnk',
-    appId: '1:250088132481:android:a9c2393ae28d63054c2280',
-    messagingSenderId: '250088132481',
-    projectId: 'seerohabitseeding',
-    storageBucket: 'seerohabitseeding.firebasestorage.app',
+    apiKey: 'AIzaSyAKhG2BAIy_5ZDmmYyR3Ir8WXCt4URJXIE',
+    appId: '1:612736301895:android:54524ee804a74a4eac2a62',
+    messagingSenderId: '612736301895',
+    projectId: 'habitseeding-prod',
+    storageBucket: 'habitseeding-prod.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyANlBjsbvbaNiu8fu8bWOZdpx8IvICGzwU',
-    appId: '1:250088132481:ios:20581c71c14b242f4c2280',
-    messagingSenderId: '250088132481',
-    projectId: 'seerohabitseeding',
-    storageBucket: 'seerohabitseeding.firebasestorage.app',
-    androidClientId: '250088132481-6e6a0a3o9aqdcb5v3vqf475mn4k08e35.apps.googleusercontent.com',
-    iosClientId: '250088132481-euubh7rh8nrpp6led5tg26cbuhe11pq2.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCJDkBjmtM5LvFcQ8KlQmXONINz0eeldDk',
+    appId: '1:612736301895:ios:6b3b1bfa77af7250ac2a62',
+    messagingSenderId: '612736301895',
+    projectId: 'habitseeding-prod',
+    storageBucket: 'habitseeding-prod.firebasestorage.app',
+    iosClientId: '612736301895-0qoorq8r0i3o6f8j0i42dsdqdb1eq14k.apps.googleusercontent.com',
     iosBundleId: 'com.habitseeding.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyANlBjsbvbaNiu8fu8bWOZdpx8IvICGzwU',
-    appId: '1:250088132481:ios:20581c71c14b242f4c2280',
-    messagingSenderId: '250088132481',
-    projectId: 'seerohabitseeding',
-    storageBucket: 'seerohabitseeding.firebasestorage.app',
-    androidClientId: '250088132481-6e6a0a3o9aqdcb5v3vqf475mn4k08e35.apps.googleusercontent.com',
-    iosClientId: '250088132481-euubh7rh8nrpp6led5tg26cbuhe11pq2.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCJDkBjmtM5LvFcQ8KlQmXONINz0eeldDk',
+    appId: '1:612736301895:ios:6b3b1bfa77af7250ac2a62',
+    messagingSenderId: '612736301895',
+    projectId: 'habitseeding-prod',
+    storageBucket: 'habitseeding-prod.firebasestorage.app',
+    iosClientId: '612736301895-0qoorq8r0i3o6f8j0i42dsdqdb1eq14k.apps.googleusercontent.com',
     iosBundleId: 'com.habitseeding.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCCXvAbvOhPLjje6DfrO43-jiupGwh-Lao',
-    appId: '1:250088132481:web:ce9f0462b6086f7b4c2280',
-    messagingSenderId: '250088132481',
-    projectId: 'seerohabitseeding',
-    authDomain: 'seerohabitseeding.firebaseapp.com',
-    storageBucket: 'seerohabitseeding.firebasestorage.app',
-    measurementId: 'G-XF2PE5WNZ1',
+    apiKey: 'AIzaSyBxMb8VRtABCQZr5cHKzPPs6EFFhCmG8I0',
+    appId: '1:612736301895:web:70986d26c495c49dac2a62',
+    messagingSenderId: '612736301895',
+    projectId: 'habitseeding-prod',
+    authDomain: 'habitseeding-prod.firebaseapp.com',
+    storageBucket: 'habitseeding-prod.firebasestorage.app',
+    measurementId: 'G-R3DWZM8RLX',
   );
 
 }

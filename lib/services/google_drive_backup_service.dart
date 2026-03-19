@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'google_sign_in_config.dart';
 
 /// Metadata for a backup file on Google Drive.
 class DriveBackupInfo {
@@ -245,7 +246,7 @@ class GoogleDriveBackupService {
   }
 
   static Future<_GoogleAuthClient> _getAuthClient() async {
-    await _googleSignIn.initialize();
+    await initializeGoogleSignIn();
     GoogleSignInAccount? account =
         await _googleSignIn.attemptLightweightAuthentication();
     if (account == null) {

@@ -120,7 +120,7 @@ class VisionBoardBuilder extends StatelessWidget {
                                       Align(
                                         alignment: Alignment.topRight,
                                         child: Padding(
-                                          padding: const EdgeInsets.all(6),
+                                          padding: const EdgeInsets.all(8),
                                           child: Icon(Icons.check_circle, color: colorScheme.surface),
                                         ),
                                       ),

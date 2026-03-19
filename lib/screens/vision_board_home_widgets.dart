@@ -473,16 +473,16 @@ class _PreviewTile extends StatelessWidget {
             Text(
               category,
               style: AppTypography.caption(context).copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               child: hasImage
                   ? componentImageForPath(context, path)
                   : Container(
@@ -556,7 +556,7 @@ class _LayerBoardCoverPreviewState extends State<_LayerBoardCoverPreview> {
     if (path.isEmpty) return const Center(child: Text('No images yet.'));
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: componentImageForPath(context, path),
     );
   }
@@ -1153,7 +1153,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                           ),
                                         ),
                                         if (hasLocation) ...[
-                                          const SizedBox(width: 6),
+                                          const SizedBox(width: 8),
                                           Icon(
                                             Icons.location_on_outlined,
                                             size: 18,

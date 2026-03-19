@@ -68,7 +68,7 @@ class _MoodTrackerCardState extends State<MoodTrackerCard> {
                   color: colorScheme.onPrimaryContainer,
                   size: 16,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Mood',
@@ -85,7 +85,7 @@ class _MoodTrackerCardState extends State<MoodTrackerCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             if (!_loaded)
               SizedBox(
                 height: 4,

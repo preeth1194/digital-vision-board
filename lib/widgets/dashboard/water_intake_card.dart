@@ -147,7 +147,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
 
     return GlassCard(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
             // Background fill animation based on water progress.
@@ -218,7 +218,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
                   size: 16,
                   color: isDone ? accentDark : accentColor,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Water',
@@ -238,7 +238,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
                         'Goal: $goal',
                         style: AppTypography.caption(context).copyWith(
                           color: cs.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                       const SizedBox(width: 2),
@@ -253,7 +253,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
               ],
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // ── Count display ────────────────────────────────────────────
             Center(
@@ -294,7 +294,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // ── +/- controls ─────────────────────────────────────────────
             Row(
@@ -414,12 +414,12 @@ class _ControlButton extends StatelessWidget {
       duration: const Duration(milliseconds: 150),
       child: Material(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 9),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

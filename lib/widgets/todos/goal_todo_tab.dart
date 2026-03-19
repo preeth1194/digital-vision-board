@@ -202,7 +202,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
   Widget build(BuildContext context) {
     final canSave = _newTodoC.text.trim().isNotEmpty;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
       children: [
         Row(
           children: [
@@ -223,7 +223,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             SizedBox(
               height: 40,
               child: FilledButton(
@@ -243,7 +243,7 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
           for (final item in widget.todos)
             Card(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   children: [
                     CheckboxListTile(

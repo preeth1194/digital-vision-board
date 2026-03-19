@@ -6,6 +6,7 @@ import '../../models/habit_item.dart';
 import '../../models/recipe.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/recipe_storage_service.dart';
+import '../../utils/app_colors.dart';
 
 // ── Canonical filter values ───────────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                     child: Text(
                       '$_activeFilterCount',
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 12,
                         color: cs.onError,
                         fontWeight: FontWeight.w700,
                       ),
@@ -263,12 +264,12 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 hintText: 'Search recipes, cuisines, ingredients…',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
                 fillColor: cs.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded, size: 18),
@@ -317,7 +318,7 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
 
           // ── Result count ────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
                 Text(
@@ -454,53 +455,53 @@ class _FilterPanel extends StatelessWidget {
         children: [
           // Cuisine
           _SectionLabel(label: 'Cuisine', icon: Icons.public_rounded),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _ChipRow(
             values: _kCuisines,
             selected: selectedCuisines,
             onToggle: onCuisineToggle,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           // Cooking Type
           _SectionLabel(
             label: 'Cooking Method',
             icon: Icons.outdoor_grill_rounded,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _ChipRow(
             values: _kCookingTypes,
             selected: selectedMethods,
             onToggle: onMethodToggle,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           // Diet
           _SectionLabel(
             label: 'Diet',
             icon: Icons.eco_rounded,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _ChipRow(
             values: _kDietTags,
             selected: selectedDiets,
             onToggle: onDietToggle,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           // Ingredient filter
           _SectionLabel(
             label: 'Ingredients',
             icon: Icons.inventory_2_outlined,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           TextField(
             controller: ingredientCtrl,
             decoration: InputDecoration(
               hintText: 'e.g. chicken, garlic, lemon',
               isDense: true,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -541,7 +542,7 @@ class _SectionLabel extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 13, color: cs.primary),
-        const SizedBox(width: 5),
+        const SizedBox(width: 8),
         Text(
           label.toUpperCase(),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -614,7 +615,7 @@ class _RecipeCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -626,7 +627,7 @@ class _RecipeCard extends StatelessWidget {
             // Content
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -634,19 +635,19 @@ class _RecipeCard extends StatelessWidget {
                     if (recipe.cuisine.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 8,
                           vertical: 2,
                         ),
                         margin: const EdgeInsets.only(bottom: 4),
                         decoration: BoxDecoration(
                           color: cs.primaryContainer,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           recipe.cuisine,
                           style: textTheme.labelSmall?.copyWith(
                             color: cs.onPrimaryContainer,
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -659,7 +660,9 @@ class _RecipeCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         height: 1.2,
                       ),
-                      maxLines: 2,
+                      // Prevent tiny vertical overflows in compact grid cards
+                      // when the cuisine chip is also visible.
+                      maxLines: recipe.cuisine.isNotEmpty ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                     ),
 
@@ -677,7 +680,7 @@ class _RecipeCard extends StatelessWidget {
                         Text(
                           '${recipe.prepTimeMinutes + recipe.cookTimeMinutes} min',
                           style: textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -691,7 +694,7 @@ class _RecipeCard extends StatelessWidget {
                         Text(
                           '${recipe.servings}',
                           style: textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -708,7 +711,7 @@ class _RecipeCard extends StatelessWidget {
                             for (final tag in recipe.dietTags.take(2))
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
+                                  horizontal: 8,
                                   vertical: 1,
                                 ),
                                 decoration: BoxDecoration(
@@ -718,7 +721,7 @@ class _RecipeCard extends StatelessWidget {
                                 child: Text(
                                   tag,
                                   style: textTheme.labelSmall?.copyWith(
-                                    fontSize: 9,
+                                    fontSize: 12,
                                     color: cs.onTertiaryContainer,
                                   ),
                                 ),
@@ -777,7 +780,7 @@ class _MiniIconBtn extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: Icon(
@@ -868,7 +871,7 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             if (!hasFilters) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 'Tap + to add your first recipe',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1030,13 +1033,13 @@ class _RecipeDetailScreen extends StatelessWidget {
                       children: [
                         for (final ing in recipe.ingredients)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 5),
+                            padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.only(
-                                    top: 5,
+                                    top: 8,
                                     right: 8,
                                   ),
                                   child: CircleAvatar(
@@ -1068,7 +1071,7 @@ class _RecipeDetailScreen extends StatelessWidget {
                       children: [
                         for (int i = 0; i < recipe.methodSteps.length; i++)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -1077,11 +1080,11 @@ class _RecipeDetailScreen extends StatelessWidget {
                                   height: 22,
                                   margin: const EdgeInsets.only(
                                     top: 1,
-                                    right: 10,
+                                    right: 12,
                                   ),
                                   decoration: BoxDecoration(
                                     color: cs.primaryContainer,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
@@ -1171,7 +1174,7 @@ class _DetailSection extends StatelessWidget {
         Row(
           children: [
             Icon(icon, size: 15, color: cs.primary),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               title.toUpperCase(),
               style: textTheme.labelSmall?.copyWith(
@@ -1182,7 +1185,7 @@ class _DetailSection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         child,
       ],
     );
@@ -1201,19 +1204,19 @@ class _MacrosGrid extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final items = [
       if (macros.calories > 0)
-        _MacroTile(label: 'Calories', value: '${macros.calories.toInt()}', unit: 'kcal', color: const Color(0xFFFF7043)),
+        _MacroTile(label: 'Calories', value: '${macros.calories.toInt()}', unit: 'kcal', color: AppColors.honeyText),
       if (macros.proteinG > 0)
-        _MacroTile(label: 'Protein', value: macros.proteinG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF42A5F5)),
+        _MacroTile(label: 'Protein', value: macros.proteinG.toStringAsFixed(1), unit: 'g', color: AppColors.lavenderDew),
       if (macros.carbsG > 0)
-        _MacroTile(label: 'Carbs', value: macros.carbsG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFFFCA28)),
+        _MacroTile(label: 'Carbs', value: macros.carbsG.toStringAsFixed(1), unit: 'g', color: AppColors.seedGold),
       if (macros.fatG > 0)
-        _MacroTile(label: 'Fat', value: macros.fatG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFEF5350)),
+        _MacroTile(label: 'Fat', value: macros.fatG.toStringAsFixed(1), unit: 'g', color: AppColors.completedOrange),
       if (macros.fiberG > 0)
-        _MacroTile(label: 'Fiber', value: macros.fiberG.toStringAsFixed(1), unit: 'g', color: const Color(0xFF66BB6A)),
+        _MacroTile(label: 'Fiber', value: macros.fiberG.toStringAsFixed(1), unit: 'g', color: AppColors.sproutGreen),
       if (macros.sodiumMg > 0)
         _MacroTile(label: 'Sodium', value: macros.sodiumMg.toInt().toString(), unit: 'mg', color: cs.outline),
       if (macros.sugarG > 0)
-        _MacroTile(label: 'Sugar', value: macros.sugarG.toStringAsFixed(1), unit: 'g', color: const Color(0xFFAB47BC)),
+        _MacroTile(label: 'Sugar', value: macros.sugarG.toStringAsFixed(1), unit: 'g', color: AppColors.lavenderDew),
     ];
     return Wrap(
       spacing: 8,
@@ -1242,7 +1245,7 @@ class _MacroTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -1252,7 +1255,7 @@ class _MacroTile extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: color,
               fontWeight: FontWeight.w600,
             ),
@@ -1275,7 +1278,7 @@ class _MacroTile extends StatelessWidget {
               Text(
                 unit,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: color.withValues(alpha: 0.7),
                 ),
               ),
@@ -1476,7 +1479,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
             borderRadius: BorderRadius.circular(8),
             onTap: () => setState(() => _showMacros = !_showMacros),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
                   Icon(Icons.bar_chart_rounded, size: 18, color: cs.primary),

@@ -97,7 +97,7 @@ class _PexelsSearchSheetState extends State<_PexelsSearchSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Search from web (Pexels)', style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextField(
               controller: _qC,
               textInputAction: TextInputAction.search,

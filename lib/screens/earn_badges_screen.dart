@@ -372,7 +372,7 @@ class _BadgeCard extends StatelessWidget {
             badge.description,
             style: AppTypography.caption(
               context,
-            ).copyWith(fontSize: 11, color: subtitleColor),
+            ).copyWith(fontSize: 12, color: subtitleColor),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -397,7 +397,7 @@ class _BadgeCard extends StatelessWidget {
             Text(
               '${progress.current} / ${badge.target}',
               style: AppTypography.caption(context).copyWith(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: subtitleColor,
               ),
@@ -405,7 +405,7 @@ class _BadgeCard extends StatelessWidget {
           ],
           if (unlocked)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
               decoration: BoxDecoration(
                 color: badge.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
@@ -413,7 +413,7 @@ class _BadgeCard extends StatelessWidget {
               child: Text(
                 'Earned',
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: badge.color,
                 ),

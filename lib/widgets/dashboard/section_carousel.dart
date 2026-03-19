@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_spacing.dart';
+import '../../utils/app_typography.dart';
 
 /// A carousel widget that displays items in a PageView with page indicators.
 /// When there's only one item, it displays it directly without carousel functionality.
@@ -48,12 +50,15 @@ class _SectionCarouselState extends State<SectionCarousel> {
         children: [
           if (widget.title != null) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
               child: Text(
                 widget.title!,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: AppTypography.heading3(context),
               ),
             ),
           ],
@@ -67,12 +72,15 @@ class _SectionCarouselState extends State<SectionCarousel> {
       children: [
         if (widget.title != null) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
             child: Text(
               widget.title!,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: AppTypography.heading3(context),
             ),
           ),
         ],
@@ -88,14 +96,14 @@ class _SectionCarouselState extends State<SectionCarousel> {
             itemCount: widget.items.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 child: widget.items[index],
               );
             },
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -112,13 +120,13 @@ class _SectionCarouselState extends State<SectionCarousel> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 8.0,
-      width: isActive ? 24.0 : 8.0,
+      height: AppSpacing.sm,
+      width: isActive ? AppSpacing.lg : AppSpacing.sm,
       decoration: BoxDecoration(
         color: isActive
             ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(4.0),
+            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(AppSpacing.xs),
       ),
     );
   }

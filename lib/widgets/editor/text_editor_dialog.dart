@@ -194,7 +194,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
                       onSelectionChanged: (newSelection) => setState(() => _fontWeight = newSelection.first),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: SegmentedButton<TextAlign>(

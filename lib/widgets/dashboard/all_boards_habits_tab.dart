@@ -19,6 +19,7 @@ import '../../services/journal_storage_service.dart';
 import '../../services/ad_service.dart';
 import '../../services/ad_free_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import '../../screens/routine_timer_screen.dart';
 import '../rituals/add_habit_modal.dart';
@@ -881,7 +882,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   Widget _buildSectionLabel(String label, {Widget? trailing}) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
           Text(
@@ -1218,7 +1219,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(
           color: isDark
               ? Colors.white.withValues(alpha: 0.12)
@@ -1233,15 +1234,15 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
                     children: [
                       InkWell(
                         onTap: _openCalendarDatePicker,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
+                            horizontal: 12,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
                             color: isDark
@@ -1261,7 +1262,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                 size: 14,
                                 color: colorScheme.onSurfaceVariant,
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Text(
                                 monthText,
                                 style: AppTypography.bodySmall(context).copyWith(
@@ -1277,7 +1278,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                         onPressed: () => _setSelectedCalendarDate(today),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
+                            horizontal: 16,
                             vertical: 4,
                           ),
                           minimumSize: Size.zero,
@@ -1294,7 +1295,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 SizedBox(
                   height: 50,
                   child: _MonthWeekScroller(
@@ -1361,13 +1362,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         return StatefulBuilder(
           builder: (context, setDialogState) => Dialog(
             backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(28),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: BoxDecoration(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.08)
@@ -1389,7 +1390,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           color: colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Text(
                         'Start time',
                         style: AppTypography.caption(
@@ -1429,7 +1430,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           setDialogState(() => selectedStart = value);
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Text(
                         'Duration',
                         style: AppTypography.caption(
@@ -1473,7 +1474,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           setDialogState(() => selectedDuration = value);
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           TextButton(
@@ -1596,7 +1597,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         onTap: () => _openTimerForHabit(entry),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
               Icon(
@@ -1653,16 +1654,16 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   )
                 : null,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Container(
               margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.1)
                     : Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.14)
@@ -1736,7 +1737,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           color: isDark
               ? Colors.white.withValues(alpha: 0.12)
               : Colors.white.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.16)
@@ -1747,7 +1748,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
                   child: Row(
                     children: [
                       Text(
@@ -1775,14 +1776,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                     },
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                         child: _buildFlexibleHabitCard(flexibleHabits[index]),
                       );
                     },
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                   child: Row(
                     children: [
                       Icon(
@@ -1812,11 +1813,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                             final isActive = index == visibleIndex;
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
-                              margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                              margin: const EdgeInsets.symmetric(horizontal: 2.8),
                               width: isActive ? 14 : 6,
                               height: 6,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(8),
                                 color: isActive
                                     ? colorScheme.primary
                                     : colorScheme.onSurfaceVariant.withValues(
@@ -1939,12 +1940,11 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       SizedBox(
                         width: leftLabelWidth,
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 6, top: 1),
+                          padding: const EdgeInsets.only(left: 8, top: 1),
                           child: Text(
                             halfLabel,
                             textAlign: TextAlign.left,
                             style: AppTypography.caption(context).copyWith(
-                              fontSize: 10,
                               color: colorScheme.onSurfaceVariant.withValues(
                                 alpha: 0.55,
                               ),
@@ -2006,7 +2006,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                                     ),
                                   )
                                 : null,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: isHovered
                               ? Center(
@@ -2726,7 +2726,7 @@ class _MonthWeekRow extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: EdgeInsets.symmetric(vertical: isSelected ? 7 : 5),
+              padding: EdgeInsets.symmetric(vertical: isSelected ? 8 : 4),
               constraints: BoxConstraints(minHeight: isSelected ? 40 : 36),
               decoration: BoxDecoration(
                 color: isSelected ? colorScheme.primary : Colors.transparent,
@@ -2740,7 +2740,6 @@ class _MonthWeekRow extends StatelessWidget {
                   Text(
                     _weekdays[index],
                     style: AppTypography.caption(context).copyWith(
-                      fontSize: 9,
                       fontWeight: FontWeight.w700,
                       height: 1,
                       color: isSelected
@@ -2749,7 +2748,7 @@ class _MonthWeekRow extends StatelessWidget {
                                 .withValues(alpha: inMonth ? 1 : 0.55),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     '${date.day}',
                     style: AppTypography.bodySmall(context).copyWith(
@@ -2788,6 +2787,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final mood = feedback?.rating;
     final note = feedback?.note;
@@ -2832,7 +2832,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     Icons.task_alt_rounded,
@@ -2840,7 +2840,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                     color: colorScheme.primary,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2875,19 +2875,21 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                 if (coins != null && coins > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: isDark
+                          ? colorScheme.tertiaryContainer.withValues(alpha: 0.28)
+                          : AppColors.seedChampagne,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
+                          width: AppSpacing.coinChipSize,
+                          height: AppSpacing.coinChipSize,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -2896,14 +2898,25 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                               end: Alignment.bottomRight,
                             ),
                             border: Border.all(
-                              color: AppColors.amberBorder,
+                              color: isDark
+                                  ? colorScheme.outline.withValues(alpha: 0.45)
+                                  : colorScheme.surface.withValues(alpha: 0.9),
                               width: 1,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.24)
+                                    : AppColors.forestDeep.withValues(alpha: 0.12),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.monetization_on_rounded,
-                              size: 11,
+                              size: AppSpacing.coinChipIcon,
                               color: Colors.white,
                             ),
                           ),
@@ -2913,7 +2926,9 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                           '+$coins',
                           style: AppTypography.bodySmall(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.gold,
+                            color: isDark
+                                ? colorScheme.onTertiaryContainer
+                                : AppColors.honeyText,
                           ),
                         ),
                       ],
@@ -2975,7 +2990,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
                 style: FilledButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: Text('Done', style: AppTypography.button(context)),
@@ -3001,8 +3016,8 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: isFirst ? 14 : 0,
-        bottom: isLast ? 14 : 0,
+        top: isFirst ? 16 : 0,
+        bottom: isLast ? 16 : 0,
       ),
       child: Column(
         children: [
@@ -3053,8 +3068,8 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: isFirst ? 14 : 0,
-        bottom: 14,
+        top: isFirst ? 16 : 0,
+        bottom: 16,
       ),
       child: Column(
         children: [
@@ -3558,7 +3573,7 @@ class _CopingPlanFace extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.08)
@@ -3611,33 +3626,32 @@ class _CopingPlanFace extends StatelessWidget {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
+                                      horizontal: 8,
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
                                       color: colorScheme.error.withValues(
                                         alpha: 0.12,
                                       ),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       'IF',
                                       style: AppTypography.caption(context)
                                           .copyWith(
-                                            fontSize: 10,
                                             fontWeight: FontWeight.w800,
                                             color: colorScheme.error,
                                             letterSpacing: 0.5,
                                           ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       cbt.predictedObstacle!,
                                       style: AppTypography.bodySmall(context)
                                           .copyWith(
-                                            fontSize: 13,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                             color: isCompleted
                                                 ? textColor.withValues(
@@ -3667,33 +3681,32 @@ class _CopingPlanFace extends StatelessWidget {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
+                                      horizontal: 8,
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
                                       color: colorScheme.primary.withValues(
                                         alpha: 0.12,
                                       ),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       'THEN',
                                       style: AppTypography.caption(context)
                                           .copyWith(
-                                            fontSize: 10,
                                             fontWeight: FontWeight.w800,
                                             color: colorScheme.primary,
                                             letterSpacing: 0.5,
                                           ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       cbt.ifThenPlan!,
                                       style: AppTypography.bodySmall(context)
                                           .copyWith(
-                                            fontSize: 13,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                             color: isCompleted
                                                 ? textColor.withValues(
@@ -3728,12 +3741,11 @@ class _CopingPlanFace extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'Micro',
                             style: AppTypography.caption(context).copyWith(
-                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: accentColor,
                             ),
@@ -3749,7 +3761,7 @@ class _CopingPlanFace extends StatelessWidget {
                         color: subtitleColor,
                         size: 22,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Text(
                         'No coping plan set',
                         style: AppTypography.bodySmall(context).copyWith(

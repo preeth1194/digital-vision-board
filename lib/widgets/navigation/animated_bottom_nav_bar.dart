@@ -29,6 +29,7 @@ class AnimatedBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
     final hasCenterButton = onCenterTap != null;
     final slotCount = items.length + (hasCenterButton ? 1 : 0);
     final midSlot = items.length ~/ 2;
@@ -56,12 +57,25 @@ class AnimatedBottomNavBar extends StatelessWidget {
                 height: _barHeight + bottomPadding,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.forestDeep,
+                    color: isDark
+                        ? AppColors.forestDeep
+                        : colorScheme.surfaceContainerLowest.withValues(
+                            alpha: 0.96,
+                          ),
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark
+                            ? colorScheme.outlineVariant.withValues(alpha: 0.20)
+                            : colorScheme.outlineVariant.withValues(alpha: 0.55),
+                      ),
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: colorScheme.shadow.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
+                        color: colorScheme.shadow.withValues(
+                          alpha: isDark ? 0.28 : 0.12,
+                        ),
+                        blurRadius: isDark ? 10 : 8,
+                        offset: const Offset(0, -1),
                       ),
                     ],
                   ),
@@ -102,6 +116,7 @@ class AnimatedBottomNavBar extends StatelessWidget {
                           label: item.label,
                           isSelected: isSelected,
                           colorScheme: colorScheme,
+                          isDark: isDark,
                         ),
                       ),
                     );
@@ -137,30 +152,35 @@ class _NavTabItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final ColorScheme colorScheme;
+  final bool isDark;
 
   const _NavTabItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.colorScheme,
+    required this.isDark,
   });
-
-  static const Color _activeColor = AppColors.sproutGreen;
-  static const Color _inactiveColor = Color(0xFFAAB4AA);
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? _activeColor : _inactiveColor;
+    final color = isDark
+        ? (isSelected
+              ? AppColors.sageContainer
+              : AppColors.sageContainer.withValues(alpha: 0.55))
+        : (isSelected
+              ? AppColors.forestDeep
+              : colorScheme.onSurfaceVariant.withValues(alpha: 0.72));
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         AnimatedScale(
           scale: isSelected ? 1.2 : 1.0,
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 200),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
             transitionBuilder: (child, animation) {
@@ -176,11 +196,10 @@ class _NavTabItem extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           style: AppTypography.caption(context).copyWith(
             color: color,
-            fontSize: 11,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             decoration: TextDecoration.none,
           ),
@@ -234,7 +253,7 @@ class _AnimatedCenterButtonState extends State<_AnimatedCenterButton>
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
 
     _pulseScale = Tween<double>(begin: 1.0, end: 1.06).animate(

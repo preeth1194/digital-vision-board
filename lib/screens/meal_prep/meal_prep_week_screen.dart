@@ -192,7 +192,7 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
                       )
                       .toList(),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 for (final day in _days)
                   Card(
                     child: Padding(

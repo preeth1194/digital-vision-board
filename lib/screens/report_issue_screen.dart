@@ -116,7 +116,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Report Issue', style: AppTypography.heading1(context)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Tell us what went wrong and we will investigate it.',
               style: AppTypography.secondary(context),

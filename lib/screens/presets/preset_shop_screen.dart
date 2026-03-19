@@ -77,7 +77,9 @@ class _PresetShopScreenState extends State<PresetShopScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Preset Shop')),
+      appBar: AppBar(
+        title: Text('Preset Shop', style: AppTypography.heading3(context)),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -95,21 +97,21 @@ class _PresetShopScreenState extends State<PresetShopScreen> {
                 children: [
                   Icon(
                     Icons.storefront_outlined,
-                    size: 44,
+                    size: 40,
                     color: colorScheme.primary,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Upcoming feature',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    'Preset marketplace',
+                    style: AppTypography.heading3(context).copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Soon you will be able to shop presets uploaded by approved users.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    'Curated presets will appear here soon.',
+                    style: AppTypography.bodySmall(context).copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
@@ -140,38 +142,42 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final canAfford = currentCoins >= AdFreeService.adFreeCoinCost;
+    final ctaText = canAfford
+        ? 'Redeem ${AdFreeService.adFreeCoinCost}'
+        : 'Need ${AdFreeService.adFreeCoinCost}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isActiveToday
-              ? [
-                  colorScheme.primaryContainer,
-                  colorScheme.primary.withValues(alpha: 0.12),
-                ]
-              : isDark
-              ? [colorScheme.surfaceContainerHigh, colorScheme.surfaceContainer]
-              : [const Color(0xFFFFF8E1), const Color(0xFFFFF3CD)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? AppColors.cloudDark : AppColors.cloudWhite,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isActiveToday
               ? colorScheme.primary.withValues(alpha: 0.4)
-              : AppColors.coinGold.withValues(alpha: 0.4),
-          width: 1.5,
+              : colorScheme.outlineVariant.withValues(alpha: 0.8),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.28)
+                : AppColors.forestDeep.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+              color: isActiveToday
+                  ? colorScheme.primary.withValues(alpha: 0.16)
+                  : null,
               gradient: isActiveToday
                   ? null
                   : const LinearGradient(
@@ -179,52 +185,66 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-              color: isActiveToday
-                  ? colorScheme.primary.withValues(alpha: 0.2)
-                  : null,
               border: isActiveToday
                   ? null
-                  : Border.all(color: AppColors.amberBorder, width: 2),
+                  : Border.all(
+                      color: isDark
+                          ? colorScheme.outline.withValues(alpha: 0.45)
+                          : colorScheme.surface.withValues(alpha: 0.95),
+                      width: 1.25,
+                    ),
+              boxShadow: isActiveToday
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.28)
+                            : AppColors.forestDeep.withValues(alpha: 0.14),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: Center(
               child: Icon(
                 isActiveToday
                     ? Icons.check_circle_rounded
                     : Icons.monetization_on_rounded,
-                size: 26,
-                color: isActiveToday ? colorScheme.primary : Colors.white,
+                size: 22,
+                color: isActiveToday
+                    ? colorScheme.primary
+                    : Colors.white,
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '$currentCoins coins',
-                  style: AppTypography.heading1(context).copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  isActiveToday ? 'Ad-Free Active Today' : 'Go Ad-Free Today!',
-                  style: AppTypography.body(context).copyWith(
+                  style: AppTypography.heading3(context).copyWith(
                     fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
+                  isActiveToday ? 'Ad-free is active today' : 'Remove ads for today',
+                  style: AppTypography.bodySmall(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
                   isActiveToday
-                      ? 'Enjoy your ad-free experience'
-                      : 'Use ${AdFreeService.adFreeCoinCost} coins to remove ads for today',
-                  style: AppTypography.bodySmall(
-                    context,
-                  ).copyWith(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                      ? 'Enjoy a cleaner experience.'
+                      : 'Use coins once for a 24-hour ad-free session.',
+                  style: AppTypography.caption(context).copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -234,47 +254,42 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.15),
+                color: colorScheme.primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.check_rounded,
                 color: colorScheme.primary,
-                size: 24,
+                size: 20,
               ),
             )
           else
-            ElevatedButton.icon(
+            ElevatedButton(
               onPressed: canAfford ? onRedeem : null,
-              icon: Icon(
-                Icons.monetization_on_rounded,
-                size: 18,
-                color: canAfford
-                    ? Colors.white
-                    : colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-              label: Text(
-                '${AdFreeService.adFreeCoinCost}',
-                style: AppTypography.button(context).copyWith(
-                  color: canAfford
-                      ? Colors.white
-                      : colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: canAfford
-                    ? AppColors.coinGold
-                    : (isDark
-                          ? colorScheme.surfaceContainerHigh
-                          : colorScheme.outlineVariant),
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHigh,
+                foregroundColor: canAfford
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurfaceVariant,
+                minimumSize: const Size(0, 48),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                elevation: 0,
+              ),
+              child: Text(
+                ctaText,
+                style: AppTypography.caption(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: canAfford
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurfaceVariant,
                 ),
-                elevation: canAfford ? 2 : 0,
               ),
             ),
         ],

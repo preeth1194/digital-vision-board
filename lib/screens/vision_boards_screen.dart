@@ -255,7 +255,7 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
                       opacity: isActive ? 1.0 : 0.55,
                       duration: const Duration(milliseconds: 200),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         child: _BoardCard(
                           board: board,
                           tiles: tiles,
@@ -316,7 +316,7 @@ class _BoardCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: isDark ? colorScheme.surfaceContainerHigh : tileColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isActive
                 ? colorScheme.primary.withValues(alpha: 0.5)
@@ -350,9 +350,9 @@ class _BoardCard extends StatelessWidget {
   Widget _buildImageCollage(BuildContext context, List<GridTileModel> imageTiles) {
     if (imageTiles.length == 1) {
       return Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           child: _buildTileImage(context, imageTiles.first),
         ),
       );
@@ -362,9 +362,9 @@ class _BoardCard extends StatelessWidget {
     final displayTiles = imageTiles.take(6).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: StaggeredGrid.count(
           crossAxisCount: 2,
           mainAxisSpacing: spacing,
@@ -431,7 +431,7 @@ class _BoardCard extends StatelessWidget {
   Widget _buildTitleBar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface.withValues(alpha: 0.9),
         border: Border(
@@ -497,11 +497,11 @@ class _AddBoardCard extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Container(
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: borderColor, width: 2),
                 boxShadow: [
                   BoxShadow(
@@ -771,7 +771,7 @@ class _BarIconButton extends StatelessWidget {
             label,
             style: AppTypography.caption(context).copyWith(
               color: color,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),

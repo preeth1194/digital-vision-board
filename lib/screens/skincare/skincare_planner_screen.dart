@@ -1220,7 +1220,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                   child: const Text('Cancel'),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 flex: 2,
                 child: FilledButton.icon(
@@ -1268,7 +1268,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
@@ -1365,7 +1365,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                               minWidth: 260,
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               child: BackdropFilter(
                                 filter: ImageFilter.blur(
                                   sigmaX: 10,
@@ -1397,7 +1397,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 12,
-                                            vertical: 10,
+                                            vertical: 12,
                                           ),
                                           child: Text(option.name),
                                         ),
@@ -1460,7 +1460,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                           );
                         },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _weeklyPlanTable(
                     weeklyPlan: activeWeeklyPlan,
                     morningSourceItems: morningSourceItems,
@@ -1698,7 +1698,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                         minWidth: 260,
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
@@ -1725,7 +1725,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
-                                      vertical: 10,
+                                      vertical: 12,
                                     ),
                                     child: Text(option.name),
                                   ),
@@ -1878,7 +1878,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 );
               },
             ),
-          if (routineEnabled) const SizedBox(height: 10),
+          if (routineEnabled) const SizedBox(height: 12),
           if (routineEnabled)
             Text(
               '${rows.length} ${rows.length == 1 ? 'step' : 'steps'}',
@@ -1907,7 +1907,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: 6,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
                       border: Border(
@@ -1927,7 +1927,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                             color: Theme.of(context).colorScheme.outline,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         CircleAvatar(
                           radius: 16,
                           backgroundColor: Theme.of(
@@ -1935,7 +1935,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                           ).colorScheme.surfaceContainerHighest,
                           child: Text('${i + 1}'),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1978,7 +1978,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 );
               },
             ),
-          if (routineEnabled) const SizedBox(height: 10),
+          if (routineEnabled) const SizedBox(height: 12),
           if (routineEnabled)
             SizedBox(
               width: double.infinity,
@@ -1993,10 +1993,10 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     ).colorScheme.primary.withValues(alpha: 0.35),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   foregroundColor: Theme.of(context).colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
             ),
@@ -2085,7 +2085,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return _GlassSection(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       child: Table(
         columnWidths: {
           0: const FlexColumnWidth(1.2),
@@ -2166,7 +2166,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                   ),
                   if (morningEnabled)
                     Padding(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(8),
                       child: DropdownButtonFormField<String>(
                         value: safeMorningValue,
                         isExpanded: true,
@@ -2221,7 +2221,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     ),
                   if (eveningEnabled)
                     Padding(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(8),
                       child: DropdownButtonFormField<String>(
                         value: safeEveningValue,
                         isExpanded: true,
@@ -2297,12 +2297,12 @@ class _GlassSection extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(24),
             color: isDark
                 ? scheme.surfaceContainerLow.withValues(alpha: 0.42)
                 : Colors.white.withValues(alpha: 0.44),

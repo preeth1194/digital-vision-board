@@ -10,6 +10,7 @@ import '../../models/recipe.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/meal_prep_storage_service.dart';
+import '../../services/preset_habit_creation_service.dart';
 import '../../services/recipe_storage_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
@@ -28,6 +29,7 @@ class MealPrepWeekScreen extends StatefulWidget {
 }
 
 class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
+  static const double _previewActionButtonHeight = 52.0;
   static const String _mealPrepTemplateId = 'meal_prep_auto_plan_v1';
   static const List<String> _days = <String>[
     'monday',
@@ -804,6 +806,17 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
   Future<void> _createHabitsFromPreview() async {
     final week = _selectedWeek;
     if (week == null) return;
+    final gate = await PresetHabitCreationService.checkGate();
+    if (!gate.canCreate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Need ${gate.requiredCoins} coins to create habits from this preset.',
+          ),
+        ),
+      );
+      return;
+    }
     if (week.generatedAtMs == null || week.generatedAtMs! <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Save your meal plan before creating habits.')),
@@ -819,9 +832,10 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
     setState(() => _busy = true);
     try {
       await _syncMealHabits(week);
+      await PresetHabitCreationService.applyChargeForSuccessfulCreate();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Created/updated 4 meal habits.')),
+        const SnackBar(content: Text('Created/updated 1 meal habit.')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -830,11 +844,18 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
 
   Future<void> _syncMealHabits(MealPrepWeek week) async {
     final allHabits = await HabitStorageService.loadAll();
-    for (final slot in _slots) {
-      final name = _slotLabels[slot] ?? slot;
-      final steps = <HabitActionStep>[];
-      final weekdays = <int>{};
-      for (final day in _days) {
+    const mergedMealHabitName = 'Follow a diet';
+    const legacyMealHabitNames = <String>{
+      'breakfast',
+      'lunch',
+      'dinner',
+      'snack',
+    };
+
+    final steps = <HabitActionStep>[];
+    final weekdays = <int>{};
+    for (final day in _days) {
+      for (final slot in _slots) {
         final recipeId = week.recipeIdByDayAndSlot[day]?[slot];
         if (recipeId == null || recipeId.isEmpty) continue;
         final recipe = _recipeById(recipeId);
@@ -847,57 +868,71 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
             : _fallbackCaloriesForSlot(slot);
         steps.add(
           HabitActionStep(
-            id: 'meal-$slot-$day-$recipeId',
+            id: 'meal-diet-$day-$slot-$recipeId',
             title: recipe.title,
             iconCodePoint: Icons.restaurant_menu.codePoint,
             order: steps.length,
             stepLabel: '$calories kcal',
-            productType: name,
+            productType: _slotLabels[slot] ?? slot,
             plannerDay: plannerDay,
           ),
         );
       }
-
-      final existing = allHabits.where((h) {
-        return (h.templateId ?? '').trim() == _mealPrepTemplateId &&
-            h.name.toLowerCase() == name.toLowerCase();
-      }).toList();
-      final stableId = existing.isNotEmpty
-          ? existing.first.id
-          : 'meal-habit-$slot-${DateTime.now().millisecondsSinceEpoch}';
-
-      final nextHabit = HabitItem(
-        id: stableId,
-        name: name,
-        category: 'Nutrition',
-        frequency: 'Weekly',
-        weeklyDays: weekdays.isEmpty
-            ? const <int>[
-                DateTime.monday,
-                DateTime.tuesday,
-                DateTime.wednesday,
-                DateTime.thursday,
-                DateTime.friday,
-                DateTime.saturday,
-                DateTime.sunday,
-              ]
-            : (weekdays.toList()..sort()),
-        completedDates: existing.isNotEmpty ? existing.first.completedDates : const [],
-        actionSteps: steps,
-        templateId: _mealPrepTemplateId,
-        templateVersion: 1,
-      );
-      await HabitStorageService.updateHabit(nextHabit);
-      developer.log(
-        'Meal habit synced',
-        name: 'meal_prep.sync',
-        error: {
-          'habitName': name,
-          'steps': steps.length,
-          'weeklyDays': nextHabit.weeklyDays,
-        },
-      );
     }
+
+    final existingMerged = allHabits.where((h) {
+      return (h.templateId ?? '').trim() == _mealPrepTemplateId &&
+          h.name.toLowerCase() == mergedMealHabitName.toLowerCase();
+    }).toList();
+    final stableId = existingMerged.isNotEmpty
+        ? existingMerged.first.id
+        : 'meal-habit-diet-${DateTime.now().millisecondsSinceEpoch}';
+
+    final nextHabit = HabitItem(
+      id: stableId,
+      name: mergedMealHabitName,
+      category: 'Nutrition',
+      frequency: 'Weekly',
+      weeklyDays: weekdays.isEmpty
+          ? const <int>[
+              DateTime.monday,
+              DateTime.tuesday,
+              DateTime.wednesday,
+              DateTime.thursday,
+              DateTime.friday,
+              DateTime.saturday,
+              DateTime.sunday,
+            ]
+          : (weekdays.toList()..sort()),
+      completedDates: existingMerged.isNotEmpty
+          ? existingMerged.first.completedDates
+          : const [],
+      actionSteps: steps,
+      templateId: _mealPrepTemplateId,
+      templateVersion: 1,
+    );
+    await HabitStorageService.updateHabit(nextHabit);
+
+    final habitsToDelete = allHabits.where((h) {
+      if ((h.templateId ?? '').trim() != _mealPrepTemplateId) return false;
+      if (h.id == stableId) return false;
+      final name = h.name.trim().toLowerCase();
+      return legacyMealHabitNames.contains(name) || name == mergedMealHabitName.toLowerCase();
+    }).toList();
+    for (final habit in habitsToDelete) {
+      await HabitStorageService.deleteHabit(habit.id);
+    }
+
+    developer.log(
+      'Merged meal habit synced',
+      name: 'meal_prep.sync',
+      error: {
+        'habitName': mergedMealHabitName,
+        'steps': steps.length,
+        'weeklyDays': nextHabit.weeklyDays,
+        'removedLegacyHabits': habitsToDelete.length,
+      },
+    );
   }
 
   Widget _summaryCard(
@@ -1489,7 +1524,18 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weekly Meal Prep'),
+        title: Text(
+          'Weekly Meal Prep',
+          style: AppTypography.heading3(context),
+        ),
+        actions: [
+          if (_isEditingPlan)
+            TextButton.icon(
+              onPressed: _busy ? null : _savePlanAndOpenPreview,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save'),
+            ),
+        ],
       ),
       body: _loading || week == null
           ? const Center(child: CircularProgressIndicator())
@@ -1538,6 +1584,9 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
                       width: double.infinity,
                       child: FilledButton.icon(
                         onPressed: _busy ? null : _createHabitsFromPreview,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(_previewActionButtonHeight),
+                        ),
                         icon: const Icon(Icons.check_circle_outline),
                         label: Text('Create Habits', style: AppTypography.button(context)),
                       ),

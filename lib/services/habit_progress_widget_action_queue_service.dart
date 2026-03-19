@@ -30,6 +30,13 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(drainOnceBestEffort());
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // Keep app-group snapshot fresh before the user adds/views widgets.
+      unawaited(HabitProgressWidgetSnapshotService.refreshBestEffort());
     }
   }
 
@@ -39,7 +46,6 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
     try {
       final actions =
           await HabitProgressWidgetNativeBridge.readAndClearQueuedWidgetActionsBestEffort();
-      if (actions.isEmpty) return;
 
       final prefs = await SharedPreferences.getInstance();
       await LogicalDateService.ensureInitialized(prefs: prefs);
@@ -51,12 +57,12 @@ final class HabitProgressWidgetActionQueueService with WidgetsBindingObserver {
         if (kind != 'toggle') continue;
         final habitId = (a['habitId'] ?? '').trim();
         if (habitId.isEmpty) continue;
-        final ok = await HabitCompletionApplier.toggleForToday(
+        final result = await HabitCompletionApplier.toggleForToday(
           habitId: habitId,
           logicalDateIso: iso,
           prefs: prefs,
         );
-        if (ok) appliedAny = true;
+        if (result.applied) appliedAny = true;
       }
 
       await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);

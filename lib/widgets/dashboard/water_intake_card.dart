@@ -303,7 +303,6 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
                 Expanded(
                   child: _ControlButton(
                     icon: Icons.remove_rounded,
-                    label: '-1',
                     color: cs.onSurfaceVariant,
                     bgColor: cs.surfaceContainerHighest,
                     enabled: !_saving && glasses > 0,
@@ -313,10 +312,8 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
                 const SizedBox(width: 8),
                 // Add one glass
                 Expanded(
-                  flex: 2,
                   child: _ControlButton(
                     icon: Icons.add_rounded,
-                    label: '+1 glass',
                     color: Colors.white,
                     bgColor: isDone ? accentDark : accentColor,
                     enabled: !_saving && glasses < goal,
@@ -392,7 +389,6 @@ class _WaterWavePainter extends CustomPainter {
 
 class _ControlButton extends StatelessWidget {
   final IconData icon;
-  final String label;
   final Color color;
   final Color bgColor;
   final bool enabled;
@@ -400,7 +396,6 @@ class _ControlButton extends StatelessWidget {
 
   const _ControlButton({
     required this.icon,
-    required this.label,
     required this.color,
     required this.bgColor,
     required this.enabled,
@@ -418,22 +413,10 @@ class _ControlButton extends StatelessWidget {
         child: InkWell(
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ],
+          child: SizedBox(
+            height: 52,
+            child: Center(
+              child: Icon(icon, size: 20, color: color),
             ),
           ),
         ),

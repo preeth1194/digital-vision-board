@@ -40,12 +40,12 @@ final class WidgetDeepLinkService {
       await LogicalDateService.ensureInitialized(prefs: prefs);
 
       final iso = LogicalDateService.isoToday();
-      final ok = await HabitCompletionApplier.toggleForToday(
+      final result = await HabitCompletionApplier.toggleForToday(
         habitId: habitId,
         logicalDateIso: iso,
         prefs: prefs,
       );
-      if (!ok) return;
+      if (!result.applied) return;
 
       await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
       WidgetActionRefreshNotifier.bump();

@@ -14,6 +14,18 @@ class MainActivity : FlutterActivity() {
             HabitProgressAppWidget.updateAll(this)
             result.success(null)
           }
+          "writeSnapshotToAppGroup" -> {
+            val snapshot = call.argument<String>("snapshot")
+            if (snapshot.isNullOrBlank()) {
+              result.success(null)
+              return@setMethodCallHandler
+            }
+            HabitProgressWidgetStore.writeSnapshotJson(this, snapshot)
+            result.success(null)
+          }
+          "readAndClearQueuedWidgetActions" -> {
+            result.success(HabitProgressWidgetStore.readAndClearQueuedActions(this))
+          }
           else -> result.notImplemented()
         }
       }

@@ -36,6 +36,7 @@ class PresetTemplateScreen extends StatelessWidget {
     final effectiveBottomInset = bottomInset;
     const actionButtonRadius = 14.0;
     const closeButtonRadius = 18.0;
+    const previewActionButtonHeight = 52.0;
     return Padding(
       padding: EdgeInsets.only(bottom: effectiveBottomInset),
       child: ClipPath(
@@ -105,6 +106,9 @@ class PresetTemplateScreen extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: onClose,
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(
+                            previewActionButtonHeight,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               closeButtonRadius,
@@ -119,6 +123,9 @@ class PresetTemplateScreen extends StatelessWidget {
                       child: FilledButton(
                         onPressed: onCreate,
                         style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(
+                            previewActionButtonHeight,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               actionButtonRadius,

@@ -6,8 +6,10 @@ import '../../models/action_step_template.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/skincare_planner.dart';
 import '../../presets/services/skincare_preset_compiler.dart';
+import '../../services/preset_habit_creation_service.dart';
 import '../../services/skincare_planner_storage_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 class SkincarePlannerScreen extends StatefulWidget {
   final ActionStepTemplate? initialTemplate;
@@ -19,6 +21,7 @@ class SkincarePlannerScreen extends StatefulWidget {
 }
 
 class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
+  static const double _previewActionButtonHeight = 52.0;
   bool _loading = true;
   SkincarePlanner? _planner;
   String? _morningRoutineSetInput;
@@ -492,6 +495,18 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
   Future<void> _confirmAndCreateHabits() async {
     final planner = _planner;
     if (planner == null || planner.monthlyTracker.length < 3) return;
+    final gate = await PresetHabitCreationService.checkGate();
+    if (!gate.canCreate) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Need ${gate.requiredCoins} coins to create habits from this preset.',
+          ),
+        ),
+      );
+      return;
+    }
     final enabledHabitCount =
         (planner.morningRoutineEnabled ? 1 : 0) +
         (planner.eveningRoutineEnabled ? 1 : 0);
@@ -636,6 +651,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
       morningEnabled: planner.morningRoutineEnabled,
       eveningEnabled: planner.eveningRoutineEnabled,
     );
+    if (createdNames.isNotEmpty) {
+      await PresetHabitCreationService.applyChargeForSuccessfulCreate();
+    }
     // #region agent log
     _debugLog(
       runId: 'post-fix',
@@ -1191,7 +1209,10 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(resolvedScreenTitle),
+        title: Text(
+          resolvedScreenTitle,
+          style: AppTypography.heading3(context),
+        ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         surfaceTintColor: theme.scaffoldBackgroundColor,
@@ -1201,10 +1222,10 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
             onPressed: _resetToDefaults,
             icon: const Icon(Icons.restart_alt),
           ),
-          IconButton(
-            tooltip: 'Save',
+          TextButton.icon(
             onPressed: _manualSaveWithToast,
-            icon: const Icon(Icons.check),
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Save'),
           ),
         ],
       ),
@@ -1217,6 +1238,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.of(context).maybePop(),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(_previewActionButtonHeight),
+                  ),
                   child: const Text('Cancel'),
                 ),
               ),
@@ -1225,6 +1249,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 flex: 2,
                 child: FilledButton.icon(
                   onPressed: _confirmAndCreateHabits,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(_previewActionButtonHeight),
+                  ),
                   icon: const Icon(Icons.auto_awesome_outlined),
                   label: const Text('Create habits'),
                 ),

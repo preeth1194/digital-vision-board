@@ -176,6 +176,7 @@ class DashboardBody extends StatelessWidget {
               activeRoutineId: activeRoutineId,
               prefs: prefs,
               dataVersion: version,
+              coinNotifier: coinNotifier,
               onCreateBoard: onCreateBoard,
               onOpenEditor: onOpenEditor,
               onOpenViewer: onOpenViewer,

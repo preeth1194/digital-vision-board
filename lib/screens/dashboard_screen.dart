@@ -759,15 +759,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     if (!mounted) return;
-    final res = await Navigator.of(context).push<bool>(
+    final res = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
         builder: (_) =>
             ChallengeSetupScreen(template: ChallengeTemplates.seventyFiveHard),
       ),
     );
-    if (mounted && res == true) {
+    final started = res == true || (res is Map && res['started'] == true);
+    if (mounted && started) {
       _boardDataVersion.value++;
       setState(() => _tabIndex = 7);
+      if (res is Map) {
+        final reusedCount = (res['reusedCount'] as int?) ?? 0;
+        final createdCount = (res['createdCount'] as int?) ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '75 Hard started. Reused $reusedCount habits, created $createdCount.',
+            ),
+          ),
+        );
+      }
     }
   }
 

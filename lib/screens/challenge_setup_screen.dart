@@ -24,6 +24,7 @@ class ChallengeSetupScreen extends StatefulWidget {
 }
 
 class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
+  static const String _mealPrepTemplateId = 'meal_prep_auto_plan_v1';
   late DateTime _startDate;
   late List<_EditableHabit> _habits;
   bool _saving = false;
@@ -35,6 +36,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     _habits = widget.template.habits.map((bp) {
       return _EditableHabit(
         nameController: TextEditingController(text: bp.defaultName),
+        blueprintDefaultName: bp.defaultName,
         category: bp.category,
         iconIndex: bp.iconIndex,
         timeBound: bp.timeBound,
@@ -153,10 +155,29 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
       final deadlineDate = _startDate.add(Duration(days: template.durationDays - 1));
       final deadlineIso = deadlineDate.toIso8601String().split('T')[0];
       final now = DateTime.now().millisecondsSinceEpoch;
+      final existingHabits = await HabitStorageService.loadAll(prefs: prefs);
+      final usedReusableHabitIds = <String>{};
+      var reusedCount = 0;
+      var createdCount = 0;
 
       final habitIds = <String>[];
       for (int i = 0; i < _habits.length; i++) {
         final editable = _habits[i];
+        final reusable = _pickReusableHabitForChallengeTask(
+          templateId: template.id,
+          editable: editable,
+          existingHabits: existingHabits,
+          usedIds: usedReusableHabitIds,
+        );
+        if (reusable != null) {
+          usedReusableHabitIds.add(reusable.id);
+          if (!habitIds.contains(reusable.id)) {
+            habitIds.add(reusable.id);
+            reusedCount += 1;
+          }
+          continue;
+        }
+
         final id = '${now}_challenge_$i';
         final timeMinutes = editable.startTimeMinutes;
         String? timeOfDay;
@@ -180,7 +201,10 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
           startTimeMinutes: timeMinutes,
         );
         await HabitStorageService.addHabit(habit, prefs: prefs);
-        habitIds.add(id);
+        if (!habitIds.contains(id)) {
+          habitIds.add(id);
+          createdCount += 1;
+        }
       }
 
       final challenge = Challenge(
@@ -199,11 +223,76 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
       await ChallengeStorageService.setActiveChallengeId(challenge.id, prefs: prefs);
 
       if (mounted) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(<String, dynamic>{
+          'started': true,
+          'reusedCount': reusedCount,
+          'createdCount': createdCount,
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  HabitItem? _pickReusableHabitForChallengeTask({
+    required String templateId,
+    required _EditableHabit editable,
+    required List<HabitItem> existingHabits,
+    required Set<String> usedIds,
+  }) {
+    if (templateId != '75_hard') return null;
+    final blueprintName = editable.blueprintDefaultName.trim().toLowerCase();
+    if (blueprintName == 'follow a diet' || blueprintName == 'follow diet') {
+      return _pickReusableDietHabit(existingHabits, usedIds);
+    }
+    if (blueprintName.contains('workout')) {
+      return _pickReusableWorkoutHabit(existingHabits, usedIds);
+    }
+    return null;
+  }
+
+  HabitItem? _pickReusableDietHabit(List<HabitItem> existingHabits, Set<String> usedIds) {
+    const dietNames = <String>{'follow a diet', 'follow diet'};
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      final name = habit.name.trim().toLowerCase();
+      if (dietNames.contains(name)) {
+        return habit;
+      }
+    }
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      if ((habit.templateId ?? '').trim() == _mealPrepTemplateId) {
+        return habit;
+      }
+    }
+    return null;
+  }
+
+  HabitItem? _pickReusableWorkoutHabit(
+    List<HabitItem> existingHabits,
+    Set<String> usedIds,
+  ) {
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      final name = habit.name.trim().toLowerCase();
+      final category = (habit.category ?? '').trim().toLowerCase();
+      final templateId = (habit.templateId ?? '').trim().toLowerCase();
+      final isWorkout =
+          category == 'fitness' ||
+          name.contains('workout') ||
+          templateId.contains('workout');
+      if (isWorkout) {
+        return habit;
+      }
+    }
+    return null;
+  }
+
+  bool _isReusableChallengeHabit(HabitItem habit) {
+    final id = habit.id.trim().toLowerCase();
+    if (id.contains('_challenge_')) return false;
+    return true;
   }
 
   @override
@@ -596,6 +685,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
 class _EditableHabit {
   final TextEditingController nameController;
+  final String blueprintDefaultName;
   final String category;
   final int iconIndex;
   HabitTimeBoundSpec? timeBound;
@@ -605,6 +695,7 @@ class _EditableHabit {
 
   _EditableHabit({
     required this.nameController,
+    required this.blueprintDefaultName,
     required this.category,
     required this.iconIndex,
     this.timeBound,

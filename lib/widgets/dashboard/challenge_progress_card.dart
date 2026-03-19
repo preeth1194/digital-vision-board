@@ -5,10 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/challenge.dart';
 import '../../models/habit_item.dart';
 import '../../services/ad_service.dart';
+import '../../services/ad_free_service.dart';
 import '../../services/challenge_storage_service.dart';
 import '../../services/challenge_progress_service.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/logical_date_service.dart';
+import '../../services/subscription_service.dart';
 import '../../utils/app_typography.dart';
 import '../../widgets/rituals/habit_form_constants.dart';
 import '../ads/challenge_reward_ad_card.dart';
@@ -48,13 +50,19 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    SubscriptionService.isSubscribed.addListener(_handleSubscriptionChanged);
     _load();
   }
 
   @override
   void dispose() {
+    SubscriptionService.isSubscribed.removeListener(_handleSubscriptionChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _handleSubscriptionChanged() {
+    _load();
   }
 
   @override
@@ -78,6 +86,7 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    final shouldShowAds = await AdFreeService.shouldShowAds(prefs: prefs);
 
     final challenges = await ChallengeStorageService.getActiveChallenges(prefs: prefs);
     if (challenges.isNotEmpty) {
@@ -99,7 +108,12 @@ class _ChallengeProgressCardState extends State<ChallengeProgressCard>
     bool showAd = false;
     if (challenge == null || !challenge.isActive) {
       adSession = await AdService.getChallengeSession(prefs: prefs);
-      if (adSession != null) {
+      if (!shouldShowAds) {
+        if (adSession != null) {
+          await AdService.clearChallengeSession(adSession, prefs: prefs);
+          adSession = null;
+        }
+      } else if (adSession != null) {
         adWatched = await AdService.getChallengeWatchedCount(adSession, prefs: prefs);
         final complete = adWatched >= AdService.requiredAdsForChallenge;
         showAd = !complete;

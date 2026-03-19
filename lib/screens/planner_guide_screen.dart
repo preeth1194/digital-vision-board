@@ -21,6 +21,7 @@ import '../services/action_templates_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/meal_prep_storage_service.dart';
+import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
 import '../widgets/rituals/add_habit_modal.dart';
@@ -1174,65 +1175,83 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _createHabitFromTemplate(ActionStepTemplate template) async {
-    if (template.category == ActionTemplateCategory.skincare) {
-      await _createSkincareHabitsFromTemplate(template);
-      return;
-    }
-    if (_isOneTapFitnessPreset(template)) {
-      await _createOneTapFitnessHabitFromTemplate(template);
-      return;
-    }
-    final habitCategory = _habitCategoryForTemplate(template);
-    // #region agent log
-    _debugLog(
-      runId: 'run1',
-      hypothesisId: 'H1',
-      location: 'planner_guide_screen.dart:_createHabitFromTemplate',
-      message: 'Template steps before opening Add Habit modal',
-      data: {
-        'templateId': template.id,
-        'stepsCount': template.steps.length,
-        'firstStep': template.steps.isEmpty
-            ? null
-            : {
-                'id': template.steps.first.id,
-                'title': template.steps.first.title,
-                'stepLabel': template.steps.first.stepLabel,
-                'productName': template.steps.first.productName,
-                'plannerDay': template.steps.first.plannerDay,
-                'plannerWeek': template.steps.first.plannerWeek,
-              },
-      },
-    );
-    // #endregion
-    final request = await showAddHabitModal(
-      context,
-      existingHabits: _existingHabits,
-      initialName: template.name,
-      initialActionSteps: template.steps,
-      initialTemplateId: template.id,
-      initialTemplateVersion: template.templateVersion,
-      initialCategory: habitCategory,
-    );
-    if (request == null) return;
-
-    try {
-      final newHabit = _buildHabitFromRequest(request);
-      await HabitStorageService.addHabit(newHabit);
-      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+    final gate = await PresetHabitCreationService.checkGate();
+    if (!gate.canCreate) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Habit created from "${template.name}"')),
-      );
-      await _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to create habit right now. Please try again.'),
+        SnackBar(
+          content: Text(
+            'Need ${gate.requiredCoins} coins to create habits from this preset.',
+          ),
         ),
       );
+      return;
     }
+
+    bool created = false;
+    if (template.category == ActionTemplateCategory.skincare) {
+      created = await _createSkincareHabitsFromTemplate(template);
+    } else if (_isOneTapFitnessPreset(template)) {
+      created = await _createOneTapFitnessHabitFromTemplate(template);
+    } else {
+      final habitCategory = _habitCategoryForTemplate(template);
+      // #region agent log
+      _debugLog(
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'planner_guide_screen.dart:_createHabitFromTemplate',
+        message: 'Template steps before opening Add Habit modal',
+        data: {
+          'templateId': template.id,
+          'stepsCount': template.steps.length,
+          'firstStep': template.steps.isEmpty
+              ? null
+              : {
+                  'id': template.steps.first.id,
+                  'title': template.steps.first.title,
+                  'stepLabel': template.steps.first.stepLabel,
+                  'productName': template.steps.first.productName,
+                  'plannerDay': template.steps.first.plannerDay,
+                  'plannerWeek': template.steps.first.plannerWeek,
+                },
+        },
+      );
+      // #endregion
+      final request = await showAddHabitModal(
+        context,
+        existingHabits: _existingHabits,
+        initialName: template.name,
+        initialActionSteps: template.steps,
+        initialTemplateId: template.id,
+        initialTemplateVersion: template.templateVersion,
+        initialCategory: habitCategory,
+      );
+      if (request == null) return;
+
+      try {
+        final newHabit = _buildHabitFromRequest(request);
+        await HabitStorageService.addHabit(newHabit);
+        widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+        created = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Habit created from "${template.name}"')),
+          );
+          await _load();
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to create habit right now. Please try again.'),
+            ),
+          );
+        }
+      }
+    }
+
+    if (!created) return;
+    await PresetHabitCreationService.applyChargeForSuccessfulCreate();
   }
 
   bool _isOneTapFitnessPreset(ActionStepTemplate template) {
@@ -1240,7 +1259,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         _habitCategoryForTemplate(template).toLowerCase() == 'fitness';
   }
 
-  Future<void> _createOneTapFitnessHabitFromTemplate(
+  Future<bool> _createOneTapFitnessHabitFromTemplate(
     ActionStepTemplate template,
   ) async {
     developer.log(
@@ -1255,11 +1274,11 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     );
     final newHabits = _buildOneTapPresetHabits(template);
     if (newHabits.isEmpty) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No preset exercises available.')),
       );
-      return;
+      return false;
     }
     try {
       developer.log(
@@ -1289,7 +1308,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         await HabitStorageService.addHabit(habit);
       }
       widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-      if (!mounted) return;
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1298,28 +1317,30 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       );
       await _load();
+      return true;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
+      return false;
     }
   }
 
-  Future<void> _createSkincareHabitsFromTemplate(
+  Future<bool> _createSkincareHabitsFromTemplate(
     ActionStepTemplate template,
   ) async {
     final planner = await SkincarePlannerStorageService.loadOrDefault();
     final morningEnabled = planner.morningRoutineEnabled;
     final eveningEnabled = planner.eveningRoutineEnabled;
     if (!morningEnabled && !eveningEnabled) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('At least one routine must be enabled.')),
       );
-      return;
+      return false;
     }
 
     final weeklyPlan = SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(
@@ -1384,13 +1405,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       );
 
       if (createdNames.isEmpty) {
-        if (!mounted) return;
+        if (!mounted) return false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No skincare steps available to create habits.'),
           ),
         );
-        return;
+        return false;
       }
 
       // #region agent log
@@ -1404,7 +1425,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       // #endregion
 
       widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-      if (!mounted) return;
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1413,13 +1434,15 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       );
       await _load();
+      return true;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
+      return false;
     }
   }
 
@@ -2039,14 +2062,27 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   List<String> get _filteredPlannerGuideCategories {
     final q = _categorySearchQuery.trim().toLowerCase();
-    if (q.isEmpty) return _plannerGuideCategories;
-    return _plannerGuideCategories.where((category) {
-      if (category.toLowerCase().contains(q)) return true;
-      final presetName = _guideTitleText(
-        _primaryGuideForPlannerCategory(category),
-      ).toLowerCase();
-      return presetName.contains(q);
-    }).toList();
+    final base = _plannerGuideCategories;
+    final filtered = q.isEmpty
+        ? base.toList()
+        : base.where((category) {
+            if (category.toLowerCase().contains(q)) return true;
+            final presetName = _guideTitleText(
+              _primaryGuideForPlannerCategory(category),
+            ).toLowerCase();
+            return presetName.contains(q);
+          }).toList();
+    final indexByCategory = <String, int>{
+      for (int i = 0; i < base.length; i++) base[i]: i,
+    };
+    filtered.sort((a, b) {
+      final countCompare = _guideCountForPlannerCategory(
+        b,
+      ).compareTo(_guideCountForPlannerCategory(a));
+      if (countCompare != 0) return countCompare;
+      return (indexByCategory[a] ?? 0).compareTo(indexByCategory[b] ?? 0);
+    });
+    return filtered;
   }
 
   String _categoryDescription(String category) {

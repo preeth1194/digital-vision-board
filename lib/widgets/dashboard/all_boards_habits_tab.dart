@@ -19,6 +19,7 @@ import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
 import '../../services/ad_service.dart';
 import '../../services/ad_free_service.dart';
+import '../../services/subscription_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
@@ -98,15 +99,24 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     super.initState();
     _localComponents = Map.from(widget.componentsByBoardId);
     _scrollController.addListener(_onScroll);
+    SubscriptionService.isSubscribed.addListener(_handleSubscriptionChanged);
     _loadHabits();
+    _loadAdState();
+  }
+
+  void _handleSubscriptionChanged() {
     _loadAdState();
   }
 
   Future<void> _loadAdState() async {
     final showAds = await AdFreeService.shouldShowAds();
-    final session = await AdService.getActiveSession();
+    var session = await AdService.getActiveSession();
     int watched = 0;
-    if (session != null) {
+    if (!showAds && session != null) {
+      await AdService.clearSession(session);
+      await AdService.setActiveSession(null);
+      session = null;
+    } else if (session != null) {
       watched = await AdService.getWatchedCount(session);
     }
     if (mounted) {
@@ -153,6 +163,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
   @override
   void dispose() {
+    SubscriptionService.isSubscribed.removeListener(_handleSubscriptionChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();

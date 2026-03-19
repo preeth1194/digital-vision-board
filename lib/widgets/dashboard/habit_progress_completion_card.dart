@@ -14,11 +14,13 @@ import 'glass_card.dart';
 class HabitProgressCompletionCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onStartChallenge;
+  final int dataVersion;
 
   const HabitProgressCompletionCard({
     super.key,
     this.onTap,
     this.onStartChallenge,
+    this.dataVersion = 0,
   });
 
   @override
@@ -51,6 +53,14 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
   void activate() {
     super.activate();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant HabitProgressCompletionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataVersion != widget.dataVersion) {
+      _load();
+    }
   }
 
   @override

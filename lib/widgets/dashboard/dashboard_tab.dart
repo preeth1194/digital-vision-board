@@ -9,6 +9,7 @@ import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
 import 'mood_tracker_card.dart';
+import 'reward_ads_coin_card.dart';
 import 'vision_board_summary_card.dart';
 import 'water_intake_card.dart';
 
@@ -21,6 +22,7 @@ class DashboardTab extends StatelessWidget {
   final String? activeRoutineId;
   final SharedPreferences? prefs;
   final int dataVersion;
+  final ValueNotifier<int>? coinNotifier;
   final VoidCallback onCreateBoard;
   final ValueChanged<VisionBoardInfo> onOpenEditor;
   final ValueChanged<VisionBoardInfo> onOpenViewer;
@@ -36,6 +38,7 @@ class DashboardTab extends StatelessWidget {
     required this.activeRoutineId,
     this.prefs,
     this.dataVersion = 0,
+    this.coinNotifier,
     required this.onCreateBoard,
     required this.onOpenEditor,
     required this.onOpenViewer,
@@ -67,6 +70,7 @@ class DashboardTab extends StatelessWidget {
             child: HabitProgressCompletionCard(
               onTap: onViewHabits,
               onStartChallenge: onStartChallenge,
+              dataVersion: dataVersion,
             ),
           ),
           const SizedBox(height: 12),
@@ -110,10 +114,21 @@ class DashboardTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Row 3: Water
+          // Row 3: Water + Reward ads
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: WaterIntakeCard(),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(child: WaterIntakeCard()),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: RewardAdsCoinCard(coinNotifier: coinNotifier),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           // Affirmation (full width)

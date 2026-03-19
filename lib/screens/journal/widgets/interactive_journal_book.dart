@@ -242,7 +242,9 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                         title: widget.book.name,
                         isRecipeBook:
                             widget.book.id ==
-                            JournalBookStorageService.recipeBookId,
+                                JournalBookStorageService.recipeBookId ||
+                            widget.book.name.trim().toLowerCase() ==
+                                'recipe book',
                         entryCount: widget.entryCount,
                         isEditingTitle: _isEditingTitle,
                         titleController: _titleController,

@@ -11,6 +11,7 @@ import '../../services/boards_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/journal_book_storage_service.dart';
 import '../../services/journal_storage_service.dart';
+import '../../services/recipe_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../recipes/recipe_book_screen.dart';
 
@@ -87,6 +88,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   List<JournalBook> _books = const [];
   String? _selectedBookId;
   Map<String, int> _bookEntryCounts = const {};
+  int _recipeCount = 0;
   String? _newBookId; // ID of newly created book for auto-focus
 
   @override
@@ -117,6 +119,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       final boards = await BoardsStorageService.loadBoards(prefs: prefs);
       final extracted = await _extractFromBoards(boards: boards, prefs: prefs);
       final journal = await JournalStorageService.loadEntries(prefs: prefs);
+      final recipes = await RecipeStorageService.loadAll(prefs: prefs);
 
       // Load books and ensure default book exists
       final books = await JournalBookStorageService.ensureDefaultBook(
@@ -144,6 +147,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
         _journalEntries = journal;
         _books = books;
         _bookEntryCounts = entryCounts;
+        _recipeCount = recipes.length;
         // Select first book if none selected
         _selectedBookId ??= books.isNotEmpty ? books.first.id : null;
         _loading = false;
@@ -471,6 +475,7 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
                 books: _books,
                 selectedBookId: _selectedBookId,
                 entryCounts: _bookEntryCounts,
+                recipeCount: _recipeCount,
                 entriesByBook: _entriesByBook,
                 onBookSelected: _handleBookSelected,
                 onAddBook: _handleAddBook,

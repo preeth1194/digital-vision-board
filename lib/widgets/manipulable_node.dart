@@ -171,7 +171,7 @@ class _ManipulableNodeState extends State<ManipulableNode> {
                       decoration: BoxDecoration(
                         border: Border.all(color: colorScheme.surface, width: 3),
                         boxShadow: widget.gesturesEnabled ? _editSelectionShadow : _viewSelectionShadow,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),

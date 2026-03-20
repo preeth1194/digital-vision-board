@@ -130,7 +130,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           children: [
             if ((widget.subtitle ?? '').trim().isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   widget.subtitle!,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),

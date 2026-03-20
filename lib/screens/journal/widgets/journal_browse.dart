@@ -14,24 +14,38 @@ class JournalBrowseSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 12, 20, 12),
       color: Colors.transparent,
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              'Journal',
-              style: AppTypography.heading1(context),
-            ),
-          ),
+          const Spacer(),
           if (onAddBook != null)
-            IconButton(
-              icon: Icon(Icons.library_add_rounded, color: colorScheme.primary, size: 24),
-              tooltip: 'New book',
-              onPressed: onAddBook,
+            Tooltip(
+              message: 'Add book',
+              child: TextButton(
+                onPressed: onAddBook,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  minimumSize: const Size(48, 48),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Add book',
+                      style: AppTypography.bodySmall(context).copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.add_rounded, color: colorScheme.primary, size: 22),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
@@ -118,7 +132,7 @@ class _NeumorphicFilterChipState extends State<NeumorphicFilterChip>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: baseColor,
             borderRadius: BorderRadius.circular(20),

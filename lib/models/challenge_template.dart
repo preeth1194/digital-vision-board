@@ -84,7 +84,7 @@ class ChallengeTemplates {
     ],
     habits: [
       HabitBlueprint(
-        defaultName: 'Follow Diet',
+        defaultName: 'Follow a diet',
         category: 'Health',
         iconIndex: 10, // Food icon
         description: 'Follow your chosen diet — no cheat meals, no alcohol.',

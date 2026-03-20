@@ -4,7 +4,6 @@ import '../models/action_step_template.dart';
 import '../screens/meal_prep/meal_prep_week_screen.dart';
 import '../screens/skincare/skincare_planner_screen.dart';
 import '../screens/workout/workout_preset_editor_screen.dart';
-import '../screens/workout/workout_preset_viewer_screen.dart';
 import 'models/preset_template_config.dart';
 import 'preset_template_adapter.dart';
 import 'widgets/generic_preset_editor_screen.dart';
@@ -84,7 +83,7 @@ class _MealPrepPresetTemplateAdapter extends PresetTemplateAdapter {
       supportsAmPmSplit: false,
       allowEdit: true,
       allowCreateHabits: true,
-      createButtonLabel: 'Create habit',
+      createButtonLabel: 'Open planner',
     );
   }
 
@@ -95,7 +94,11 @@ class _MealPrepPresetTemplateAdapter extends PresetTemplateAdapter {
   ) async {
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const MealPrepWeekScreen()));
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const MealPrepWeekScreen(openPreviewOnLaunch: true),
+      ),
+    );
     return null;
   }
 

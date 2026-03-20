@@ -29,6 +29,7 @@ class JournalBookCarousel extends StatefulWidget {
   final List<JournalBook> books;
   final String? selectedBookId;
   final Map<String, int> entryCounts;
+  final int recipeCount;
   final Map<String, List<JournalEntry>> entriesByBook;
   final ValueChanged<JournalBook> onBookSelected;
   final VoidCallback onAddBook;
@@ -47,6 +48,7 @@ class JournalBookCarousel extends StatefulWidget {
     required this.books,
     required this.selectedBookId,
     required this.entryCounts,
+    this.recipeCount = 0,
     required this.entriesByBook,
     required this.onBookSelected,
     required this.onAddBook,
@@ -74,6 +76,14 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
 
   static const double _closedViewportFraction = 0.65;
   static const double _openViewportFraction = 0.95;
+
+  int _displayCountForBook(JournalBook book) {
+    final isRecipeBook =
+        book.id == JournalBookStorageService.recipeBookId ||
+        book.name.trim().toLowerCase() == 'recipe book';
+    if (isRecipeBook) return widget.recipeCount;
+    return widget.entryCounts[book.id] ?? 0;
+  }
 
   late AnimationController _overlayController;
   OverlayEntry? _overlayEntry;
@@ -157,7 +167,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
         animation: _overlayController,
         mode: mode,
         book: book,
-        entryCount: widget.entryCounts[book.id] ?? 0,
+        entryCount: _displayCountForBook(book),
         onDismiss: _hideOverlay,
         onColorApplied: (color) {
           widget.onColorChanged(book.id, color);
@@ -189,7 +199,6 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
       _showOverlay(_OverlayMode.colorPicker, book);
 
   void _confirmDeleteBook(JournalBook book) {
-    if (book.id == JournalBookStorageService.goalLogsBookId) return;
     _showOverlay(_OverlayMode.deleteConfirm, book);
   }
 
@@ -204,6 +213,14 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
     final openHeight = size.height - topBar - bottomNav - 24;
     final itemHeight = _isBookOpen ? openHeight : closedHeight;
     final totalItems = widget.books.length + 1;
+    final currentBook = _currentPage < widget.books.length
+        ? widget.books[_currentPage]
+        : null;
+    final showDeleteForCurrentBook =
+        currentBook != null &&
+        currentBook.id != JournalBookStorageService.defaultBookId &&
+        currentBook.id != JournalBookStorageService.goalLogsBookId &&
+        currentBook.id != JournalBookStorageService.recipeBookId;
 
     return Column(
       children: [
@@ -234,7 +251,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
 
               final book = widget.books[index];
               final isActive = _currentPage == index;
-              final entryCount = widget.entryCounts[book.id] ?? 0;
+              final entryCount = _displayCountForBook(book);
               final entries = widget.entriesByBook[book.id] ?? [];
               final isNewBook = book.id == widget.newBookId;
 
@@ -283,6 +300,7 @@ class _JournalBookCarouselState extends State<JournalBookCarousel>
             onColor: () => _showColorPicker(widget.books[_currentPage]),
             onDelete: () => _confirmDeleteBook(widget.books[_currentPage]),
             onAdd: widget.onNewEntry,
+            showDelete: showDeleteForCurrentBook,
             isVisible: !_isBookOpen,
           ),
       ],
@@ -470,61 +488,63 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
   }
 
   Widget _buildDeleteConfirmContent(ColorScheme colorScheme) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.warning_amber_rounded, size: 36, color: colorScheme.error),
-        const SizedBox(height: 12),
-        Text('Delete Book?', style: AppTypography.heading3(context)),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text(
-            'This will permanently delete "${widget.book.name}" and all '
-            '${widget.entryCount} '
-            '${widget.entryCount == 1 ? 'entry' : 'entries'} in it. '
-            'This cannot be undone.',
-            style: AppTypography.bodySmall(
-              context,
-            ).copyWith(color: colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 36, color: colorScheme.error),
+          const SizedBox(height: 12),
+          Text('Delete Book?', style: AppTypography.heading3(context)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              'This will permanently delete "${widget.book.name}" and all '
+              '${widget.entryCount} '
+              '${widget.entryCount == 1 ? 'entry' : 'entries'} in it. '
+              'This cannot be undone.',
+              style: AppTypography.bodySmall(
+                context,
+              ).copyWith(color: colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: widget.onDismiss,
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: widget.onDismiss,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ),
-                child: Text('Cancel', style: AppTypography.bodySmall(context)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: widget.onDeleteConfirmed,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.error,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Delete',
-                  style: AppTypography.button(
-                    context,
-                  ).copyWith(color: colorScheme.onError),
+                  child: Text('Cancel', style: AppTypography.bodySmall(context)),
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: widget.onDeleteConfirmed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colorScheme.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Delete',
+                    style: AppTypography.button(
+                      context,
+                    ).copyWith(color: colorScheme.onError),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

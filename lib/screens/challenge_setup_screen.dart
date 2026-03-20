@@ -7,6 +7,7 @@ import '../models/challenge.dart';
 import '../models/challenge_template.dart';
 import '../models/habit_item.dart';
 import '../services/challenge_storage_service.dart';
+import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
@@ -16,14 +17,22 @@ import '../widgets/rituals/habit_form_constants.dart';
 /// and tracker targets, pick a start date, and launch the challenge.
 class ChallengeSetupScreen extends StatefulWidget {
   final ChallengeTemplate template;
+  final bool requireStartCoins;
+  final int startCoinCost;
 
-  const ChallengeSetupScreen({super.key, required this.template});
+  const ChallengeSetupScreen({
+    super.key,
+    required this.template,
+    this.requireStartCoins = false,
+    this.startCoinCost = CoinsService.presetHabitCreationCoins,
+  });
 
   @override
   State<ChallengeSetupScreen> createState() => _ChallengeSetupScreenState();
 }
 
 class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
+  static const String _mealPrepTemplateId = 'meal_prep_auto_plan_v1';
   late DateTime _startDate;
   late List<_EditableHabit> _habits;
   bool _saving = false;
@@ -35,6 +44,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     _habits = widget.template.habits.map((bp) {
       return _EditableHabit(
         nameController: TextEditingController(text: bp.defaultName),
+        blueprintDefaultName: bp.defaultName,
         category: bp.category,
         iconIndex: bp.iconIndex,
         timeBound: bp.timeBound,
@@ -144,19 +154,52 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
   Future<void> _startChallenge() async {
     if (_saving) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (widget.requireStartCoins) {
+      final totalCoins = await CoinsService.getTotalCoins(prefs: prefs);
+      if (totalCoins < widget.startCoinCost) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Need ${widget.startCoinCost} coins to start this challenge.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     setState(() => _saving = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       final template = widget.template;
       final startIso = _startDate.toIso8601String().split('T')[0];
       final deadlineDate = _startDate.add(Duration(days: template.durationDays - 1));
       final deadlineIso = deadlineDate.toIso8601String().split('T')[0];
       final now = DateTime.now().millisecondsSinceEpoch;
+      final existingHabits = await HabitStorageService.loadAll(prefs: prefs);
+      final usedReusableHabitIds = <String>{};
+      var reusedCount = 0;
+      var createdCount = 0;
 
       final habitIds = <String>[];
       for (int i = 0; i < _habits.length; i++) {
         final editable = _habits[i];
+        final reusable = _pickReusableHabitForChallengeTask(
+          templateId: template.id,
+          editable: editable,
+          existingHabits: existingHabits,
+          usedIds: usedReusableHabitIds,
+        );
+        if (reusable != null) {
+          usedReusableHabitIds.add(reusable.id);
+          if (!habitIds.contains(reusable.id)) {
+            habitIds.add(reusable.id);
+            reusedCount += 1;
+          }
+          continue;
+        }
+
         final id = '${now}_challenge_$i';
         final timeMinutes = editable.startTimeMinutes;
         String? timeOfDay;
@@ -180,7 +223,10 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
           startTimeMinutes: timeMinutes,
         );
         await HabitStorageService.addHabit(habit, prefs: prefs);
-        habitIds.add(id);
+        if (!habitIds.contains(id)) {
+          habitIds.add(id);
+          createdCount += 1;
+        }
       }
 
       final challenge = Challenge(
@@ -197,13 +243,81 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
       );
       await ChallengeStorageService.addChallenge(challenge, prefs: prefs);
       await ChallengeStorageService.setActiveChallengeId(challenge.id, prefs: prefs);
+      if (widget.requireStartCoins) {
+        await CoinsService.addCoins(-widget.startCoinCost, prefs: prefs);
+      }
 
       if (mounted) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(<String, dynamic>{
+          'started': true,
+          'reusedCount': reusedCount,
+          'createdCount': createdCount,
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  HabitItem? _pickReusableHabitForChallengeTask({
+    required String templateId,
+    required _EditableHabit editable,
+    required List<HabitItem> existingHabits,
+    required Set<String> usedIds,
+  }) {
+    if (templateId != '75_hard') return null;
+    final blueprintName = editable.blueprintDefaultName.trim().toLowerCase();
+    if (blueprintName == 'follow a diet' || blueprintName == 'follow diet') {
+      return _pickReusableDietHabit(existingHabits, usedIds);
+    }
+    if (blueprintName.contains('workout')) {
+      return _pickReusableWorkoutHabit(existingHabits, usedIds);
+    }
+    return null;
+  }
+
+  HabitItem? _pickReusableDietHabit(List<HabitItem> existingHabits, Set<String> usedIds) {
+    const dietNames = <String>{'follow a diet', 'follow diet'};
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      final name = habit.name.trim().toLowerCase();
+      if (dietNames.contains(name)) {
+        return habit;
+      }
+    }
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      if ((habit.templateId ?? '').trim() == _mealPrepTemplateId) {
+        return habit;
+      }
+    }
+    return null;
+  }
+
+  HabitItem? _pickReusableWorkoutHabit(
+    List<HabitItem> existingHabits,
+    Set<String> usedIds,
+  ) {
+    for (final habit in existingHabits) {
+      if (usedIds.contains(habit.id) || !_isReusableChallengeHabit(habit)) continue;
+      final name = habit.name.trim().toLowerCase();
+      final category = (habit.category ?? '').trim().toLowerCase();
+      final templateId = (habit.templateId ?? '').trim().toLowerCase();
+      final isWorkout =
+          category == 'fitness' ||
+          name.contains('workout') ||
+          templateId.contains('workout');
+      if (isWorkout) {
+        return habit;
+      }
+    }
+    return null;
+  }
+
+  bool _isReusableChallengeHabit(HabitItem habit) {
+    final id = habit.id.trim().toLowerCase();
+    if (id.contains('_challenge_')) return false;
+    return true;
   }
 
   @override
@@ -408,7 +522,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
   Widget _infoChip(IconData icon, String label, ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.primary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
@@ -453,11 +567,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(iconData, color: iconColor, size: 22),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: TextField(
                   controller: habit.nameController,
@@ -478,11 +592,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           if (habit.description.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 50, bottom: 6),
+              padding: const EdgeInsets.only(left: 50, bottom: 8),
               child: Text(
                 habit.description,
                 style: TextStyle(
@@ -596,6 +710,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
 class _EditableHabit {
   final TextEditingController nameController;
+  final String blueprintDefaultName;
   final String category;
   final int iconIndex;
   HabitTimeBoundSpec? timeBound;
@@ -605,6 +720,7 @@ class _EditableHabit {
 
   _EditableHabit({
     required this.nameController,
+    required this.blueprintDefaultName,
     required this.category,
     required this.iconIndex,
     this.timeBound,

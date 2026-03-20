@@ -5,6 +5,7 @@ class BookActionBar extends StatelessWidget {
   final VoidCallback onColor;
   final VoidCallback onDelete;
   final VoidCallback onAdd;
+  final bool showDelete;
   final bool isVisible;
 
   const BookActionBar({
@@ -12,6 +13,7 @@ class BookActionBar extends StatelessWidget {
     required this.onColor,
     required this.onDelete,
     required this.onAdd,
+    this.showDelete = true,
     this.isVisible = true,
   });
 
@@ -32,12 +34,14 @@ class BookActionBar extends StatelessWidget {
               onTap: onColor,
               tooltip: 'Change cover color',
             ),
-            const SizedBox(width: 12),
-            _ActionButton(
-              icon: Icons.delete_outline_rounded,
-              onTap: onDelete,
-              tooltip: 'Delete',
-            ),
+            if (showDelete) ...[
+              const SizedBox(width: 12),
+              _ActionButton(
+                icon: Icons.delete_outline_rounded,
+                onTap: onDelete,
+                tooltip: 'Delete',
+              ),
+            ],
             const SizedBox(width: 12),
             _ActionButton(
               icon: Icons.add_rounded,

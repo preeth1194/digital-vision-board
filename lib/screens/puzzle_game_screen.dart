@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:image_picker/image_picker.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../services/image_service.dart';
 import '../utils/file_image_provider.dart';
@@ -324,6 +325,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
       barrierDismissible: false,
       builder: (ctx) {
         final colorScheme = Theme.of(ctx).colorScheme;
+        final isDark = colorScheme.brightness == Brightness.dark;
         return AlertDialog(
           title: Row(
             children: [
@@ -343,8 +345,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               Row(
                 children: [
                   Container(
-                    width: 22,
-                    height: 22,
+                    width: AppSpacing.coinDialogSize,
+                    height: AppSpacing.coinDialogSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
@@ -353,23 +355,36 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                         end: Alignment.bottomRight,
                       ),
                       border: Border.all(
-                        color: AppColors.amberBorder,
+                        color: isDark
+                            ? colorScheme.outline.withValues(alpha: 0.45)
+                            : colorScheme.surface.withValues(alpha: 0.9),
                         width: 1,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark
+                              ? Colors.black.withValues(alpha: 0.24)
+                              : AppColors.forestDeep.withValues(alpha: 0.12),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
                     ),
                     child: const Center(
                       child: Icon(
                         Icons.monetization_on_rounded,
-                        size: 13,
+                        size: AppSpacing.coinDialogIcon,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     '+$earnedCoins coins earned!',
                     style: AppTypography.bodySmall(ctx).copyWith(
-                          color: colorScheme.tertiary,
+                          color: isDark
+                              ? colorScheme.onTertiaryContainer
+                              : AppColors.honeyText,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
@@ -637,9 +652,9 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(8),
               child: GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -755,7 +770,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: scheme.primaryContainer,
           borderRadius: BorderRadius.circular(16),
@@ -778,7 +793,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                     child: Text(
                       '${CoinsService.puzzle4x4Coins}pts',
                       style: AppTypography.caption(context).copyWith(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: ptsColor,
                       ),
@@ -790,7 +805,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                     child: Text(
                       '${CoinsService.puzzle8x8Coins}pts',
                       style: AppTypography.caption(context).copyWith(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: ptsColor,
                       ),
@@ -889,7 +904,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
           Text(
             label,
             style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
             ),

@@ -70,6 +70,9 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/habit_progress_widget_info" />
         </receiver>
+        <receiver
+            android:name=".HabitProgressWidgetActionReceiver"
+            android:exported="false" />
 
         <!-- AdMob App ID (replace with your real App ID for production) -->
         <meta-data

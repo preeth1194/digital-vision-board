@@ -294,7 +294,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
 
   Widget _buildLocationExpanded(ColorScheme colorScheme, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -349,7 +349,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
           ],
           // Arriving / Leaving segmented control
           if (widget.lat != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: CupertinoSlidingSegmentedControl<String>(
@@ -360,7 +360,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                     : colorScheme.surface,
                 children: {
                   'arrival': Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
                       'Arriving',
                       style: AppTypography.bodySmall(context).copyWith(
@@ -372,7 +372,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                     ),
                   ),
                   'departure': Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
                       'Leaving',
                       style: AppTypography.bodySmall(context).copyWith(
@@ -457,7 +457,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
           Text(
             label,
             style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             ),
@@ -502,7 +502,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
         onTap: () => _showSoundPickerSheet(context),
         borderRadius: BorderRadius.zero,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               Icon(
@@ -547,7 +547,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
 
   Widget _buildVibrateTypeRow(ColorScheme colorScheme, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -582,8 +582,8 @@ class _Step4TriggersState extends State<Step4Triggers> {
                 for (final opt in kVibrateTypeOptions)
                   opt.$1: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                     child: Text(
                       opt.$2,
@@ -664,7 +664,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                 },
                 borderRadius: BorderRadius.zero,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Row(
                     children: [
                       Icon(
@@ -706,7 +706,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                                   child: GestureDetector(
                                     onTap: widget.onSuggestionTap,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: colorScheme.primaryContainer.withValues(alpha: 0.4),
                                         borderRadius: BorderRadius.circular(8),
@@ -810,7 +810,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
                 },
                 borderRadius: BorderRadius.zero,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Row(
                     children: [
                       Icon(
@@ -936,7 +936,7 @@ class _Step4TriggersState extends State<Step4Triggers> {
             Material(
               color: Colors.transparent,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     Icon(
@@ -1071,7 +1071,7 @@ class _SoundPickerSheetBodyState extends State<_SoundPickerSheetBody> {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: SizedBox(
-                              width: 14,
+                              width: 16,
                               height: 14,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,

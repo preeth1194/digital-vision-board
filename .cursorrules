@@ -1,0 +1,705 @@
+# habitseeding — Cursor AI Design System Rules
+# "Morning Garden" Calm Palette
+# Updated from design critique · 2026-03-13
+#
+# These rules govern every Flutter file you generate or modify in this project.
+# Follow them strictly. When in doubt, reference AppColors, AppTypography, and
+# AppColors.lightScheme / darkScheme as the source of truth.
+#
+# Core design principle: every color, spacing, and type choice should feel like
+# 6 AM in a quiet garden — warm, grounded, alive, and never loud.
+# habitseeding is about planting small habits and watching them grow.
+# The UI must feel calm enough to open every morning without anxiety.
+
+---
+
+## 1. PROJECT IDENTITY
+
+- App name: Digital Vision Board
+- Package name: habitseeding (flutter package: digital_vision_board)
+- Design metaphor: "Morning Garden" — warm soil, sage growth, honey seeds, morning mist
+- Platform: Flutter (iOS · Android · Web · Desktop)
+- State: Provider + SharedPreferences (no Riverpod/Bloc unless already present)
+- Vibe check: if a widget feels loud, bright, or clinical, it is wrong for this app.
+
+---
+
+## 2. COLOR — USE THESE, NOTHING ELSE
+
+### 2a. The "Morning Garden" Palette
+
+Every color has a name and a purpose rooted in the seeding metaphor.
+The palette is warm, muted, and earthy — never neon, never cold.
+
+```
+LIGHT MODE
+─────────────────────────────────────────────────────────────────────────
+NAME              TOKEN / USAGE                       HEX        CONTRAST*
+─────────────────────────────────────────────────────────────────────────
+Warm Cream Mist   AppColors.mistBackground             #F6F4EF    — (bg)
+Sage Morning Haze AppColors.skyTopTint                 #EAF2EA    — (bg top)
+Sage Leaf         AppColors.sproutGreen (primary CTA)  #4A7A5A    4.9:1 ✅
+Warm Soil         AppColors.forestDeep (nav, headings) #3B2D20   13.7:1 ✅
+Honey Amber       AppColors.seedGold (icon/badge fill) #C48B3C    2.9:1 ⚠️
+Honey Text        AppColors.honeyText (amber text use) #7A5520    6.7:1 ✅
+Pale Sage         AppColors.sageContainer (chips/rows) #DCF0E4    — (container)
+Pale Honey        AppColors.seedChampagne (badge bg)   #FDF3E3    — (container)
+Lavender Dew      AppColors.lavenderDew (mood/journal) #7B74A8    4.6:1 ✅
+Pale Lavender     AppColors.lavenderContainer          #EEEDF8    — (container)
+Card Surface      AppColors.cloudWhite                 #FFFFFF    — (card)
+
+DARK MODE
+─────────────────────────────────────────────────────────────────────────
+Night Soil        colorScheme.surface (dark)           #0F1510    — (bg)
+Warm Grove Card   AppColors.cloudDark                  #1F2B22    — (card)
+─────────────────────────────────────────────────────────────────────────
+* Contrast vs white background
+```
+
+### 2b. Semantic Usage Map
+
+| What you're building               | Color to use                              |
+|------------------------------------|-------------------------------------------|
+| Page background                    | `AppColors.skyDecoration(isDark: isDark)` |
+| Screen scaffold background color   | `colorScheme.surface`                     |
+| Primary button / FAB               | `colorScheme.primary` (#4A7A5A sage)      |
+| Primary button text                | `colorScheme.onPrimary` (white)           |
+| Bottom nav background              | `AppColors.forestDeep` (#3B2D20 soil)     |
+| Active nav icon + label            | `AppColors.sproutGreen` (#4A7A5A)         |
+| Inactive nav icon + label          | `AppColors.sproutGreen.withValues(alpha: 0.45)` |
+| Section header / screen title text | `colorScheme.onSurface` (warm soil)       |
+| Secondary / hint text              | `colorScheme.onSurfaceVariant` (#5C4E40)  |
+| Content card                       | `AppColors.cloudDecoration(isDark: isDark)` |
+| Glass card (over photo/image bg)   | `GlassCard` widget                        |
+| Coin / badge icon fill             | `AppColors.seedGold` (#C48B3C)            |
+| Coin / badge as text               | `AppColors.honeyText` (#7A5520) ← ALWAYS |
+| Habit streak / progress ring       | `colorScheme.primary`                     |
+| Completion checkmark               | `colorScheme.primary`                     |
+| Mood / journal / affirmation       | `AppColors.lavenderDew` (#7B74A8)         |
+| Chips, selected rows, tags         | `AppColors.sageContainer` (#DCF0E4) bg    |
+| Error states                       | `colorScheme.error`                       |
+| Dividers / outlines                | `colorScheme.outlineVariant`              |
+
+### 2c. Code Patterns — Correct vs Wrong
+
+```dart
+// ✅ CORRECT — via ColorScheme (preferred for most UI)
+final cs = Theme.of(context).colorScheme;
+final isDark = cs.brightness == Brightness.dark;
+Container(color: cs.surface)
+Text('Today', style: TextStyle(color: cs.onSurface))
+
+// ✅ CORRECT — via AppColors for the 3 always-fixed tokens
+Container(decoration: AppColors.skyDecoration(isDark: isDark))  // page bg
+Container(decoration: AppColors.cloudDecoration(isDark: isDark)) // card
+// bottom nav bg only:
+color: AppColors.forestDeep
+
+// ✅ CORRECT — amber text (honey meaning)
+Text('🌱 +50 seeds', style: TextStyle(color: AppColors.honeyText))
+
+// ✅ CORRECT — sage text (completion/growth meaning)
+Text('Done', style: TextStyle(color: cs.onPrimaryContainer))
+
+// ❌ WRONG — hardcoded hex
+Container(color: const Color(0xFF4A7A5A))
+
+// ❌ WRONG — old neon green
+Container(color: const Color(0xFF4CAF50))
+
+// ❌ WRONG — honey amber as text (fails contrast)
+Text('50 seeds', style: TextStyle(color: AppColors.seedGold))
+
+// ❌ WRONG — bare white Scaffold (breaks warm background system)
+Scaffold(backgroundColor: Colors.white)
+```
+
+### 2d. WCAG AA Compliance Summary
+
+| Pairing                                       | Ratio  | Status |
+|-----------------------------------------------|--------|--------|
+| `forestDeep` (#3B2D20) on white               | 13.7:1 | ✅ AAA |
+| `forestDeep` on `mistBackground`              | 12.8:1 | ✅ AAA |
+| `sproutGreen` (#4A7A5A) on white              | 4.9:1  | ✅ AA  |
+| `sproutGreen` on `mistBackground`             | 4.6:1  | ✅ AA  |
+| `lavenderDew` (#7B74A8) on white              | 4.6:1  | ✅ AA  |
+| `honeyText` (#7A5520) on white                | 6.7:1  | ✅ AA  |
+| `onSurfaceVariant` (#5C4E40) on `mistBg`      | 5.8:1  | ✅ AA  |
+| `seedGold` (#C48B3C) on white — ICON ONLY     | 2.9:1  | ❌ text fails — use honeyText for text |
+| white on `sproutGreen` — button labels        | 4.9:1  | ✅ AA  |
+
+### 2e. Legacy Colors — DEPRECATED
+
+Do NOT use in new code. These existed in the old "Digital Greenhouse" palette.
+
+```
+AppColors.dark, .darkest, .medium, .light, .lightest
+AppColors.mintGreen, .sageGreen, .mossGreen, .forestGreen, .gold
+AppColors.soilLight, .soilDark, .soilMedium
+AppColors.seedLight, .seedDark, .seedDeep
+AppColors.waterLight, .waterDark
+AppColors.skyGradientTopLight/Dark, .skyGradientBottomLight/Dark → use skyDecoration()
+AppColors.cloudLight → use cloudWhite
+```
+
+### 2f. Feature-Specific Color Accents
+
+These are pre-assigned. Do NOT reassign features to different accent colors.
+
+| Feature domain       | Accent color                   | Use for              |
+|----------------------|--------------------------------|----------------------|
+| Mood tracking        | `AppColors.lavenderDew`        | Icons, chips, header |
+| Journal / writing    | `AppColors.lavenderDew`        | Cover tint, icon     |
+| Affirmations         | `AppColors.lavenderDew`        | Card accent          |
+| Habits / streaks     | `colorScheme.primary` (sage)   | Rings, checkmarks    |
+| Vision boards        | `colorScheme.primary` (sage)   | Active state         |
+| Coins / rewards      | `AppColors.seedGold` (fill only) | Icon, badge fill   |
+| Completion / done    | `AppColors.completedOrange`    | Completed state      |
+| Habit categories     | `AppColors.categoryBgColor()`  | Category circles     |
+
+---
+
+## 3. TYPOGRAPHY — USE AppTypography EXCLUSIVELY
+
+Import path: `lib/utils/app_typography.dart`
+Font family: Inter (via google_fonts). Never set fontFamily manually.
+
+| Style                     | Method                           | Size | Weight |
+|---------------------------|----------------------------------|------|--------|
+| Screen / page title       | AppTypography.heading1(context)  | 24sp | 700    |
+| Section title             | AppTypography.heading2(context)  | 20sp | 600    |
+| Card title / subsection   | AppTypography.heading3(context)  | 18sp | 600    |
+| Primary body copy         | AppTypography.body(context)      | 16sp | 400    |
+| Secondary body / list     | AppTypography.bodySmall(context) | 14sp | 400    |
+| Metadata / hint / time    | AppTypography.caption(context)   | 12sp | 400    |
+| Button labels             | AppTypography.button(context)    | 16sp | 500    |
+| De-emphasized secondary   | AppTypography.secondary(context) | 14sp | 400    |
+| Inline error messages     | AppTypography.error(context)     | 14sp | 400    |
+
+### Typography Rules
+
+```dart
+// ✅ CORRECT
+Text('My Board', style: AppTypography.heading1(context))
+Text('Last updated 2h ago', style: AppTypography.caption(context))
+
+// ❌ WRONG — hardcoded size
+Text('My Board', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+
+// ❌ WRONG — hardcoded font family
+Text('x', style: TextStyle(fontFamily: 'Inter', fontSize: 14))
+
+// ❌ WRONG — fontSize below 12sp anywhere visible to users
+Text('label', style: TextStyle(fontSize: 11))  // use caption() which is 12sp
+```
+
+Minimum text size: **12sp** (AppTypography.caption). Never go below this for
+any user-visible label, badge count, or nav label.
+
+Line height defaults are baked into AppTypography. Do not override `height`
+unless you have a documented reason.
+
+---
+
+## 4. SPACING & LAYOUT
+
+Use a consistent 4pt grid. All padding, margin, gap, and size values must be
+multiples of 4.
+
+### Standard Spacing Constants
+
+```dart
+// Preferred: define locally if not yet extracted to a constants file
+static const double spaceXS = 4.0;
+static const double spaceSM = 8.0;
+static const double spaceMD = 16.0;
+static const double spaceLG = 24.0;
+static const double spaceXL = 32.0;
+static const double space2XL = 48.0;
+```
+
+### Layout Rules
+
+```dart
+// ✅ CORRECT — 4pt grid
+Padding(padding: const EdgeInsets.all(16))          // spaceMD
+Padding(padding: const EdgeInsets.all(24))          // spaceLG
+SizedBox(height: 8)                                 // spaceSM
+SizedBox(height: 12)                                // acceptable (3×4)
+
+// ❌ WRONG — off-grid values
+Padding(padding: const EdgeInsets.all(15))
+Padding(padding: const EdgeInsets.all(22))
+SizedBox(height: 7)
+```
+
+### Border Radius
+
+| Surface               | Radius |
+|-----------------------|--------|
+| Cards (cloudDecoration) | 24dp |
+| Buttons               | 12dp   |
+| Chips / tags          | 8dp    |
+| Bottom sheets         | 24dp top corners |
+| Dialogs               | 20dp   |
+| Input fields          | 12dp   |
+| Small badges          | 6dp    |
+
+```dart
+// ✅ For standard cards — always use cloudDecoration or GlassCard
+Container(decoration: AppColors.cloudDecoration(isDark: isDark))
+
+// ✅ For buttons
+borderRadius: BorderRadius.circular(12)
+
+// ❌ Don't invent new radii
+borderRadius: BorderRadius.circular(10)  // use 12
+borderRadius: BorderRadius.circular(16)  // use 12 (btn) or 24 (card)
+```
+
+### Touch Targets
+
+All interactive elements must be at least **48×48dp**. Wrap small icons with
+`GestureDetector` or `InkWell` that has sufficient padding to meet this minimum.
+
+```dart
+// ✅ CORRECT
+SizedBox(
+  width: 48,
+  height: 48,
+  child: IconButton(icon: Icon(Icons.close), onPressed: onClose),
+)
+
+// ❌ WRONG — bare Icon with tap handler, no size guarantee
+GestureDetector(
+  onTap: onClose,
+  child: Icon(Icons.close, size: 18),
+)
+```
+
+---
+
+## 5. BACKGROUNDS & SURFACES — THE TWO-SURFACE RULE
+
+Every screen in this app uses exactly ONE of two backgrounds:
+
+### 5a. Full-Screen Scaffold
+
+Always apply `AppColors.skyDecoration` to the Scaffold body:
+
+```dart
+// ✅ CORRECT pattern for every new screen
+@override
+Widget build(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return Scaffold(
+    extendBodyBehindAppBar: true,
+    body: Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: SafeArea(child: _buildContent(context)),
+    ),
+  );
+}
+
+// ❌ WRONG — bare white Scaffold (causes the "lavender ghost" issue)
+return Scaffold(
+  body: SafeArea(child: _buildContent(context)),
+);
+
+// ❌ WRONG — manual gradient (fragile, doesn't adapt to theme)
+return Scaffold(
+  backgroundColor: const Color(0xFFEEF7EE),
+  ...
+);
+```
+
+### 5b. Content Cards
+
+Use one of the two card primitives. Do NOT mix them arbitrarily:
+
+| Primitive          | When to use                                                    |
+|--------------------|----------------------------------------------------------------|
+| `cloudDecoration`  | Cards on a solid/mist background (dashboard cards, list tiles, settings rows) |
+| `GlassCard`        | Cards placed over a photographic or gradient/image background (vision board header, banner overlays) |
+
+```dart
+// ✅ Standard content card
+Container(
+  decoration: AppColors.cloudDecoration(isDark: isDark),
+  padding: const EdgeInsets.all(16),
+  child: content,
+)
+
+// ✅ Glass card over image background
+GlassCard(child: content)
+
+// ❌ WRONG — mixing card styles randomly
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [...],  // re-inventing cloudDecoration
+  ),
+)
+```
+
+---
+
+## 6. NAVIGATION
+
+### Bottom Navigation
+
+- Background: always `AppColors.forestDeep`
+- Active icon + label: `AppColors.sproutGreen`
+- Inactive icon + label: `AppColors.sproutGreen.withValues(alpha: 0.5)` (do NOT
+  use grey or system defaults)
+- Nav labels: `AppTypography.caption(context)` — minimum 12sp, NEVER 11sp
+
+```dart
+// ✅ Nav label — correct
+Text(label, style: AppTypography.caption(context))
+
+// ❌ WRONG — hardcoded below minimum
+Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey))
+```
+
+### AppBar
+
+- Use `AppBar` with `backgroundColor: Colors.transparent` and
+  `elevation: 0` for screens that use `skyDecoration` behind them.
+- Title: `AppTypography.heading2(context)` or `heading3(context)`
+- Leading action (close/back): always `Icons.close` or `Icons.arrow_back_ios_new`
+  at 48dp touch target
+- Trailing actions: icon buttons at 48dp; text actions use
+  `AppTypography.button(context)` colored with `colorScheme.primary`
+
+```dart
+// ✅ Transparent app bar (most screens)
+AppBar(
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  title: Text('Write', style: AppTypography.heading2(context)),
+  leading: IconButton(
+    icon: const Icon(Icons.close),
+    onPressed: Navigator.of(context).pop,
+  ),
+  actions: [
+    TextButton(
+      onPressed: _save,
+      child: Text('Save', style: AppTypography.button(context)
+          .copyWith(color: Theme.of(context).colorScheme.primary)),
+    ),
+  ],
+)
+```
+
+---
+
+## 7. ACCESSIBILITY REQUIREMENTS
+
+Every widget you write must satisfy these checks before it is considered done:
+
+### 7a. Contrast Ratios
+
+| Foreground on background combination          | Min ratio | Check        |
+|-----------------------------------------------|-----------|--------------|
+| Any body/heading text on mistBackground       | 4.5:1     | ✅ forestDeep on mist ≈ 12.5:1 — use it |
+| Placeholder / hint text on mistBackground     | 3:1       | Use colorScheme.onSurfaceVariant |
+| sproutGreen (#4CAF50) as TEXT on white        | —         | ❌ NEVER — use onPrimaryContainer instead |
+| seedGold (#D4AF37) as TEXT on white           | —         | ❌ NEVER — use onTertiaryContainer instead |
+| White text on sproutGreen button              | 4.5:1     | ✅ ~4.6:1 — acceptable for button labels |
+
+### 7b. Semantics
+
+Add `Semantics` labels to every custom interactive widget. The animated bottom
+nav, custom toggle buttons, and drag handles are the most common offenders.
+
+```dart
+// ✅ CORRECT
+Semantics(
+  label: 'Dashboard',
+  button: true,
+  selected: isActive,
+  child: GestureDetector(onTap: onTap, child: navTabContent),
+)
+
+// Also use Tooltip on icon-only buttons
+Tooltip(
+  message: 'Flag entry',
+  child: IconButton(icon: const Icon(Icons.flag_outlined), onPressed: onFlag),
+)
+```
+
+### 7c. Text Scaling
+
+Do NOT hard-cap text sizes with `maxLines: 1` without also providing a
+`TextOverflow.ellipsis` and testing at 200% font scale. Never use
+`MediaQuery.of(context).textScaleFactor` to manually shrink text.
+
+---
+
+## 8. COMPONENT PATTERNS
+
+### 8a. Buttons
+
+```dart
+// Primary CTA — filled, forestDeep/sproutGreen theme
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: colorScheme.primary,           // sproutGreen
+    foregroundColor: colorScheme.onPrimary,          // white
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    minimumSize: const Size.fromHeight(52),
+    textStyle: AppTypography.button(context),
+  ),
+  onPressed: onPressed,
+  child: Text(label),
+)
+
+// Secondary / outlined
+OutlinedButton(
+  style: OutlinedButton.styleFrom(
+    foregroundColor: colorScheme.secondary,
+    side: BorderSide(color: colorScheme.outline),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    minimumSize: const Size.fromHeight(52),
+  ),
+  onPressed: onPressed,
+  child: Text(label),
+)
+
+// Destructive
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: colorScheme.error,
+    foregroundColor: colorScheme.onError,
+    ...
+  ),
+  ...
+)
+```
+
+### 8b. Input Fields
+
+```dart
+TextField(
+  style: AppTypography.body(context),
+  decoration: InputDecoration(
+    hintText: 'Write your entry...',
+    hintStyle: AppTypography.secondary(context),
+    filled: true,
+    fillColor: colorScheme.surfaceContainerLowest,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colorScheme.outline),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colorScheme.primary, width: 2),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  ),
+)
+```
+
+### 8c. Chips & Tags
+
+```dart
+Chip(
+  label: Text(label, style: AppTypography.caption(context)),
+  backgroundColor: colorScheme.secondaryContainer,
+  labelStyle: TextStyle(color: colorScheme.onSecondaryContainer),
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(8),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+)
+```
+
+### 8d. Empty States
+
+Every list or content area that can be empty MUST have a designed empty state.
+Pattern: large icon (64dp, colorScheme.outlineVariant) + heading2 + secondary
+text + optional CTA button.
+
+```dart
+// Empty state template
+Column(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    Icon(icon, size: 64, color: colorScheme.outlineVariant),
+    const SizedBox(height: 16),
+    Text(title, style: AppTypography.heading2(context), textAlign: TextAlign.center),
+    const SizedBox(height: 8),
+    Text(subtitle, style: AppTypography.secondary(context), textAlign: TextAlign.center),
+    if (onAction != null) ...[
+      const SizedBox(height: 24),
+      ElevatedButton(onPressed: onAction, child: Text(actionLabel)),
+    ],
+  ],
+)
+```
+
+### 8e. Section Headers on Dashboard / Lists
+
+```dart
+Padding(
+  padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+  child: Text(sectionTitle, style: AppTypography.heading3(context)),
+)
+```
+
+---
+
+## 9. JOURNAL EDITOR — SPECIFIC RULES
+
+The journal editor (`journal_editor_screen.dart`) has specific patterns:
+
+- Background: `AppColors.skyDecoration(isDark: isDark)` applied to Scaffold body
+- Toolbar: all formatting icons in a single `Row` with `Wrap` fallback; spacing
+  between icons: 4dp (`spaceXS`); icon touch target: 40×40dp minimum
+- Quote/blockquote button: place IN the toolbar row, not in a separate orphaned
+  row. Add `Tooltip(message: 'Blockquote')`
+- AppBar trailing: use an `IconButton` for flag/bookmark, and a separate
+  `TextButton` for Save — do not combine them visually
+- Writing area: `Colors.transparent` background, cursor color:
+  `colorScheme.primary`, selectionHandleColor: `colorScheme.primary`
+
+---
+
+## 10. DASHBOARD — CARD DENSITY RULES
+
+The dashboard must NOT render more than **5 visible cards** above the fold on a
+standard 390pt-wide device. Rules:
+
+1. Lead with the active vision board preview card (always first, full-width)
+2. Follow with the user's most-active habit streak card
+3. Third slot: daily affirmation or daily challenge (whichever is active)
+4. Below-fold cards: water, calories, mood, journal, todos, etc.
+5. Use a "Show more" / expansion pattern for secondary tracking cards — do not
+   auto-render all 15 card types unless the user has explicitly pinned them
+
+For every new dashboard card widget:
+- Use `cloudDecoration`
+- Internal padding: 16dp all sides
+- Card title: `AppTypography.heading3(context)`
+- Value / metric: `AppTypography.heading1(context)` or `heading2`
+- Supporting label: `AppTypography.caption(context)`
+- Min height: 80dp; max height before needing a "See more" link: 200dp
+
+---
+
+## 11. ANIMATIONS & MICRO-INTERACTIONS
+
+- Duration: use one of 100ms / 200ms / 300ms / 500ms. Nothing else.
+- Easing: `Curves.easeInOut` (default), `Curves.easeOut` (exit),
+  `Curves.easeIn` (enter), `Curves.elasticOut` (delight/spring)
+- Do NOT use `AnimationController` for things that can be done with
+  `AnimatedContainer`, `AnimatedOpacity`, or `AnimatedSwitcher`
+- The center + button pulse uses 1.0s with `Curves.easeInOut` — match this
+  rhythm for any other pulsing/breathing animations
+
+---
+
+## 12. THEMING — NEVER BYPASS COLORSCHEME FOR CORE UI
+
+The app supports light and dark themes. Every core UI widget MUST respond to
+theme changes without requiring a rebuild-from-scratch.
+
+```dart
+// ✅ CORRECT — theme-aware
+final colorScheme = Theme.of(context).colorScheme;
+final isDark = colorScheme.brightness == Brightness.dark;
+
+// ❌ WRONG — bypasses theme, breaks dark mode
+final isDark = false;
+final bg = Colors.white;
+```
+
+The ONLY places where `AppColors.*` constants (not colorScheme) are acceptable:
+- `AppColors.forestDeep` for bottom nav background (intentionally fixed)
+- `AppColors.skyDecoration()` and `AppColors.cloudDecoration()` which are
+  already theme-aware internally
+- `AppColors.categoryBgColor()` and `AppColors.categoryIconColor()` accessors
+  (they accept `isDark` and handle both themes)
+
+---
+
+## 13. WHAT NOT TO BUILD
+
+These patterns are explicitly prohibited — they have been identified as sources
+of bugs, inconsistency, or failed accessibility checks:
+
+| Pattern                                              | Why                                          |
+|------------------------------------------------------|----------------------------------------------|
+| `Text(x, style: TextStyle(fontSize: N))`            | Use AppTypography methods                    |
+| `Container(color: Color(0xFFXXXXXX))`               | Use AppColors or colorScheme                 |
+| `BoxDecoration(borderRadius: BorderRadius.circular(N))` where N ∉ {6,8,12,20,24} | Off-system radius |
+| `Scaffold(backgroundColor: anyColor)` without skyDecoration | Breaks background consistency          |
+| `GestureDetector` on targets < 48×48dp              | Fails touch target minimums                  |
+| `Text` with `color: AppColors.sproutGreen` or `seedGold` | Fails contrast on light backgrounds    |
+| Legacy AppColors entries (soil, water, seed variants) | Use core palette only                      |
+| `textScaleFactor` manipulation                       | Breaks accessibility scaling                 |
+| Inline `BoxShadow` definitions outside of `cloudDecoration` | Breaks shadow consistency               |
+
+---
+
+## 14. FILE & WIDGET NAMING
+
+- Screens: `*_screen.dart` — one `StatefulWidget` or `StatelessWidget` per file
+- Reusable widgets: `*_card.dart`, `*_tile.dart`, `*_sheet.dart`, `*_dialog.dart`
+- Place screen-specific helper widgets in `screens/<domain>/widgets/`
+- Place shared widgets in `lib/widgets/<domain>/`
+- `utils/` is for static helpers and constants only — no widgets
+
+---
+
+## 15. QUICK REFERENCE CHEATSHEET
+
+```dart
+// === Imports every new screen needs ===
+import '../utils/app_colors.dart';
+import '../utils/app_typography.dart';
+
+// === Scaffold shell ===
+final isDark = Theme.of(context).brightness == Brightness.dark;
+final cs = Theme.of(context).colorScheme;
+
+Scaffold(
+  extendBodyBehindAppBar: true,
+  body: Container(
+    decoration: AppColors.skyDecoration(isDark: isDark),
+    child: SafeArea(child: content),
+  ),
+)
+
+// === Standard card ===
+Container(
+  decoration: AppColors.cloudDecoration(isDark: isDark),
+  padding: const EdgeInsets.all(16),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title, style: AppTypography.heading3(context)),
+      const SizedBox(height: 8),
+      Text(body, style: AppTypography.body(context)),
+    ],
+  ),
+)
+
+// === Primary button ===
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: cs.primary,
+    foregroundColor: cs.onPrimary,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    minimumSize: const Size.fromHeight(52),
+  ),
+  onPressed: onPressed,
+  child: Text(label, style: AppTypography.button(context)),
+)
+```

@@ -727,21 +727,21 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       Expanded(child: Text(tpl.name)),
                       if (tpl.isOfficial)
                         Container(
-                          margin: const EdgeInsets.only(left: 6),
+                          margin: const EdgeInsets.only(left: 8),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
+                            horizontal: 8,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             'Default',
                             style: TextStyle(
-                              fontSize: 10,
+                                fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: Theme.of(context)
                                   .colorScheme
@@ -1288,10 +1288,10 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
-                      vertical: 14,
+                      vertical: 16,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
@@ -1636,7 +1636,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
               Row(
                 children: [
                   Icon(Icons.straighten, size: 20, color: colorScheme.primary),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Log ${habitIcons[_selectedIconIndex].$2.toLowerCase()} in:',
@@ -1683,7 +1683,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       separatorColor: habitSectionSeparatorColor(colorScheme),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1691,7 +1691,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                 children: [
                   Container(
                     width: 48,
-                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       color: colorScheme.tertiary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
@@ -1701,13 +1701,13 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       'IF',
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
-                        fontSize: 11,
+                      fontSize: 12,
                         color: colorScheme.tertiary,
                         letterSpacing: 0.5,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       controller: _triggerController,
@@ -1725,7 +1725,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         errorText: _triggerError,
                         errorStyle: AppTypography.caption(
                           context,
-                        ).copyWith(color: colorScheme.error, fontSize: 11),
+                        ).copyWith(color: colorScheme.error, fontSize: 12),
                         border: UnderlineInputBorder(
                           borderSide: BorderSide(
                             color: colorScheme.outlineVariant.withValues(
@@ -1758,7 +1758,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(left: 23),
+                padding: const EdgeInsets.only(left: 24),
                 child: Container(
                   height: 16,
                   width: 2,
@@ -1772,7 +1772,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                 children: [
                   Container(
                     width: 48,
-                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       color: colorScheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
@@ -1782,13 +1782,13 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       'THEN',
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
-                        fontSize: 11,
+                      fontSize: 12,
                         color: colorScheme.primary,
                         letterSpacing: 0.5,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       controller: _actionController,
@@ -1806,7 +1806,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         errorText: _actionError,
                         errorStyle: AppTypography.caption(
                           context,
-                        ).copyWith(color: colorScheme.error, fontSize: 11),
+                        ).copyWith(color: colorScheme.error, fontSize: 12),
                         border: UnderlineInputBorder(
                           borderSide: BorderSide(
                             color: colorScheme.outlineVariant.withValues(
@@ -1895,7 +1895,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
             ],
             Expanded(
               child: Text.rich(
@@ -2040,7 +2040,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                               ? colorScheme.primary
                               : colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             customDateLabel != null

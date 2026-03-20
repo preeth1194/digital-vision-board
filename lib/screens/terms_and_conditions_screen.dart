@@ -23,7 +23,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Terms & Conditions', style: AppTypography.heading1(context)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Last updated: March 2026',
               style: AppTypography.secondary(context),
@@ -114,7 +114,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
             title,
             style: AppTypography.heading3(context),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             body,
             style: AppTypography.bodySmall(context).copyWith(

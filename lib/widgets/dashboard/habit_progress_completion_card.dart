@@ -14,11 +14,13 @@ import 'glass_card.dart';
 class HabitProgressCompletionCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onStartChallenge;
+  final int dataVersion;
 
   const HabitProgressCompletionCard({
     super.key,
     this.onTap,
     this.onStartChallenge,
+    this.dataVersion = 0,
   });
 
   @override
@@ -51,6 +53,14 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
   void activate() {
     super.activate();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant HabitProgressCompletionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataVersion != widget.dataVersion) {
+      _load();
+    }
   }
 
   @override
@@ -185,7 +195,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       ...todaysHabits.take(4).map((h) {
                         final done = h.isCompletedOnDate(today);
                         final iconIdx = h.iconIndex ?? 0;
@@ -208,7 +218,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                                       ? cs.primary
                                       : cs.onPrimaryContainer.withValues(alpha: 0.35),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Icon(
                                   iconData,
                                   size: 14,
@@ -351,7 +361,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       ...todaysHabits.take(6).map((h) {
                         final done = h.isCompletedOnDate(today);
                         final iconIdx = h.iconIndex ?? 0;
@@ -371,7 +381,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                                     ? cs.primary
                                     : accent.withValues(alpha: 0.35),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Icon(
                                 iconData,
                                 size: 14,
@@ -458,7 +468,7 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
           ),
         ),
         if (showTitle) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             title,
             style: AppTypography.bodySmall(context).copyWith(

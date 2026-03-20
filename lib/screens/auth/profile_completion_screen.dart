@@ -26,8 +26,11 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   final _heightController = TextEditingController();
   final _heightFeetController = TextEditingController();
   final _heightInchesController = TextEditingController();
+  final _allergiesController = TextEditingController();
 
   String _gender = 'prefer_not_to_say';
+  String _activityLevel = 'moderate';
+  String _dietPreference = 'balanced';
   DateTime? _dob;
   String? _nameError;
   bool _loading = false;
@@ -46,6 +49,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     _heightController.dispose();
     _heightFeetController.dispose();
     _heightInchesController.dispose();
+    _allergiesController.dispose();
     super.dispose();
   }
 
@@ -55,6 +59,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final heightCm = await DvAuthService.getHeightCm();
     final gender = await DvAuthService.getGender();
     final dobStr = await DvAuthService.getDateOfBirth();
+    final activityLevel = await DvAuthService.getActivityLevel();
+    final dietPreference = await DvAuthService.getDietPreference();
+    final allergies = await DvAuthService.getAllergies();
     final profilePicPath = await DvAuthService.getProfilePicPath();
     final unit = AppSettingsService.getMeasurementUnit();
     if (!mounted) return;
@@ -82,6 +89,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       }
       _gender = gender;
       _dob = dobStr != null ? DateTime.tryParse(dobStr) : null;
+      _activityLevel = activityLevel;
+      _dietPreference = (dietPreference ?? 'balanced');
+      _allergiesController.text = allergies.join(', ');
     });
   }
 
@@ -151,6 +161,34 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     }
   }
 
+  String _activityLabel(String v) {
+    switch (v) {
+      case 'sedentary':
+        return 'Sedentary';
+      case 'light':
+        return 'Lightly active';
+      case 'very_active':
+        return 'Very active';
+      case 'moderate':
+      default:
+        return 'Moderately active';
+    }
+  }
+
+  String _dietLabel(String v) {
+    switch (v) {
+      case 'vegetarian':
+        return 'Vegetarian';
+      case 'vegan':
+        return 'Vegan';
+      case 'pescatarian':
+        return 'Pescatarian';
+      case 'balanced':
+      default:
+        return 'Balanced';
+    }
+  }
+
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -185,6 +223,13 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         weightKg: weightKg,
         heightCm: heightCm,
         dateOfBirth: dobStr,
+        activityLevel: _activityLevel,
+        dietPreference: _dietPreference,
+        allergies: _allergiesController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
       );
       await DvAuthService.setGender(_gender);
       await DvAuthService.putUserSettings(
@@ -193,6 +238,13 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         weightKg: weightKg,
         heightCm: heightCm,
         dateOfBirth: dobStr,
+        activityLevel: _activityLevel,
+        dietPreference: _dietPreference,
+        allergies: _allergiesController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -350,7 +402,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                     width: 1.5,
                                   ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               ),
                               onChanged: (_) => setState(() {}),
                             ),
@@ -370,7 +422,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               ),
                               items: const [
                                 DropdownMenuItem(value: 'kg', child: Text('kg')),
@@ -436,7 +488,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                       width: 1.5,
                                     ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -477,7 +529,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                       width: 1.5,
                                     ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -515,7 +567,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                       width: 1.5,
                                     ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -567,6 +619,80 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                             onDateTimeChanged: (v) => setState(() => _dob = v),
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.directions_run_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(_activityLabel(_activityLevel), style: AppTypography.body(context)),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      for (final v in const ['sedentary', 'light', 'moderate', 'very_active'])
+                        RadioListTile<String>(
+                          value: v,
+                          groupValue: _activityLevel,
+                          title: Text(_activityLabel(v), style: AppTypography.body(context)),
+                          onChanged: (x) {
+                            if (x != null) setState(() => _activityLevel = x);
+                          },
+                        ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.restaurant_menu_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(_dietLabel(_dietPreference), style: AppTypography.body(context)),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      for (final v in const ['balanced', 'vegetarian', 'vegan', 'pescatarian'])
+                        RadioListTile<String>(
+                          value: v,
+                          groupValue: _dietPreference,
+                          title: Text(_dietLabel(v), style: AppTypography.body(context)),
+                          onChanged: (x) {
+                            if (x != null) setState(() => _dietPreference = x);
+                          },
+                        ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.warning_amber_outlined, color: colorScheme.onSurfaceVariant, size: 24),
+                    title: Text(
+                      _allergiesController.text.trim().isEmpty ? 'Allergies (optional)' : _allergiesController.text.trim(),
+                      style: AppTypography.body(context),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      TextField(
+                        controller: _allergiesController,
+                        style: AppTypography.body(context),
+                        maxLength: 120,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                        decoration: InputDecoration(
+                          counterText: '',
+                          hintText: 'e.g. peanuts, shellfish',
+                          hintStyle: AppTypography.body(context).copyWith(
+                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: colorScheme.primary.withValues(alpha: 0.5),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                        onChanged: (_) => setState(() {}),
                       ),
                     ],
                   ),

@@ -304,10 +304,10 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
 
   Widget _buildTimeLabel(BuildContext context, String text, {bool showRefreshHint = false, required ColorScheme colorScheme}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -315,7 +315,6 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
           Text(
             text,
             style: AppTypography.caption(context).copyWith(
-              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: Colors.white,
               shadows: [

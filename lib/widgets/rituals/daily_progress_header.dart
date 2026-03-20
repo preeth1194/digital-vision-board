@@ -35,13 +35,13 @@ class DailyProgressHeader extends StatelessWidget {
         : Colors.white.withValues(alpha: 0.7);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
               color: glassFill,
               borderRadius: BorderRadius.circular(20),
@@ -76,7 +76,7 @@ class DailyProgressHeader extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           const _AnimatedFireIcon(),
                         ],
                       ),

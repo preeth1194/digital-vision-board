@@ -1,12 +1,15 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
 import '../models/action_step_template.dart';
 import '../models/habit_action_step.dart';
 import '../models/habit_item.dart';
+import '../models/meal_prep_week.dart';
+import '../models/recipe.dart';
 import '../models/skincare_planner.dart';
 import '../presets/models/preset_preview_section.dart';
 import '../presets/models/preset_template_config.dart';
@@ -17,13 +20,21 @@ import '../screens/presets/preset_shop_screen.dart';
 import '../services/action_templates_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/meal_prep_storage_service.dart';
+import '../services/preset_habit_creation_service.dart';
+import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
 class PlannerGuideScreen extends StatefulWidget {
   final ValueNotifier<int>? dataVersion;
+  final VoidCallback? onOpenChallengePreset;
 
-  const PlannerGuideScreen({super.key, this.dataVersion});
+  const PlannerGuideScreen({
+    super.key,
+    this.dataVersion,
+    this.onOpenChallengePreset,
+  });
 
   @override
   State<PlannerGuideScreen> createState() => _PlannerGuideScreenState();
@@ -141,7 +152,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
   }
 
-  String _guideSummaryText(ActionStepTemplate? guide) {
+  String _guideSummaryTextForCategory(
+    String category,
+    ActionStepTemplate? guide,
+  ) {
+    if (category == _challengeGuideCategory) {
+      return 'Unlock this challenge with 20 coins.';
+    }
     if (guide == null) return 'Try again after refresh.';
     if (guide.category == ActionTemplateCategory.skincare &&
         _liveSkincareGuideStepCount != null) {
@@ -150,7 +167,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return '${guide.steps.length} action steps';
   }
 
-  String _guideTitleText(ActionStepTemplate? guide) {
+  String _guideTitleTextForCategory(String category, ActionStepTemplate? guide) {
+    if (category == _challengeGuideCategory) return '75 Hard';
     if (guide == null) return 'No preset available';
     if (guide.category == ActionTemplateCategory.skincare) {
       final live = (_liveSkincarePresetTitle ?? '').trim();
@@ -852,6 +870,84 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ],
       ),
       t(
+        id: 'default_weekly_muscle_split_daypart',
+        name: 'Weekly Muscle Group Split',
+        category: ActionTemplateCategory.workout,
+        habitCategory: 'Fitness',
+        setKey: 'default_set_muscle_split',
+        schemaVersion: 2,
+        metadata: {
+          'goal': 'Muscle Group Focus',
+          'level': 'Beginner–Intermediate',
+          'durationWeeks': 8,
+          'daysPerWeek': 5,
+          'schedule': 'Mon–Fri (Sat/Sun Rest)',
+          'split':
+              'Mon Chest · Tue Back · Wed Shoulders · Thu Legs · Fri Arms',
+          'timePerSession': '45–60 min',
+          'supportsDaypartByWeekday': true,
+          'note':
+              'Select Morning and/or Evening for each training day. Keep Sat/Sun as rest unless manually enabled.',
+        },
+        structuredSteps: [
+          HabitActionStep(
+            id: 'muscle-split-mon',
+            title: 'Chest Session',
+            iconCodePoint: 58728,
+            order: 0,
+            plannerDay: 'mon',
+            stepLabel: '4 exercises',
+            productType: 'Chest',
+            productName: 'Gym',
+            notes: 'Focus: upper + mid chest',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-tue',
+            title: 'Back Session',
+            iconCodePoint: 58728,
+            order: 1,
+            plannerDay: 'tue',
+            stepLabel: '4 exercises',
+            productType: 'Back',
+            productName: 'Gym',
+            notes: 'Focus: lats + upper back',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-wed',
+            title: 'Shoulders Session',
+            iconCodePoint: 58728,
+            order: 2,
+            plannerDay: 'wed',
+            stepLabel: '4 exercises',
+            productType: 'Shoulders',
+            productName: 'Gym',
+            notes: 'Focus: front + side + rear delts',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-thu',
+            title: 'Legs Session',
+            iconCodePoint: 58728,
+            order: 3,
+            plannerDay: 'thu',
+            stepLabel: '5 exercises',
+            productType: 'Legs',
+            productName: 'Gym',
+            notes: 'Focus: quads + hamstrings + calves',
+          ),
+          HabitActionStep(
+            id: 'muscle-split-fri',
+            title: 'Arms Session',
+            iconCodePoint: 58728,
+            order: 4,
+            plannerDay: 'fri',
+            stepLabel: '4 exercises',
+            productType: 'Arms (Biceps & Triceps)',
+            productName: 'Gym',
+            notes: 'Focus: biceps + triceps',
+          ),
+        ],
+      ),
+      t(
         id: 'default_set_beginner_meal_prep',
         name: 'Beginner Weekly Meal Prep',
         category: ActionTemplateCategory.mealPrep,
@@ -1091,65 +1187,83 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _createHabitFromTemplate(ActionStepTemplate template) async {
-    if (template.category == ActionTemplateCategory.skincare) {
-      await _createSkincareHabitsFromTemplate(template);
-      return;
-    }
-    if (_isOneTapFitnessPreset(template)) {
-      await _createOneTapFitnessHabitFromTemplate(template);
-      return;
-    }
-    final habitCategory = _habitCategoryForTemplate(template);
-    // #region agent log
-    _debugLog(
-      runId: 'run1',
-      hypothesisId: 'H1',
-      location: 'planner_guide_screen.dart:_createHabitFromTemplate',
-      message: 'Template steps before opening Add Habit modal',
-      data: {
-        'templateId': template.id,
-        'stepsCount': template.steps.length,
-        'firstStep': template.steps.isEmpty
-            ? null
-            : {
-                'id': template.steps.first.id,
-                'title': template.steps.first.title,
-                'stepLabel': template.steps.first.stepLabel,
-                'productName': template.steps.first.productName,
-                'plannerDay': template.steps.first.plannerDay,
-                'plannerWeek': template.steps.first.plannerWeek,
-              },
-      },
-    );
-    // #endregion
-    final request = await showAddHabitModal(
-      context,
-      existingHabits: _existingHabits,
-      initialName: template.name,
-      initialActionSteps: template.steps,
-      initialTemplateId: template.id,
-      initialTemplateVersion: template.templateVersion,
-      initialCategory: habitCategory,
-    );
-    if (request == null) return;
-
-    try {
-      final newHabit = _buildHabitFromRequest(request);
-      await HabitStorageService.addHabit(newHabit);
-      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+    final gate = await PresetHabitCreationService.checkGate();
+    if (!gate.canCreate) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Habit created from "${template.name}"')),
-      );
-      await _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to create habit right now. Please try again.'),
+        SnackBar(
+          content: Text(
+            'Need ${gate.requiredCoins} coins to create habits from this preset.',
+          ),
         ),
       );
+      return;
     }
+
+    bool created = false;
+    if (template.category == ActionTemplateCategory.skincare) {
+      created = await _createSkincareHabitsFromTemplate(template);
+    } else if (_isOneTapFitnessPreset(template)) {
+      created = await _createOneTapFitnessHabitFromTemplate(template);
+    } else {
+      final habitCategory = _habitCategoryForTemplate(template);
+      // #region agent log
+      _debugLog(
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'planner_guide_screen.dart:_createHabitFromTemplate',
+        message: 'Template steps before opening Add Habit modal',
+        data: {
+          'templateId': template.id,
+          'stepsCount': template.steps.length,
+          'firstStep': template.steps.isEmpty
+              ? null
+              : {
+                  'id': template.steps.first.id,
+                  'title': template.steps.first.title,
+                  'stepLabel': template.steps.first.stepLabel,
+                  'productName': template.steps.first.productName,
+                  'plannerDay': template.steps.first.plannerDay,
+                  'plannerWeek': template.steps.first.plannerWeek,
+                },
+        },
+      );
+      // #endregion
+      final request = await showAddHabitModal(
+        context,
+        existingHabits: _existingHabits,
+        initialName: template.name,
+        initialActionSteps: template.steps,
+        initialTemplateId: template.id,
+        initialTemplateVersion: template.templateVersion,
+        initialCategory: habitCategory,
+      );
+      if (request == null) return;
+
+      try {
+        final newHabit = _buildHabitFromRequest(request);
+        await HabitStorageService.addHabit(newHabit);
+        widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+        created = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Habit created from "${template.name}"')),
+          );
+          await _load();
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to create habit right now. Please try again.'),
+            ),
+          );
+        }
+      }
+    }
+
+    if (!created) return;
+    await PresetHabitCreationService.applyChargeForSuccessfulCreate();
   }
 
   bool _isOneTapFitnessPreset(ActionStepTemplate template) {
@@ -1157,40 +1271,88 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         _habitCategoryForTemplate(template).toLowerCase() == 'fitness';
   }
 
-  Future<void> _createOneTapFitnessHabitFromTemplate(
+  Future<bool> _createOneTapFitnessHabitFromTemplate(
     ActionStepTemplate template,
   ) async {
-    final newHabit = _buildOneTapPresetHabit(template);
-    try {
-      await HabitStorageService.addHabit(newHabit);
-      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-      if (!mounted) return;
+    developer.log(
+      'Workout preset create requested',
+      name: 'planner_guide.workout_create',
+      error: {
+        'templateId': template.id,
+        'templateVersion': template.templateVersion,
+        'templateName': template.name,
+        'rawSteps': template.steps.length,
+      },
+    );
+    final newHabits = _buildOneTapPresetHabits(template);
+    if (newHabits.isEmpty) {
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Habit created from "${template.name}"')),
+        const SnackBar(content: Text('No preset exercises available.')),
+      );
+      return false;
+    }
+    try {
+      developer.log(
+        'Workout preset split computed',
+        name: 'planner_guide.workout_create',
+        error: {
+          'templateId': template.id,
+          'templateVersion': template.templateVersion,
+          'createdHabits': newHabits
+              .map(
+                (h) => {
+                  'name': h.name,
+                  'weeklyDays': h.weeklyDays,
+                  'steps': h.actionSteps.length,
+                },
+              )
+              .toList(),
+          'firstHabitSteps': newHabits.isEmpty
+              ? const []
+              : newHabits.first.actionSteps
+                    .take(5)
+                    .map((s) => s.title)
+                    .toList(),
+        },
+      );
+      for (final habit in newHabits) {
+        await HabitStorageService.addHabit(habit);
+      }
+      widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
+      if (!mounted) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Created ${newHabits.length} ${newHabits.length == 1 ? 'habit' : 'habits'} from "${template.name}"',
+          ),
+        ),
       );
       await _load();
+      return true;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
+      return false;
     }
   }
 
-  Future<void> _createSkincareHabitsFromTemplate(
+  Future<bool> _createSkincareHabitsFromTemplate(
     ActionStepTemplate template,
   ) async {
     final planner = await SkincarePlannerStorageService.loadOrDefault();
     final morningEnabled = planner.morningRoutineEnabled;
     final eveningEnabled = planner.eveningRoutineEnabled;
     if (!morningEnabled && !eveningEnabled) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('At least one routine must be enabled.')),
       );
-      return;
+      return false;
     }
 
     final weeklyPlan = SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(
@@ -1255,13 +1417,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       );
 
       if (createdNames.isEmpty) {
-        if (!mounted) return;
+        if (!mounted) return false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No skincare steps available to create habits.'),
           ),
         );
-        return;
+        return false;
       }
 
       // #region agent log
@@ -1275,7 +1437,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       // #endregion
 
       widget.dataVersion?.value = (widget.dataVersion?.value ?? 0) + 1;
-      if (!mounted) return;
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1284,13 +1446,15 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       );
       await _load();
+      return true;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to create habit right now. Please try again.'),
         ),
       );
+      return false;
     }
   }
 
@@ -1320,39 +1484,120 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     );
   }
 
-  HabitItem _buildOneTapPresetHabit(ActionStepTemplate template) {
-    final weeklyDays = _weeklyDaysFromTemplate(template);
+  List<HabitItem> _buildOneTapPresetHabits(ActionStepTemplate template) {
     final normalizedSteps = List<HabitActionStep>.from(template.steps)
       ..sort((a, b) => a.order.compareTo(b.order));
-    return HabitItem(
-      id: 'preset-${DateTime.now().microsecondsSinceEpoch}',
-      name: _uniqueHabitNameFromTemplate(template.name),
-      category: _habitCategoryForTemplate(template),
-      frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
-      weeklyDays: weeklyDays,
-      completedDates: const [],
-      actionSteps: normalizedSteps,
-      templateId: template.id,
-      templateVersion: template.templateVersion,
-    );
-  }
+    final exerciseNamedSteps = normalizedSteps
+        .map((s) {
+          final fallback = s.displayTitle.trim();
+          final title = s.title.trim();
+          return s.copyWith(title: title.isEmpty ? fallback : title);
+        })
+        .toList();
 
-  String _uniqueHabitNameFromTemplate(String baseName) {
-    final trimmed = baseName.trim().isEmpty ? 'New Habit' : baseName.trim();
-    final existing = _existingHabits
+    final amSteps = <HabitActionStep>[];
+    final pmSteps = <HabitActionStep>[];
+    final unslottedSteps = <HabitActionStep>[];
+    for (final step in exerciseNamedSteps) {
+      final part = _daypartFromPlannerKey(step.plannerDay);
+      if (part == 'am') {
+        amSteps.add(step);
+      } else if (part == 'pm') {
+        pmSteps.add(step);
+      } else {
+        unslottedSteps.add(step);
+      }
+    }
+
+    final hasAm = amSteps.isNotEmpty;
+    final hasPm = pmSteps.isNotEmpty;
+    developer.log(
+      'Workout template daypart buckets',
+      name: 'planner_guide.workout_create',
+      error: {
+        'templateId': template.id,
+        'templateVersion': template.templateVersion,
+        'hasAm': hasAm,
+        'hasPm': hasPm,
+        'amSteps': amSteps.length,
+        'pmSteps': pmSteps.length,
+        'unslottedSteps': unslottedSteps.length,
+      },
+    );
+    final existingNames = _existingHabits
         .map((h) => h.name.trim().toLowerCase())
         .toSet();
-    if (!existing.contains(trimmed.toLowerCase())) return trimmed;
-    var suffix = 2;
-    while (existing.contains('$trimmed ($suffix)'.toLowerCase())) {
-      suffix++;
+    final createdNames = <String>{};
+
+    String uniqueName(String base) {
+      final trimmed = base.trim().isEmpty ? 'New Habit' : base.trim();
+      if (!existingNames.contains(trimmed.toLowerCase()) &&
+          !createdNames.contains(trimmed.toLowerCase())) {
+        createdNames.add(trimmed.toLowerCase());
+        return trimmed;
+      }
+      var suffix = 2;
+      while (existingNames.contains('$trimmed ($suffix)'.toLowerCase()) ||
+          createdNames.contains('$trimmed ($suffix)'.toLowerCase())) {
+        suffix++;
+      }
+      final resolved = '$trimmed ($suffix)';
+      createdNames.add(resolved.toLowerCase());
+      return resolved;
     }
-    return '$trimmed ($suffix)';
+
+    HabitItem buildHabit({
+      required String name,
+      required List<HabitActionStep> steps,
+    }) {
+      final weeklyDays = _weeklyDaysFromSteps(steps, template);
+      return HabitItem(
+        id: 'preset-${DateTime.now().microsecondsSinceEpoch}-${steps.length}',
+        name: uniqueName(name),
+        category: _habitCategoryForTemplate(template),
+        frequency: weeklyDays.isEmpty ? 'Daily' : 'Weekly',
+        weeklyDays: weeklyDays,
+        completedDates: const [],
+        actionSteps: steps,
+        templateId: template.id,
+        templateVersion: template.templateVersion,
+      );
+    }
+
+    if (!hasAm && !hasPm) {
+      return [
+        buildHabit(name: template.name, steps: exerciseNamedSteps),
+      ];
+    }
+
+    final habits = <HabitItem>[];
+    if (hasAm) {
+      final steps = [
+        ...amSteps,
+        ...unslottedSteps,
+      ]..sort((a, b) => a.order.compareTo(b.order));
+      habits.add(
+        buildHabit(name: '${template.name} (Morning)', steps: steps),
+      );
+    }
+    if (hasPm) {
+      final steps = [
+        ...pmSteps,
+        ...unslottedSteps,
+      ]..sort((a, b) => a.order.compareTo(b.order));
+      habits.add(
+        buildHabit(name: '${template.name} (Evening)', steps: steps),
+      );
+    }
+    return habits;
   }
 
-  List<int> _weeklyDaysFromTemplate(ActionStepTemplate template) {
+  List<int> _weeklyDaysFromSteps(
+    List<HabitActionStep> steps,
+    ActionStepTemplate template,
+  ) {
     final fromSteps = <int>{};
-    for (final step in template.steps) {
+    for (final step in steps) {
       for (final weekday in _extractWeekdays(step.plannerDay)) {
         fromSteps.add(weekday);
       }
@@ -1376,11 +1621,19 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return const [];
   }
 
+  String? _daypartFromPlannerKey(String? rawValue) {
+    final raw = (rawValue ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return null;
+    if (RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw)) return 'am';
+    if (RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw)) return 'pm';
+    return null;
+  }
+
   List<int> _extractWeekdays(String? text) {
     final raw = (text ?? '').trim().toLowerCase();
     if (raw.isEmpty) return const [];
 
-    final tokenMap = <String, int>{
+    const tokenMap = <String, int>{
       'monday': DateTime.monday,
       'mon': DateTime.monday,
       'tuesday': DateTime.tuesday,
@@ -1400,16 +1653,13 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       'sun': DateTime.sunday,
     };
 
-    final matches = RegExp(
-      r'\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b',
-    ).allMatches(raw);
-
     final weekdays = <int>{};
-    for (final match in matches) {
-      final token = match.group(0);
-      if (token == null) continue;
-      final normalized = token.toLowerCase();
-      final mapped = tokenMap[normalized];
+    final tokens = raw
+        .split(RegExp(r'[^a-z]+'))
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty);
+    for (final token in tokens) {
+      final mapped = tokenMap[token];
       if (mapped != null) weekdays.add(mapped);
     }
 
@@ -1427,6 +1677,14 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     final skincarePlanner = template.category == ActionTemplateCategory.skincare
         ? await SkincarePlannerStorageService.loadOrDefault()
         : null;
+    MealPrepWeek? mealPrepWeek;
+    Map<String, Recipe> recipesById = const {};
+    if (template.category == ActionTemplateCategory.mealPrep) {
+      final weeks = await MealPrepStorageService.loadAll();
+      mealPrepWeek = weeks.isEmpty ? null : weeks.first;
+      final recipes = await RecipeStorageService.loadAll();
+      recipesById = {for (final recipe in recipes) recipe.id: recipe};
+    }
     final resolvedPresetName =
         template.category == ActionTemplateCategory.skincare
         ? ((skincarePlanner?.title ?? '').trim().isNotEmpty
@@ -1448,13 +1706,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       template: template,
       config: config,
       skincarePlanner: skincarePlanner,
+      mealPrepWeek: mealPrepWeek,
+      recipesById: recipesById,
     );
+    final resolvedTotalSteps = previewSections.isEmpty
+        ? template.steps.length
+        : previewSections.fold<int>(0, (sum, section) => sum + section.steps.length);
 
     final action = await _showGuideOverlay(
       _PlannerGuideOverlayData(
         presetName: resolvedPresetName,
         habitCategory: _habitCategoryForTemplate(template),
-        totalSteps: template.steps.length,
+        totalSteps: resolvedTotalSteps,
         config: config,
         previewSections: previewSections,
         bottomInset: navClearance,
@@ -1469,12 +1732,20 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
               .map((t) => t.id == edited.id ? edited : t)
               .toList();
         });
+        if (!mounted) return;
+        await _openGuidePreview(edited);
         return;
       }
       await _load();
       return;
     }
     if (action == 'create') {
+      if (template.category == ActionTemplateCategory.mealPrep) {
+        await adapter.openEditor(context, template);
+        if (!mounted) return;
+        await _load();
+        return;
+      }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -1564,6 +1835,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     required ActionStepTemplate template,
     required PresetTemplateConfig config,
     required SkincarePlanner? skincarePlanner,
+    required MealPrepWeek? mealPrepWeek,
+    required Map<String, Recipe> recipesById,
   }) {
     if (!config.sections.contains(PresetTemplateSection.routinePreview)) {
       return const [];
@@ -1613,12 +1886,144 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ),
       ];
     }
+    if (template.category == ActionTemplateCategory.workout) {
+      final weeklyMuscleSummary = _weeklyWorkoutMuscleSummary(template);
+      return [
+        PresetPreviewSection(
+          title: 'Weekly Muscle Focus',
+          icon: Icons.calendar_month_outlined,
+          steps: weeklyMuscleSummary,
+        ),
+        PresetPreviewSection(
+          title: 'Preset Steps',
+          icon: Icons.playlist_add_check_outlined,
+          steps: template.steps,
+        ),
+      ];
+    }
+    if (template.category == ActionTemplateCategory.mealPrep) {
+      final planned = _mealPrepPreviewSteps(mealPrepWeek, recipesById);
+      if (planned.isNotEmpty) {
+        return [
+          PresetPreviewSection(
+            title: 'Weekly Meal Plan',
+            icon: Icons.calendar_month_outlined,
+            steps: planned,
+          ),
+        ];
+      }
+    }
     return [
       PresetPreviewSection(
         title: 'Preset Steps',
         icon: Icons.playlist_add_check_outlined,
         steps: template.steps,
       ),
+    ];
+  }
+
+  List<HabitActionStep> _mealPrepPreviewSteps(
+    MealPrepWeek? week,
+    Map<String, Recipe> recipesById,
+  ) {
+    if (week == null) return const [];
+    const dayOrder = <String>[
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    const dayLabel = <String, String>{
+      'monday': 'Mon',
+      'tuesday': 'Tue',
+      'wednesday': 'Wed',
+      'thursday': 'Thu',
+      'friday': 'Fri',
+      'saturday': 'Sat',
+      'sunday': 'Sun',
+    };
+    const slotOrder = <String>['breakfast', 'lunch', 'dinner', 'snack'];
+    const slotLabel = <String, String>{
+      'breakfast': 'Breakfast',
+      'lunch': 'Lunch',
+      'dinner': 'Dinner',
+      'snack': 'Snack',
+    };
+
+    final planned = <HabitActionStep>[];
+    for (final day in dayOrder) {
+      final slots = week.recipeIdByDayAndSlot[day] ?? const <String, String>{};
+      for (final slot in slotOrder) {
+        final recipeId = slots[slot];
+        if (recipeId == null || recipeId.trim().isEmpty) continue;
+        final recipe = recipesById[recipeId];
+        final title = recipe?.title.trim().isNotEmpty == true
+            ? recipe!.title.trim()
+            : recipeId;
+        final calories = (recipe?.macros?.calories ?? 0) > 0
+            ? '${recipe!.macros!.calories.round()} kcal'
+            : '';
+        planned.add(
+          HabitActionStep(
+            id: 'meal-preview-$day-$slot-${planned.length}',
+            title:
+                '${dayLabel[day] ?? day} • ${slotLabel[slot] ?? slot}: $title${calories.isNotEmpty ? ' ($calories)' : ''}',
+            iconCodePoint: Icons.restaurant_menu.codePoint,
+            order: planned.length,
+          ),
+        );
+      }
+    }
+    return planned;
+  }
+
+  List<HabitActionStep> _weeklyWorkoutMuscleSummary(ActionStepTemplate template) {
+    final weekdayOrder = <int>[
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+      DateTime.sunday,
+    ];
+    final dayLabel = <int, String>{
+      DateTime.monday: 'Mon',
+      DateTime.tuesday: 'Tue',
+      DateTime.wednesday: 'Wed',
+      DateTime.thursday: 'Thu',
+      DateTime.friday: 'Fri',
+      DateTime.saturday: 'Sat',
+      DateTime.sunday: 'Sun',
+    };
+    final musclesByDay = <int, Set<String>>{
+      for (final day in weekdayOrder) day: <String>{},
+    };
+
+    for (final step in template.steps) {
+      final days = _extractWeekdays(step.plannerDay);
+      if (days.isEmpty) continue;
+      final muscle = (step.productType ?? '').trim().isNotEmpty
+          ? (step.productType ?? '').trim()
+          : step.title.trim();
+      if (muscle.isEmpty) continue;
+      for (final day in days) {
+        musclesByDay.putIfAbsent(day, () => <String>{}).add(muscle);
+      }
+    }
+
+    return [
+      for (int i = 0; i < weekdayOrder.length; i++)
+        HabitActionStep(
+          id: 'workout-weekly-summary-$i',
+          title:
+              '${dayLabel[weekdayOrder[i]]}: ${musclesByDay[weekdayOrder[i]]!.isEmpty ? 'Rest' : musclesByDay[weekdayOrder[i]]!.join(' + ')}',
+          iconCodePoint: Icons.check_circle_outline.codePoint,
+          order: i,
+        ),
     ];
   }
 
@@ -1632,6 +2037,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     'Finance',
     'Creativity',
   ];
+  static const String _challengeGuideCategory = 'Challenges';
   static const String _mealPrepGuideCategory = 'Weekly Meal Prep';
   static const double _categoryDeckCardHeight = 156;
   static const double _categoryDeckPeekHeight = 66;
@@ -1654,6 +2060,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         return Icons.account_balance_wallet_outlined;
       case 'Creativity':
         return Icons.palette_outlined;
+      case _challengeGuideCategory:
+        return Icons.military_tech_outlined;
       case _mealPrepGuideCategory:
         return Icons.calendar_month_outlined;
       case 'Other':
@@ -1664,19 +2072,34 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   List<String> get _plannerGuideCategories => [
     ..._habitCategoriesInOrder,
+    _challengeGuideCategory,
     _mealPrepGuideCategory,
   ];
 
   List<String> get _filteredPlannerGuideCategories {
     final q = _categorySearchQuery.trim().toLowerCase();
-    if (q.isEmpty) return _plannerGuideCategories;
-    return _plannerGuideCategories.where((category) {
-      if (category.toLowerCase().contains(q)) return true;
-      final presetName = _guideTitleText(
-        _primaryGuideForPlannerCategory(category),
-      ).toLowerCase();
-      return presetName.contains(q);
-    }).toList();
+    final base = _plannerGuideCategories;
+    final filtered = q.isEmpty
+        ? base.toList()
+        : base.where((category) {
+            if (category.toLowerCase().contains(q)) return true;
+            final presetName = _guideTitleTextForCategory(
+              category,
+              _primaryGuideForPlannerCategory(category),
+            ).toLowerCase();
+            return presetName.contains(q);
+          }).toList();
+    final indexByCategory = <String, int>{
+      for (int i = 0; i < base.length; i++) base[i]: i,
+    };
+    filtered.sort((a, b) {
+      final countCompare = _guideCountForPlannerCategory(
+        b,
+      ).compareTo(_guideCountForPlannerCategory(a));
+      if (countCompare != 0) return countCompare;
+      return (indexByCategory[a] ?? 0).compareTo(indexByCategory[b] ?? 0);
+    });
+    return filtered;
   }
 
   String _categoryDescription(String category) {
@@ -1697,6 +2120,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         return 'Track spending, saving, and money habits.';
       case 'Creativity':
         return 'Turn ideas into repeatable creative flow.';
+      case _challengeGuideCategory:
+        return 'Commit to signature challenge presets.';
       case _mealPrepGuideCategory:
         return 'Plan weekly meal prep and connect recipes to habits.';
       default:
@@ -1705,6 +2130,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   int _guideCountForPlannerCategory(String category) {
+    if (category == _challengeGuideCategory) return 1;
     return _primaryGuideForPlannerCategory(category) == null ? 0 : 1;
   }
 
@@ -1715,6 +2141,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
+    if (category == _challengeGuideCategory) {
+      widget.onOpenChallengePreset?.call();
+      return;
+    }
     final guide = _primaryGuideForPlannerCategory(category);
     if (guide == null) return;
     await _openGuidePreview(guide);
@@ -1735,7 +2165,10 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       data: {
         'healthTemplateName': healthGuide?.name,
         'liveSkincarePresetTitle': _liveSkincarePresetTitle,
-        'healthCardDisplayTitle': _guideTitleText(healthGuide),
+        'healthCardDisplayTitle': _guideTitleTextForCategory(
+          'Health',
+          healthGuide,
+        ),
       },
     );
     // #endregion
@@ -1767,7 +2200,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                             Icons.cloud_off_outlined,
                             color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(child: Text(_error!)),
                         ],
                       ),
@@ -1798,7 +2231,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                           icon: const Icon(Icons.storefront_outlined),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: 10,
+                          vertical: 12,
                         ),
                       ),
                     ),
@@ -1824,8 +2257,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                       guideForCategory: _primaryGuideForPlannerCategory,
                       onTapCategory: _onPlannerCategoryTap,
                       onTapGuide: _onPlannerGuideTap,
-                      guideTitleForCard: _guideTitleText,
-                      guideSummaryTextForCard: _guideSummaryText,
+                      guideTitleForCard: _guideTitleTextForCategory,
+                      guideSummaryTextForCard: _guideSummaryTextForCategory,
                     ),
                 ],
               ),
@@ -1880,7 +2313,7 @@ class _GuideCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1910,8 +2343,10 @@ class _CategoryDeck extends StatelessWidget {
   final ActionStepTemplate? Function(String) guideForCategory;
   final Future<void> Function(String category) onTapCategory;
   final Future<void> Function(String category) onTapGuide;
-  final String Function(ActionStepTemplate? guide) guideTitleForCard;
-  final String Function(ActionStepTemplate? guide) guideSummaryTextForCard;
+  final String Function(String category, ActionStepTemplate? guide)
+  guideTitleForCard;
+  final String Function(String category, ActionStepTemplate? guide)
+  guideSummaryTextForCard;
 
   const _CategoryDeck({
     required this.categories,
@@ -1965,11 +2400,15 @@ class _CategoryDeck extends StatelessWidget {
                 expandedPanelHeight: expandedPanelHeight,
                 isExpanded: categories[i] == expandedCategory,
                 guide: guideForCategory(categories[i]),
-                guideTitle: guideTitleForCard(guideForCategory(categories[i])),
+                guideTitle: guideTitleForCard(
+                  categories[i],
+                  guideForCategory(categories[i]),
+                ),
                 zDepth: (i + 1).toDouble(),
                 onTap: () => onTapCategory(categories[i]),
                 onTapGuide: () => onTapGuide(categories[i]),
                 guideSummaryText: guideSummaryTextForCard(
+                  categories[i],
                   guideForCategory(categories[i]),
                 ),
               ),
@@ -2052,7 +2491,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
         child: _GlassSection(
           zDepth: widget.zDepth,
           radius: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
             children: [
               InkWell(
@@ -2087,7 +2526,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                           color: colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -2110,7 +2549,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                         ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -2184,7 +2623,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                 alignment: Alignment.topCenter,
                 child: expanded
                     ? Padding(
-                        padding: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.only(top: 12),
                         child: Column(
                           children: [
                             Divider(
@@ -2218,14 +2657,14 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                           ),
                                           if (guide?.isOfficial == true)
                                             Container(
-                                              margin: const EdgeInsets.only(left: 6),
+                                              margin: const EdgeInsets.only(left: 8),
                                               padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
+                                                horizontal: 8,
                                                 vertical: 2,
                                               ),
                                               decoration: BoxDecoration(
                                                 color: colorScheme.primaryContainer,
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 'Default',
@@ -2235,7 +2674,7 @@ class _CategoryGuideCardState extends State<_CategoryGuideCard> {
                                                     ?.copyWith(
                                                       fontWeight: FontWeight.w700,
                                                       color: colorScheme.onPrimaryContainer,
-                                                      fontSize: 9,
+                                                      fontSize: 12,
                                                     ),
                                               ),
                                             ),

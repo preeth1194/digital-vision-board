@@ -23,6 +23,7 @@ import 'services/wizard_defaults_service.dart';
 import 'services/ad_service.dart';
 import 'services/affirmation_service.dart';
 import 'services/subscription_service.dart';
+import 'utils/app_spacing.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +89,107 @@ class DigitalVisionBoardApp extends StatelessWidget {
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+  ThemeData _buildTheme({
+    required ColorScheme colorScheme,
+    required bool isDark,
+  }) {
+    final textTheme = GoogleFonts.interTextTheme(
+      const TextTheme(
+        displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+        displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5),
+        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5),
+        bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, height: 1.4),
+        labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      ),
+    ).apply(
+      bodyColor: colorScheme.onSurface,
+      displayColor: colorScheme.onSurface,
+    );
+
+    return ThemeData(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      scaffoldBackgroundColor: colorScheme.surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: colorScheme.onSurface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: isDark ? AppColors.cloudDark : AppColors.cloudWhite,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+        ),
+        shadowColor: isDark
+            ? Colors.black.withValues(alpha: 0.30)
+            : AppColors.forestDeep.withValues(alpha: 0.07),
+      ),
+      textTheme: textTheme,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          ),
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          ),
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          textStyle: textTheme.labelLarge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        side: BorderSide(color: colorScheme.outlineVariant),
+        labelStyle: textTheme.bodySmall ?? const TextStyle(fontSize: 12),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.surfaceContainerLowest,
+        hintStyle: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          borderSide: BorderSide(color: colorScheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
@@ -98,72 +200,8 @@ class DigitalVisionBoardApp extends StatelessWidget {
           title: 'Digital Vision Board',
           localizationsDelegates: quill.FlutterQuillLocalizations.localizationsDelegates,
           supportedLocales: quill.FlutterQuillLocalizations.supportedLocales,
-          theme: ThemeData(
-            colorScheme: AppColors.lightScheme,
-            useMaterial3: true,
-            scaffoldBackgroundColor: AppColors.mistBackground,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              foregroundColor: AppColors.forestDeep,
-              surfaceTintColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-            ),
-            cardTheme: CardThemeData(
-              color: AppColors.cloudWhite,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              shadowColor: AppColors.forestDeep.withValues(alpha: 0.08),
-            ),
-            textTheme: GoogleFonts.interTextTheme(
-              const TextTheme(
-                displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-                bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-                labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ).apply(
-              bodyColor: AppColors.forestDeep,
-              displayColor: AppColors.forestDeep,
-            ),
-          ),
-          darkTheme: ThemeData(
-            colorScheme: AppColors.darkScheme,
-            useMaterial3: true,
-            scaffoldBackgroundColor: const Color(0xFF0F1A14),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.transparent,
-              foregroundColor: AppColors.darkScheme.onSurface,
-              surfaceTintColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-            ),
-            cardTheme: CardThemeData(
-              color: AppColors.cloudDark,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              shadowColor: Colors.black.withValues(alpha: 0.3),
-            ),
-            textTheme: GoogleFonts.interTextTheme(
-              const TextTheme(
-                displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                displayMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                displaySmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-                bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-                labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ).apply(
-              bodyColor: AppColors.darkScheme.onSurface,
-              displayColor: AppColors.darkScheme.onSurface,
-            ),
-          ),
+          theme: _buildTheme(colorScheme: AppColors.lightScheme, isDark: false),
+          darkTheme: _buildTheme(colorScheme: AppColors.darkScheme, isDark: true),
           themeMode: mode,
           home: showOnboarding
               ? const OnboardingScreen()

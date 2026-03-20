@@ -158,7 +158,7 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                   color: colorScheme.onPrimaryContainer,
                   size: 16,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Puzzle',
@@ -197,7 +197,7 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                                 !_isCompleted)
                             ? _buildPuzzleBoardPreview(colorScheme)
                             : ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(12),
                                 child: Container(
                                   color: colorScheme.surface.withValues(alpha: 0.35),
                                   child: Image(
@@ -265,7 +265,7 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
     final gridSize = _previewGridSize;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         color: colorScheme.surface.withValues(alpha: 0.35),
         child: GridView.builder(

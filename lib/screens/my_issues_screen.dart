@@ -82,17 +82,17 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             children: [
               Text('My Issues', style: AppTypography.heading1(context)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 'Track the status of reports you sent to support.',
                 style: AppTypography.secondary(context),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               if (_loading)
                 const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
               else if (_error != null)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: dcs.errorContainer.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(12),
@@ -101,7 +101,7 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
                 )
               else if (_issues.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: dcs.surfaceContainerHighest.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(12),
@@ -116,10 +116,10 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
                   final status = _statusStyle(context, issue.status);
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: dcs.surfaceContainerHighest.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +137,7 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 color: status.$2,
                                 borderRadius: BorderRadius.circular(999),

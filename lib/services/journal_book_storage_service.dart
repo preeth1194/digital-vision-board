@@ -17,8 +17,6 @@ final class JournalBookStorageService {
   static const String goalLogsBookId = 'goal_logs';
   static const String recipeBookId = 'recipe_book';
 
-  static bool isLockedSystemBookId(String id) => id == recipeBookId;
-
   /// Load all books from storage. Returns empty list if none exist.
   static Future<List<JournalBook>> loadBooks({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
@@ -84,9 +82,8 @@ final class JournalBookStorageService {
     return book;
   }
 
-  /// Delete a book by ID. The Goal Logs book cannot be deleted.
+  /// Delete a book by ID.
   static Future<void> deleteBook(String id, {SharedPreferences? prefs}) async {
-    if (id == goalLogsBookId || id == recipeBookId) return;
     final p = prefs ?? await SharedPreferences.getInstance();
     final existing = await loadBooks(prefs: p);
     final next = existing.where((b) => b.id != id).toList();
@@ -108,8 +105,6 @@ final class JournalBookStorageService {
     final existing = await loadBooks(prefs: p);
     final idx = existing.indexWhere((b) => b.id == id);
     if (idx == -1) return null;
-    if (isLockedSystemBookId(id)) return existing[idx];
-
     final old = existing[idx];
     final updated = old.copyWith(
       name: name ?? old.name,
@@ -124,7 +119,7 @@ final class JournalBookStorageService {
     return updated;
   }
 
-  /// Ensure default books exist (Journal + Goal Logs).
+  /// Ensure default system books exist (Journal + Goal Logs + Recipe Book).
   /// Returns the list of books (with defaults created if needed).
   static Future<List<JournalBook>> ensureDefaultBook({
     SharedPreferences? prefs,

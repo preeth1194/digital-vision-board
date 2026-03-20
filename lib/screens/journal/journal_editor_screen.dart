@@ -652,7 +652,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('Tag (optional)', style: AppTypography.heading3(ctx)),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: q,
                       decoration: const InputDecoration(
@@ -662,7 +662,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                       ),
                       onChanged: applyFilter,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Flexible(
                       child: ListView.builder(
                         shrinkWrap: true,
@@ -1106,7 +1106,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                             border: Border(
@@ -1246,7 +1246,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                             _dismissFontSizeOverlay();
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [

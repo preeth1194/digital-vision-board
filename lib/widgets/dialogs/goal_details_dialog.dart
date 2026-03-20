@@ -253,7 +253,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 'Goal details (optional)',
                 style: AppTypography.heading2(context),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 widget.goalTitle,
                 style: AppTypography.secondary(context),
@@ -297,7 +297,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                   counterText: '',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: _visualization,
                 maxLength: 500,
@@ -311,7 +311,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 minLines: 2,
                 maxLines: 4,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: _limitingBelief,
                 maxLength: 500,
@@ -325,7 +325,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 minLines: 2,
                 maxLines: 4,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: _reframedTruth,
                 maxLength: 500,
@@ -339,7 +339,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 minLines: 2,
                 maxLines: 4,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -377,7 +377,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                   counterText: '',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
                 value: _frequency,
                 items: const [
@@ -405,12 +405,12 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
                 ),
               ),
               if (_frequency == 'Weekly') ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text('Weekly days', style: AppTypography.heading3(context)),
                 const SizedBox(height: 8),
                 _weeklyDaysPicker(),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

@@ -36,6 +36,7 @@ class PresetTemplateScreen extends StatelessWidget {
     final effectiveBottomInset = bottomInset;
     const actionButtonRadius = 14.0;
     const closeButtonRadius = 18.0;
+    const previewActionButtonHeight = 52.0;
     return Padding(
       padding: EdgeInsets.only(bottom: effectiveBottomInset),
       child: ClipPath(
@@ -47,7 +48,7 @@ class PresetTemplateScreen extends StatelessWidget {
             : null,
         child: _GlassSection(
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,13 +99,16 @@ class PresetTemplateScreen extends StatelessWidget {
                           ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: onClose,
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(
+                            previewActionButtonHeight,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               closeButtonRadius,
@@ -119,6 +123,9 @@ class PresetTemplateScreen extends StatelessWidget {
                       child: FilledButton(
                         onPressed: onCreate,
                         style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(
+                            previewActionButtonHeight,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               actionButtonRadius,
@@ -144,9 +151,9 @@ class PresetTemplateScreen extends StatelessWidget {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.35),
@@ -174,7 +181,7 @@ class PresetTemplateScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           if (section.steps.isEmpty)
             Text(
               'No steps',
@@ -200,9 +207,11 @@ class PresetTemplateScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      section.steps[i].displayTitle.isEmpty
-                          ? 'Step ${i + 1}'
-                          : section.steps[i].displayTitle,
+                      section.steps[i].title.trim().isEmpty
+                          ? (section.steps[i].displayTitle.isEmpty
+                                ? 'Step ${i + 1}'
+                                : section.steps[i].displayTitle)
+                          : section.steps[i].title.trim(),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/dv_auth_service.dart';
+import '../../services/google_sign_in_config.dart';
 import '../../services/subscription_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
@@ -149,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await initializeGoogleSignIn();
       final googleUser = await googleSignIn.authenticate();
       final auth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(idToken: auth.idToken);
@@ -621,7 +622,7 @@ class _SpeechBubbleContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
             color: scheme.surface,
             borderRadius: BorderRadius.circular(16),
@@ -887,7 +888,7 @@ class _ImageFeatureSlideView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppTypography.heading2(context),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -909,7 +910,7 @@ class _ImageFeatureSlideView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Expanded(
             flex: 5,
             child: _AnimatedImage(
@@ -952,7 +953,7 @@ class _CardControlsSlideView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppTypography.heading2(context),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -974,7 +975,7 @@ class _CardControlsSlideView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Expanded(
             flex: 5,
             child: _AnimatedImage(
@@ -1067,7 +1068,7 @@ class _AuthSlideView extends StatelessWidget {
               onPressed: loading ? null : onGoogle,
               icon: loading
                   ? const SizedBox(
-                      width: 18,
+                      width: 20,
                       height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
@@ -1093,7 +1094,7 @@ class _AuthSlideView extends StatelessWidget {
                     'Expires after 10 days',
                     style: AppTypography.caption(context).copyWith(
                       color: scheme.onSecondaryContainer.withAlpha(180),
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
                   ),
                 ],

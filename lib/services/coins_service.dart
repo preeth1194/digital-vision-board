@@ -15,6 +15,7 @@ class CoinsService {
   static const int mediaBonusCoins = 2;
   static const int puzzle4x4Coins = 2;
   static const int puzzle8x8Coins = 5;
+  static const int presetHabitCreationCoins = 20;
 
   /// Get the total coins accumulated by the user.
   static Future<int> getTotalCoins({SharedPreferences? prefs}) async {

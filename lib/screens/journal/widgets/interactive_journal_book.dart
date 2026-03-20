@@ -240,6 +240,11 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                         color: coverColor,
                         coverImagePath: widget.book.coverImagePath,
                         title: widget.book.name,
+                        isRecipeBook:
+                            widget.book.id ==
+                                JournalBookStorageService.recipeBookId ||
+                            widget.book.name.trim().toLowerCase() ==
+                                'recipe book',
                         entryCount: widget.entryCount,
                         isEditingTitle: _isEditingTitle,
                         titleController: _titleController,
@@ -268,6 +273,7 @@ class _BookCover extends StatelessWidget {
   final Color color;
   final String? coverImagePath;
   final String title;
+  final bool isRecipeBook;
   final int entryCount;
   final bool isEditingTitle;
   final TextEditingController titleController;
@@ -282,6 +288,7 @@ class _BookCover extends StatelessWidget {
     required this.color,
     this.coverImagePath,
     required this.title,
+    required this.isRecipeBook,
     required this.entryCount,
     required this.isEditingTitle,
     required this.titleController,
@@ -433,12 +440,12 @@ class _BookCover extends StatelessWidget {
                                     ),
                                   ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
                             'Written by you',
                             textAlign: TextAlign.center,
                             style: AppTypography.caption(context).copyWith(
-                              fontSize: 11,
+                              fontSize: 12,
                               color: Colors.white.withOpacity(0.6),
                               letterSpacing: 1.2,
                             ),
@@ -455,7 +462,7 @@ class _BookCover extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '$entryCount ${entryCount == 1 ? 'Page' : 'Pages'}',
+                                '$entryCount ${entryCount == 1 ? (isRecipeBook ? 'Recipe' : 'Page') : (isRecipeBook ? 'Recipes' : 'Pages')}',
                                 style: AppTypography.caption(context).copyWith(
                                   color: Colors.white.withOpacity(0.8),
                                   shadows: coverImagePath != null
@@ -624,7 +631,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
           children: [
             // Header with book name and entry count
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: widget.coverColor.withOpacity(isDark ? 0.25 : 0.12),
                 borderRadius: const BorderRadius.only(
@@ -642,7 +649,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,7 +666,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                           '${widget.entries.length} ${widget.entries.length == 1 ? 'entry' : 'entries'}',
                           style: AppTypography.caption(
                             context,
-                          ).copyWith(fontSize: 11),
+                          ).copyWith(fontSize: 12),
                         ),
                       ],
                     ),
@@ -678,6 +685,8 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
                         ),
                       ],
                       if (widget.bookId !=
+                              JournalBookStorageService.defaultBookId &&
+                          widget.bookId !=
                               JournalBookStorageService.goalLogsBookId &&
                           widget.bookId !=
                               JournalBookStorageService.recipeBookId) ...[
@@ -730,7 +739,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.note_add_outlined, size: 32, color: colorScheme.outline),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             'No entries yet',
             style: AppTypography.bodySmall(context).copyWith(
@@ -743,7 +752,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
             'Tap + below to add your first entry',
             style: AppTypography.caption(
               context,
-            ).copyWith(fontSize: 11, color: colorScheme.outline),
+            ).copyWith(fontSize: 12, color: colorScheme.outline),
           ),
         ],
       ),
@@ -755,7 +764,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
       animation: _staggerController,
       builder: (context, _) {
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           itemCount: widget.entries.length,
           itemBuilder: (context, index) {
             // Calculate stagger for this item
@@ -832,11 +841,11 @@ class _EntryRowState extends State<_EntryRow> {
     return GestureDetector(
       onTap: widget.onEdit,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
@@ -859,7 +868,7 @@ class _EntryRowState extends State<_EntryRow> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             // Entry info
             Expanded(
               child: Column(

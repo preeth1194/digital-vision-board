@@ -5,6 +5,7 @@ import '../../models/calorie_entry.dart';
 import '../../models/recipe.dart';
 import '../../services/calorie_storage_service.dart';
 import '../../services/recipe_storage_service.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import 'glass_card.dart';
 
@@ -140,9 +141,9 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final isOver = calories > goal;
     final isDone = calories >= goal && !isOver;
 
-    const accent = Color(0xFFFF7043);        // deep-orange-400
-    const accentDone = Color(0xFF43A047);    // green-600 (goal met)
-    const accentOver = Color(0xFFE53935);    // red-600 (over limit)
+    final accent = cs.tertiary;
+    final accentDone = cs.primary;
+    final accentOver = cs.error;
 
     final barColor = isOver ? accentOver : (isDone ? accentDone : accent);
 
@@ -160,13 +161,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                   size: 16,
                   color: barColor,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Calories',
                     style: AppTypography.heading3(context).copyWith(
                       color: cs.onSurface,
-                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -183,7 +183,6 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             '${_formatKcal(goal)} goal',
                             style: AppTypography.caption(context).copyWith(
                               color: cs.onSurfaceVariant,
-                              fontSize: 11,
                             ),
                           ),
                           const SizedBox(width: 2),
@@ -197,7 +196,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                       ),
                     ),
                     if (calories > 0) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _reset,
                         child: Icon(
@@ -212,7 +211,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               ],
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // ── Count display ────────────────────────────────────────────
             Center(
@@ -236,7 +235,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         child: Text(
                           '/ ${_formatKcal(goal)}',
                           style: AppTypography.caption(context).copyWith(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -256,7 +255,6 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           : isDone
                               ? accentDone
                               : cs.onSurfaceVariant.withValues(alpha: 0.8),
-                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -265,30 +263,30 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
             // ── Macro summary (when food items with macros are logged) ───
             if (entry != null && entry.hasMacroData) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _MacroSummaryRow(entry: entry),
             ],
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             // ── Progress bar ─────────────────────────────────────────────
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                minHeight: 5,
+                minHeight: 4,
                 backgroundColor: accent.withValues(alpha: 0.15),
                 valueColor: AlwaysStoppedAnimation<Color>(barColor),
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // ── Quick-add row ────────────────────────────────────────────
             Row(
               children: [
                 for (final amount in [100, 200, 500]) ...[
-                  if (amount != 100) const SizedBox(width: 6),
+                  if (amount != 100) const SizedBox(width: 8),
                   Expanded(
                     child: _QuickAddButton(
                       label: '+$amount',
@@ -299,7 +297,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     ),
                   ),
                 ],
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 // Food log entry button
                 _QuickAddButton(
                   label: '+ Food',
@@ -343,24 +341,24 @@ class _MacroSummaryRow extends StatelessWidget {
         _MacroChip(
           label: 'P',
           value: '${entry.totalProteinG.toStringAsFixed(0)}g',
-          color: const Color(0xFF42A5F5),
+          color: AppColors.lavenderDew,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         _MacroChip(
           label: 'C',
           value: '${entry.totalCarbsG.toStringAsFixed(0)}g',
-          color: const Color(0xFFFF7043),
+          color: AppColors.honeyText,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         _MacroChip(
           label: 'F',
           value: '${entry.totalFatG.toStringAsFixed(0)}g',
-          color: const Color(0xFFEF5350),
+          color: AppColors.completedOrange,
         ),
         const Spacer(),
         Text(
           '${entry.foodItems.length} item${entry.foodItems.length == 1 ? '' : 's'}',
-          style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
         ),
       ],
     );
@@ -381,7 +379,7 @@ class _MacroChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
@@ -393,16 +391,16 @@ class _MacroChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: color,
             ),
           ),
-          const SizedBox(width: 3),
+          const SizedBox(width: 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
             ),
@@ -655,12 +653,12 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                           onTap: () => _applyRecipe(recipe),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
+                                horizontal: 16, vertical: 12),
                             child: Row(
                               children: [
                                 Icon(Icons.menu_book_outlined,
                                     size: 16, color: cs.primary),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     recipe.title,
@@ -673,15 +671,15 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                                   Text(
                                     '${recipe.macros!.calories.toInt()} kcal',
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: cs.onSurfaceVariant,
                                     ),
                                   ),
                                 if (recipe.isCatalog)
                                   Container(
-                                    margin: const EdgeInsets.only(left: 6),
+                                    margin: const EdgeInsets.only(left: 8),
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 1),
+                                        horizontal: 8, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: cs.primaryContainer,
                                       borderRadius: BorderRadius.circular(4),
@@ -689,7 +687,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                                     child: Text(
                                       'Default',
                                       style: TextStyle(
-                                        fontSize: 9,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: cs.onPrimaryContainer,
                                       ),
@@ -737,7 +735,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 14),
+                            horizontal: 12, vertical: 16),
                       ),
                       items: const [
                         DropdownMenuItem(
@@ -814,7 +812,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
 
               // Macro input fields (expandable)
               if (_showMacros) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -865,9 +863,9 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Add to Log'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
@@ -905,16 +903,16 @@ class _MacroField extends StatelessWidget {
         suffixText: 'g',
         isDense: true,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: color.withValues(alpha: 0.4)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide:
               BorderSide(color: color.withValues(alpha: 0.35)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: color),
         ),
       ),
@@ -946,12 +944,12 @@ class _QuickAddButton extends StatelessWidget {
       duration: const Duration(milliseconds: 150),
       child: Material(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 9),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Center(
               child: Text(
                 label,

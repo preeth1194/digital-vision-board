@@ -7,6 +7,7 @@ import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import 'boards_storage_service.dart';
 import 'challenge_storage_service.dart';
+import 'coins_service.dart';
 import 'grid_tiles_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 
@@ -20,6 +21,18 @@ class HabitStorageService {
 
   static const String _key = 'dv_habits_v1';
   static const String _migratedKey = 'dv_habits_migrated_v1';
+
+  static int _earnedCoinsForHabit(HabitItem habit) {
+    final feedbackCoins = habit.feedbackByDate.values.fold<int>(0, (sum, feedback) {
+      final earned = feedback.coinsEarned ?? CoinsService.habitCompletionCoins;
+      return sum + (earned > 0 ? earned : 0);
+    });
+    final missingFeedbackCount = (habit.completedDates.length -
+            habit.feedbackByDate.length)
+        .clamp(0, 1 << 30);
+    final legacyCoins = missingFeedbackCount * CoinsService.habitCompletionCoins;
+    return feedbackCoins + legacyCoins;
+  }
 
   // ---------------------------------------------------------------------------
   // CRUD
@@ -83,27 +96,39 @@ class HabitStorageService {
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final all = await loadAll(prefs: p);
-    all.removeWhere((h) => h.id == id);
+    final challenges = await ChallengeStorageService.loadAll(prefs: p);
+    final impactedChallenges = challenges
+        .where((c) => c.habitIds.contains(id))
+        .toList();
+    final idsToDelete = <String>{id};
+    for (final challenge in impactedChallenges) {
+      idsToDelete.addAll(challenge.habitIds);
+    }
+
+    final deletedHabits = all.where((h) => idsToDelete.contains(h.id)).toList();
+    all.removeWhere((h) => idsToDelete.contains(h.id));
     await saveAll(all, prefs: p);
 
-    // If this habit belongs to a challenge, delete the challenge so the
-    // user can start fresh (e.g. 75 Hard reset).
-    final challenges = await ChallengeStorageService.loadAll(prefs: p);
-    for (final c in challenges) {
-      if (c.habitIds.contains(id)) {
-        // Delete all remaining habits from this challenge
-        for (final hId in c.habitIds) {
-          if (hId != id) {
-            final remaining = await loadAll(prefs: p);
-            remaining.removeWhere((h) => h.id == hId);
-            await saveAll(remaining, prefs: p);
-          }
-        }
-        await ChallengeStorageService.deleteChallenge(c.id, prefs: p);
-        final activeId = await ChallengeStorageService.loadActiveChallengeId(prefs: p);
-        if (activeId == c.id) {
-          await ChallengeStorageService.clearActiveChallengeId(prefs: p);
-        }
+    final coinsToDeduct = deletedHabits.fold<int>(
+      0,
+      (sum, habit) => sum + _earnedCoinsForHabit(habit),
+    );
+    if (coinsToDeduct > 0) {
+      await CoinsService.addCoins(-coinsToDeduct, prefs: p);
+    }
+
+    for (final challenge in impactedChallenges) {
+      await ChallengeStorageService.deleteChallenge(challenge.id, prefs: p);
+    }
+    if (impactedChallenges.isNotEmpty) {
+      final activeId = await ChallengeStorageService.loadActiveChallengeId(
+        prefs: p,
+      );
+      final impactedChallengeIds = impactedChallenges
+          .map((challenge) => challenge.id)
+          .toSet();
+      if (activeId != null && impactedChallengeIds.contains(activeId)) {
+        await ChallengeStorageService.clearActiveChallengeId(prefs: p);
       }
     }
   }

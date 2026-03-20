@@ -36,7 +36,8 @@ class _WorkoutPresetViewerScreenState
   void initState() {
     super.initState();
     _byDay = _groupByDay(widget.template.steps);
-    _dayOrder = _byDay.keys.toList();
+    _dayOrder = _byDay.keys.toList()
+      ..sort((a, b) => _daySortKey(a).compareTo(_daySortKey(b)));
     if (_dayOrder.isNotEmpty) _expanded.add(_dayOrder.first);
     _loadBests();
   }
@@ -56,6 +57,57 @@ class _WorkoutPresetViewerScreenState
       result.putIfAbsent(bucket, () => []).add(step);
     }
     return result;
+  }
+
+  int _daySortKey(String rawValue) {
+    final raw = rawValue.trim().toLowerCase();
+    final weekday = HabitActionStep.weekdayFromPlannerKey(raw);
+    final dayBase = weekday ?? 99;
+    final isAm = RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw);
+    final isPm = RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw);
+    final partOffset = isAm
+        ? 0
+        : (isPm ? 1 : 0);
+    return dayBase * 10 + partOffset;
+  }
+
+  String _formatDayLabel(String rawValue) {
+    final raw = rawValue.trim().toLowerCase();
+    final weekday = HabitActionStep.weekdayFromPlannerKey(raw);
+    if (weekday == null) return rawValue;
+    String day;
+    switch (weekday) {
+      case DateTime.monday:
+        day = 'Mon';
+        break;
+      case DateTime.tuesday:
+        day = 'Tue';
+        break;
+      case DateTime.wednesday:
+        day = 'Wed';
+        break;
+      case DateTime.thursday:
+        day = 'Thu';
+        break;
+      case DateTime.friday:
+        day = 'Fri';
+        break;
+      case DateTime.saturday:
+        day = 'Sat';
+        break;
+      case DateTime.sunday:
+        day = 'Sun';
+        break;
+      default:
+        day = '';
+    }
+    if (RegExp(r'(^|[_\s-])am($|[_\s-])').hasMatch(raw)) {
+      return '$day • Morning';
+    }
+    if (RegExp(r'(^|[_\s-])pm($|[_\s-])').hasMatch(raw)) {
+      return '$day • Evening';
+    }
+    return day;
   }
 
   String _meta(String key, {String fallback = '—'}) {
@@ -169,7 +221,7 @@ class _WorkoutPresetViewerScreenState
                     size: 16,
                     color: cs.primary,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     'PLAN PREVIEW',
                     style: textTheme.labelSmall?.copyWith(
@@ -178,7 +230,7 @@ class _WorkoutPresetViewerScreenState
                       letterSpacing: 1.1,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     '·  ${_dayOrder.length} workout${_dayOrder.length == 1 ? '' : 's'}  ·  '
                     '${widget.template.steps.length} exercises',
@@ -194,7 +246,7 @@ class _WorkoutPresetViewerScreenState
           // ── Workout day accordion ─────────────────────────────────────────
           SliverList.separated(
             itemCount: _dayOrder.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final day = _dayOrder[index];
               final exercises = _byDay[day]!;
@@ -233,7 +285,7 @@ class _WorkoutPresetViewerScreenState
                         borderRadius: BorderRadius.circular(16),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
+                            horizontal: 16,
                             vertical: 12,
                           ),
                           child: Row(
@@ -243,7 +295,7 @@ class _WorkoutPresetViewerScreenState
                                 height: 36,
                                 decoration: BoxDecoration(
                                   color: cs.primaryContainer,
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
@@ -254,13 +306,13 @@ class _WorkoutPresetViewerScreenState
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      day,
+                                      _formatDayLabel(day),
                                       style: textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -326,7 +378,7 @@ class _WorkoutPresetViewerScreenState
                       'Source: muscleandstrength.com',
                       style: textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -393,14 +445,14 @@ class _ProgramHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           if (equipment.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   for (final eq in equipment)
                     Padding(
-                      padding: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.only(right: 8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -425,12 +477,12 @@ class _ProgramHeader extends StatelessWidget {
             ),
           ],
           if (techniqueNote.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               techniqueNote,
               style: textTheme.bodySmall?.copyWith(
                 color: cs.onInverseSurface.withValues(alpha: 0.5),
-                fontSize: 10,
+                fontSize: 12,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -454,10 +506,10 @@ class _StatChip extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: cs.onInverseSurface.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +518,7 @@ class _StatChip extends StatelessWidget {
               label,
               style: textTheme.labelSmall?.copyWith(
                 color: cs.onInverseSurface.withValues(alpha: 0.5),
-                fontSize: 9,
+                fontSize: 12,
               ),
             ),
             Text(
@@ -507,7 +559,7 @@ class _ExerciseTable extends StatelessWidget {
       children: [
         // Table header
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
             border: Border(
@@ -615,7 +667,7 @@ class _ExerciseRow extends StatelessWidget {
       color: isEven
           ? Colors.transparent
           : cs.surfaceContainerHighest.withValues(alpha: 0.2),
-      padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -633,13 +685,13 @@ class _ExerciseRow extends StatelessWidget {
                       child: Text(
                         '${index + 1}',
                         style: textTheme.labelSmall?.copyWith(
-                          fontSize: 9,
+                          fontSize: 12,
                           color: cs.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         exercise.title,
@@ -658,7 +710,7 @@ class _ExerciseRow extends StatelessWidget {
                           .where((s) => s.isNotEmpty)
                           .join(' · '),
                       style: textTheme.bodySmall?.copyWith(
-                        fontSize: 10,
+                        fontSize: 12,
                         color: cs.onSurfaceVariant,
                       ),
                     ),
@@ -669,7 +721,7 @@ class _ExerciseRow extends StatelessWidget {
                     child: Text(
                       note,
                       style: textTheme.bodySmall?.copyWith(
-                        fontSize: 10,
+                        fontSize: 12,
                         color: cs.tertiary,
                         fontStyle: FontStyle.italic,
                       ),
@@ -690,7 +742,7 @@ class _ExerciseRow extends StatelessWidget {
                         Text(
                           'PR  ${best!.summary}',
                           style: textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: cs.tertiary,
                             fontWeight: FontWeight.w700,
                           ),
@@ -709,7 +761,7 @@ class _ExerciseRow extends StatelessWidget {
               exercise.stepLabel ?? '—',
               style: textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: 12,
                 color: cs.onSurface,
               ),
               textAlign: TextAlign.center,
@@ -722,7 +774,7 @@ class _ExerciseRow extends StatelessWidget {
             child: Text(
               rest,
               style: textTheme.bodySmall?.copyWith(
-                fontSize: 10,
+                fontSize: 12,
                 color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
@@ -977,7 +1029,7 @@ class _LogPRSheetState extends State<_LogPRSheet> {
                     autofocus: widget.currentBest == null,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 // Unit toggle
                 ToggleButtons(
                   isSelected: [_unit == 'kg', _unit == 'lb'],
@@ -986,11 +1038,11 @@ class _LogPRSheetState extends State<_LogPRSheet> {
                   borderRadius: BorderRadius.circular(12),
                   children: const [
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text('kg'),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text('lb'),
                     ),
                   ],
@@ -1022,16 +1074,16 @@ class _LogPRSheetState extends State<_LogPRSheet> {
                 onPressed: _saving ? null : _save,
                 icon: _saving
                     ? const SizedBox(
-                        width: 18,
+                        width: 20,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
                 label: const Text('Save Lift'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),

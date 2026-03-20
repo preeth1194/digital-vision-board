@@ -36,9 +36,7 @@ final class SyncService {
     bool deleted = false,
     SharedPreferences? prefs,
   }) async {
-    Future<void>(() async {
-      await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
-    });
+    await HabitProgressWidgetSnapshotService.refreshBestEffort(prefs: prefs);
   }
 
   /// No-op: server push has been removed.
@@ -65,17 +63,21 @@ final class SyncService {
         final nextTiles = tiles.map((t) => _pruneTile(t, cutoffIso)).toList();
         await GridTilesStorageService.saveTiles(b.id, nextTiles, prefs: p);
       } else {
-        final comps = await VisionBoardComponentsStorageService
-            .loadComponents(b.id, prefs: p);
+        final comps = await VisionBoardComponentsStorageService.loadComponents(
+          b.id,
+          prefs: p,
+        );
         final next = comps.map((c) => _pruneComponent(c, cutoffIso)).toList();
         await VisionBoardComponentsStorageService.saveComponents(
-            b.id, next, prefs: p);
+          b.id,
+          next,
+          prefs: p,
+        );
       }
     }
   }
 
-  static VisionComponent _pruneComponent(
-      VisionComponent c, String cutoffIso) {
+  static VisionComponent _pruneComponent(VisionComponent c, String cutoffIso) {
     final habits = c.habits.map((h) {
       final nextFb = <String, HabitCompletionFeedback>{};
       for (final e in h.feedbackByDate.entries) {

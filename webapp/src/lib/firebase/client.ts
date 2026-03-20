@@ -1,21 +1,46 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 
-const fromEnv = (key: string, fallback: string) => {
-  const value = process.env[key]
-  return value && value.trim().length > 0 ? value : fallback
+const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim()
+const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim()
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim()
+const messagingSenderId =
+  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim()
+const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim()
+const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID?.trim()
+
+const missingKeys = [
+  !apiKey && 'NEXT_PUBLIC_FIREBASE_API_KEY',
+  !authDomain && 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  !projectId && 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  !storageBucket && 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  !messagingSenderId && 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  !appId && 'NEXT_PUBLIC_FIREBASE_APP_ID',
+  !measurementId && 'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID',
+].filter(Boolean) as string[]
+
+if (missingKeys.length > 0) {
+  console.error('[firebase/client] Missing required env var(s):', missingKeys)
+  throw new Error(`Missing required env var(s): ${missingKeys.join(', ')}`)
 }
 
 const firebaseConfig = {
-  apiKey: fromEnv('NEXT_PUBLIC_FIREBASE_API_KEY', 'AIzaSyCCXvAbvOhPLjje6DfrO43-jiupGwh-Lao'),
-  authDomain: fromEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', 'seerohabitseeding.firebaseapp.com'),
-  projectId: fromEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID', 'seerohabitseeding'),
-  storageBucket: fromEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', 'seerohabitseeding.firebasestorage.app'),
-  messagingSenderId: fromEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', '250088132481'),
-  appId: fromEnv('NEXT_PUBLIC_FIREBASE_APP_ID', '1:250088132481:web:58453f7c98fa1ee54c2280'),
-  measurementId: fromEnv('NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID', 'G-3Q89HQYGQV'),
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId,
+  measurementId,
 }
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+console.info('[firebase/client] Initialized Firebase app', {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+  appIdSuffix: firebaseConfig.appId.slice(-8),
+})
 
 export const firebaseAuth = getAuth(app)
+export const googleProvider = new GoogleAuthProvider()

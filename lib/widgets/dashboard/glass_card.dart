@@ -1,6 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
+import '../../utils/app_spacing.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -13,7 +15,7 @@ class GlassCard extends StatelessWidget {
     super.key,
     required this.child,
     this.margin,
-    this.borderRadius = 12.0,
+    this.borderRadius = AppSpacing.radiusCard,
     this.clipBehavior = Clip.antiAlias,
     this.onTap,
   });
@@ -23,12 +25,12 @@ class GlassCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final fillColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
+        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+        : AppColors.cloudWhite.withValues(alpha: 0.55);
 
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.7);
+        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+        : AppColors.cloudWhite.withValues(alpha: 0.7);
 
     return Padding(
       padding: margin ?? EdgeInsets.zero,
@@ -47,7 +49,7 @@ class GlassCard extends StatelessWidget {
                   BoxShadow(
                     color: isDark
                         ? Colors.black.withValues(alpha: 0.25)
-                        : Colors.black.withValues(alpha: 0.06),
+                        : AppColors.forestDeep.withValues(alpha: 0.06),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),

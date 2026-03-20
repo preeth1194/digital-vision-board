@@ -18,6 +18,7 @@ class JournalHeroSection extends StatefulWidget {
 
   /// Entry counts per book (bookId -> count).
   final Map<String, int> entryCounts;
+  final int recipeCount;
 
   /// Entries grouped by book ID.
   final Map<String, List<JournalEntry>> entriesByBook;
@@ -54,6 +55,7 @@ class JournalHeroSection extends StatefulWidget {
     this.books = const [],
     this.selectedBookId,
     this.entryCounts = const {},
+    this.recipeCount = 0,
     this.entriesByBook = const {},
     this.onBookSelected,
     this.onBookTap,
@@ -140,13 +142,6 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                           AnimatedOpacity(
                             opacity: _isBookOpen ? 0.0 : 1.0,
                             duration: const Duration(milliseconds: 300),
-                            child: Text(
-                              'Here, your journal\ncomes to life',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.heading1(
-                                context,
-                              ).copyWith(height: 1.35),
-                            ),
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -165,6 +160,7 @@ class _JournalHeroSectionState extends State<JournalHeroSection>
                   books: widget.books,
                   selectedBookId: widget.selectedBookId,
                   entryCounts: widget.entryCounts,
+                  recipeCount: widget.recipeCount,
                   entriesByBook: widget.entriesByBook,
                   onBookSelected: widget.onBookSelected!,
                   onAddBook: widget.onAddBook!,

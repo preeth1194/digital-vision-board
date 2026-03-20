@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/image_service.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,7 @@ import '../services/dv_auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/auto_sync_service.dart';
 import '../services/logical_date_service.dart';
+import '../services/widget_action_refresh_notifier.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
 import 'wizard/create_board_wizard_screen.dart';
@@ -36,6 +38,7 @@ import 'puzzle_game_screen.dart';
 import '../services/puzzle_service.dart';
 import 'settings_menu_screen.dart';
 import 'earn_badges_screen.dart';
+import 'presets/preset_shop_screen.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
 import '../models/vision_components.dart';
@@ -62,6 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _tabIndex = 1;
   bool _loading = true;
   bool _showHabitsCalendarMode = false;
+  DateTime _habitsSelectedDate = LogicalDateService.now();
   SharedPreferences? _prefs;
   bool _checkedGuestExpiry = false;
   bool _checkedMandatoryLogin = false;
@@ -78,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
   VoidCallback? _syncAuthListener;
+  VoidCallback? _widgetActionRefreshListener;
   final ValueNotifier<int> _boardDataVersion = ValueNotifier<int>(0);
 
   // Coin state shared with the habits tab
@@ -103,6 +108,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     _init();
     _loadCoins();
     _startAutoRefreshReminders();
+    _widgetActionRefreshListener = _onWidgetActionRefresh;
+    WidgetActionRefreshNotifier.version.addListener(
+      _widgetActionRefreshListener!,
+    );
   }
 
   Future<void> _loadProfileAvatar() async {
@@ -145,6 +154,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_syncAuthListener != null) {
       SyncService.authExpired.removeListener(_syncAuthListener!);
     }
+    if (_widgetActionRefreshListener != null) {
+      WidgetActionRefreshNotifier.version.removeListener(
+        _widgetActionRefreshListener!,
+      );
+    }
     _boardDataVersion.dispose();
     _coinNotifier.dispose();
     _profileAvatarNotifier.dispose();
@@ -160,6 +174,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       _maybeShowAuthGatewayIfMandatoryAfterTenDays();
       unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
     }
+  }
+
+  void _onWidgetActionRefresh() {
+    if (!mounted) return;
+    _boardDataVersion.value++;
+    _loadCoins();
+    _refreshReminders();
   }
 
   void _startAutoRefreshReminders() {
@@ -328,41 +349,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       valueListenable: _coinNotifier,
       builder: (context, coins, _) {
         return GestureDetector(
-          onTap: _openEarnBadges,
+          onTap: _openPresetShop,
           behavior: HitTestBehavior.opaque,
           child: Row(
             key: _coinTargetKey,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppColors.goldLight, AppColors.goldDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(color: AppColors.amberBorder, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.goldDark.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.monetization_on_rounded,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Coin count
+              // Coin count first
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (child, animation) {
@@ -387,8 +380,43 @@ class _DashboardScreenState extends State<DashboardScreen>
                   '$coins',
                   key: ValueKey(coins),
                   style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: AppSpacing.coinAppBarSize,
+                height: AppSpacing.coinAppBarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.goldLight, AppColors.goldDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: isDark
+                        ? colorScheme.outline.withValues(alpha: 0.45)
+                        : colorScheme.surface.withValues(alpha: 0.95),
+                    width: 1.25,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.28)
+                          : AppColors.forestDeep.withValues(alpha: 0.14),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.monetization_on_rounded,
+                    size: AppSpacing.coinAppBarIcon,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -430,18 +458,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                     top: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
+                        horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         badgeCount > 99 ? '99+' : '$badgeCount',
                         style: AppTypography.caption(context).copyWith(
                           color: Theme.of(context).colorScheme.onError,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -530,7 +558,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ? null
                             : _timeLabel(it.minutesSinceMidnight!);
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
+                          margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
                             leading: leading,
                             title: Text(it.label),
@@ -639,6 +667,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openEarnBadges() async {
+    final allHabits = await _gatherAllHabits();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EarnBadgesScreen(
+          allHabits: allHabits,
+          totalCoins: _coinNotifier.value,
+          coinNotifier: _coinNotifier,
+        ),
+      ),
+    );
+  }
+
+  Future<List<HabitItem>> _gatherAllHabits() async {
     // Gather all habits from all boards (handles both freeform and grid layouts)
     final allHabits = <HabitItem>[];
     for (final board in _boards) {
@@ -674,13 +716,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         allHabits.addAll(comp.habits);
       }
     }
+    return allHabits;
+  }
+
+  Future<void> _openPresetShop() async {
+    final allHabits = await _gatherAllHabits();
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => EarnBadgesScreen(
-          allHabits: allHabits,
+        builder: (_) => PresetShopScreen(
           totalCoins: _coinNotifier.value,
           coinNotifier: _coinNotifier,
+          allHabits: allHabits,
         ),
       ),
     );
@@ -712,15 +759,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     if (!mounted) return;
-    final res = await Navigator.of(context).push<bool>(
+    final res = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
-        builder: (_) =>
-            ChallengeSetupScreen(template: ChallengeTemplates.seventyFiveHard),
+        builder: (_) => ChallengeSetupScreen(
+          template: ChallengeTemplates.seventyFiveHard,
+          requireStartCoins: true,
+          startCoinCost: CoinsService.presetHabitCreationCoins,
+        ),
       ),
     );
-    if (mounted && res == true) {
+    final started = res == true || (res is Map && res['started'] == true);
+    if (mounted && started) {
+      await _loadCoins();
       _boardDataVersion.value++;
       setState(() => _tabIndex = 7);
+      if (res is Map) {
+        final reusedCount = (res['reusedCount'] as int?) ?? 0;
+        final createdCount = (res['createdCount'] as int?) ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '75 Hard started. Reused $reusedCount habits, created $createdCount.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -792,6 +855,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _addHabitFromPanel({bool timerEnabled = false}) async {
     _hideCreatePanel();
+    if (_isPastHabitsCalendarSelection()) {
+      _showPastDateCreationBlockedMessage();
+      return;
+    }
 
     final habits = await HabitStorageService.loadAll(prefs: _prefs);
     if (!mounted) return;
@@ -873,6 +940,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     await HabitStorageService.addHabit(newHabit, prefs: _prefs);
     _boardDataVersion.value++;
+  }
+
+  bool _isPastHabitsCalendarSelection() {
+    if (_tabIndex != 7 || !_showHabitsCalendarMode) return false;
+    final selected = DateTime(
+      _habitsSelectedDate.year,
+      _habitsSelectedDate.month,
+      _habitsSelectedDate.day,
+    );
+    final now = LogicalDateService.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return selected.isBefore(today);
+  }
+
+  void _showPastDateCreationBlockedMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You can only create habits for today or future dates.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _onTemplatePicked(String layoutType) async {
@@ -1048,6 +1136,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       onHabitsCalendarModeChanged: (value) {
         setState(() => _showHabitsCalendarMode = value);
       },
+      onHabitsSelectedDateChanged: (date) {
+        setState(() {
+          _habitsSelectedDate = DateTime(date.year, date.month, date.day);
+        });
+      },
       onCreateBoard: _toggleCreatePanel,
       onOpenEditor: (b) => _openBoard(b, startInEditMode: true),
       onOpenViewer: (b) => _openBoard(b, startInEditMode: false),
@@ -1060,8 +1153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     final colorScheme = Theme.of(context).colorScheme;
     final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
-      // Hide app bar for journal and habits timeline mode.
-      appBar: (_tabIndex == 2 || (_tabIndex == 7 && _showHabitsCalendarMode))
+      // Hide app bar only for habits timeline calendar mode.
+      appBar: (_tabIndex == 7 && _showHabitsCalendarMode)
           ? null
           : AppBar(
               toolbarHeight: 72,
@@ -1072,32 +1165,39 @@ class _DashboardScreenState extends State<DashboardScreen>
               titleSpacing: 0,
               title: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _openAccount,
-                      behavior: HitTestBehavior.opaque,
-                      child: ValueListenableBuilder<
-                        ({String? picPath, String initial, String displayName})
-                      >(
-                        valueListenable: _profileAvatarNotifier,
-                        builder: (context, profile, _) => ProfileAvatar(
-                          initial: profile.initial,
-                          imagePath: profile.picPath,
-                          radius: 24,
+                child: SizedBox(
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: _openSettingsMenu,
+                          icon: const Icon(Icons.menu_rounded),
+                          tooltip: 'Settings and activity',
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Coin badge
-                    _buildCoinBadge(context),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: _openSettingsMenu,
-                      icon: const Icon(Icons.menu_rounded),
-                      tooltip: 'Settings and activity',
-                    ),
-                  ],
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 84),
+                          child: Text(
+                            'Habit Seeding',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.heading3(
+                              context,
+                            ).copyWith(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildCoinBadge(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1261,17 +1361,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     onTap: () =>
                                         _addHabitFromPanel(timerEnabled: true),
                                   ),
-                                  const SizedBox(height: 4),
-                                  _buildGlassMenuTile(
-                                    context: context,
-                                    icon: Icons.military_tech_rounded,
-                                    title: '75 Hard Challenge',
-                                    subtitle: '75-day mental toughness program',
-                                    onTap: () {
-                                      _hideCreatePanel();
-                                      _openChallengeSetup();
-                                    },
-                                  ),
                                 ],
                               ),
                             ),
@@ -1323,7 +1412,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 14,
+                  vertical: 16,
                 ),
                 child: Row(
                   children: [

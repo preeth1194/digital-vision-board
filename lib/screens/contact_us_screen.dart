@@ -108,7 +108,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Contact Us', style: AppTypography.heading1(context)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               'Have a question or suggestion? Send us a message and we will get back to you.',
               style: AppTypography.secondary(context),

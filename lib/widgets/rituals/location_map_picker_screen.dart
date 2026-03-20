@@ -238,7 +238,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                         )
                       : null,
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   filled: true,
                   fillColor: colorScheme.surface,
                   border: OutlineInputBorder(
@@ -284,7 +284,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   if (_isGeocoding)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
@@ -299,7 +299,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                           size: 20,
                           color: colorScheme.primary,
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _resolvedAddress!,
@@ -328,9 +328,9 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                       style: AppTypography.button(context).copyWith(fontWeight: FontWeight.w600),
                     ),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),

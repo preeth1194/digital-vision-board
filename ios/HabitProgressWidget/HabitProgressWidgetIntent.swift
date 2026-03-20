@@ -4,6 +4,8 @@ import WidgetKit
 private let appGroupId = "group.habitseeding"
 private let snapshotKey = "habit_progress_widget_snapshot_v1"
 private let actionQueueKey = "habit_progress_widget_action_queue_v1"
+private let widgetKind = "HabitProgressWidget"
+private let maxVisiblePending = 3
 
 @available(iOS 17.0, *)
 struct ToggleHabitIntent: AppIntent {
@@ -34,27 +36,31 @@ struct ToggleHabitIntent: AppIntent {
        let data = raw.data(using: .utf8),
        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
       var next = json
-      if var pending = next["pending"] as? [[String: Any]] {
-        let before = pending.count
-        pending.removeAll { it in
-          let h = (it["habitId"] as? String) ?? ""
-          return h == habitId
-        }
-        if pending.count != before {
-          next["pending"] = pending
-          let pendingTotal = max(0, (next["pendingTotal"] as? Int ?? pending.count) - 1)
-          next["pendingTotal"] = pendingTotal
-          let eligibleTotal = next["eligibleTotal"] as? Int ?? 0
-          next["allDone"] = (eligibleTotal > 0 && pendingTotal == 0)
-          if let nextData = try? JSONSerialization.data(withJSONObject: next),
-             let nextStr = String(data: nextData, encoding: .utf8) {
-            ud.set(nextStr, forKey: snapshotKey)
-          }
+      let sourcePending =
+        (next["pendingAll"] as? [[String: Any]]) ??
+        (next["pending"] as? [[String: Any]]) ??
+        []
+      let updatedPendingAll = sourcePending.filter { it in
+        let h = (it["habitId"] as? String) ?? ""
+        return h != habitId
+      }
+
+      if updatedPendingAll.count != sourcePending.count {
+        next["pendingAll"] = updatedPendingAll
+        next["pending"] = Array(updatedPendingAll.prefix(maxVisiblePending))
+        let pendingTotal = updatedPendingAll.count
+        next["pendingTotal"] = pendingTotal
+        let eligibleTotal = next["eligibleTotal"] as? Int ?? 0
+        next["allDone"] = (eligibleTotal > 0 && pendingTotal == 0)
+        next["generatedAtMs"] = Int(Date().timeIntervalSince1970 * 1000)
+        if let nextData = try? JSONSerialization.data(withJSONObject: next),
+           let nextStr = String(data: nextData, encoding: .utf8) {
+          ud.set(nextStr, forKey: snapshotKey)
         }
       }
     }
 
-    WidgetCenter.shared.reloadAllTimelines()
+    WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
     return .result()
   }
 }

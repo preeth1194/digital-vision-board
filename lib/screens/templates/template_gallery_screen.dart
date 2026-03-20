@@ -224,7 +224,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
                     ),
                   for (final t in _templates)
                     Card(
-                      margin: const EdgeInsets.only(top: 10),
+                      margin: const EdgeInsets.only(top: 12),
                       child: ListTile(
                         leading: (t.previewImageUrl ?? '').isEmpty
                             ? const Icon(Icons.auto_awesome_outlined)

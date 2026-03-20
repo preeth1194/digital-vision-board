@@ -228,7 +228,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                 transform: Matrix4.identity()
                   ..setEntry(0, 0, _isPressed ? 0.98 : 1.0)
                   ..setEntry(1, 1, _isPressed ? 0.98 : 1.0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.08)
@@ -266,7 +266,7 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                   child: Icon(icon, color: iconColor, size: 24),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               // Name + streak
               Expanded(
                 child: Column(

@@ -78,8 +78,13 @@ class NotificationsService {
       ok = ok && (granted ?? false);
     }
     if (android != null) {
+      // POST_NOTIFICATIONS permission (Android 13+)
       final granted = await android.requestNotificationsPermission();
       ok = ok && (granted ?? false);
+      // Exact alarm permission (Android 12+ / API 31+).
+      // Required for zonedSchedule with AndroidScheduleMode.exactAllowWhileIdle.
+      // Opens the system "Alarms & Reminders" settings page for the user to grant.
+      await android.requestExactAlarmsPermission();
     }
     return ok;
   }

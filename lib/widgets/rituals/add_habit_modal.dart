@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
@@ -124,37 +122,6 @@ class _CreateHabitPage extends StatefulWidget {
 
 class _CreateHabitPageState extends State<_CreateHabitPage>
     with TickerProviderStateMixin {
-  void _debugLog({
-    required String runId,
-    required String hypothesisId,
-    required String location,
-    required String message,
-    required Map<String, dynamic> data,
-  }) {
-    final payload = <String, dynamic>{
-      'sessionId': '7739ce',
-      'runId': runId,
-      'hypothesisId': hypothesisId,
-      'location': location,
-      'message': message,
-      'data': data,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    };
-    () async {
-      try {
-        final client = HttpClient();
-        final req = await client.postUrl(
-          Uri.parse('http://127.0.0.1:7242/ingest/374160e6-9662-46f2-a15d-93097c3f6383'),
-        );
-        req.headers.set('Content-Type', 'application/json');
-        req.headers.set('X-Debug-Session-Id', '7739ce');
-        req.add(utf8.encode(jsonEncode(payload)));
-        await req.close();
-        client.close(force: true);
-      } catch (_) {}
-    }();
-  }
-
   // --- FORM DATA STATE ---
 
   // Identity
@@ -287,27 +254,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         widget.initialActionSteps!.isNotEmpty) {
       _actionStepsEnabled = true;
       _actionSteps = List<HabitActionStep>.from(widget.initialActionSteps!);
-      // #region agent log
-      _debugLog(
-        runId: 'run1',
-        hypothesisId: 'H2',
-        location: 'add_habit_modal.dart:initState',
-        message: 'Initial action steps loaded into Add Habit modal',
-        data: {
-          'count': _actionSteps.length,
-          'firstStep': _actionSteps.isEmpty
-              ? null
-              : {
-                  'id': _actionSteps.first.id,
-                  'title': _actionSteps.first.title,
-                  'stepLabel': _actionSteps.first.stepLabel,
-                  'productName': _actionSteps.first.productName,
-                  'plannerDay': _actionSteps.first.plannerDay,
-                  'plannerWeek': _actionSteps.first.plannerWeek,
-                },
-        },
-      );
-      // #endregion
       _selectedTemplateId = widget.initialTemplateId;
       _selectedTemplateVersion = widget.initialTemplateVersion;
     }
@@ -733,19 +679,19 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             'Default',
                             style: TextStyle(
-                                fontSize: 12,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                             ),
                           ),
                         ),
@@ -1140,27 +1086,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
         .map((s) => s.copyWith(title: s.displayTitle))
         .where((s) => s.title.trim().isNotEmpty)
         .toList();
-    // #region agent log
-    _debugLog(
-      runId: 'run1',
-      hypothesisId: 'H3',
-      location: 'add_habit_modal.dart:_handleCommit',
-      message: 'Filtered action steps before submit',
-      data: {
-        'count': filteredSteps.length,
-        'firstStep': filteredSteps.isEmpty
-            ? null
-            : {
-                'id': filteredSteps.first.id,
-                'title': filteredSteps.first.title,
-                'stepLabel': filteredSteps.first.stepLabel,
-                'productName': filteredSteps.first.productName,
-                'plannerDay': filteredSteps.first.plannerDay,
-                'plannerWeek': filteredSteps.first.plannerWeek,
-              },
-      },
-    );
-    // #endregion
     for (int i = 0; i < filteredSteps.length; i++) {
       filteredSteps[i] = filteredSteps[i].copyWith(order: i);
     }
@@ -1701,7 +1626,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       'IF',
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
-                      fontSize: 12,
+                        fontSize: 12,
                         color: colorScheme.tertiary,
                         letterSpacing: 0.5,
                       ),
@@ -1782,7 +1707,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       'THEN',
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
-                      fontSize: 12,
+                        fontSize: 12,
                         color: colorScheme.primary,
                         letterSpacing: 0.5,
                       ),

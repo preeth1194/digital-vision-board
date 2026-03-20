@@ -117,6 +117,29 @@ android {
                 } else {
                     signingConfigs.getByName("debug")
                 }
+
+            // R8 full-mode: strips unused code and resources.
+            // Cuts ~30–50 MB from the installed app size on top of ABI splits.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
+    // ABI splits: ship one thin APK per CPU architecture instead of a fat APK
+    // that includes arm64-v8a + armeabi-v7a + x86 + x86_64 native libs.
+    // Use flutter build appbundle for Play Store (handles splits automatically).
+    // For direct APK distribution, each ABI gets its own APK file.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            // Only real-device ABIs — drop x86/x86_64 (emulator-only, not on Play Store)
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 }

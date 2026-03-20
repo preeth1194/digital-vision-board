@@ -39,7 +39,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 console.info('[firebase/client] Initialized Firebase app', {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
-  appIdSuffix: firebaseConfig.appId.slice(-8),
+  appIdSuffix: firebaseConfig.appId!.slice(-8),
 })
 
 export const firebaseAuth = getAuth(app)

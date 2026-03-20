@@ -28,16 +28,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
   String? _eveningRoutineSetInput;
   String? _weeklyPlanInput;
 
-  Future<void> _debugLog({
-    required String runId,
-    required String hypothesisId,
-    required String location,
-    required String message,
-    required Map<String, Object?> data,
-  }) async {
-    // Debug instrumentation removed.
-  }
-
   @override
   void initState() {
     super.initState();
@@ -45,18 +35,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
   }
 
   Future<void> _load() async {
-    // #region agent log
-    _debugLog(
-      runId: 'run9',
-      hypothesisId: 'H20',
-      location: 'skincare_planner_screen.dart:_load',
-      message: 'Loading skincare planner from storage',
-      data: {
-        'initialTemplateId': widget.initialTemplate?.id,
-        'initialTemplateName': widget.initialTemplate?.name,
-      },
-    );
-    // #endregion
     final stored = await SkincarePlannerStorageService.loadOrDefault();
     final activePlan = _activeWeeklyPlan(stored);
     final weeklySnapshot = <String, Map<String, Object?>>{};
@@ -68,22 +46,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         'eveningSourceId': dayPlan.eveningSourceId,
       };
     }
-    // #region agent log
-    _debugLog(
-      runId: 'run9',
-      hypothesisId: 'H20',
-      location: 'skincare_planner_screen.dart:_load',
-      message: 'Loaded skincare planner snapshot',
-      data: {
-        'title': stored.title,
-        'updatedAtMs': stored.updatedAtMs,
-        'selectedWeeklyPlanId': stored.selectedWeeklyPlanId,
-        'weeklyPlansCount': stored.weeklyPlans.length,
-        'productsCount': stored.productsToBuy.length,
-        'activeWeeklyPlanDaySources': weeklySnapshot,
-      },
-    );
-    // #endregion
     if (!mounted) return;
     setState(() {
       _planner = stored;
@@ -92,35 +54,11 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
   }
 
   Future<void> _save(SkincarePlanner planner) async {
-    // #region agent log
-    _debugLog(
-      runId: 'run9',
-      hypothesisId: 'H19',
-      location: 'skincare_planner_screen.dart:_save',
-      message: 'Saving skincare planner snapshot',
-      data: {
-        'title': planner.title,
-        'updatedAtMs': planner.updatedAtMs,
-        'selectedWeeklyPlanId': planner.selectedWeeklyPlanId,
-        'weeklyPlansCount': planner.weeklyPlans.length,
-        'productsCount': planner.productsToBuy.length,
-      },
-    );
-    // #endregion
     setState(() => _planner = planner);
     await SkincarePlannerStorageService.save(planner);
   }
 
   void _showError(String message) {
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H17',
-      location: 'skincare_planner_screen.dart:_showError',
-      message: 'User-facing error shown',
-      data: {'message': message},
-    );
-    // #endregion
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -133,29 +71,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final current = _planner;
     if (current == null) return;
     final next = updater(current);
-    // #region agent log
-    _debugLog(
-      runId: 'run10',
-      hypothesisId: 'H22',
-      location: 'skincare_planner_screen.dart:_updatePlanner',
-      message: 'Planner update computed',
-      data: {
-        'changed': current.toJson().toString() != next.toJson().toString(),
-        'titleBefore': current.title,
-        'titleAfter': next.title,
-        'morningEnabledBefore': current.morningRoutineEnabled,
-        'morningEnabledAfter': next.morningRoutineEnabled,
-        'eveningEnabledBefore': current.eveningRoutineEnabled,
-        'eveningEnabledAfter': next.eveningRoutineEnabled,
-        'selectedWeeklyPlanIdBefore': current.selectedWeeklyPlanId,
-        'selectedWeeklyPlanIdAfter': next.selectedWeeklyPlanId,
-        'weeklyPlansCountBefore': current.weeklyPlans.length,
-        'weeklyPlansCountAfter': next.weeklyPlans.length,
-        'monthlyTrackerCountBefore': current.monthlyTracker.length,
-        'monthlyTrackerCountAfter': next.monthlyTracker.length,
-      },
-    );
-    // #endregion
     await _save(next);
   }
 
@@ -167,32 +82,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     if (planner == null) return;
     final currentMorning = planner.morningRoutineEnabled;
     final currentEvening = planner.eveningRoutineEnabled;
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H16',
-      location: 'skincare_planner_screen.dart:_setRoutineEnabled',
-      message: 'Routine enable toggle requested',
-      data: {
-        'isMorning': isMorning,
-        'enabled': enabled,
-        'currentMorningEnabled': currentMorning,
-        'currentEveningEnabled': currentEvening,
-      },
-    );
-    // #endregion
     final nextMorning = isMorning ? enabled : currentMorning;
     final nextEvening = isMorning ? currentEvening : enabled;
     if (!nextMorning && !nextEvening) {
-      // #region agent log
-      _debugLog(
-        runId: 'post-fix',
-        hypothesisId: 'H16',
-        location: 'skincare_planner_screen.dart:_setRoutineEnabled',
-        message: 'Rejected disable-both attempt',
-        data: {'isMorning': isMorning},
-      );
-      // #endregion
       _showError('At least one routine must remain enabled.');
       return;
     }
@@ -260,19 +152,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         break;
       }
     }
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H12',
-      location: 'skincare_planner_screen.dart:_selectOrCreateWeeklyPlanByName',
-      message: 'Weekly plan textbox submitted',
-      data: {
-        'submittedName': name,
-        'matchedExisting': existing != null,
-        'weeklyPlanCountBefore': planner.weeklyPlans.length,
-      },
-    );
-    // #endregion
     if (existing != null) {
       await _updatePlanner(
         (current) => current.copyWith(selectedWeeklyPlanId: existing!.id),
@@ -280,20 +159,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
       return;
     }
     if (planner.weeklyPlans.length >= 2) {
-      // #region agent log
-      _debugLog(
-        runId: 'post-fix',
-        hypothesisId: 'H14',
-        location:
-            'skincare_planner_screen.dart:_selectOrCreateWeeklyPlanByName',
-        message: 'Weekly plan creation blocked by cap',
-        data: {
-          'submittedName': name,
-          'weeklyPlanCount': planner.weeklyPlans.length,
-          'maxAllowed': 2,
-        },
-      );
-      // #endregion
       _showError('Only one additional weekly plan is allowed.');
       return;
     }
@@ -314,15 +179,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     required String value,
     required String source,
   }) async {
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H12',
-      location: 'skincare_planner_screen.dart:_submitWeeklyPlanInput',
-      message: 'Weekly plan submit trigger',
-      data: {'source': source, 'value': value.trim()},
-    );
-    // #endregion
     await _selectOrCreateWeeklyPlanByName(value);
     if (mounted) FocusManager.instance.primaryFocus?.unfocus();
   }
@@ -333,15 +189,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final sets = isMorning
         ? planner.morningRoutineSets
         : planner.eveningRoutineSets;
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix',
-      hypothesisId: 'H4',
-      location: 'skincare_planner_screen.dart:_addRoutineSet',
-      message: 'Add routine set requested',
-      data: {'isMorning': isMorning, 'existingCount': sets.length},
-    );
-    // #endregion
     if (sets.length >= 2) {
       _showError(
         'Only one additional ${isMorning ? 'morning' : 'evening'} routine set is allowed.',
@@ -389,20 +236,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         break;
       }
     }
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix',
-      hypothesisId: 'H4',
-      location: 'skincare_planner_screen.dart:_selectOrCreateRoutineSetByName',
-      message: 'Routine set list input submitted',
-      data: {
-        'isMorning': isMorning,
-        'submittedName': name,
-        'matchedExisting': existing != null,
-        'setCountBefore': sets.length,
-      },
-    );
-    // #endregion
     if (existing != null) {
       await _updatePlanner(
         (current) => isMorning
@@ -412,21 +245,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
       return;
     }
     if (sets.length >= 2) {
-      // #region agent log
-      _debugLog(
-        runId: 'post-fix',
-        hypothesisId: 'H15',
-        location:
-            'skincare_planner_screen.dart:_selectOrCreateRoutineSetByName',
-        message: 'Routine set creation blocked by cap',
-        data: {
-          'isMorning': isMorning,
-          'submittedName': name,
-          'setCount': sets.length,
-          'maxAllowed': 2,
-        },
-      );
-      // #endregion
       _showError(
         'Only one additional ${isMorning ? 'morning' : 'evening'} routine set is allowed.',
       );
@@ -459,15 +277,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     required String value,
     required String source,
   }) async {
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H8',
-      location: 'skincare_planner_screen.dart:_submitRoutineSetInput',
-      message: 'Routine set submission triggered',
-      data: {'isMorning': isMorning, 'source': source, 'value': value.trim()},
-    );
-    // #endregion
     await _selectOrCreateRoutineSetByName(isMorning, value);
     if (mounted) FocusManager.instance.primaryFocus?.unfocus();
   }
@@ -510,19 +319,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final enabledHabitCount =
         (planner.morningRoutineEnabled ? 1 : 0) +
         (planner.eveningRoutineEnabled ? 1 : 0);
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H18',
-      location: 'skincare_planner_screen.dart:_confirmAndCreateHabits',
-      message: 'Create habits initiated with routine enable flags',
-      data: {
-        'morningEnabled': planner.morningRoutineEnabled,
-        'eveningEnabled': planner.eveningRoutineEnabled,
-        'enabledHabitCount': enabledHabitCount,
-      },
-    );
-    // #endregion
     if (enabledHabitCount == 0) {
       _showError('At least one routine must be enabled to create habits.');
       return;
@@ -552,26 +348,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     if (confirmed != true) return;
 
     final weeklyPlan = _weeklyPlanForCurrentTrackerWeek(planner);
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H19',
-      location: 'skincare_planner_screen.dart:_confirmAndCreateHabits',
-      message: 'Selected routine set row/task snapshot',
-      data: {
-        'selectedMorningSetId': planner.selectedMorningSetId,
-        'selectedEveningSetId': planner.selectedEveningSetId,
-        'selectedMorningRows': planner.selectedMorningSet.rows.length,
-        'selectedEveningRows': planner.selectedEveningSet.rows.length,
-        'selectedMorningNonEmptyTasks': planner.selectedMorningSet.rows
-            .where((r) => r.task.trim().isNotEmpty)
-            .length,
-        'selectedEveningNonEmptyTasks': planner.selectedEveningSet.rows
-            .where((r) => r.task.trim().isNotEmpty)
-            .length,
-      },
-    );
-    // #endregion
     final morning = planner.morningRoutineEnabled
         ? _buildHabitSteps(
             planner: planner,
@@ -586,52 +362,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
             forMorning: false,
           )
         : (steps: <HabitActionStep>[], weekdays: <int>[]);
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H18',
-      location: 'skincare_planner_screen.dart:_confirmAndCreateHabits',
-      message: 'Create habits computed step counts',
-      data: {
-        'morningEnabled': planner.morningRoutineEnabled,
-        'eveningEnabled': planner.eveningRoutineEnabled,
-        'morningSteps': morning.steps.length,
-        'eveningSteps': evening.steps.length,
-      },
-    );
-    // #endregion
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H28',
-      location: 'skincare_planner_screen.dart:_confirmAndCreateHabits',
-      message: 'Create habits computed step shape for parity',
-      data: {
-        'morningWeekdays': morning.weekdays,
-        'eveningWeekdays': evening.weekdays,
-        'morningSample': morning.steps
-            .take(3)
-            .map(
-              (s) => {
-                'title': s.title,
-                'plannerDay': s.plannerDay,
-                'notes': s.notes,
-              },
-            )
-            .toList(),
-        'eveningSample': evening.steps
-            .take(3)
-            .map(
-              (s) => {
-                'title': s.title,
-                'plannerDay': s.plannerDay,
-                'notes': s.notes,
-              },
-            )
-            .toList(),
-      },
-    );
-    // #endregion
     if (morning.steps.isEmpty && evening.steps.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -654,15 +384,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     if (createdNames.isNotEmpty) {
       await PresetHabitCreationService.applyChargeForSuccessfulCreate();
     }
-    // #region agent log
-    _debugLog(
-      runId: 'post-fix',
-      hypothesisId: 'H22',
-      location: 'skincare_planner_screen.dart:_confirmAndCreateHabits',
-      message: 'Created habit names summary',
-      data: {'createdCount': createdNames.length, 'createdNames': createdNames},
-    );
-    // #endregion
 
     if (!mounted) return;
     final createdLabel = createdNames.join(' and ');
@@ -679,15 +400,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     await _commitPendingDraftInputs();
     final planner = _planner;
     if (planner == null) return;
-    // #region agent log
-    _debugLog(
-      runId: 'run9',
-      hypothesisId: 'H19',
-      location: 'skincare_planner_screen.dart:_manualSaveWithToast',
-      message: 'Manual save tapped',
-      data: {'title': planner.title, 'updatedAtMs': planner.updatedAtMs},
-    );
-    // #endregion
     await SkincarePlannerStorageService.save(planner);
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -699,19 +411,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final weeklyDraft = (_weeklyPlanInput ?? '').trim();
     final morningDraft = (_morningRoutineSetInput ?? '').trim();
     final eveningDraft = (_eveningRoutineSetInput ?? '').trim();
-    // #region agent log
-    _debugLog(
-      runId: 'run10',
-      hypothesisId: 'H23',
-      location: 'skincare_planner_screen.dart:_commitPendingDraftInputs',
-      message: 'Applying pending draft inputs before explicit save',
-      data: {
-        'weeklyDraft': weeklyDraft,
-        'morningDraft': morningDraft,
-        'eveningDraft': eveningDraft,
-      },
-    );
-    // #endregion
     if (weeklyDraft.isNotEmpty) {
       await _submitWeeklyPlanInput(value: weeklyDraft, source: 'manual-save');
     }
@@ -1076,15 +775,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
   Future<void> _addProductToBuy() async {
     final planner = _planner;
     if (planner == null) return;
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-products-add',
-      hypothesisId: 'H23',
-      location: 'skincare_planner_screen.dart:_addProductToBuy',
-      message: 'Products add button tapped',
-      data: {'currentCount': planner.productsToBuy.length},
-    );
-    // #endregion
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -1109,15 +799,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     if (ok != true) return;
     final value = ctrl.text.trim();
     if (value.isEmpty) return;
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-products-add',
-      hypothesisId: 'H23',
-      location: 'skincare_planner_screen.dart:_addProductToBuy',
-      message: 'Products add dialog submitted',
-      data: {'enteredValue': value},
-    );
-    // #endregion
     await _updateProductsToBuy([...planner.productsToBuy, value]);
   }
 
@@ -1139,73 +820,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final resolvedScreenTitle = planner.title.trim().isEmpty
         ? 'Skincare Presets'
         : planner.title.trim();
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix',
-      hypothesisId: 'H30',
-      location: 'skincare_planner_screen.dart:build',
-      message: 'Preset title sources snapshot',
-      data: {
-        'appBarTitle': resolvedScreenTitle,
-        'plannerTitle': planner.title,
-        'initialTemplateId': widget.initialTemplate?.id,
-        'initialTemplateName': widget.initialTemplate?.name,
-      },
-    );
-    // #endregion
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix',
-      hypothesisId: 'H2',
-      location: 'skincare_planner_screen.dart:build.bottomBar',
-      message: 'Bottom bar surface and primary colors',
-      data: {
-        'bottomBarUsesScaffoldContext': true,
-        'primary': theme.colorScheme.primary.toString(),
-        'onPrimary': theme.colorScheme.onPrimary.toString(),
-        'surfaceContainer': theme.colorScheme.surfaceContainer.toString(),
-      },
-    );
-    // #endregion
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-weekly',
-      hypothesisId: 'H9',
-      location: 'skincare_planner_screen.dart:build.weeklyPlan',
-      message: 'Weekly plan snapshot before render',
-      data: {
-        'selectedWeeklyPlanId': planner.selectedWeeklyPlanId,
-        'activeWeeklyPlanName': activeWeeklyPlan.name,
-        'weeklyPlanCount': planner.weeklyPlans.length,
-      },
-    );
-    // #endregion
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-monthly',
-      hypothesisId: 'H21',
-      location: 'skincare_planner_screen.dart:build.monthlyTracker',
-      message: 'Monthly tracker UI snapshot before render',
-      data: {
-        'entryCount': planner.monthlyTracker.length,
-        'hasSkinConcernTextbox': false,
-        'hasPlanDropdown': true,
-      },
-    );
-    // #endregion
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-products-add',
-      hypothesisId: 'H24',
-      location: 'skincare_planner_screen.dart:build.products',
-      message: 'Products section snapshot',
-      data: {
-        'productsCount': planner.productsToBuy.length,
-        'usesIconButtonAdd': false,
-        'usesChipStyleAdd': true,
-      },
-    );
-    // #endregion
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -1239,7 +853,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.of(context).maybePop(),
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(_previewActionButtonHeight),
+                    minimumSize: const Size.fromHeight(
+                      _previewActionButtonHeight,
+                    ),
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -1250,7 +866,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 child: FilledButton.icon(
                   onPressed: _confirmAndCreateHabits,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(_previewActionButtonHeight),
+                    minimumSize: const Size.fromHeight(
+                      _previewActionButtonHeight,
+                    ),
                   ),
                   icon: const Icon(Icons.auto_awesome_outlined),
                   label: const Text('Create habits'),
@@ -1276,16 +894,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (value) {
-                      // #region agent log
-                      _debugLog(
-                        runId: 'run9',
-                        hypothesisId: 'H21',
-                        location:
-                            'skincare_planner_screen.dart:build.titleField',
-                        message: 'Title field changed',
-                        data: {'typedValue': value},
-                      );
-                      // #endregion
                       _updatePlanner(
                         (current) => current.copyWith(title: value.trim()),
                       );
@@ -1357,19 +965,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     displayStringForOption: (option) => option.name,
                     optionsBuilder: (value) {
                       final q = value.text.trim().toLowerCase();
-                      // #region agent log
-                      _debugLog(
-                        runId: 'post-fix',
-                        hypothesisId: 'H12',
-                        location:
-                            'skincare_planner_screen.dart:weekly.optionsBuilder',
-                        message: 'Weekly plan options built',
-                        data: {
-                          'query': q,
-                          'weeklyPlanCount': planner.weeklyPlans.length,
-                        },
-                      );
-                      // #endregion
                       if (q.isEmpty) return planner.weeklyPlans;
                       return planner.weeklyPlans.where(
                         (plan) => plan.name.toLowerCase().contains(q),
@@ -1645,22 +1240,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final activeInput = isMorning
         ? (_morningRoutineSetInput ?? selectedSet.name)
         : (_eveningRoutineSetInput ?? selectedSet.name);
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix',
-      hypothesisId: 'H3',
-      location: 'skincare_planner_screen.dart:_routineSection',
-      message: 'Routine section render snapshot',
-      data: {
-        'title': title,
-        'isMorning': isMorning,
-        'setCount': sets.length,
-        'selectedSetId': selectedSet.id,
-        'selectedSetName': selectedSet.name,
-        'enabled': routineEnabled,
-      },
-    );
-    // #endregion
     return _expandableSection(
       title: '$title Routine',
       trailing: Switch(
@@ -1691,21 +1270,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
               displayStringForOption: (option) => option.name,
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
-                // #region agent log
-                _debugLog(
-                  runId: 'pre-fix-focus',
-                  hypothesisId: 'H5',
-                  location:
-                      'skincare_planner_screen.dart:_routineSection.optionsBuilder',
-                  message: 'Autocomplete optionsBuilder invoked',
-                  data: {
-                    'title': title,
-                    'isMorning': isMorning,
-                    'query': q,
-                    'setCount': sets.length,
-                  },
-                );
-                // #endregion
                 if (q.isEmpty) return sets;
                 return sets.where((set) => set.name.toLowerCase().contains(q));
               },
@@ -1767,21 +1331,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                 );
               },
               onSelected: (option) {
-                // #region agent log
-                _debugLog(
-                  runId: 'pre-fix',
-                  hypothesisId: 'H4',
-                  location:
-                      'skincare_planner_screen.dart:_routineSection.autocompleteSelect',
-                  message: 'Routine set selected from listbox',
-                  data: {
-                    'title': title,
-                    'isMorning': isMorning,
-                    'selectedSetId': option.id,
-                    'selectedSetName': option.name,
-                  },
-                );
-                // #endregion
                 setState(() {
                   if (isMorning) {
                     _morningRoutineSetInput = option.name;
@@ -1795,115 +1344,57 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                       : current.copyWith(selectedEveningSetId: option.id),
                 );
               },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                // #region agent log
-                _debugLog(
-                  runId: 'pre-fix-focus',
-                  hypothesisId: 'H6',
-                  location:
-                      'skincare_planner_screen.dart:_routineSection.fieldViewBuilder',
-                  message: 'Autocomplete fieldViewBuilder built',
-                  data: {
-                    'title': title,
-                    'isMorning': isMorning,
-                    'text': controller.text,
-                    'hasFocus': focusNode.hasFocus,
-                  },
-                );
-                // #endregion
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  onChanged: (value) {
-                    // #region agent log
-                    _debugLog(
-                      runId: 'pre-fix-focus',
-                      hypothesisId: 'H6',
-                      location:
-                          'skincare_planner_screen.dart:_routineSection.onChanged',
-                      message: 'Routine set input changed',
-                      data: {
-                        'title': title,
-                        'isMorning': isMorning,
-                        'value': value,
+              fieldViewBuilder:
+                  (context, controller, focusNode, onFieldSubmitted) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      onChanged: (value) {
+                        setState(() {
+                          if (isMorning) {
+                            _morningRoutineSetInput = value;
+                          } else {
+                            _eveningRoutineSetInput = value;
+                          }
+                        });
                       },
-                    );
-                    // #endregion
-                    setState(() {
-                      if (isMorning) {
-                        _morningRoutineSetInput = value;
-                      } else {
-                        _eveningRoutineSetInput = value;
-                      }
-                    });
-                  },
-                  onFieldSubmitted: (value) async {
-                    await _submitRoutineSetInput(
-                      isMorning: isMorning,
-                      value: value,
-                      source: 'keyboard-enter',
-                    );
-                  },
-                  onTap: () {
-                    // #region agent log
-                    _debugLog(
-                      runId: 'pre-fix-focus',
-                      hypothesisId: 'H7',
-                      location:
-                          'skincare_planner_screen.dart:_routineSection.onTap',
-                      message: 'Routine set field tapped',
-                      data: {
-                        'title': title,
-                        'isMorning': isMorning,
-                        'text': controller.text,
+                      onFieldSubmitted: (value) async {
+                        await _submitRoutineSetInput(
+                          isMorning: isMorning,
+                          value: value,
+                          source: 'keyboard-enter',
+                        );
                       },
-                    );
-                    // #endregion
-                  },
-                  onTapOutside: (_) {
-                    // #region agent log
-                    _debugLog(
-                      runId: 'pre-fix-focus',
-                      hypothesisId: 'H7',
-                      location:
-                          'skincare_planner_screen.dart:_routineSection.onTapOutside',
-                      message: 'Routine set field tap outside',
-                      data: {
-                        'title': title,
-                        'isMorning': isMorning,
-                        'text': controller.text,
-                        'hadFocus': focusNode.hasFocus,
+                      onTap: () {},
+                      onTapOutside: (_) {
+                        FocusManager.instance.primaryFocus?.unfocus();
                       },
-                    );
-                    // #endregion
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                  textInputAction: TextInputAction.done,
-                  onEditingComplete: () async {
-                    await _submitRoutineSetInput(
-                      isMorning: isMorning,
-                      value: controller.text,
-                      source: 'editing-complete',
-                    );
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Routine set',
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    suffixIcon: IconButton(
-                      tooltip: 'Confirm routine set',
-                      onPressed: () async {
+                      textInputAction: TextInputAction.done,
+                      onEditingComplete: () async {
                         await _submitRoutineSetInput(
                           isMorning: isMorning,
                           value: controller.text,
-                          source: 'tick-icon',
+                          source: 'editing-complete',
                         );
                       },
-                      icon: const Icon(Icons.check_circle_outline),
-                    ),
-                  ),
-                );
-              },
+                      decoration: InputDecoration(
+                        labelText: 'Routine set',
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        suffixIcon: IconButton(
+                          tooltip: 'Confirm routine set',
+                          onPressed: () async {
+                            await _submitRoutineSetInput(
+                              isMorning: isMorning,
+                              value: controller.text,
+                              source: 'tick-icon',
+                            );
+                          },
+                          icon: const Icon(Icons.check_circle_outline),
+                        ),
+                      ),
+                    );
+                  },
             ),
           if (routineEnabled) const SizedBox(height: 12),
           if (routineEnabled)
@@ -2089,18 +1580,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
       return '${base[0].toUpperCase()}${base.substring(1)}';
     }
 
-    // #region agent log
-    _debugLog(
-      runId: 'pre-fix-day-order',
-      hypothesisId: 'H13',
-      location: 'skincare_planner_screen.dart:_weeklyPlanTable',
-      message: 'Weekly table day render order snapshot',
-      data: {
-        'dayKeys': displayWeekDays,
-        'dayLabels': displayWeekDays.map(shortDayLabel).toList(),
-      },
-    );
-    // #endregion
     final morningItemValues = morningSourceItems
         .map((e) => e.value)
         .whereType<String>()
@@ -2203,22 +1682,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                         ),
                         items: morningSourceItems,
                         onChanged: (value) async {
-                          // #region agent log
-                          _debugLog(
-                            runId: 'run12',
-                            hypothesisId: 'H26',
-                            location:
-                                'skincare_planner_screen.dart:_weeklyPlanTable.morning.onChanged',
-                            message: 'Morning day source dropdown changed',
-                            data: {
-                              'day': day,
-                              'selectedWeeklyPlanId':
-                                  _planner?.selectedWeeklyPlanId,
-                              'nextMorningSourceId': value,
-                              'isNoneSelection': (value ?? '').isEmpty,
-                            },
-                          );
-                          // #endregion
                           await _updatePlanner((current) {
                             final idx = current.weeklyPlans.indexWhere(
                               (p) => p.id == current.selectedWeeklyPlanId,
@@ -2258,22 +1721,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                         ),
                         items: eveningSourceItems,
                         onChanged: (value) async {
-                          // #region agent log
-                          _debugLog(
-                            runId: 'run12',
-                            hypothesisId: 'H27',
-                            location:
-                                'skincare_planner_screen.dart:_weeklyPlanTable.evening.onChanged',
-                            message: 'Evening day source dropdown changed',
-                            data: {
-                              'day': day,
-                              'selectedWeeklyPlanId':
-                                  _planner?.selectedWeeklyPlanId,
-                              'nextEveningSourceId': value,
-                              'isNoneSelection': (value ?? '').isEmpty,
-                            },
-                          );
-                          // #endregion
                           await _updatePlanner((current) {
                             final idx = current.weeklyPlans.indexWhere(
                               (p) => p.id == current.selectedWeeklyPlanId,

@@ -44,10 +44,13 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
     final isGuest = (userId ?? '').trim().isEmpty;
     final displayName = isGuest
         ? 'Guest session'
-        : (await DvAuthService.getDisplayName(prefs: widget.prefs)) ?? 'Signed in';
+        : (await DvAuthService.getDisplayName(prefs: widget.prefs)) ??
+              'Signed in';
     final picPath = await DvAuthService.getProfilePicPath(prefs: widget.prefs);
     final safeName = displayName.trim();
-    final initial = safeName.isEmpty ? '?' : safeName.substring(0, 1).toUpperCase();
+    final initial = safeName.isEmpty
+        ? '?'
+        : safeName.substring(0, 1).toUpperCase();
     return _MenuProfile(
       isGuest: isGuest,
       displayName: safeName.isEmpty ? 'Guest session' : safeName,
@@ -98,7 +101,8 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
       body: FutureBuilder<_MenuProfile>(
         future: _loadProfile(),
         builder: (context, snap) {
-          final profile = snap.data ??
+          final profile =
+              snap.data ??
               const _MenuProfile(
                 isGuest: true,
                 displayName: 'Guest session',
@@ -115,107 +119,114 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 AppSpacing.lg,
               ),
               children: [
-              const SizedBox(height: AppSpacing.md),
-              const _SectionHeader('Account'),
-              _ProfileListItem(
-                profile: profile,
-                busy: _busy,
-                onTap: _runAccountFlow,
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: SubscriptionService.isSubscribed,
-                builder: (context, subscribed, _) => _MenuRow(
-                  icon: subscribed ? Icons.workspace_premium_rounded : Icons.workspace_premium_outlined,
-                  label: subscribed ? 'Premium Active' : 'Go Premium',
-                  subtitle: subscribed ? 'Manage your subscription plan' : null,
-                  onTap: () => _open(const SubscriptionScreen()),
+                const SizedBox(height: AppSpacing.sm),
+                const _SectionHeader('Account'),
+                _ProfileListItem(
+                  profile: profile,
+                  busy: _busy,
+                  onTap: _runAccountFlow,
                 ),
-              ),
-              ValueListenableBuilder<SyncState>(
-                valueListenable: AutoSyncService.state,
-                builder: (context, syncState, _) {
-                  return FutureBuilder<bool>(
-                    future: GoogleDriveBackupService.isLinked(prefs: widget.prefs),
-                    builder: (context, linkedSnap) {
-                      final linked = linkedSnap.data ?? false;
-                      final subtitle = !linked
-                          ? 'Tap to link Google account'
-                          : switch (syncState) {
-                              SyncState.syncing => 'Syncing now',
-                              SyncState.error => 'Sync failed, tap to retry',
-                              _ => AutoSyncService.lastSyncText,
-                            };
-                      final icon = !linked
-                          ? Icons.cloud_off_outlined
-                          : switch (syncState) {
-                              SyncState.syncing => Icons.cloud_sync_outlined,
-                              SyncState.error => Icons.cloud_off_outlined,
-                              _ => Icons.cloud_done_outlined,
-                            };
-                      return _MenuRow(
-                        icon: icon,
-                        label: linked ? 'Backup and sync' : 'Backup not set up',
-                        subtitle: subtitle,
-                        onTap: () => _open(const BackupRestoreScreen()),
-                      );
-                    },
-                  );
-                },
-              ),
-              if (!profile.isGuest)
+                ValueListenableBuilder<bool>(
+                  valueListenable: SubscriptionService.isSubscribed,
+                  builder: (context, subscribed, _) => _MenuRow(
+                    icon: subscribed
+                        ? Icons.workspace_premium_rounded
+                        : Icons.workspace_premium_outlined,
+                    label: subscribed ? 'Premium Active' : 'Go Premium',
+                    subtitle: subscribed
+                        ? 'Manage your subscription plan'
+                        : null,
+                    onTap: () => _open(const SubscriptionScreen()),
+                  ),
+                ),
+                ValueListenableBuilder<SyncState>(
+                  valueListenable: AutoSyncService.state,
+                  builder: (context, syncState, _) {
+                    return FutureBuilder<bool>(
+                      future: GoogleDriveBackupService.isLinked(
+                        prefs: widget.prefs,
+                      ),
+                      builder: (context, linkedSnap) {
+                        final linked = linkedSnap.data ?? false;
+                        final subtitle = !linked
+                            ? 'Tap to link Google account'
+                            : switch (syncState) {
+                                SyncState.syncing => 'Syncing now',
+                                SyncState.error => 'Sync failed, tap to retry',
+                                _ => AutoSyncService.lastSyncText,
+                              };
+                        final icon = !linked
+                            ? Icons.cloud_off_outlined
+                            : switch (syncState) {
+                                SyncState.syncing => Icons.cloud_sync_outlined,
+                                SyncState.error => Icons.cloud_off_outlined,
+                                _ => Icons.cloud_done_outlined,
+                              };
+                        return _MenuRow(
+                          icon: icon,
+                          label: linked
+                              ? 'Backup and sync'
+                              : 'Backup not set up',
+                          subtitle: subtitle,
+                          onTap: () => _open(const BackupRestoreScreen()),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const _SectionHeader('Tools'),
                 _MenuRow(
-                  icon: Icons.logout,
-                  label: 'Sign out',
-                  onTap: _runSignOut,
+                  icon: Icons.storefront_outlined,
+                  label: 'Preset Shop',
+                  onTap: () => _open(const PresetShopScreen()),
                 ),
-              
-              const SizedBox(height: AppSpacing.md),
-              const _SectionHeader('Tools'),
-              _MenuRow(
-                icon: Icons.storefront_outlined,
-                label: 'Preset Shop',
-                onTap: () => _open(const PresetShopScreen()),
-              ),
-              _MenuRow(
-                icon: Icons.widgets_outlined,
-                label: 'Widget Guide',
-                onTap: () => _open(const WidgetGuideScreen()),
-              ),
-              _MenuRow(
-                icon: Icons.info_outline,
-                label: 'App Tour',
-                onTap: () => _open(const OnboardingScreen(replayMode: true)),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const _SectionHeader('Help'),
-              _MenuRow(
-                icon: Icons.bug_report_outlined,
-                label: 'Report Issue',
-                onTap: () => _open(const ReportIssueScreen()),
-              ),
-              _MenuRow(
-                icon: Icons.mail_outline,
-                label: 'Contact Us',
-                onTap: () => _open(const ContactUsScreen()),
-              ),
-              _MenuRow(
-                icon: Icons.assignment_outlined,
-                label: 'My Issues',
-                onTap: () => _open(const MyIssuesScreen()),
-              ),
-              _MenuRow(
-                icon: Icons.help_outline,
-                label: 'FAQ',
-                onTap: () => _open(const FaqScreen()),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const _SectionHeader('Legal'),
-              _MenuRow(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Privacy Policy',
-                onTap: () => _open(const PrivacyPolicyScreen()),
-              ),
-            ],
+                _MenuRow(
+                  icon: Icons.widgets_outlined,
+                  label: 'Widget Guide',
+                  onTap: () => _open(const WidgetGuideScreen()),
+                ),
+                _MenuRow(
+                  icon: Icons.info_outline,
+                  label: 'App Tour',
+                  onTap: () => _open(const OnboardingScreen(replayMode: true)),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const _SectionHeader('Help'),
+                _MenuRow(
+                  icon: Icons.bug_report_outlined,
+                  label: 'Report Issue',
+                  onTap: () => _open(const ReportIssueScreen()),
+                ),
+                _MenuRow(
+                  icon: Icons.mail_outline,
+                  label: 'Contact Us',
+                  onTap: () => _open(const ContactUsScreen()),
+                ),
+                _MenuRow(
+                  icon: Icons.assignment_outlined,
+                  label: 'My Issues',
+                  onTap: () => _open(const MyIssuesScreen()),
+                ),
+                _MenuRow(
+                  icon: Icons.help_outline,
+                  label: 'FAQ',
+                  onTap: () => _open(const FaqScreen()),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const _SectionHeader('Legal'),
+                _MenuRow(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy Policy',
+                  onTap: () => _open(const PrivacyPolicyScreen()),
+                ),
+                if (!profile.isGuest)
+                  _MenuRow(
+                    icon: Icons.logout,
+                    label: 'Sign out',
+                    onTap: _runSignOut,
+                  ),
+              ],
             ),
           );
         },
@@ -250,7 +261,11 @@ class _ProfileHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ProfileAvatar(initial: profile.initial, imagePath: profile.picPath, radius: 24),
+            ProfileAvatar(
+              initial: profile.initial,
+              imagePath: profile.picPath,
+              radius: 24,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -258,14 +273,19 @@ class _ProfileHeader extends StatelessWidget {
                 children: [
                   Text(
                     profile.displayName,
-                    style: AppTypography.body(context).copyWith(fontWeight: FontWeight.w700, color: dcs.onSurface),
+                    style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: dcs.onSurface,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     profile.isGuest ? 'Sign In / Sign Up' : 'View Profile',
-                    style: AppTypography.caption(context).copyWith(color: dcs.primary, fontWeight: FontWeight.w600),
+                    style: AppTypography.caption(
+                      context,
+                    ).copyWith(color: dcs.primary, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -292,30 +312,36 @@ class _ProfileListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      minVerticalPadding: 4,
-      visualDensity: VisualDensity.standard,
-      leading: ProfileAvatar(
-        initial: profile.initial,
-        imagePath: profile.picPath,
-        radius: 20,
-      ),
-      title: Text(
-        profile.displayName,
-        style: AppTypography.bodySmall(context).copyWith(
-          color: dcs.onSurface,
-          fontWeight: FontWeight.w600,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+        minVerticalPadding: 0,
+        visualDensity: VisualDensity.compact,
+        leading: ProfileAvatar(
+          initial: profile.initial,
+          imagePath: profile.picPath,
+          radius: 20,
         ),
-      ),
-      subtitle: Text(
-        profile.isGuest ? 'Sign In / Sign Up' : 'View Profile',
-        style: AppTypography.caption(context).copyWith(
+        title: Text(
+          profile.displayName,
+          style: AppTypography.bodySmall(
+            context,
+          ).copyWith(color: dcs.onSurface, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          profile.isGuest ? 'Sign In / Sign Up' : 'View Profile',
+          style: AppTypography.caption(
+            context,
+          ).copyWith(color: dcs.onSurfaceVariant),
+        ),
+        trailing: Icon(
+          Icons.chevron_right,
+          size: 22,
           color: dcs.onSurfaceVariant,
         ),
+        onTap: busy ? null : onTap,
       ),
-      trailing: Icon(Icons.chevron_right, size: 22, color: dcs.onSurfaceVariant),
-      onTap: busy ? null : onTap,
     );
   }
 }
@@ -329,10 +355,12 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 0, 2, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, AppSpacing.xs),
       child: Text(
         label,
-        style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant, fontWeight: FontWeight.w600),
+        style: AppTypography.caption(
+          context,
+        ).copyWith(color: dcs.onSurfaceVariant, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -354,26 +382,41 @@ class _MenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dcs = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      minVerticalPadding: 4,
-      visualDensity: VisualDensity.standard,
-      leading: Icon(icon, size: 24, color: dcs.onSurfaceVariant),
-      title: Text(
-        label,
-        style: AppTypography.bodySmall(context).copyWith(
-          color: dcs.onSurface,
-          fontWeight: FontWeight.w500,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+        minVerticalPadding: 0,
+        minLeadingWidth: 40,
+        horizontalTitleGap: 16,
+        visualDensity: VisualDensity.compact,
+        leading: SizedBox(
+          width: 40,
+          child: Center(
+            child: Icon(icon, size: 24, color: dcs.onSurfaceVariant),
+          ),
         ),
+        title: Text(
+          label,
+          style: AppTypography.bodySmall(
+            context,
+          ).copyWith(color: dcs.onSurface, fontWeight: FontWeight.w500),
+        ),
+        subtitle: subtitle == null
+            ? null
+            : Text(
+                subtitle!,
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: dcs.onSurfaceVariant),
+              ),
+        trailing: Icon(
+          Icons.chevron_right,
+          size: 22,
+          color: dcs.onSurfaceVariant,
+        ),
+        onTap: onTap,
       ),
-      subtitle: subtitle == null
-          ? null
-          : Text(
-              subtitle!,
-              style: AppTypography.caption(context).copyWith(color: dcs.onSurfaceVariant),
-            ),
-      trailing: Icon(Icons.chevron_right, size: 22, color: dcs.onSurfaceVariant),
-      onTap: onTap,
     );
   }
 }

@@ -57,6 +57,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       final idToken = await userCred.user?.getIdToken();
       if ((idToken ?? '').trim().isEmpty) throw Exception('Could not get Firebase idToken.');
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
+      await DvAuthService.syncLocalProfileToServer();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on GoogleSignInException catch (e) {
@@ -79,6 +80,7 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     });
     try {
       await DvAuthService.continueAsGuest();
+      await DvAuthService.syncLocalProfileToServer();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {

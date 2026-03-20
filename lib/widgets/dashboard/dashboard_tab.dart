@@ -9,12 +9,9 @@ import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
 import 'mood_tracker_card.dart';
 import 'reward_ads_coin_card.dart';
-import 'vision_board_summary_card.dart';
 import 'water_intake_card.dart';
 
 class DashboardTab extends StatelessWidget {
-  static const bool _showManifestCard = false;
-
   final List<VisionBoardInfo> boards;
   final String? activeBoardId;
   final List<Routine> routines;
@@ -94,32 +91,12 @@ class DashboardTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Row 3: Puzzle (Manifest card temporarily hidden)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              height: 280,
-              child: _showManifestCard
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: VisionBoardSummaryCard(
-                            onCreateBoard: onCreateBoard,
-                            onOpenEditor: onOpenEditor,
-                            onOpenViewer: onOpenViewer,
-                            onDeleteBoard: onDeleteBoard,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(child: PuzzleSummaryCard()),
-                      ],
-                    )
-                  : const PuzzleSummaryCard(),
-            ),
+          // Row 3: Puzzle (height follows puzzle / image content)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: PuzzleSummaryCard(),
           ),
           const SizedBox(height: 12),
-          // Affirmation (full width)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: AffirmationSummaryCard(),

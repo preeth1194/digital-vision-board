@@ -1,0 +1,109 @@
+---
+description: Use when creating or extending a Flutter service in lib/services/
+globs: ["lib/services/**/*.dart"]
+alwaysApply: false
+---
+
+# Flutter Service Rules
+
+## File Location & Naming
+
+All services → `lib/services/` — use snake_case ending in `_service.dart`.
+
+## Patterns
+
+### Static-method service (most common)
+
+```dart
+class MyFeatureService {
+  MyFeatureService._(); // prevent instantiation
+
+  static const String _kDataKey = 'my_feature_data_v1'; // versioned key
+
+  static Future<List<MyModel>> loadAll({required SharedPreferences prefs}) async {
+    final raw = prefs.getString(_kDataKey);
+    if (raw == null) return [];
+    // parse and return
+  }
+
+  static Future<void> save(MyModel item, {required SharedPreferences prefs}) async {
+    // serialise and store
+    await prefs.setString(_kDataKey, /* encoded */);
+  }
+}
+```
+
+### Singleton service (for long-running/stateful services)
+
+```dart
+class MyFeatureService {
+  MyFeatureService._internal();
+  static final MyFeatureService instance = MyFeatureService._internal();
+
+  Future<void> start() async { ... }
+  Future<void> stop() async { ... }
+}
+```
+
+## SharedPreferences Key Naming
+
+Always version keys to allow future migrations:
+```dart
+static const String _kMyKey = 'feature_name_v1';
+```
+
+Never reuse old key names after a format change — bump the version suffix.
+
+## Error Handling
+
+```dart
+// Return null / empty for "not found" — don't throw
+static Future<MyModel?> find(String id, {required SharedPreferences prefs}) async {
+  // ...
+  return null; // not found
+}
+
+// Wrap Firebase / network calls
+try {
+  await Firebase.doSomething();
+} catch (_) {
+  // Firebase is non-fatal — app continues
+}
+```
+
+## Existing Services — Do Not Duplicate
+
+| Capability | Use |
+|---|---|
+| Auth / user ID | `DvAuthService` |
+| Date "today" | `LogicalDateService` |
+| Settings / theme | `AppSettingsService` |
+| Notifications | `NotificationsService` |
+| Ads | `AdService` |
+| Subscriptions | `SubscriptionService` |
+| Affirmations | `AffirmationService` |
+| Wizard defaults | `WizardDefaultsService` |
+| Background sync | `AutoSyncService` |
+| Drive backup | `BackupService` |
+
+## Backend API Calls
+
+```dart
+// Use the configured base URL — never hardcode
+final baseUrl = AppSettingsService.backendUrl; // or from config
+final response = await http.get(Uri.parse('$baseUrl/api/endpoint'),
+  headers: {'Authorization': 'Bearer $token'},
+);
+if (response.statusCode != 200) {
+  // handle gracefully
+}
+final data = MyModel.fromJson(jsonDecode(response.body));
+```
+
+## Doc Comments
+
+All public methods require a doc comment:
+```dart
+/// Loads all habits from local storage. Returns empty list if none saved.
+static Future<List<HabitItem>> loadAll({required SharedPreferences prefs}) async { ... }
+```

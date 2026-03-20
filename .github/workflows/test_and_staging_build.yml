@@ -99,6 +99,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Firebase config (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ android/app/google-services.json written"
+          else
+            echo "⚠️ GOOGLE_SERVICES_JSON secret not set — Google Sign-In will be disabled in this build"
+          fi
+
       - name: Build Android APK (debug/staging)
         run: flutter build apk --debug --no-tree-shake-icons
 
@@ -143,6 +155,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Firebase config (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Install CocoaPods
         run: |
           cd ios
@@ -183,7 +207,7 @@ jobs:
           P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
         run: |
           if [ -n "${P12_BASE64:-}" ]; then
-            flutter build ipa --release --no-tree-shake-icons
+            flutter build ipa --release --no-tree-shake-icons --obfuscate --split-debug-info=build/ios/symbols
           else
             echo "⚠️ No signing secrets configured, building unsigned"
             flutter build ios --debug --no-codesign --no-tree-shake-icons

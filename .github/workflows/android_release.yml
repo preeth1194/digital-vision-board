@@ -74,6 +74,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      - name: Inject Firebase config files (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ android/app/google-services.json written"
+          else
+            echo "⚠️ GOOGLE_SERVICES_JSON secret not set — Google Sign-In will be disabled in this build"
+          fi
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Configure Android signing (optional)
         # Using env variables fixes the "Unrecognized named-value" error
         env:
@@ -124,10 +143,10 @@ jobs:
           fi
 
       - name: Build AAB (release)
-        run: flutter build appbundle --release --no-tree-shake-icons
+        run: flutter build appbundle --release --no-tree-shake-icons --obfuscate --split-debug-info=build/app/outputs/symbols
 
       - name: Build APK (release)
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --obfuscate --split-debug-info=build/app/outputs/symbols
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
@@ -142,6 +161,14 @@ jobs:
           name: app-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      - name: Upload debug symbols (for crash deobfuscation)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-symbols
+          path: build/app/outputs/symbols/
+          if-no-files-found: warn
+          retention-days: 90
 
       # Optional: Deploy AAB to Google Play (internal track)
       - name: Deploy to Google Play (internal) (optional)
@@ -188,6 +215,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Firebase config (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Install CocoaPods
         run: |
           cd ios
@@ -229,12 +268,12 @@ jobs:
           echo "✅ Certificate and provisioning profile installed"
 
       - name: Build IPA (release)
-        run: flutter build ipa --release --no-tree-shake-icons --export-options-plist=ios/ExportOptions.plist
+        run: flutter build ipa --release --no-tree-shake-icons --obfuscate --split-debug-info=build/ios/symbols --export-options-plist=ios/ExportOptions.plist
         continue-on-error: true
 
       - name: Build IPA without ExportOptions (fallback)
         if: failure()
-        run: flutter build ipa --release --no-tree-shake-icons
+        run: flutter build ipa --release --no-tree-shake-icons --obfuscate --split-debug-info=build/ios/symbols
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

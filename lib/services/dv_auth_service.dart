@@ -409,6 +409,30 @@ final class DvAuthService {
     return FirebaseExchangeResult(dvToken: dvTokenValue, userId: userIdValue);
   }
 
+  /// Pushes locally stored profile fields to the server after a [dvToken] exists.
+  ///
+  /// Reads [SharedPreferences] via existing getters; best-effort (same as [putUserSettings]).
+  static Future<void> syncLocalProfileToServer({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    if (await getDvToken(prefs: p) == null) return;
+
+    final activityRaw = (p.getString(_activityLevelKey) ?? '').trim();
+    final allergiesList = await getAllergies(prefs: p);
+
+    await putUserSettings(
+      homeTimezone: await getHomeTimezone(prefs: p),
+      gender: await getGender(prefs: p),
+      displayName: await getDisplayName(prefs: p),
+      weightKg: await getWeightKg(prefs: p),
+      heightCm: await getHeightCm(prefs: p),
+      dateOfBirth: await getDateOfBirth(prefs: p),
+      activityLevel: activityRaw.isNotEmpty ? activityRaw : null,
+      dietPreference: await getDietPreference(prefs: p),
+      allergies: allergiesList.isNotEmpty ? allergiesList : null,
+      prefs: p,
+    );
+  }
+
   /// Best-effort server update (requires dvToken and a DB-backed backend).
   static Future<void> putUserSettings({
     String? homeTimezone,

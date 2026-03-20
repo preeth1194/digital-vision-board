@@ -943,8 +943,50 @@ app.put("/user/settings", requireDvAuth(), async (req, res) => {
   const subscriptionPlanId = typeof req.body?.subscription_plan_id === "string" ? req.body.subscription_plan_id.trim() || null : null;
   const subscriptionActive = req.body?.subscription_active != null ? Boolean(req.body.subscription_active) : null;
   const subscriptionSource = typeof req.body?.subscription_source === "string" ? req.body.subscription_source.trim() || null : null;
-  await putUserSettingsPg(req.dvUser.userId, { homeTimezone, gender: gender || "prefer_not_to_say", displayName, weightKg: weightKgVal, heightCm: heightCmVal, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource });
-  res.json({ ok: true, home_timezone: homeTimezone, gender: gender || "prefer_not_to_say", display_name: displayName, weight_kg: weightKgVal, height_cm: heightCmVal, date_of_birth: dateOfBirth, subscription_plan_id: subscriptionPlanId, subscription_active: subscriptionActive, subscription_source: subscriptionSource });
+  const activityLevel =
+    typeof req.body?.activity_level === "string" && req.body.activity_level.trim()
+      ? req.body.activity_level.trim().toLowerCase()
+      : null;
+  const dietPreference =
+    typeof req.body?.diet_preference === "string" && req.body.diet_preference.trim()
+      ? req.body.diet_preference.trim().toLowerCase()
+      : null;
+  let allergies = null;
+  if (Array.isArray(req.body?.allergies)) {
+    const list = req.body.allergies
+      .filter((x) => typeof x === "string" && x.trim())
+      .map((x) => x.trim().toLowerCase());
+    if (list.length) allergies = list;
+  }
+  await putUserSettingsPg(req.dvUser.userId, {
+    homeTimezone,
+    gender: gender || "prefer_not_to_say",
+    displayName,
+    weightKg: weightKgVal,
+    heightCm: heightCmVal,
+    dateOfBirth,
+    subscriptionPlanId,
+    subscriptionActive,
+    subscriptionSource,
+    activityLevel,
+    dietPreference,
+    allergies,
+  });
+  res.json({
+    ok: true,
+    home_timezone: homeTimezone,
+    gender: gender || "prefer_not_to_say",
+    display_name: displayName,
+    weight_kg: weightKgVal,
+    height_cm: heightCmVal,
+    date_of_birth: dateOfBirth,
+    activity_level: activityLevel,
+    diet_preference: dietPreference,
+    allergies: allergies ?? [],
+    subscription_plan_id: subscriptionPlanId,
+    subscription_active: subscriptionActive,
+    subscription_source: subscriptionSource,
+  });
 });
 
 app.get("/user/encryption-key", requireDvAuth(), async (req, res) => {

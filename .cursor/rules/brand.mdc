@@ -1,0 +1,66 @@
+---
+description: Brand identity and tone-of-voice rules for Digital Vision Board (habitseeding)
+alwaysApply: true
+---
+
+# Brand Rules — Digital Vision Board
+
+## Identity
+
+| Attribute | Value |
+|---|---|
+| App name (display) | **Digital Vision Board** |
+| Package / brand name | **habitseeding** |
+| Flutter package ID | `digital_vision_board` |
+| Android & iOS bundle | `com.habitseeding.app` |
+| Firebase project | `habitseeding-prod` |
+
+## Design Metaphor
+
+> "Morning Garden" — warm soil, sage growth, honey seeds, morning mist.
+
+Every UI decision should pass this test:
+**Does this feel like 6 AM in a quiet garden — warm, grounded, alive, and never loud?**
+
+If a widget, colour, animation, or copy feels loud, clinical, or anxious → it is wrong for this app.
+
+## Tone of Voice
+
+- **Calm and encouraging** — never urgent or pushy
+- **Grounded** — practical, honest about progress
+- **Warm** — personal, human, never corporate
+- **Growth-oriented** — frame everything as planting and tending, not tracking or monitoring
+- **Never gamified in a stressful way** — streaks and coins are rewards, not penalties
+
+## Copy Guidelines
+
+| Context | Do | Don't |
+|---|---|---|
+| Empty states | "Your garden is ready to grow." | "No data found." |
+| Habit completion | "Seed planted today." | "Task completed." |
+| Streak loss | "Every day is a fresh start." | "Streak broken!" |
+| Onboarding CTA | "Let's plant your first habit." | "Get started now!" |
+| Error messages | "Something went wrong — try again." | "Error 500." |
+| Coin/reward labels | Use `AppColors.honeyText` amber text | Never raw gold hex as text |
+
+## Visual Brand Don'ts
+
+- No neon greens, electric blues, or clinical whites
+- No dark navy backgrounds (use warm `#0F1510` Night Soil instead)
+- No sharp corners on cards (minimum `radiusCard = 24`)
+- No aggressive red error states — use `colorScheme.error` (muted)
+- No all-caps headings
+
+## Feature Naming Conventions
+
+| Feature area | Brand name used in UI |
+|---|---|
+| Habit tracker | Habits / Seeds |
+| Daily routine | Morning Ritual / Routine |
+| Journal | Journal |
+| Vision board | Vision Board |
+| AI recommendations | Wizard |
+| Points / currency | Seeds (coins) |
+| Achievements | Milestones |
+| Mood tracking | Mood |
+| Affirmations | Affirmations |

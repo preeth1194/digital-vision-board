@@ -1,0 +1,95 @@
+---
+description: Use when creating a new Flutter widget for the Digital Vision Board app
+globs: ["lib/widgets/**/*.dart"]
+alwaysApply: false
+---
+
+# Flutter Widget Rules
+
+## Widget Type
+
+- Default to `StatelessWidget`
+- Use `StatefulWidget` only for genuinely local mutable state (animations, form inputs)
+- Always use `const` constructors where possible
+- Always include `super.key` in the constructor
+
+```dart
+class MyWidget extends StatelessWidget {
+  const MyWidget({super.key, required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) { ... }
+}
+```
+
+## File Location
+
+| Widget category | Path |
+|---|---|
+| Dashboard summary cards | `lib/widgets/dashboard/` |
+| Habit-related | `lib/widgets/habits/` |
+| Vision board | `lib/widgets/vision_board/` |
+| Navigation | `lib/widgets/navigation/` |
+| Dialogs | `lib/widgets/dialogs/` |
+| Ads | `lib/widgets/ads/` |
+| Canvas manipulation | `lib/widgets/manipulation/` |
+| Routine/ritual | `lib/widgets/rituals/` |
+| Insights | `lib/widgets/insights/` |
+| General reusable | `lib/widgets/` |
+
+## Standard Imports
+
+```dart
+import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
+import '../../utils/app_spacing.dart';
+import '../../utils/app_typography.dart';
+```
+
+## Card Pattern
+
+```dart
+final isDark = Theme.of(context).brightness == Brightness.dark;
+
+Container(
+  decoration: AppColors.cloudDecoration(isDark: isDark),
+  padding: const EdgeInsets.all(AppSpacing.md),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('Title', style: AppTypography.heading3(context)),
+      const SizedBox(height: AppSpacing.sm),
+      Text('Body', style: AppTypography.body(context)),
+    ],
+  ),
+)
+```
+
+## Colour Rules (non-negotiable)
+
+- Page background → `AppColors.skyDecoration(isDark: isDark)`
+- Card/content → `AppColors.cloudDecoration(isDark: isDark)`
+- Primary button → `colorScheme.primary`
+- Amber text → `AppColors.honeyText` (NEVER `AppColors.seedGold` for text)
+- Mood/journal → `AppColors.lavenderDew`
+- Chips/tags → `AppColors.sageContainer` background
+
+See `morning-garden-colors` rule for full table.
+
+## Spacing
+
+Use `AppSpacing.*` constants — no hardcoded numbers.
+
+## Typography
+
+Use `AppTypography.*` or `Theme.of(context).textTheme.*` — no standalone `TextStyle` with `fontFamily`.
+
+## Doc Comments
+
+Add a one-line doc comment on every public widget class:
+
+```dart
+/// Displays the user's current habit streak with a progress ring.
+class HabitStreakCard extends StatelessWidget { ... }
+```

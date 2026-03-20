@@ -1,0 +1,85 @@
+---
+description: Typography and spacing rules for Flutter — AppTypography and AppSpacing usage
+globs: ["lib/**/*.dart"]
+alwaysApply: false
+---
+
+# Flutter Typography & Spacing Rules
+
+## Typography
+
+Use `AppTypography.*` helpers for all semantic text styles. Do NOT create standalone `TextStyle` with explicit `fontFamily` or `fontSize` outside of `app_typography.dart` and `main.dart`.
+
+```dart
+import '../utils/app_typography.dart';
+
+AppTypography.heading1(context)   // 24sp bold     — screen titles
+AppTypography.heading2(context)   // 20sp semi-bold — section titles
+AppTypography.sectionTitle(context) // alias for heading2
+AppTypography.heading3(context)   // 18sp semi-bold — card titles
+AppTypography.body(context)       // 16sp regular  — main content
+AppTypography.bodySmall(context)  // 14sp regular  — secondary content
+AppTypography.caption(context)    // 12sp regular  — hints, metadata
+AppTypography.secondary(context)  // 14sp onSurfaceVariant
+AppTypography.button(context)     // 16sp medium   — button labels
+AppTypography.error(context)      // 14sp error colour
+```
+
+For standard Material roles you can also use:
+```dart
+Theme.of(context).textTheme.bodyLarge
+Theme.of(context).textTheme.labelLarge
+// etc.
+```
+
+## What NOT to do
+
+```dart
+// ❌ Explicit fontFamily
+TextStyle(fontSize: 16, fontFamily: 'Inter')
+
+// ❌ Explicit fontFamily with GoogleFonts (already global)
+GoogleFonts.inter(fontSize: 16)
+
+// ❌ Hardcoded fontSize in a widget build()
+Text('Hello', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))
+```
+
+## Spacing
+
+Use `AppSpacing` constants — never hardcode pixel values.
+
+```dart
+import '../utils/app_spacing.dart';
+
+AppSpacing.xs    // 4.0   — tight gaps, icon padding
+AppSpacing.sm    // 8.0   — standard gap
+AppSpacing.md    // 16.0  — content padding
+AppSpacing.lg    // 24.0  — section gap
+AppSpacing.xl    // 32.0  — large section gap
+AppSpacing.xxl   // 48.0  — hero spacing
+
+// Border radii
+AppSpacing.radiusBadge   // 6.0
+AppSpacing.radiusChip    // 8.0
+AppSpacing.radiusInput   // 12.0
+AppSpacing.radiusDialog  // 20.0
+AppSpacing.radiusCard    // 24.0
+```
+
+### Standard card padding
+```dart
+padding: const EdgeInsets.all(AppSpacing.md)
+```
+
+### Standard list item padding
+```dart
+padding: const EdgeInsets.symmetric(
+  horizontal: AppSpacing.md,
+  vertical: AppSpacing.sm,
+)
+```
+
+## Touch Targets
+
+Keep interactive elements at minimum **48×48** logical pixels.

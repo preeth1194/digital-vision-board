@@ -1,0 +1,57 @@
+---
+description: Enforces Morning Garden colour palette — never raw hex or bare Material colours in Flutter files
+globs: ["lib/**/*.dart"]
+alwaysApply: false
+---
+
+# Morning Garden Colour Rules
+
+**Core rule**: every colour choice must feel like "6 AM in a quiet garden — warm, grounded, alive, never loud."
+
+## NEVER do this
+
+```dart
+// ❌ Raw hex
+color: Color(0xFF4CAF50)
+
+// ❌ Bare Material colour
+color: Colors.green
+
+// ❌ seedGold as text (fails WCAG AA 4.5:1)
+style: TextStyle(color: AppColors.seedGold)
+```
+
+## ALWAYS use AppColors tokens
+
+| Purpose | Token | Hex |
+|---|---|---|
+| Page background | `AppColors.skyDecoration(isDark: isDark)` | gradient |
+| Screen scaffold bg | `colorScheme.surface` | — |
+| Content card | `AppColors.cloudDecoration(isDark: isDark)` | — |
+| Primary CTA / FAB | `colorScheme.primary` | #4A7A5A |
+| Bottom nav bg | `AppColors.forestDeep` | #3B2D20 |
+| Active nav icon | `AppColors.sproutGreen` | #4A7A5A |
+| Coin / badge icon fill | `AppColors.seedGold` | #C48B3C |
+| Amber / reward **text** | `AppColors.honeyText` | #7A5520 ✅ WCAG AA |
+| Chips / selected rows bg | `AppColors.sageContainer` | #DCF0E4 |
+| Badge / reward container | `AppColors.seedChampagne` | #FDF3E3 |
+| Mood / journal / affirmations | `AppColors.lavenderDew` | #7B74A8 |
+| Lavender container | `AppColors.lavenderContainer` | #EEEDF8 |
+| Light card surface | `AppColors.cloudWhite` | #FFFFFF |
+| Dark card surface | `AppColors.cloudDark` | #1F2B22 |
+| Error states | `colorScheme.error` | — |
+
+## Dark mode detection (required when using decorations)
+
+```dart
+final isDark = Theme.of(context).brightness == Brightness.dark;
+// then:
+decoration: AppColors.skyDecoration(isDark: isDark),
+decoration: AppColors.cloudDecoration(isDark: isDark),
+```
+
+## Imports
+
+```dart
+import '../utils/app_colors.dart'; // adjust relative depth
+```

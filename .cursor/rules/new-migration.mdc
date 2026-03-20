@@ -1,0 +1,69 @@
+---
+description: Use when creating a new SQL database migration for the backend
+globs: ["backend/src/migrations/*.sql"]
+alwaysApply: false
+---
+
+# SQL Migration Rules
+
+## Naming
+
+```
+backend/src/migrations/NNN_description.sql
+```
+
+- `NNN` = next sequential number after the highest existing file (currently up to `020`)
+- `description` = lowercase, underscores, brief (e.g. `021_habit_streaks`)
+- **Never edit existing migration files** — they are append-only
+
+Check the next number:
+```bash
+ls backend/src/migrations/ | sort | tail -3
+```
+
+## Template
+
+```sql
+-- Migration: NNN_description
+-- Purpose: [one-line reason]
+-- Created: YYYY-MM-DD
+
+CREATE TABLE IF NOT EXISTS my_table (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     TEXT NOT NULL,           -- Firebase UID or DV guest ID (always TEXT)
+  data        JSONB,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_my_table_user_id ON my_table(user_id);
+```
+
+## Rules
+
+| Rule | Detail |
+|---|---|
+| **Idempotent** | `IF NOT EXISTS` / `IF EXISTS` everywhere |
+| **user_id is TEXT** | Firebase UIDs and DV guest IDs are strings — never integer FK |
+| **JSONB for flexible data** | Prefer `JSONB` over many individual columns for user content |
+| **Index user_id** | Always add an index on `user_id` for any new table |
+| **Timestamps** | `created_at` + `updated_at TIMESTAMPTZ DEFAULT NOW()` on every new table |
+| **No passwords** | Auth is Firebase / DV token — never store passwords |
+| **No drops without comment** | `DROP`/`TRUNCATE` needs a clear reason comment |
+
+## Running
+
+```bash
+cd backend
+node src/migrate.js
+```
+
+## After the Migration
+
+Update storage modules to use the new schema:
+
+1. **`backend/src/storage_pg.js`** — add the PostgreSQL implementation
+2. **`backend/src/storage.js`** — add the equivalent JSON-file fallback (same function signature)
+3. Register the new functions on the `db` export in **`backend/src/db.js`** if needed
+
+Both implementations must have identical function signatures so the abstraction layer in `db.js` works without modification.

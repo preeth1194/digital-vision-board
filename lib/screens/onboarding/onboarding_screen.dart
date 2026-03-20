@@ -7,8 +7,10 @@ import '../../services/dv_auth_service.dart';
 import '../../services/google_sign_in_config.dart';
 import '../../services/subscription_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import '../legal_consent_screen.dart';
+import 'widgets/onboarding_profile_step.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed_v1';
 
@@ -26,7 +28,7 @@ Future<void> markOnboardingCompleted({SharedPreferences? prefs}) async {
 // Slide model
 // ---------------------------------------------------------------------------
 
-enum _SlideType { welcome, imageFeature, cardControls, auth }
+enum _SlideType { welcome, tourFeature, profile, auth }
 
 enum _MascotPose { wave, happy, point, thumbsUp }
 
@@ -36,7 +38,6 @@ class _OnboardingSlide {
   final String title;
   final String speechText;
   final _MascotPose pose;
-  final String? imagePath;
 
   const _OnboardingSlide({
     required this.type,
@@ -44,7 +45,6 @@ class _OnboardingSlide {
     required this.title,
     required this.speechText,
     required this.pose,
-    this.imagePath,
   });
 }
 
@@ -63,58 +63,77 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
+  final GlobalKey<OnboardingProfileStepState> _profileStepKey =
+      GlobalKey<OnboardingProfileStepState>();
   int _currentPage = 0;
   bool _loading = false;
   String? _error;
 
+  /// Welcome, four tab-accurate tour slides, profile, auth.
   static const _slides = [
     _OnboardingSlide(
       type: _SlideType.welcome,
-      title: 'Habit Seeding',
+      title: 'Digital Vision Board',
       speechText:
-          'Hi! I\u2019m Sprouty. I\u2019m here to help you turn your biggest '
-          'dreams into daily rituals. Let\u2019s take a look around your new '
-          'growth space!',
+          'Hi — I\'m Sprouty. This is your Morning Garden: a calm place to plant '
+          'habits, tend your vision board, and watch small steps add up. '
+          'Let me show you around.',
       pose: _MascotPose.wave,
     ),
     _OnboardingSlide(
-      type: _SlideType.imageFeature,
-      title: 'Insights & Rewards',
+      type: _SlideType.tourFeature,
+      icon: Icons.home_rounded,
+      title: 'Home',
       speechText:
-          'Track your streaks, check in on your mood, earn coins for every '
-          'habit, and watch your progress grow\u2014all at a glance.',
-      imagePath: 'assets/onboarding/insights_rewards.png',
+          'Your dashboard is where the day starts: habits, water, puzzle progress, '
+          'affirmations, and gentle glances at what matters — without the noise.',
       pose: _MascotPose.happy,
     ),
     _OnboardingSlide(
-      type: _SlideType.imageFeature,
-      title: 'And So Much More',
+      type: _SlideType.tourFeature,
+      icon: Icons.eco_outlined,
+      title: 'Habits',
       speechText:
-          'There\u2019s so much more to explore\u2014from timed routines and '
-          'journaling to challenges and games that keep you inspired every day.',
-      imagePath: 'assets/onboarding/so_much_more.png',
+          'Seeds are your habits here. Check them in, build streaks, and keep '
+          'routines that fit real life — structure that supports you, not pressure.',
       pose: _MascotPose.happy,
     ),
     _OnboardingSlide(
-      type: _SlideType.cardControls,
-      icon: Icons.touch_app_outlined,
-      title: 'Card Controls',
+      type: _SlideType.tourFeature,
+      icon: Icons.auto_awesome_mosaic_outlined,
+      title: 'Presets',
       speechText:
-          'Simple moves, big results. Here\u2019s how to manage your daily '
-          'habits at a glance:',
+          'Browse planner presets and templates — workouts, meals, skincare, and '
+          'more — so you spend less time setting up and more time growing.',
       pose: _MascotPose.point,
     ),
     _OnboardingSlide(
-      type: _SlideType.auth,
-      title: 'Ready to Begin?',
+      type: _SlideType.tourFeature,
+      icon: Icons.menu_book_outlined,
+      title: 'Journal',
       speechText:
-          'Your journey starts here. Everything is ready for you\u2014how '
-          'would you like to begin?',
+          'Write in your journal and track mood when it feels right. Reflection '
+          'lives alongside your habits in one garden.',
+      pose: _MascotPose.happy,
+    ),
+    _OnboardingSlide(
+      type: _SlideType.profile,
+      title: 'Your profile',
+      speechText: '',
+      pose: _MascotPose.happy,
+    ),
+    _OnboardingSlide(
+      type: _SlideType.auth,
+      title: 'Ready to begin?',
+      speechText:
+          'Your garden is almost ready. Sign in to sync across devices, or '
+          'continue as a guest — you can always connect later.',
       pose: _MascotPose.thumbsUp,
     ),
   ];
 
   bool get _isAuthSlide => _slides[_currentPage].type == _SlideType.auth;
+  bool get _isProfileSlide => _slides[_currentPage].type == _SlideType.profile;
 
   @override
   void dispose() {
@@ -128,6 +147,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  Future<void> _previous() async {
+    if (_currentPage <= 0) return;
+    await _controller.previousPage(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _onProfileContinue() async {
+    final s = _profileStepKey.currentState;
+    if (s != null) await s.submitAndAdvance();
   }
 
   Future<void> _finishOnboarding() async {
@@ -159,6 +191,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final email = userCred.user?.email;
       if (email != null && email.isNotEmpty) {
         await DvAuthService.setUserDisplayInfo(email: email);
+      }
+      final googleName = userCred.user?.displayName?.trim();
+      if (googleName != null && googleName.isNotEmpty) {
+        final existing = await DvAuthService.getDisplayName();
+        if (existing == null || existing.isEmpty) {
+          await DvAuthService.setProfileInfo(displayName: googleName);
+        }
       }
       final idToken = await userCred.user?.getIdToken();
       if ((idToken ?? '').trim().isEmpty) {
@@ -218,10 +257,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 8, top: 4),
-                    child: TextButton(
-                      onPressed: _finishOnboarding,
-                      child: const Text('Skip'),
+                    padding: const EdgeInsets.only(
+                      right: AppSpacing.sm,
+                      top: AppSpacing.xs,
+                    ),
+                    child: Semantics(
+                      label: 'Skip onboarding replay',
+                      button: true,
+                      child: TextButton(
+                        onPressed: _finishOnboarding,
+                        child: Text(
+                          'Skip',
+                          style: AppTypography.button(context),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -239,12 +288,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       case _SlideType.welcome:
                         return _WelcomeSlideView(
                             key: ValueKey('slide_$i'), slide: slide);
-                      case _SlideType.imageFeature:
-                        return _ImageFeatureSlideView(
+                      case _SlideType.tourFeature:
+                        return _TourFeatureSlideView(
                             key: ValueKey('slide_$i'), slide: slide);
-                      case _SlideType.cardControls:
-                        return _CardControlsSlideView(
-                            key: ValueKey('slide_$i'), slide: slide);
+                      case _SlideType.profile:
+                        return OnboardingProfileStep(
+                          key: _profileStepKey,
+                          replayMode: widget.replayMode,
+                          onSaved: _next,
+                          onSkipWithoutSaving: _next,
+                        );
                       case _SlideType.auth:
                         return _AuthSlideView(
                           key: ValueKey('slide_$i'),
@@ -261,7 +314,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -269,29 +327,79 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(_slides.length, (i) {
                         final active = i == _currentPage;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 8,
-                          width: active ? 18 : 8,
-                          decoration: BoxDecoration(
-                            color: active
-                                ? scheme.primary
-                                : scheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(999),
+                        return Semantics(
+                          label: 'Page ${i + 1} of ${_slides.length}',
+                          selected: active,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                            ),
+                            height: AppSpacing.sm,
+                            width: active ? 18 : AppSpacing.sm,
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? scheme.primary
+                                  : scheme.outlineVariant,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                         );
                       }),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
                     if (!_isAuthSlide)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: _next,
-                          child: const Text('Next'),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _currentPage > 0
+                                  ? Semantics(
+                                      label: 'Back',
+                                      button: true,
+                                      child: TextButton(
+                                        onPressed: _previous,
+                                        child: Text(
+                                          'Back',
+                                          style:
+                                              AppTypography.button(context)
+                                                  .copyWith(
+                                            color: scheme.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ),
+                          Semantics(
+                            label: _isProfileSlide
+                                ? 'Save profile and continue'
+                                : 'Next slide',
+                            button: true,
+                            child: FilledButton(
+                              onPressed: _isProfileSlide
+                                  ? _onProfileContinue
+                                  : _next,
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusInput,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Next',
+                                style: AppTypography.button(context).copyWith(
+                                  color: scheme.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -312,15 +420,6 @@ class _SproutMascotPainter extends CustomPainter {
   final _MascotPose pose;
 
   _SproutMascotPainter({required this.pose});
-
-  static const _shellDark = Color(0xFF6D4C2A);
-  static const _shellMid = Color(0xFF8B5E3C);
-  static const _innerGold = Color(0xFFD4A054);
-  static const _stemGreen = Color(0xFF4CAF50);
-  static const _leafBright = Color(0xFF66BB6A);
-  static const _leafVein = Color(0xFF2E7D32);
-  static const _pupil = Color(0xFF333333);
-  static const _smileBrown = Color(0xFF6D4C2A);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -345,10 +444,10 @@ class _SproutMascotPainter extends CustomPainter {
     canvas.drawOval(
       Rect.fromCenter(center: Offset.zero, width: 52 * f, height: 44 * f),
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_shellMid, _shellDark],
+          colors: [AppColors.honeyText, AppColors.forestDeep],
         ).createShader(Rect.fromCenter(
             center: Offset.zero, width: 52 * f, height: 44 * f)),
     );
@@ -361,10 +460,10 @@ class _SproutMascotPainter extends CustomPainter {
     canvas.drawOval(
       Rect.fromCenter(center: Offset.zero, width: 40 * f, height: 34 * f),
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_innerGold, Color(0xFFC49340)],
+          colors: [AppColors.seedGold, AppColors.honeyText],
         ).createShader(Rect.fromCenter(
             center: Offset.zero, width: 40 * f, height: 34 * f)),
     );
@@ -378,7 +477,7 @@ class _SproutMascotPainter extends CustomPainter {
     canvas.drawPath(
       stemPath,
       Paint()
-        ..color = _stemGreen
+        ..color = AppColors.sproutGreen
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4 * f
         ..strokeCap = StrokeCap.round,
@@ -397,9 +496,9 @@ class _SproutMascotPainter extends CustomPainter {
     canvas.drawCircle(Offset(eyeLX, eyeY), eyeR, Paint()..color = Colors.white);
     canvas.drawCircle(Offset(eyeRX, eyeY), eyeR, Paint()..color = Colors.white);
     canvas.drawCircle(
-        Offset(eyeLX + 0.5 * f, eyeY), pupilR, Paint()..color = _pupil);
+        Offset(eyeLX + 0.5 * f, eyeY), pupilR, Paint()..color = AppColors.forestDeep);
     canvas.drawCircle(
-        Offset(eyeRX + 0.5 * f, eyeY), pupilR, Paint()..color = _pupil);
+        Offset(eyeRX + 0.5 * f, eyeY), pupilR, Paint()..color = AppColors.forestDeep);
 
     final hl = Paint()..color = Colors.white;
     canvas.drawCircle(Offset(eyeLX - 0.8 * f, eyeY - 1.2 * f), 1.2 * f, hl);
@@ -412,7 +511,7 @@ class _SproutMascotPainter extends CustomPainter {
         ..quadraticBezierTo(
             cx + 2 * f, cy + 19 * f, cx + 6 * f, cy + 14 * f),
       Paint()
-        ..color = _smileBrown
+        ..color = AppColors.forestDeep
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.8 * f
         ..strokeCap = StrokeCap.round,
@@ -431,7 +530,7 @@ class _SproutMascotPainter extends CustomPainter {
         ..moveTo(0, 0)
         ..quadraticBezierTo(width * 0.6, -width * 0.5, length, -width * 0.15)
         ..quadraticBezierTo(width * 0.6, width * 0.3, 0, 0),
-      Paint()..color = _leafBright,
+      Paint()..color = AppColors.sproutGreen,
     );
     canvas.drawPath(
       Path()
@@ -439,7 +538,7 @@ class _SproutMascotPainter extends CustomPainter {
         ..quadraticBezierTo(
             width * 0.5, -width * 0.1, length * 0.85, -width * 0.08),
       Paint()
-        ..color = _leafVein
+        ..color = AppColors.springWater
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2 * f
         ..strokeCap = StrokeCap.round,
@@ -449,7 +548,7 @@ class _SproutMascotPainter extends CustomPainter {
 
   void _drawArms(Canvas canvas, double cx, double cy, double f) {
     final p = Paint()
-      ..color = _shellMid
+      ..color = AppColors.forestDeep
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5 * f
       ..strokeCap = StrokeCap.round;
@@ -474,7 +573,7 @@ class _SproutMascotPainter extends CustomPainter {
         );
         canvas.drawCircle(
             Offset(cx + 30 * f, cy - 14 * f), 2.5 * f,
-            Paint()..color = _innerGold);
+            Paint()..color = AppColors.seedGold);
 
       case _MascotPose.happy:
         canvas.drawPath(
@@ -494,7 +593,7 @@ class _SproutMascotPainter extends CustomPainter {
           p,
         );
         canvas.drawCircle(
-            Offset(cx + 38 * f, cy), 2 * f, Paint()..color = _innerGold);
+            Offset(cx + 38 * f, cy), 2 * f, Paint()..color = AppColors.seedGold);
 
       case _MascotPose.thumbsUp:
         canvas.drawPath(
@@ -506,13 +605,13 @@ class _SproutMascotPainter extends CustomPainter {
         );
         canvas.drawCircle(
             Offset(cx + 28 * f, cy - 12 * f), 3 * f,
-            Paint()..color = _innerGold);
+            Paint()..color = AppColors.seedGold);
         canvas.drawPath(
           Path()
             ..moveTo(cx + 28 * f, cy - 12 * f)
             ..lineTo(cx + 27 * f, cy - 18 * f),
           Paint()
-            ..color = _innerGold
+            ..color = AppColors.seedGold
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.5 * f
             ..strokeCap = StrokeCap.round,
@@ -624,10 +723,13 @@ class _SpeechBubbleContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             color: scheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusDialog),
             border: Border.all(color: scheme.outlineVariant, width: 1),
             boxShadow: [
               BoxShadow(
@@ -647,7 +749,7 @@ class _SpeechBubbleContent extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 28),
+          padding: const EdgeInsets.only(left: AppSpacing.lg + 4),
           child: CustomPaint(
             size: const Size(16, 10),
             painter: _BubbleTailPainter(
@@ -837,7 +939,7 @@ class _WelcomeSlideView extends StatelessWidget {
         children: [
           const Spacer(flex: 2),
           ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
             child: Image.asset(
               'assets/icon/app_icon.png',
               width: 80,
@@ -845,10 +947,13 @@ class _WelcomeSlideView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            slide.title,
-            textAlign: TextAlign.center,
-            style: AppTypography.heading1(context),
+          Semantics(
+            header: true,
+            child: Text(
+              slide.title,
+              textAlign: TextAlign.center,
+              style: AppTypography.heading1(context),
+            ),
           ),
           const SizedBox(height: 24),
           _AnimatedSpeechBubble(
@@ -869,93 +974,39 @@ class _WelcomeSlideView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Slide 2 — Image feature (title + mascot speech + screenshot)
+// Tour slide — tab-aligned feature intro (optional asset or icon card)
 // ---------------------------------------------------------------------------
 
-class _ImageFeatureSlideView extends StatelessWidget {
+class _TourFeatureSlideView extends StatelessWidget {
   final _OnboardingSlide slide;
 
-  const _ImageFeatureSlideView({super.key, required this.slide});
+  const _TourFeatureSlideView({super.key, required this.slide});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    final icon = slide.icon ?? Icons.eco_outlined;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Column(
         children: [
           const Spacer(flex: 1),
-          Text(
-            slide.title,
-            textAlign: TextAlign.center,
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _AnimatedMascot(
-                size: 56,
-                pose: slide.pose,
-                delay: const Duration(milliseconds: 100),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _AnimatedSpeechBubble(
-                  text: slide.speechText,
-                  delay: const Duration(milliseconds: 300),
-                  style: AppTypography.bodySmall(context).copyWith(
-                    color: scheme.onSurface,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            flex: 5,
-            child: _AnimatedImage(
-              delay: const Duration(milliseconds: 500),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  slide.imagePath!,
-                  fit: BoxFit.contain,
-                ),
-              ),
+          Semantics(
+            header: true,
+            child: Text(
+              slide.title,
+              textAlign: TextAlign.center,
+              style: AppTypography.heading2(context),
             ),
           ),
-          const Spacer(flex: 1),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Card Controls slide
-// ---------------------------------------------------------------------------
-
-class _CardControlsSlideView extends StatelessWidget {
-  final _OnboardingSlide slide;
-
-  const _CardControlsSlideView({super.key, required this.slide});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-      child: Column(
-        children: [
-          const Spacer(flex: 1),
-          Text(
-            slide.title,
-            textAlign: TextAlign.center,
-            style: AppTypography.heading2(context),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -964,7 +1015,7 @@ class _CardControlsSlideView extends StatelessWidget {
                 pose: slide.pose,
                 delay: const Duration(milliseconds: 100),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _AnimatedSpeechBubble(
                   text: slide.speechText,
@@ -977,16 +1028,19 @@ class _CardControlsSlideView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             flex: 5,
             child: _AnimatedImage(
               delay: const Duration(milliseconds: 500),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/onboarding/card_controls.png',
-                  fit: BoxFit.contain,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: AppColors.cloudDecoration(isDark: isDark),
+                child: Icon(
+                  icon,
+                  size: 80,
+                  color: scheme.primary,
                 ),
               ),
             ),
@@ -1057,7 +1111,7 @@ class _AuthSlideView extends StatelessWidget {
               ),
               child: Text(
                 error!,
-                style: AppTypography.bodySmall(context).copyWith(
+                style: AppTypography.error(context).copyWith(
                   color: scheme.onErrorContainer,
                 ),
               ),
@@ -1066,48 +1120,83 @@ class _AuthSlideView extends StatelessWidget {
           ],
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: loading ? null : onGoogle,
-              icon: loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.g_mobiledata),
-              label: const Text('Continue with Google'),
+            child: Semantics(
+              label: 'Continue with Google',
+              button: true,
+              child: FilledButton.icon(
+                onPressed: loading ? null : onGoogle,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+                  ),
+                ),
+                icon: loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.g_mobiledata),
+                label: Text(
+                  'Continue with Google',
+                  style: AppTypography.button(context).copyWith(
+                    color: scheme.onPrimary,
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: loading ? null : onGuest,
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.secondaryContainer,
-                foregroundColor: scheme.onSecondaryContainer,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Continue as Guest'),
-                  Text(
-                    'Expires after 10 days',
-                    style: AppTypography.caption(context).copyWith(
-                      color: scheme.onSecondaryContainer.withAlpha(180),
-                      fontSize: 12,
-                    ),
+            child: Semantics(
+              label: 'Continue as guest, expires after ten days',
+              button: true,
+              child: FilledButton(
+                onPressed: loading ? null : onGuest,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
                   ),
-                ],
+                  backgroundColor: scheme.secondaryContainer,
+                  foregroundColor: scheme.onSecondaryContainer,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Continue as Guest',
+                      style: AppTypography.button(context).copyWith(
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                    Text(
+                      'Expires after 10 days',
+                      style: AppTypography.caption(context).copyWith(
+                        color:
+                            scheme.onSecondaryContainer.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           if (replayMode) ...[
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: onSkip,
-              child: const Text('Skip'),
+            const SizedBox(height: AppSpacing.sm),
+            Semantics(
+              label: 'Skip sign-in',
+              button: true,
+              child: TextButton(
+                onPressed: onSkip,
+                child: Text(
+                  'Skip',
+                  style: AppTypography.button(context),
+                ),
+              ),
             ),
           ],
           const Spacer(flex: 4),

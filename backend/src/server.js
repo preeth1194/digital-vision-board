@@ -109,7 +109,12 @@ function ensureDbOr501(res) {
   return false;
 }
 
-const kActionTemplateCategories = new Set(["skincare", "workout", "meal_prep", "recipe"]);
+const kActionTemplateCategories = new Set([
+  "skincare", "workout", "meal_prep", "recipe",
+  "health", "fitness", "challenges", "weekly_meal_prep",
+  "productivity", "mindfulness", "learning",
+  "relationships", "finance", "creativity",
+]);
 
 function normalizeActionTemplateCategory(raw) {
   const v = String(raw ?? "")

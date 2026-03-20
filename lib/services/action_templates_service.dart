@@ -111,6 +111,26 @@ class ActionTemplatesService {
         return 'meal_prep';
       case ActionTemplateCategory.recipe:
         return 'recipe';
+      case ActionTemplateCategory.health:
+        return 'health';
+      case ActionTemplateCategory.fitness:
+        return 'fitness';
+      case ActionTemplateCategory.challenges:
+        return 'challenges';
+      case ActionTemplateCategory.weeklyMealPrep:
+        return 'weekly_meal_prep';
+      case ActionTemplateCategory.productivity:
+        return 'productivity';
+      case ActionTemplateCategory.mindfulness:
+        return 'mindfulness';
+      case ActionTemplateCategory.learning:
+        return 'learning';
+      case ActionTemplateCategory.relationships:
+        return 'relationships';
+      case ActionTemplateCategory.finance:
+        return 'finance';
+      case ActionTemplateCategory.creativity:
+        return 'creativity';
     }
   }
 }

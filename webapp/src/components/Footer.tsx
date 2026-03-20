@@ -65,14 +65,6 @@ export default function Footer() {
                   FAQ
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/sign-in"
-                  className="text-mist/60 hover:text-sprout text-sm transition-colors"
-                >
-                  Sign In
-                </Link>
-              </li>
             </ul>
           </div>
         </div>

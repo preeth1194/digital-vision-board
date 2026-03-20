@@ -173,12 +173,6 @@ export default function HomePage() {
             >
               Download Free
             </a>
-            <Link
-              href="/sign-up"
-              className="border border-sprout/40 text-sprout font-semibold px-8 py-3.5 rounded-xl hover:bg-sprout/10 transition-all text-lg"
-            >
-              Create Account
-            </Link>
           </div>
         </div>
       </section>

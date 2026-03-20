@@ -22,7 +22,7 @@ export default function UploadPresetPage() {
   const router = useRouter()
 
   const [name, setName] = useState('')
-  const [category, setCategory] = useState<PresetCategory>('skincare')
+  const [category, setCategory] = useState<PresetCategory>('health')
   const [steps, setSteps] = useState<HabitActionStep[]>([makeStep()])
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState('')

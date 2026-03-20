@@ -215,6 +215,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Firebase config (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Install CocoaPods
         run: |
           cd ios

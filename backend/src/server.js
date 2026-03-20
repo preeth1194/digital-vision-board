@@ -924,7 +924,23 @@ app.get("/user/settings", requireDvAuth(), async (req, res) => {
   if (!hasDatabase()) return res.status(501).json({ error: "database_required" });
   try {
     const settings = await getUserSettingsPg(req.dvUser.userId);
-    return res.json({ ok: true, ...(settings ?? {}) });
+    if (!settings) return res.json({ ok: true });
+    return res.json({
+      ok: true,
+      home_timezone: settings.homeTimezone,
+      gender: settings.gender,
+      display_name: settings.displayName,
+      weight_kg: settings.weightKg,
+      height_cm: settings.heightCm,
+      date_of_birth: settings.dateOfBirth,
+      activity_level: settings.activityLevel,
+      diet_preference: settings.dietPreference,
+      allergies: settings.allergies,
+      subscription_plan_id: settings.subscriptionPlanId,
+      subscription_active: settings.subscriptionActive,
+      subscription_updated_at: settings.subscriptionUpdatedAt,
+      subscription_source: settings.subscriptionSource,
+    });
   } catch (e) {
     return res.status(500).json({ error: "user_settings_fetch_failed", message: String(e?.message ?? e) });
   }

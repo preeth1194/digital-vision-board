@@ -69,20 +69,7 @@ export default async function Header() {
               <SignOutButton />
             </>
           ) : (
-            <>
-              <Link
-                href="/sign-in"
-                className="text-sm text-mist/80 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/sign-up"
-                className="text-sm bg-sprout text-forest-deep font-semibold px-4 py-1.5 rounded-lg hover:bg-sprout-light transition-all shadow"
-              >
-                Sign Up
-              </Link>
-            </>
+            null
           )}
         </nav>
       </div>

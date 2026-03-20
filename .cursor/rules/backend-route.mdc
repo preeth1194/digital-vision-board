@@ -1,0 +1,100 @@
+---
+description: Use when adding or modifying Express API routes in the Node.js backend
+globs: ["backend/src/**/*.js"]
+alwaysApply: false
+---
+
+# Backend Route Rules
+
+## Authentication — Always First
+
+```javascript
+const userId = await getUserId(req); // from ./auth.js — already imported in server.js
+if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+```
+
+Every non-public endpoint must authenticate before touching data.
+
+## Route Structure Template
+
+```javascript
+app.get('/api/my-feature', async (req, res) => {
+  try {
+    const userId = await getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const data = await db.myFeatureGet(userId);
+    res.json(data);
+  } catch (err) {
+    console.error('GET /api/my-feature error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+```
+
+## Database Abstraction
+
+Use `db.*` methods — NEVER query PostgreSQL directly in `server.js`:
+```javascript
+const db = require('./db'); // already required at top of server.js
+```
+
+When adding a new storage function, implement it in **both**:
+- `backend/src/storage_pg.js` — PostgreSQL implementation
+- `backend/src/storage.js` — JSON file fallback (same signature)
+
+## Input Validation
+
+```javascript
+const { field1, field2 } = req.body;
+if (!field1) return res.status(400).json({ error: 'field1 is required' });
+if (typeof field1 !== 'string') return res.status(400).json({ error: 'field1 must be a string' });
+```
+
+- Validate all `req.body`, `req.params`, and `req.query` fields
+- Use parameterised queries — never interpolate user input into SQL
+- Limit string lengths before DB insertion
+
+## SQL Migrations
+
+New table or column needed → create `backend/src/migrations/NNN_description.sql`:
+- Use next sequential number (currently up to `020`)
+- Use `IF NOT EXISTS` — migrations must be idempotent
+- Run with `node src/migrate.js`
+- Never edit existing migration files
+
+## Error Logging
+
+```javascript
+console.error('METHOD /api/route error:', err);
+```
+
+Never expose stack traces or internal error details in the response body.
+
+## CORS & Middleware
+
+Configured globally — do not add per-route CORS headers.
+
+## Admin Routes
+
+```javascript
+// Check admin before proceeding
+const user = await db.getUser(userId);
+if (!user?.is_admin) return res.status(403).json({ error: 'Forbidden' });
+```
+
+## File Uploads
+
+Use the existing `multer` configuration in `server.js` — do not add a new multer instance.
+Use `sharp` (already imported) for any image processing.
+
+## Response Conventions
+
+| Situation | Response |
+|---|---|
+| Success | `res.json(data)` or `res.json({ ok: true })` |
+| Not found | `res.status(404).json({ error: 'Not found' })` |
+| Bad request | `res.status(400).json({ error: 'Descriptive message' })` |
+| Unauthorised | `res.status(401).json({ error: 'Unauthorized' })` |
+| Forbidden | `res.status(403).json({ error: 'Forbidden' })` |
+| Server error | `res.status(500).json({ error: 'Internal server error' })` |

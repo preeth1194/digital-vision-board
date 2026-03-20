@@ -1,0 +1,68 @@
+---
+description: Flutter architecture guardrails — state management, orientation, services, and startup order
+globs: ["lib/**/*.dart"]
+alwaysApply: false
+---
+
+# Flutter Architecture Rules
+
+## State Management
+
+- **Provider + SharedPreferences only** — never introduce Riverpod, Bloc, GetX, or MobX
+- Use `StatelessWidget` by default; use `StatefulWidget` only for local mutable state
+- Services use static methods or a singleton `instance` — never instantiate in widgets
+- Global settings live in `AppSettingsService` as `ValueListenable`s
+
+## App Startup Order (`lib/main.dart`)
+
+Do not change this initialization sequence:
+
+1. `SharedPreferences.getInstance()` — detect new vs. existing user
+2. `DvAuthService.ensureFirstInstallRecorded()`
+3. `AppSettingsService.load()` + `LogicalDateService.ensureInitialized()`
+4. Firebase — wrapped in `try/catch` (non-fatal)
+5. `unawaited()` for all background/lazy tasks (WizardDefaults, Notifications, geofence, ads, subscriptions, affirmations)
+
+## Startup Screen Logic
+
+```dart
+new user (no prior install)      → OnboardingScreen
+existing user, no legal consent  → LegalConsentScreen
+otherwise                        → DashboardScreen
+```
+
+## Screen Orientation
+
+App is **portrait-only** — do not use `DeviceOrientation.landscapeLeft/Right` or `Orientation.landscape` layouts.
+
+## Non-fatal Async
+
+Wrap any best-effort background work with `unawaited()` + `.catchError`:
+
+```dart
+unawaited(SomeService.doWork().catchError((_) {}));
+```
+
+Do NOT convert these to `await` — it would block startup.
+
+## Key Services Reference
+
+| Need | Service |
+|---|---|
+| Auth / user ID | `DvAuthService` |
+| Date "today" | `LogicalDateService` |
+| App settings / theme | `AppSettingsService` |
+| Notifications | `NotificationsService` |
+| Ads | `AdService` |
+| Subscriptions / paywall | `SubscriptionService` |
+| Affirmations | `AffirmationService` |
+| Wizard AI defaults | `WizardDefaultsService` |
+| Background sync | `AutoSyncService` |
+| Google Drive backup | `BackupService` |
+
+## Theme
+
+Always apply via `_buildTheme()` in `main.dart`. Theme uses:
+- `useMaterial3: true`
+- `GoogleFonts.interTextTheme()`
+- `ValueListenableBuilder<ThemeMode>` on `AppSettingsService.themeMode`

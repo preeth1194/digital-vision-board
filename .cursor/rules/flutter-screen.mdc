@@ -1,0 +1,99 @@
+---
+description: Use when creating a new Flutter screen for the Digital Vision Board app
+globs: ["lib/screens/**/*.dart"]
+alwaysApply: false
+---
+
+# Flutter Screen Rules
+
+## File Location
+
+```
+lib/screens/
+├── auth/           — sign-in, sign-up, phone auth
+├── onboarding/     — new-user onboarding wizard
+├── wizard/         — goal/habit creation wizard
+├── journal/        — journal entries & mood
+├── presets/        — skincare, meals, workout presets
+├── templates/      — template management
+└── <feature>/      — new feature screens
+```
+
+## Scaffold Pattern
+
+```dart
+@override
+Widget build(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final colorScheme = Theme.of(context).colorScheme;
+
+  return Scaffold(
+    backgroundColor: colorScheme.surface,
+    appBar: AppBar(
+      title: Text('Screen Title', style: AppTypography.heading2(context)),
+      backgroundColor: Colors.transparent,
+      foregroundColor: colorScheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+    ),
+    body: Container(
+      decoration: AppColors.skyDecoration(isDark: isDark),
+      child: SafeArea(
+        child: /* content */,
+      ),
+    ),
+  );
+}
+```
+
+## Orientation
+
+**Portrait only.** Do not use `Orientation.landscape`, `MediaQuery` landscape breakpoints, or landscape-specific layouts.
+
+## State Management
+
+- Use `StatefulWidget` + `setState` for local screen state
+- No Riverpod, Bloc, or GetX
+- For persistence, use `SharedPreferences` via service static methods
+
+## Navigation
+
+```dart
+Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NextScreen()));
+Navigator.of(context).pop();
+```
+
+No named routes unless already present in `main.dart`.
+
+## Loading States
+
+```dart
+if (_isLoading) {
+  return const Center(
+    child: CircularProgressIndicator(),
+  );
+}
+```
+
+Use `colorScheme.primary` for progress indicators (automatic with Material 3).
+
+## Error States
+
+Display inline, not via `SnackBar` for persistent errors:
+```dart
+Text('Something went wrong.', style: AppTypography.error(context))
+```
+
+Use `SnackBar` only for transient confirmations.
+
+## Best-effort Async (non-blocking)
+
+```dart
+unawaited(SomeService.refresh(prefs: prefs).catchError((_) {}));
+```
+
+Never `await` fire-and-forget tasks that could block the UI.
+
+## Colour & Spacing
+
+Follow `morning-garden-colors` and `flutter-typography` rules — no raw hex, no hardcoded spacing.

@@ -1,0 +1,121 @@
+---
+description: Use when creating a new Next.js page or React component in the webapp
+globs: ["webapp/src/**/*.tsx", "webapp/src/**/*.ts"]
+alwaysApply: false
+---
+
+# Webapp Page & Component Rules
+
+## Routing (App Router)
+
+```
+webapp/src/app/
+├── page.tsx               # /
+├── sign-in/page.tsx       # /sign-in
+├── sign-up/page.tsx       # /sign-up
+├── profile/page.tsx       # /profile
+├── presets/page.tsx       # /presets
+├── admin/presets/page.tsx # /admin/presets
+├── admin/contact/page.tsx # /admin/contact
+└── api/backend/[...path]/route.ts  # backend proxy
+```
+
+Shared components → `webapp/src/components/`
+Utilities → `webapp/src/lib/`
+Types → `webapp/src/types/`
+
+## Page Template
+
+```tsx
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Feature — Digital Vision Board',
+  description: 'Brief SEO description.',
+};
+
+export default function MyFeaturePage() {
+  return (
+    <main className="min-h-screen bg-[#F6F4EF]">
+      {/* content */}
+    </main>
+  );
+}
+```
+
+Every page must export `metadata`.
+
+## Server vs Client Components
+
+- **Default to Server Components** — no `'use client'`
+- Add `'use client'` only when using hooks, event listeners, or browser APIs
+- Fetch data in Server Components; pass down as props
+
+## Authentication
+
+```tsx
+// Server component — check session
+import { getSession } from '@/lib/session';
+import { redirect } from 'next/navigation';
+
+const session = await getSession();
+if (!session) redirect('/sign-in');
+```
+
+Admin pages must additionally verify admin status:
+```tsx
+if (!session?.isAdmin) redirect('/');
+```
+
+## Backend API Calls
+
+Use `@/lib/backend` helpers — never raw `fetch` against the backend:
+```tsx
+import { backendGet, backendPost } from '@/lib/backend';
+
+const data = await backendGet('/api/endpoint', session.token);
+await backendPost('/api/endpoint', payload, session.token);
+```
+
+## Tailwind — Morning Garden Colours
+
+| Purpose | Class |
+|---|---|
+| Page background | `bg-[#F6F4EF]` |
+| Primary button bg | `bg-[#4A7A5A]` |
+| Primary button text | `text-white` |
+| Nav / header bg | `bg-[#3B2D20]` |
+| Coin icon colour | `text-[#C48B3C]` |
+| Amber reward **text** | `text-[#7A5520]` |
+| Card surface | `bg-white dark:bg-[#1F2B22]` |
+| Mood / journal | `text-[#7B74A8]` |
+| Chip / tag bg | `bg-[#DCF0E4]` |
+| Badge container | `bg-[#FDF3E3]` |
+
+**Never use** `text-[#C48B3C]` for text — it fails WCAG AA. Use `text-[#7A5520]`.
+
+## Border Radii
+
+```
+rounded-3xl  → 24px (cards)
+rounded-xl   → 12px (inputs, buttons)
+rounded-lg   → 8px  (chips)
+```
+
+## Font
+
+Inter is loaded globally in `layout.tsx`. Use `font-sans` — do not import or load fonts again.
+
+## TypeScript
+
+- No `any` unless absolutely unavoidable (document why with a comment)
+- Define prop interfaces explicitly
+- Use path alias `@/` for all imports from `src/`
+
+## SEO
+
+Every page exports `metadata`. Use `@/lib/seo` helpers for consistent OG tags:
+```tsx
+import { buildMetadata } from '@/lib/seo';
+export const metadata = buildMetadata({ title: '...', description: '...' });
+```

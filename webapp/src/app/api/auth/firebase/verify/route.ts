@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { firebaseAdminAuth } from '@/lib/firebase/admin'
+import { getFirebaseAdminAuth } from '@/lib/firebase/admin'
 
 type VerifyBody = {
   idToken?: string
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const decoded = await firebaseAdminAuth.verifyIdToken(idToken)
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(idToken)
     return NextResponse.json({
       ok: true,
       uid: decoded.uid,

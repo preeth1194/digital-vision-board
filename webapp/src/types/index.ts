@@ -1,4 +1,18 @@
-export type PresetCategory = 'skincare' | 'workout' | 'meal_prep' | 'recipe'
+export type PresetCategory =
+  | 'health'
+  | 'fitness'
+  | 'challenges'
+  | 'weekly_meal_prep'
+  | 'productivity'
+  | 'mindfulness'
+  | 'learning'
+  | 'relationships'
+  | 'finance'
+  | 'creativity'
+  | 'skincare'
+  | 'workout'
+  | 'meal_prep'
+  | 'recipe'
 export type PresetStatus = 'submitted' | 'approved' | 'rejected' | 'draft'
 
 export interface HabitActionStep {

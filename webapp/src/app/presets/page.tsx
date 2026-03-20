@@ -15,6 +15,16 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }>
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
+  health: 'Health',
+  fitness: 'Fitness',
+  challenges: 'Challenges',
+  weekly_meal_prep: 'Weekly Meal Prep',
+  productivity: 'Productivity',
+  mindfulness: 'Mindfulness',
+  learning: 'Learning',
+  relationships: 'Relationships',
+  finance: 'Finance',
+  creativity: 'Creativity',
   skincare: 'Skincare',
   workout: 'Workout',
   meal_prep: 'Meal Prep',

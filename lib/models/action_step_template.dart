@@ -1,6 +1,21 @@
 import 'habit_action_step.dart';
 
-enum ActionTemplateCategory { skincare, workout, mealPrep, recipe }
+enum ActionTemplateCategory {
+  skincare,
+  workout,
+  mealPrep,
+  recipe,
+  health,
+  fitness,
+  challenges,
+  weeklyMealPrep,
+  productivity,
+  mindfulness,
+  learning,
+  relationships,
+  finance,
+  creativity,
+}
 
 enum ActionTemplateStatus { draft, submitted, approved, rejected }
 
@@ -78,8 +93,28 @@ class ActionStepTemplate {
         return ActionTemplateCategory.mealPrep;
       case 'recipe':
         return ActionTemplateCategory.recipe;
+      case 'health':
+        return ActionTemplateCategory.health;
+      case 'fitness':
+        return ActionTemplateCategory.fitness;
+      case 'challenges':
+        return ActionTemplateCategory.challenges;
+      case 'weekly_meal_prep':
+        return ActionTemplateCategory.weeklyMealPrep;
+      case 'productivity':
+        return ActionTemplateCategory.productivity;
+      case 'mindfulness':
+        return ActionTemplateCategory.mindfulness;
+      case 'learning':
+        return ActionTemplateCategory.learning;
+      case 'relationships':
+        return ActionTemplateCategory.relationships;
+      case 'finance':
+        return ActionTemplateCategory.finance;
+      case 'creativity':
+        return ActionTemplateCategory.creativity;
       default:
-        return ActionTemplateCategory.skincare;
+        return ActionTemplateCategory.health;
     }
   }
 
@@ -93,6 +128,26 @@ class ActionStepTemplate {
         return 'meal_prep';
       case ActionTemplateCategory.recipe:
         return 'recipe';
+      case ActionTemplateCategory.health:
+        return 'health';
+      case ActionTemplateCategory.fitness:
+        return 'fitness';
+      case ActionTemplateCategory.challenges:
+        return 'challenges';
+      case ActionTemplateCategory.weeklyMealPrep:
+        return 'weekly_meal_prep';
+      case ActionTemplateCategory.productivity:
+        return 'productivity';
+      case ActionTemplateCategory.mindfulness:
+        return 'mindfulness';
+      case ActionTemplateCategory.learning:
+        return 'learning';
+      case ActionTemplateCategory.relationships:
+        return 'relationships';
+      case ActionTemplateCategory.finance:
+        return 'finance';
+      case ActionTemplateCategory.creativity:
+        return 'creativity';
     }
   }
 

@@ -74,6 +74,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      - name: Inject Firebase config files (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ android/app/google-services.json written"
+          else
+            echo "⚠️ GOOGLE_SERVICES_JSON secret not set — Google Sign-In will be disabled in this build"
+          fi
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Configure Android signing (optional)
         # Using env variables fixes the "Unrecognized named-value" error
         env:

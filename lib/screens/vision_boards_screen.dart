@@ -1,17 +1,59 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show precisionErrorTolerance;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/vision_board_info.dart';
-import '../utils/app_typography.dart';
 import '../models/grid_tile_model.dart';
+import '../models/image_component.dart';
+import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
+import '../services/vision_board_components_storage_service.dart';
+import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';
 import 'wizard/create_board_wizard_screen.dart';
+
+/// Tiles used only for Vision Boards carousel preview (grid rows or goal-canvas images).
+Future<List<GridTileModel>> loadPreviewTilesForBoard(
+  VisionBoardInfo board,
+  SharedPreferences prefs,
+) async {
+  if (board.layoutType == VisionBoardInfo.layoutGrid) {
+    return GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+  }
+  final components = await VisionBoardComponentsStorageService.loadComponents(
+    board.id,
+    prefs: prefs,
+  );
+  final images = components
+      .whereType<ImageComponent>()
+      .where((c) => c.imagePath.trim().isNotEmpty)
+      .toList()
+    ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+  return List<GridTileModel>.generate(images.length, (i) {
+    final img = images[i];
+    return GridTileModel(
+      id: img.id,
+      type: 'image',
+      content: img.imagePath,
+      isPlaceholder: false,
+      crossAxisCellCount: 1,
+      mainAxisCellCount: 1,
+      index: i,
+    );
+  });
+}
+
+String _previewSubtitle(VisionBoardInfo board, List<GridTileModel> tiles) {
+  final imageCount = tiles.where((t) => t.type == 'image').length;
+  if (board.layoutType == VisionBoardInfo.layoutGrid) {
+    return '$imageCount images · ${tiles.length} tiles';
+  }
+  return '$imageCount ${imageCount == 1 ? 'goal' : 'goals'}';
+}
 
 class VisionBoardsScreen extends StatefulWidget {
   final VoidCallback onCreateBoard;
@@ -45,6 +87,8 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
   late final Animation<Offset> _slideIn;
 
   Map<String, List<GridTileModel>> _tilesCache = {};
+  /// Matches [GridEditorScreen] spacing per board (grid layout only).
+  Map<String, double> _gridSpacingCache = {};
 
   static const double _viewportFraction = 0.68;
 
@@ -88,8 +132,14 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
     final activeId = await BoardsStorageService.loadActiveBoardId(prefs: prefs);
 
     final tilesCache = <String, List<GridTileModel>>{};
+    final spacingCache = <String, double>{};
     for (final board in boards) {
-      tilesCache[board.id] = await GridTilesStorageService.loadTiles(board.id, prefs: prefs);
+      tilesCache[board.id] = await loadPreviewTilesForBoard(board, prefs);
+      if (board.layoutType == VisionBoardInfo.layoutGrid) {
+        spacingCache[board.id] =
+            prefs.getDouble(BoardsStorageService.boardGridCompactSpacingKey(board.id)) ??
+                10.0;
+      }
     }
 
     if (mounted) {
@@ -97,6 +147,7 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
         _boards = boards;
         _activeBoardId = activeId;
         _tilesCache = tilesCache;
+        _gridSpacingCache = spacingCache;
         _loaded = true;
       });
       _entranceController.forward();
@@ -259,6 +310,7 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
                         child: _BoardCard(
                           board: board,
                           tiles: tiles,
+                          gridSpacing: _gridSpacingCache[board.id] ?? 10.0,
                           isActive: isActive,
                           onTap: () => widget.onOpenViewer(board),
                         ),
@@ -289,15 +341,96 @@ class _VisionBoardsScreenState extends State<VisionBoardsScreen>
 // Board card – tall rectangle with image collage
 // ---------------------------------------------------------------------------
 
+/// Same column count as [GridEditorScreen._crossAxisCount] so previews match the grid viewer.
+const int _kVisionBoardPreviewGridCrossAxisCount = 4;
+
+class _PreviewTileOrigin {
+  const _PreviewTileOrigin(this.crossAxisIndex, this.mainAxisOffset);
+  final int crossAxisIndex;
+  final double mainAxisOffset;
+}
+
+bool _previewLessOrNearEqual(double a, double b) {
+  return a < b || (a - b).abs() < precisionErrorTolerance;
+}
+
+/// Port of [flutter_staggered_grid_view] `_findBestCandidate` for height estimation.
+_PreviewTileOrigin _previewFindBestCandidate(
+  List<double> offsets,
+  int tileCrossAxisCellCount,
+) {
+  final length = offsets.length;
+  var bestCandidate = const _PreviewTileOrigin(0, double.infinity);
+  for (var i = 0; i < length; i++) {
+    final offset = offsets[i];
+    if (_previewLessOrNearEqual(bestCandidate.mainAxisOffset, offset)) {
+      continue;
+    }
+
+    var start = 0;
+    var span = 0;
+    for (var j = 0;
+        span < tileCrossAxisCellCount &&
+            j < length &&
+            length - j >= tileCrossAxisCellCount - span;
+        j++) {
+      if (_previewLessOrNearEqual(offsets[j], offset)) {
+        span++;
+        if (span == tileCrossAxisCellCount) {
+          bestCandidate = _PreviewTileOrigin(start, offset);
+        }
+      } else {
+        start = j + 1;
+        span = 0;
+      }
+    }
+  }
+  return bestCandidate;
+}
+
+/// Vertical extent of a [StaggeredGrid] with fixed spans — matches [RenderStaggeredGrid] math
+/// so we can scale the preview to fit (the grid otherwise clips inside a short [Expanded]).
+double previewStaggeredGridMainAxisExtent({
+  required double crossAxisExtent,
+  required int crossAxisCount,
+  required double mainAxisSpacing,
+  required double crossAxisSpacing,
+  required List<GridTileModel> tiles,
+}) {
+  if (tiles.isEmpty || crossAxisExtent <= 0) return 0;
+  final stride = (crossAxisExtent + crossAxisSpacing) / crossAxisCount;
+  final offsets = List<double>.filled(crossAxisCount, 0.0);
+
+  for (final tile in tiles) {
+    final cCount = math.min(
+      tile.crossAxisCellCount.clamp(1, crossAxisCount),
+      crossAxisCount,
+    );
+    final mainAxisCellCount = tile.mainAxisCellCount.clamp(1, 1000);
+    final mainAxisExtent = stride * mainAxisCellCount - mainAxisSpacing;
+
+    final origin = _previewFindBestCandidate(offsets, cCount);
+    final nextTileOffset = origin.mainAxisOffset + mainAxisExtent + mainAxisSpacing;
+    for (var i = 0; i < cCount; i++) {
+      offsets[origin.crossAxisIndex + i] = nextTileOffset;
+    }
+  }
+
+  return offsets.reduce(math.max) - mainAxisSpacing;
+}
+
 class _BoardCard extends StatelessWidget {
   final VisionBoardInfo board;
   final List<GridTileModel> tiles;
+  /// Used for grid boards; ignored for other layouts.
+  final double gridSpacing;
   final bool isActive;
   final VoidCallback onTap;
 
   const _BoardCard({
     required this.board,
     required this.tiles,
+    required this.gridSpacing,
     required this.isActive,
     required this.onTap,
   });
@@ -310,6 +443,9 @@ class _BoardCard extends StatelessWidget {
     final imageTiles = tiles
         .where((t) => t.type == 'image' && (t.content ?? '').trim().isNotEmpty)
         .toList();
+    final isGrid = board.layoutType == VisionBoardInfo.layoutGrid;
+    final hasGridPreview = isGrid && tiles.isNotEmpty;
+    final hasLoosePreview = !isGrid && imageTiles.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
@@ -336,9 +472,11 @@ class _BoardCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: imageTiles.isEmpty
-                  ? _buildPlaceholder(context, tileColor)
-                  : _buildImageCollage(context, imageTiles),
+              child: hasGridPreview
+                  ? _buildGridStaggeredPreview(context, tiles)
+                  : hasLoosePreview
+                      ? _buildLooseImageCollage(context, imageTiles)
+                      : _buildPlaceholder(context, tileColor),
             ),
             _buildTitleBar(context),
           ],
@@ -347,7 +485,59 @@ class _BoardCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageCollage(BuildContext context, List<GridTileModel> imageTiles) {
+  /// Same structure as the grid editor / viewer: 4-column staggered grid with real spans.
+  /// Scaled with [FittedBox] so the full layout fits the carousel tile (avoids vertical clip).
+  Widget _buildGridStaggeredPreview(BuildContext context, List<GridTileModel> gridTiles) {
+    final spacing = gridSpacing;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final innerW = constraints.maxWidth;
+            final innerH = constraints.maxHeight;
+            if (innerW <= 0 || innerH <= 0) {
+              return const SizedBox.shrink();
+            }
+            final naturalH = previewStaggeredGridMainAxisExtent(
+              crossAxisExtent: innerW,
+              crossAxisCount: _kVisionBoardPreviewGridCrossAxisCount,
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
+              tiles: gridTiles,
+            );
+            final contentH = naturalH > 0 ? naturalH : innerH;
+            return FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: innerW,
+                height: contentH,
+                child: StaggeredGrid.count(
+                  crossAxisCount: _kVisionBoardPreviewGridCrossAxisCount,
+                  mainAxisSpacing: spacing,
+                  crossAxisSpacing: spacing,
+                  children: [
+                    for (final tile in gridTiles)
+                      StaggeredGridTile.count(
+                        crossAxisCellCount: tile.crossAxisCellCount
+                            .clamp(1, _kVisionBoardPreviewGridCrossAxisCount),
+                        mainAxisCellCount: tile.mainAxisCellCount.clamp(1, 1000),
+                        child: _previewGridTile(context, tile),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Goal-canvas / non-grid: uniform 2×2-style thumbnail grid (no fixed template spans).
+  Widget _buildLooseImageCollage(BuildContext context, List<GridTileModel> imageTiles) {
     if (imageTiles.length == 1) {
       return Padding(
         padding: const EdgeInsets.all(12),
@@ -358,27 +548,160 @@ class _BoardCard extends StatelessWidget {
       );
     }
 
-    const spacing = 3.0;
+    const spacing = 4.0;
+    const outerPad = 12.0;
     final displayTiles = imageTiles.take(6).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(outerPad),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: StaggeredGrid.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: spacing,
-          crossAxisSpacing: spacing,
-          children: [
-            for (int i = 0; i < displayTiles.length; i++)
-              StaggeredGridTile.count(
-                crossAxisCellCount: (i == 0 && displayTiles.length >= 3) ? 2 : 1,
-                mainAxisCellCount: 1,
-                child: _buildTileImage(context, displayTiles[i]),
-              ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final innerW = constraints.maxWidth;
+            final innerH = constraints.maxHeight;
+            const cols = 2;
+            final n = displayTiles.length;
+            final rows = (n + cols - 1) ~/ cols;
+            final cellW = (innerW - spacing * (cols - 1)) / cols;
+            final cellH =
+                rows > 0 ? (innerH - spacing * (rows - 1)) / rows : innerH;
+            final side = math.min(cellW, cellH);
+
+            final rowWidgets = <Widget>[];
+            for (int r = 0; r < rows; r++) {
+              final rowChildren = <Widget>[];
+              for (int c = 0; c < cols; c++) {
+                final i = r * cols + c;
+                if (i >= n) break;
+                rowChildren.add(
+                  SizedBox(
+                    width: side,
+                    height: side,
+                    child: _buildTileImage(context, displayTiles[i]),
+                  ),
+                );
+                if (c < cols - 1 && i + 1 < n) {
+                  rowChildren.add(SizedBox(width: spacing));
+                }
+              }
+              rowWidgets.add(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: rowChildren,
+                ),
+              );
+              if (r < rows - 1) {
+                rowWidgets.add(SizedBox(height: spacing));
+              }
+            }
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: rowWidgets,
+            );
+          },
         ),
       ),
+    );
+  }
+
+  /// Mirrors [GridEditorScreen] tile visuals (image / text / empty + optional goal label).
+  Widget _previewGridTile(BuildContext context, GridTileModel tile) {
+    final cs = Theme.of(context).colorScheme;
+    final borderRadius = BorderRadius.circular(12);
+    final goalTitle = (tile.goal?.title ?? '').trim();
+    final goalCategory = (tile.goal?.category ?? '').trim();
+    final fallbackTitle = tile.type == 'text'
+        ? (tile.content ?? '').trim()
+        : (tile.type == 'image' ? (goalCategory.isNotEmpty ? goalCategory : 'Goal') : '');
+    final title = goalTitle.isNotEmpty ? goalTitle : fallbackTitle;
+    final showTitle = title.isNotEmpty && tile.type != 'empty';
+
+    late final Widget base;
+    if (tile.type == 'image') {
+      final raw = (tile.content ?? '').trim();
+      final provider = fileImageProviderFromPath(raw);
+      base = Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: provider != null
+            ? SizedBox.expand(
+                child: Image(
+                  image: provider,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _emptyTile(context),
+                ),
+              )
+            : _emptyTile(context),
+      );
+    } else if (tile.type == 'text') {
+      base = Container(
+        decoration: BoxDecoration(
+          color: cs.primaryContainer.withValues(alpha: 0.55),
+          borderRadius: borderRadius,
+          border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+        ),
+        padding: const EdgeInsets.all(8),
+        alignment: Alignment.center,
+        child: Text(
+          (tile.content ?? '').trim(),
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySmall(context).copyWith(
+            color: cs.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    } else {
+      base = Container(
+        decoration: BoxDecoration(
+          color: cs.outline.withValues(alpha: 0.08),
+          borderRadius: borderRadius,
+          border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.add_photo_alternate_outlined,
+          color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+          size: 24,
+        ),
+      );
+    }
+
+    if (!showTitle) return base;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(child: base),
+        Positioned(
+          left: 8,
+          right: 8,
+          bottom: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodySmall(context).copyWith(
+                color: cs.surface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -454,7 +777,7 @@ class _BoardCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${tiles.where((t) => t.type == 'image').length} images · ${tiles.length} tiles',
+            _previewSubtitle(board, tiles),
             style: AppTypography.secondary(context).copyWith(
               color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),

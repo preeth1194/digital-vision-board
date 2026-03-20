@@ -1,0 +1,7 @@
+{"sessionId":"d08ec0","hypothesisId":"H0","location":"onboarding_screen.dart:_continueWithGoogle","message":"google_flow_start","data":{"backendHost":"digital-vision-board.onrender.com"},"timestamp":1774021459783}
+{"sessionId":"d08ec0","hypothesisId":"H1","location":"onboarding_screen.dart:after_google_auth","message":"google_tokens","data":{"googleIdTokenPresent":true,"googleIdTokenLen":1218},"timestamp":1774021556466}
+{"sessionId":"d08ec0","hypothesisId":"H2","location":"onboarding_screen.dart:after_firebase_credential","message":"firebase_signin_ok","data":{"hasUser":true,"uidLen":28},"timestamp":1774021558085}
+{"sessionId":"d08ec0","hypothesisId":"H3","location":"onboarding_screen.dart:after_getIdToken","message":"firebase_id_token","data":{"firebaseIdTokenLen":1157},"timestamp":1774021558107}
+{"sessionId":"d08ec0","hypothesisId":"H4","location":"dv_auth_service.dart:exchangeFirebaseIdTokenForDvToken","message":"exchange_http_response","data":{"statusCode":200,"bodyLen":115,"host":"digital-vision-board.onrender.com"},"timestamp":1774021558528}
+{"sessionId":"d08ec0","hypothesisId":"H4","location":"onboarding_screen.dart:after_backend_exchange","message":"exchange_client_ok","data":{},"timestamp":1774021558540}
+{"sessionId":"d08ec0","hypothesisId":"H5","location":"onboarding_screen.dart:after_subscription_init","message":"subscription_init_ok","data":{},"timestamp":1774021558552}

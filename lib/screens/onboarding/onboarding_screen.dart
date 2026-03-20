@@ -165,6 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         throw Exception('Could not get Firebase idToken.');
       }
       await DvAuthService.exchangeFirebaseIdTokenForDvToken(idToken!);
+      await DvAuthService.syncLocalProfileToServer();
       await SubscriptionService.initialize();
       if (!mounted) return;
       await _finishOnboarding();
@@ -188,6 +189,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       await DvAuthService.continueAsGuest();
+      await DvAuthService.syncLocalProfileToServer();
       await SubscriptionService.initialize();
       if (!mounted) return;
       await _finishOnboarding();

@@ -657,6 +657,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     await DvAuthService.signOut();
     try {
       await DvAuthService.continueAsGuest(prefs: _prefs);
+      await DvAuthService.syncLocalProfileToServer(prefs: _prefs);
     } catch (_) {}
     if (!mounted) return;
     await SyncService.bootstrapIfNeeded(prefs: _prefs);
@@ -1266,7 +1267,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     const barHeight = 64.0;
     const circleOverflow = 20.0;
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
-    const panelContentHeight = 320.0;
+    // Tight wrap: title + 2 glass tiles + gaps (320 left a large empty band).
+    const panelContentHeight = 248.0;
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1326,7 +1328,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               ),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                              padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.stretch,

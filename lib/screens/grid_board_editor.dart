@@ -1065,23 +1065,64 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       });
     }
     final spacing = _gridSpacing;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: false,
+        titleSpacing: 12,
         title: (widget.isNewBoard && _isEditing)
-            ? TextField(
-                controller: _boardNameC,
-                maxLength: 100,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                style: AppTypography.heading3(context),
-                decoration: const InputDecoration(
-                  hintText: 'Name your board',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                  counterText: '',
-                ),
+            ? LayoutBuilder(
+                builder: (context, constraints) {
+                  return SizedBox(
+                    width: constraints.maxWidth,
+                    child: Semantics(
+                      label: 'Board name',
+                      textField: true,
+                      child: TextField(
+                        controller: _boardNameC,
+                        maxLength: 100,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                        textCapitalization: TextCapitalization.sentences,
+                        textInputAction: TextInputAction.done,
+                        style: AppTypography.body(context).copyWith(
+                          color: colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Name your board',
+                          hintStyle: AppTypography.secondary(context),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerLowest,
+                          isDense: false,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colorScheme.outline),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colorScheme.outline),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          counterText: '',
+                        ),
+                      ),
+                    ),
+                  );
+                },
               )
-            : Text(_isEditing ? 'Edit: ${_boardNameC.text.trim()}' : _boardNameC.text.trim()),
+            : Text(
+                _isEditing ? 'Edit: ${_boardNameC.text.trim()}' : _boardNameC.text.trim(),
+                style: AppTypography.heading3(context),
+              ),
         leading: BackButton(
           onPressed: () async {
             await _saveBoardName();
@@ -1112,8 +1153,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
                       builder: (context, constraints) {
-                // Grid is rendered inside a 16px padding on both sides.
-                final gridMaxWidth = (constraints.maxWidth - 32).clamp(0.0, double.infinity);
+                final mq = MediaQuery.of(context);
+                final hPad = _isEditing ? 16.0 : 0.0;
+                final vPadTop = _isEditing ? 16.0 : 0.0;
+                final vPadBottom = _isEditing ? 16.0 : max(8.0, mq.padding.bottom);
+                final gridMaxWidth =
+                    (constraints.maxWidth - hPad * 2).clamp(0.0, double.infinity);
                 final cellExtent =
                     (gridMaxWidth - (spacing * (_crossAxisCount - 1))) / _crossAxisCount;
                 return GestureDetector(
@@ -1134,7 +1179,12 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: constraints.maxHeight),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        padding: EdgeInsets.fromLTRB(
+                          hPad,
+                          vPadTop,
+                          hPad,
+                          vPadBottom,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [

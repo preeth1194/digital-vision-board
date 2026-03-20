@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,37 +7,6 @@ import '../../models/habit_item.dart';
 import '../../services/icon_service.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
-
-void _debugLogStepForm({
-  required String runId,
-  required String hypothesisId,
-  required String location,
-  required String message,
-  required Map<String, dynamic> data,
-}) {
-  final payload = <String, dynamic>{
-    'sessionId': '7739ce',
-    'runId': runId,
-    'hypothesisId': hypothesisId,
-    'location': location,
-    'message': message,
-    'data': data,
-    'timestamp': DateTime.now().millisecondsSinceEpoch,
-  };
-  () async {
-    try {
-      final client = HttpClient();
-      final req = await client.postUrl(
-        Uri.parse('http://127.0.0.1:7242/ingest/374160e6-9662-46f2-a15d-93097c3f6383'),
-      );
-      req.headers.set('Content-Type', 'application/json');
-      req.headers.set('X-Debug-Session-Id', '7739ce');
-      req.add(utf8.encode(jsonEncode(payload)));
-      await req.close();
-      client.close(force: true);
-    } catch (_) {}
-  }();
-}
 
 // --- STEP 6: ACTION STEPS ---
 class Step6Strategy extends StatefulWidget {
@@ -126,28 +92,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
 
   bool _hasPlannerMetadata(List<HabitActionStep> steps) {
     final hasPlannerSchedule = steps.any((s) => s.hasPlannerSchedule);
-    // #region agent log
-    _debugLogStepForm(
-      runId: 'run2',
-      hypothesisId: 'H6',
-      location: 'habit_form_strategy_section.dart:_hasPlannerMetadata',
-      message: 'Planner metadata detection result',
-      data: {
-        'stepsCount': steps.length,
-        'hasPlannerSchedule': hasPlannerSchedule,
-        'sample': steps.take(3).map((s) {
-          return {
-            'id': s.id,
-            'plannerDay': s.plannerDay,
-            'plannerWeek': s.plannerWeek,
-            'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
-            'normalizedPlannerWeek': s.normalizedPlannerWeek,
-            'hasPlannerSchedule': s.hasPlannerSchedule,
-          };
-        }).toList(),
-      },
-    );
-    // #endregion
     return hasPlannerSchedule;
   }
 
@@ -187,34 +131,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
         _selectedPlannerDay = _allPlannerDays;
       }
     }
-    final initialBucketCount = widget.actionSteps.where((step) {
-      final weekMatches = step.normalizedPlannerWeek == null ||
-          step.normalizedPlannerWeek == _selectedPlannerWeek;
-      final dayMatches = _selectedPlannerDay == _allPlannerDays ||
-          step.normalizedPlannerWeekday == null ||
-          step.normalizedPlannerWeekday == _selectedPlannerDay;
-      return weekMatches && dayMatches;
-    }).length;
-    // #region agent log
-    _debugLogStepForm(
-      runId: 'run5',
-      hypothesisId: 'H11',
-      location: 'habit_form_strategy_section.dart:initState',
-      message: 'Step6Strategy initialized planner mode',
-      data: {
-        'plannerMode': _plannerMode,
-        'actionStepsCount': widget.actionSteps.length,
-        'selectedPlannerWeek': _selectedPlannerWeek,
-        'selectedPlannerDay': _selectedPlannerDay,
-        'initialBucketCount': initialBucketCount,
-        'plannerDayValues': widget.actionSteps
-            .map((s) => (s.plannerDay ?? '').trim())
-            .where((v) => v.isNotEmpty)
-            .toSet()
-            .toList(),
-      },
-    );
-    // #endregion
     if (widget.anchorHabitText.isNotEmpty) {
       _searchController.text = widget.anchorHabitText;
     }
@@ -425,20 +341,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   .toList(),
               onChanged: (value) {
                 if (value == null) return;
-                // #region agent log
-                _debugLogStepForm(
-                  runId: 'run6',
-                  hypothesisId: 'H12',
-                  location: 'habit_form_strategy_section.dart:_buildPlannerBucketSelector',
-                  message: 'Tracker week selector changed',
-                  data: {
-                    'previousSelectedPlannerWeek': _selectedPlannerWeek,
-                    'nextSelectedPlannerWeek': value,
-                    'selectedPlannerDay': _selectedPlannerDay,
-                    'stepsCount': widget.actionSteps.length,
-                  },
-                );
-                // #endregion
                 setState(() => _selectedPlannerWeek = value);
               },
             ),
@@ -471,63 +373,18 @@ class _Step6StrategyState extends State<Step6Strategy> {
   }
 
   List<HabitActionStep> get _plannerBucketSteps {
-    final bucket = widget.actionSteps
-        .where(
-          (step) {
-            final weekMatches = step.normalizedPlannerWeek == null ||
-                step.normalizedPlannerWeek == _selectedPlannerWeek;
-            final dayMatches = _selectedPlannerDay == _allPlannerDays ||
-                step.normalizedPlannerWeekday == null ||
-                step.normalizedPlannerWeekday == _selectedPlannerDay;
-            return weekMatches && dayMatches;
-          },
-        )
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final bucket = widget.actionSteps.where((step) {
+      final weekMatches =
+          step.normalizedPlannerWeek == null ||
+          step.normalizedPlannerWeek == _selectedPlannerWeek;
+      final dayMatches =
+          _selectedPlannerDay == _allPlannerDays ||
+          step.normalizedPlannerWeekday == null ||
+          step.normalizedPlannerWeekday == _selectedPlannerDay;
+      return weekMatches && dayMatches;
+    }).toList()..sort((a, b) => a.order.compareTo(b.order));
     if (!_loggedPlannerBucketFilter) {
       _loggedPlannerBucketFilter = true;
-      // #region agent log
-      _debugLogStepForm(
-        runId: 'run4',
-        hypothesisId: 'H8',
-        location: 'habit_form_strategy_section.dart:_plannerBucketSteps',
-        message: 'Planner bucket filter result',
-        data: {
-          'bucketFilterVersion': 'wildcard_v2',
-          'selectedPlannerWeek': _selectedPlannerWeek,
-          'selectedPlannerDay': _selectedPlannerDay,
-          'totalSteps': widget.actionSteps.length,
-          'bucketCount': bucket.length,
-          'selectedStepsPlannerWeeks': bucket
-              .map((s) => s.normalizedPlannerWeek)
-              .toSet()
-              .toList(),
-          'firstStepEvaluation': widget.actionSteps.isEmpty
-              ? null
-              : {
-                  'weekMatches': widget.actionSteps.first.normalizedPlannerWeek ==
-                          null ||
-                      widget.actionSteps.first.normalizedPlannerWeek ==
-                          _selectedPlannerWeek,
-                  'dayMatches': _selectedPlannerDay == _allPlannerDays ||
-                      widget.actionSteps.first.normalizedPlannerWeekday ==
-                          null ||
-                      widget.actionSteps.first.normalizedPlannerWeekday ==
-                          _selectedPlannerDay,
-                },
-          'sample': widget.actionSteps.take(5).map((s) {
-            return {
-              'id': s.id,
-              'title': s.title,
-              'plannerDay': s.plannerDay,
-              'plannerWeek': s.plannerWeek,
-              'normalizedPlannerWeekday': s.normalizedPlannerWeekday,
-              'normalizedPlannerWeek': s.normalizedPlannerWeek,
-            };
-          }).toList(),
-        },
-      );
-      // #endregion
     }
     return bucket;
   }
@@ -548,26 +405,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
     final colorScheme = Theme.of(context).colorScheme;
     if (_plannerMode && !_loggedPlannerBucketSnapshot) {
       _loggedPlannerBucketSnapshot = true;
-      // #region agent log
-      _debugLogStepForm(
-        runId: 'run4',
-        hypothesisId: 'H9',
-        location: 'habit_form_strategy_section.dart:build',
-        message: 'Planner mode first render snapshot',
-        data: {
-          'bucketFilterVersion': 'wildcard_v2',
-          'plannerMode': _plannerMode,
-          'selectedPlannerWeek': _selectedPlannerWeek,
-          'selectedPlannerDay': _selectedPlannerDay,
-          'actionStepsCount': widget.actionSteps.length,
-          'plannerDayValues': widget.actionSteps
-              .map((s) => (s.plannerDay ?? '').trim())
-              .where((v) => v.isNotEmpty)
-              .toSet()
-              .toList(),
-        },
-      );
-      // #endregion
     }
 
     return CupertinoListSection.insetGrouped(
@@ -659,35 +496,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
                   plannerWeekOptions: _plannerWeekOptions,
                   plannerDayOptions: _plannerDayOptions,
                   onPlannerWeekChanged: (week) {
-                    // #region agent log
-                    _debugLogStepForm(
-                      runId: 'run6',
-                      hypothesisId: 'H14',
-                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
-                      message: 'Per-step planner week changed',
-                      data: {
-                        'stepId': step.id,
-                        'previousPlannerWeek': step.plannerWeek,
-                        'nextPlannerWeek': week,
-                      },
-                    );
-                    // #endregion
                     _updateStepById(step.id, step.copyWith(plannerWeek: week));
                   },
                   onPlannerDayChanged: (weekday) {
-                    // #region agent log
-                    _debugLogStepForm(
-                      runId: 'run6',
-                      hypothesisId: 'H14',
-                      location: 'habit_form_strategy_section.dart:plannerItemBuilder',
-                      message: 'Per-step planner day changed',
-                      data: {
-                        'stepId': step.id,
-                        'previousPlannerDay': step.plannerDay,
-                        'nextPlannerDay': _plannerDayKey(weekday),
-                      },
-                    );
-                    // #endregion
                     _updateStepById(
                       step.id,
                       step.copyWith(plannerDay: _plannerDayKey(weekday)),
@@ -707,9 +518,9 @@ class _Step6StrategyState extends State<Step6Strategy> {
                 _plannerMode
                     ? 'No steps for this week/day bucket yet.'
                     : 'Add at least one action step.',
-                style: AppTypography.caption(context).copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: AppTypography.caption(
+                  context,
+                ).copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ),
           if (widget.actionStepsError != null)
@@ -1110,25 +921,6 @@ class _ActionStepTileState extends State<_ActionStepTile> {
     final seededTitle = _seedStepTitle(widget.step);
     _stepLabelController = TextEditingController(text: seededTitle);
     _notesController = TextEditingController(text: widget.step.notes ?? '');
-    // #region agent log
-    _debugLogStepForm(
-      runId: 'run1',
-      hypothesisId: 'H4',
-      location: 'habit_form_strategy_section.dart:_ActionStepTileState.initState',
-      message: 'Planner tile initialized with source fields',
-      data: {
-        'stepId': widget.step.id,
-        'title': widget.step.title,
-        'displayTitle': widget.step.displayTitle,
-        'stepLabel': widget.step.stepLabel,
-        'seededInputTitle': seededTitle,
-        'productName': widget.step.productName,
-        'notes': widget.step.notes,
-        'plannerDay': widget.step.plannerDay,
-        'plannerWeek': widget.step.plannerWeek,
-      },
-    );
-    // #endregion
   }
 
   @override
@@ -1148,21 +940,6 @@ class _ActionStepTileState extends State<_ActionStepTile> {
   }
 
   void _emitChange() {
-    // #region agent log
-    _debugLogStepForm(
-      runId: 'run1',
-      hypothesisId: 'H5',
-      location: 'habit_form_strategy_section.dart:_ActionStepTileState._emitChange',
-      message: 'Step emit change before clearing product fields',
-      data: {
-        'stepId': widget.step.id,
-        'typedStepLabel': _stepLabelController.text,
-        'typedNotes': _notesController.text,
-        'existingProductType': widget.step.productType,
-        'existingProductName': widget.step.productName,
-      },
-    );
-    // #endregion
     widget.onChanged(
       widget.step.copyWith(
         stepLabel: _stepLabelController.text,
@@ -1182,24 +959,6 @@ class _ActionStepTileState extends State<_ActionStepTile> {
     final selectedDay = widget.step.normalizedPlannerWeekday ?? DateTime.monday;
     if (widget.showPlannerControls && !_loggedWeekRender) {
       _loggedWeekRender = true;
-      // #region agent log
-      _debugLogStepForm(
-        runId: 'run6',
-        hypothesisId: 'H13',
-        location: 'habit_form_strategy_section.dart:_ActionStepTileState.build',
-        message: 'Planner step row rendered with week/day values',
-        data: {
-          'stepId': widget.step.id,
-          'stepTitle': widget.step.displayTitle,
-          'rawPlannerWeek': widget.step.plannerWeek,
-          'normalizedPlannerWeek': widget.step.normalizedPlannerWeek,
-          'renderedSelectedWeek': selectedWeek,
-          'rawPlannerDay': widget.step.plannerDay,
-          'normalizedPlannerWeekday': widget.step.normalizedPlannerWeekday,
-          'renderedSelectedDay': selectedDay,
-        },
-      );
-      // #endregion
     }
 
     return Padding(
@@ -1254,9 +1013,9 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     counterText: '',
                   ),
-                  style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.body(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w500),
                   onChanged: (_) => _emitChange(),
                 ),
               ),
@@ -1333,9 +1092,9 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
               counterText: '',
             ),
-            style: AppTypography.bodySmall(context).copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: AppTypography.bodySmall(
+              context,
+            ).copyWith(color: cs.onSurfaceVariant),
             onChanged: (_) => _emitChange(),
           ),
         ],

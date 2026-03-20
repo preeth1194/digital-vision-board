@@ -58,6 +58,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'habitseeding-prod.firebasestorage.app',
   );
 
+  // Must match the Runner bundle id (com.habitseeding.app), not the widget extension.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCJDkBjmtM5LvFcQ8KlQmXONINz0eeldDk',
     appId: '1:612736301895:ios:6b3b1bfa77af7250ac2a62',

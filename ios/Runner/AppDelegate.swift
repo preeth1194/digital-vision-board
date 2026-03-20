@@ -6,7 +6,7 @@ import WidgetKit
 import MediaPlayer
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let channelName = "dvb/habit_progress_widget"
   private let snapshotKey = "habit_progress_widget_snapshot_v1"
   private let actionQueueKey = "habit_progress_widget_action_queue_v1"
@@ -16,12 +16,12 @@ import MediaPlayer
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    if let controller = window?.rootViewController as? FlutterViewController {
-      _registerHabitProgressChannel(messenger: controller.binaryMessenger)
-    }
-    return result
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    _registerHabitProgressChannel(messenger: engineBridge.applicationRegistrar.messenger())
   }
 
   private func _registerHabitProgressChannel(messenger: FlutterBinaryMessenger) {

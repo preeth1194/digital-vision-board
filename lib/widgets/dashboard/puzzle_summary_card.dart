@@ -149,7 +149,8 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
@@ -176,84 +177,79 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
                 ),
               ],
             ),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!_loaded)
-                    SizedBox(
-                      height: 4,
-                      child: LinearProgressIndicator(
-                        backgroundColor:
-                            colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                      ),
-                    )
-                  else if (_imagePath != null) ...[
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: (_previewPieces != null &&
-                                _previewPositionPieces.isNotEmpty &&
-                                !_isCompleted)
-                            ? _buildPuzzleBoardPreview(colorScheme)
-                            : ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  color: colorScheme.surface.withValues(alpha: 0.35),
-                                  child: Image(
-                                    image: fileImageProviderFromPath(_imagePath!) ??
-                                        const AssetImage('assets/placeholder.png')
-                                            as ImageProvider,
-                                    fit: BoxFit.contain,
-                                    width: double.infinity,
-                                    errorBuilder: (context, error, stack) => Icon(
-                                      Icons.extension_rounded,
-                                      size: 36,
-                                      color: colorScheme.onPrimaryContainer
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                ),
-                            ),
-                      ),
-                    ),
-                    if (_previewPieces != null &&
-                        _previewPositionPieces.isNotEmpty &&
-                        !_isCompleted) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'In progress',
-                        style: AppTypography.caption(context).copyWith(
-                          color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
+            if (!_loaded) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 4,
+                child: LinearProgressIndicator(
+                  backgroundColor:
+                      colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+                ),
+              ),
+            ] else if (_imagePath != null) ...[
+              const SizedBox(height: 8),
+              if (_previewPieces != null &&
+                  _previewPositionPieces.isNotEmpty &&
+                  !_isCompleted) ...[
+                _buildPuzzleBoardPreview(colorScheme),
+                const SizedBox(height: 8),
+                Text(
+                  'In progress',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption(context).copyWith(
+                    color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
+                  ),
+                ),
+              ] else
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: ColoredBox(
+                      color: colorScheme.surface.withValues(alpha: 0.35),
+                      child: Image(
+                        image: fileImageProviderFromPath(_imagePath!) ??
+                            const AssetImage('assets/placeholder.png')
+                                as ImageProvider,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stack) => Icon(
+                          Icons.extension_rounded,
+                          size: 36,
+                          color: colorScheme.onPrimaryContainer
+                              .withValues(alpha: 0.5),
                         ),
                       ),
-                    ],
-                  ] else ...[
-                    Icon(
-                      Icons.extension_outlined,
-                      color: colorScheme.onPrimaryContainer
-                          .withValues(alpha: 0.5),
-                      size: 36,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'No puzzle yet',
-                      style: AppTypography.bodySmall(context).copyWith(
-                        color: colorScheme.onPrimaryContainer
-                            .withValues(alpha: 0.7),
-                      ),
-                    ),
-                    Text(
-                      'Tap to start',
-                      style: AppTypography.caption(context).copyWith(
-                        color: colorScheme.onPrimaryContainer
-                            .withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
-                ],
+                  ),
+                ),
+            ] else ...[
+              const SizedBox(height: 8),
+              Icon(
+                Icons.extension_outlined,
+                color: colorScheme.onPrimaryContainer
+                    .withValues(alpha: 0.5),
+                size: 36,
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                'No puzzle yet',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onPrimaryContainer
+                      .withValues(alpha: 0.7),
+                ),
+              ),
+              Text(
+                'Tap to start',
+                textAlign: TextAlign.center,
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onPrimaryContainer
+                      .withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -264,45 +260,82 @@ class _PuzzleSummaryCardState extends State<PuzzleSummaryCard>
     final pieces = _previewPieces!;
     final gridSize = _previewGridSize;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        color: colorScheme.surface.withValues(alpha: 0.35),
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(4),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: gridSize,
-            crossAxisSpacing: 1.5,
-            mainAxisSpacing: 1.5,
-          ),
-          itemCount: _previewPositionPieces.length,
-          itemBuilder: (context, position) {
-            final pieceIndex = _previewPositionPieces[position];
-            return Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                color: colorScheme.surfaceContainerHighest,
-              ),
-              child: (pieceIndex != null &&
-                      pieceIndex >= 0 &&
-                      pieceIndex < pieces.length)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: Image.memory(
-                        pieces[pieceIndex],
-                        fit: BoxFit.cover,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const pad = 4.0;
+        const gap = 1.5;
+        final maxW = constraints.maxWidth;
+        final maxH = constraints.maxHeight;
+        if (maxW <= 0) {
+          return const SizedBox.shrink();
+        }
+        final innerW = (maxW - 2 * pad).clamp(1.0, double.infinity);
+        final cell =
+            (innerW - (gridSize - 1) * gap) / gridSize;
+        final naturalH =
+            2 * pad + gridSize * cell + (gridSize - 1) * gap;
+
+        final gridSizedBox = SizedBox(
+          width: maxW,
+          height: naturalH,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ColoredBox(
+              color: colorScheme.surface.withValues(alpha: 0.35),
+              child: Padding(
+                padding: const EdgeInsets.all(pad),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: gridSize,
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: _previewPositionPieces.length,
+                  itemBuilder: (context, position) {
+                    final pieceIndex = _previewPositionPieces[position];
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        color: colorScheme.surfaceContainerHighest,
                       ),
-                    )
-                  : Icon(
-                      Icons.extension_outlined,
-                      size: 10,
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
-                    ),
-            );
-          },
-        ),
-      ),
+                      child: (pieceIndex != null &&
+                              pieceIndex >= 0 &&
+                              pieceIndex < pieces.length)
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: Image.memory(
+                                pieces[pieceIndex],
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Icon(
+                              Icons.extension_outlined,
+                              size: 10,
+                              color: colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.35),
+                            ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Tight height when parent is intrinsic (dashboard); scale only if bounded and too short.
+        final boundedH = maxH.isFinite && maxH > 0;
+        if (boundedH && naturalH > maxH) {
+          return FittedBox(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            child: gridSizedBox,
+          );
+        }
+        return gridSizedBox;
+      },
     );
   }
 }

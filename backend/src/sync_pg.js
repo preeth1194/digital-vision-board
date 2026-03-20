@@ -9,12 +9,31 @@ export function isLogicalDate(v) {
 export async function getUserSettingsPg(userId) {
   return await withClient(async (c) => {
     const r = await c.query(
-      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source, encryption_key from dv_user_settings where user_id = $1",
+      "select home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, activity_level, diet_preference, allergies, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source, encryption_key from dv_user_settings where user_id = $1",
       [userId]
     );
-    if (!r.rowCount) return { homeTimezone: null, gender: "prefer_not_to_say", displayName: null, weightKg: null, heightCm: null, dateOfBirth: null, subscriptionPlanId: null, subscriptionActive: false, subscriptionUpdatedAt: null, subscriptionSource: null, encryptionKey: null };
+    if (!r.rowCount)
+      return {
+        homeTimezone: null,
+        gender: "prefer_not_to_say",
+        displayName: null,
+        weightKg: null,
+        heightCm: null,
+        dateOfBirth: null,
+        activityLevel: null,
+        dietPreference: null,
+        allergies: [],
+        subscriptionPlanId: null,
+        subscriptionActive: false,
+        subscriptionUpdatedAt: null,
+        subscriptionSource: null,
+        encryptionKey: null,
+      };
     const row = r.rows[0];
     const dob = row.date_of_birth;
+    const al = row.allergies;
+    const allergiesOut =
+      al == null ? [] : Array.isArray(al) ? al.map((x) => String(x)) : [];
     return {
       homeTimezone: row.home_timezone ?? null,
       gender: row.gender ?? "prefer_not_to_say",
@@ -22,6 +41,9 @@ export async function getUserSettingsPg(userId) {
       weightKg: row.weight_kg != null ? Number(row.weight_kg) : null,
       heightCm: row.height_cm != null ? Number(row.height_cm) : null,
       dateOfBirth: dob != null ? (typeof dob === "string" ? dob : dob.toISOString?.().slice(0, 10)) : null,
+      activityLevel: row.activity_level ?? null,
+      dietPreference: row.diet_preference ?? null,
+      allergies: allergiesOut,
       subscriptionPlanId: row.subscription_plan_id ?? null,
       subscriptionActive: Boolean(row.subscription_active),
       subscriptionUpdatedAt: row.subscription_updated_at?.toISOString?.() ?? row.subscription_updated_at ?? null,
@@ -54,15 +76,25 @@ export async function putEncryptionKeyPg(userId, encryptionKey) {
   });
 }
 
-export async function putUserSettingsPg(userId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource }) {
+export async function putUserSettingsPg(userId, { homeTimezone, gender, displayName, weightKg, heightCm, dateOfBirth, subscriptionPlanId, subscriptionActive, subscriptionSource, activityLevel, dietPreference, allergies }) {
   return await withClient(async (c) => {
     const dobVal = dateOfBirth && typeof dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ? dateOfBirth : null;
     const subActive = subscriptionActive != null ? Boolean(subscriptionActive) : null;
     const subPlan = typeof subscriptionPlanId === "string" && subscriptionPlanId.trim() ? subscriptionPlanId.trim() : null;
     const subSource = typeof subscriptionSource === "string" && subscriptionSource.trim() ? subscriptionSource.trim() : null;
+    const act = typeof activityLevel === "string" && activityLevel.trim() ? activityLevel.trim().toLowerCase() : null;
+    const diet = typeof dietPreference === "string" && dietPreference.trim() ? dietPreference.trim().toLowerCase() : null;
+    const allergiesJson =
+      Array.isArray(allergies) && allergies.length
+        ? JSON.stringify(
+            allergies
+              .map((s) => String(s).trim().toLowerCase())
+              .filter(Boolean),
+          )
+        : null;
     await c.query(
-      `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
-       values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end, $10)
+      `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, activity_level, diet_preference, allergies, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
+       values ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10::jsonb, $11, coalesce($12, false), case when $12 is not null then now() else null end, $13)
        on conflict (user_id) do update set
          home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
          gender = coalesce(excluded.gender, dv_user_settings.gender),
@@ -70,12 +102,15 @@ export async function putUserSettingsPg(userId, { homeTimezone, gender, displayN
          weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
          height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
          date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
+         activity_level = coalesce(excluded.activity_level, dv_user_settings.activity_level),
+         diet_preference = coalesce(excluded.diet_preference, dv_user_settings.diet_preference),
+         allergies = coalesce(excluded.allergies, dv_user_settings.allergies),
          subscription_plan_id = coalesce(excluded.subscription_plan_id, dv_user_settings.subscription_plan_id),
-         subscription_active = case when $9 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
-         subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
+         subscription_active = case when $12 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
+         subscription_updated_at = case when $12 is not null then now() else dv_user_settings.subscription_updated_at end,
          subscription_source = coalesce(excluded.subscription_source, dv_user_settings.subscription_source),
          updated_at = now()`,
-      [userId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null, subPlan, subActive, subSource],
+      [userId, homeTimezone ?? null, gender ?? "prefer_not_to_say", displayName ?? null, weightKg ?? null, heightCm ?? null, dobVal ?? null, act, diet, allergiesJson, subPlan, subActive, subSource],
     );
   });
 }
@@ -169,9 +204,25 @@ export async function applySyncPushPg(userId, { boards, userSettings, habitCompl
         const subActive = userSettings.subscriptionActive != null ? Boolean(userSettings.subscriptionActive) : null;
         const subPlan = typeof userSettings.subscriptionPlanId === "string" && userSettings.subscriptionPlanId.trim() ? userSettings.subscriptionPlanId.trim() : null;
         const subSource = typeof userSettings.subscriptionSource === "string" && userSettings.subscriptionSource.trim() ? userSettings.subscriptionSource.trim() : (subActive != null ? "store" : null);
+        const act =
+          typeof userSettings.activityLevel === "string" && userSettings.activityLevel.trim()
+            ? userSettings.activityLevel.trim().toLowerCase()
+            : null;
+        const diet =
+          typeof userSettings.dietPreference === "string" && userSettings.dietPreference.trim()
+            ? userSettings.dietPreference.trim().toLowerCase()
+            : null;
+        let allergiesSync = null;
+        if (Array.isArray(userSettings.allergies) && userSettings.allergies.length) {
+          allergiesSync = JSON.stringify(
+            userSettings.allergies
+              .map((s) => String(s).trim().toLowerCase())
+              .filter(Boolean),
+          );
+        }
         await c.query(
-          `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
-           values ($1, $2, $3, $4, $5, $6, $7::date, $8, coalesce($9, false), case when $9 is not null then now() else null end, $10)
+          `insert into dv_user_settings (user_id, home_timezone, gender, display_name, weight_kg, height_cm, date_of_birth, activity_level, diet_preference, allergies, subscription_plan_id, subscription_active, subscription_updated_at, subscription_source)
+           values ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10::jsonb, $11, coalesce($12, false), case when $12 is not null then now() else null end, $13)
            on conflict (user_id) do update set
              home_timezone = coalesce(excluded.home_timezone, dv_user_settings.home_timezone),
              gender = coalesce(excluded.gender, dv_user_settings.gender),
@@ -179,12 +230,15 @@ export async function applySyncPushPg(userId, { boards, userSettings, habitCompl
              weight_kg = coalesce(excluded.weight_kg, dv_user_settings.weight_kg),
              height_cm = coalesce(excluded.height_cm, dv_user_settings.height_cm),
              date_of_birth = coalesce(excluded.date_of_birth, dv_user_settings.date_of_birth),
+             activity_level = coalesce(excluded.activity_level, dv_user_settings.activity_level),
+             diet_preference = coalesce(excluded.diet_preference, dv_user_settings.diet_preference),
+             allergies = coalesce(excluded.allergies, dv_user_settings.allergies),
              subscription_plan_id = coalesce(excluded.subscription_plan_id, dv_user_settings.subscription_plan_id),
-             subscription_active = case when $9 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
-             subscription_updated_at = case when $9 is not null then now() else dv_user_settings.subscription_updated_at end,
+             subscription_active = case when $12 is not null then excluded.subscription_active else dv_user_settings.subscription_active end,
+             subscription_updated_at = case when $12 is not null then now() else dv_user_settings.subscription_updated_at end,
              subscription_source = coalesce(excluded.subscription_source, dv_user_settings.subscription_source),
              updated_at = now()`,
-          [userId, tz, gender, displayName, weightKg, heightCm, dob, subPlan, subActive, subSource],
+          [userId, tz, gender, displayName, weightKg, heightCm, dob, act, diet, allergiesSync, subPlan, subActive, subSource],
         );
       }
 

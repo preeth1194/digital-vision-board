@@ -232,20 +232,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
             .toList(),
       );
       await DvAuthService.setGender(_gender);
-      await DvAuthService.putUserSettings(
-        gender: _gender,
-        displayName: name,
-        weightKg: weightKg,
-        heightCm: heightCm,
-        dateOfBirth: dobStr,
-        activityLevel: _activityLevel,
-        dietPreference: _dietPreference,
-        allergies: _allergiesController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList(),
-      );
+      await DvAuthService.syncLocalProfileToServer();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } finally {

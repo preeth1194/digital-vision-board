@@ -36,7 +36,63 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-        
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+        continue-on-error: true
+
+      - name: Check test coverage
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            # Install lcov if not available
+            if ! command -v lcov &> /dev/null; then
+              sudo apt-get update && sudo apt-get install -y lcov
+            fi
+            # Extract and display coverage
+            COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 | grep -oP 'lines\.*:\s*\K[\d.]+' | head -1 || echo "0")
+            if [ -n "$COVERAGE" ] && [ "$COVERAGE" != "0" ]; then
+              echo "Test coverage: ${COVERAGE}%"
+            else
+              echo "⚠️ Could not extract coverage percentage"
+              # Still show summary
+              lcov --summary coverage/lcov.info 2>&1 || true
+            fi
+            echo "Coverage report generated at coverage/lcov.info"
+          else
+            echo "⚠️ Coverage file not generated"
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Inject Firebase config files (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ android/app/google-services.json written"
+          else
+            echo "⚠️ GOOGLE_SERVICES_JSON secret not set — Google Sign-In will be disabled in this build"
+          fi
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Configure Android signing (optional)
         # Using env variables fixes the "Unrecognized named-value" error
         env:
@@ -87,10 +143,10 @@ jobs:
           fi
 
       - name: Build AAB (release)
-        run: flutter build appbundle --release --no-tree-shake-icons
+        run: flutter build appbundle --release --no-tree-shake-icons --obfuscate --split-debug-info=build/app/outputs/symbols
 
       - name: Build APK (release)
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --obfuscate --split-debug-info=build/app/outputs/symbols
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
@@ -105,6 +161,14 @@ jobs:
           name: app-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      - name: Upload debug symbols (for crash deobfuscation)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-symbols
+          path: build/app/outputs/symbols/
+          if-no-files-found: warn
+          retention-days: 90
 
       # Optional: Deploy AAB to Google Play (internal track)
       - name: Deploy to Google Play (internal) (optional)
@@ -151,6 +215,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Inject Firebase config (required for Google Sign-In)
+        env:
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        shell: bash
+        run: |
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+            echo "✅ ios/Runner/GoogleService-Info.plist written"
+          else
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST secret not set — iOS Google Sign-In will be disabled"
+          fi
+
       - name: Install CocoaPods
         run: |
           cd ios
@@ -192,12 +268,12 @@ jobs:
           echo "✅ Certificate and provisioning profile installed"
 
       - name: Build IPA (release)
-        run: flutter build ipa --release --no-tree-shake-icons --export-options-plist=ios/ExportOptions.plist
+        run: flutter build ipa --release --no-tree-shake-icons --obfuscate --split-debug-info=build/ios/symbols --export-options-plist=ios/ExportOptions.plist
         continue-on-error: true
 
       - name: Build IPA without ExportOptions (fallback)
         if: failure()
-        run: flutter build ipa --release --no-tree-shake-icons
+        run: flutter build ipa --release --no-tree-shake-icons --obfuscate --split-debug-info=build/ios/symbols
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

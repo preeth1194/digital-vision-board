@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auto_sync_service.dart';
 import '../services/backup_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../utils/app_typography.dart';
+import '../utils/drive_api_setup_helper.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -145,32 +147,76 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       builder: (context, syncState, _) {
         final IconData icon;
         final String title;
-        final String subtitle;
+        final String subtitleText;
         final Color iconColor;
+        final bool driveApiDisabled;
 
         switch (syncState) {
           case SyncState.syncing:
             icon = Icons.sync;
             title = 'Syncing...';
-            subtitle = 'Encrypting and uploading to Google Drive';
+            subtitleText = 'Encrypting and uploading to Google Drive';
             iconColor = scheme.primary;
+            driveApiDisabled = false;
           case SyncState.error:
             icon = Icons.cloud_off_outlined;
             title = 'Last sync failed';
-            subtitle = AutoSyncService.lastError ?? 'Unknown error';
+            subtitleText = AutoSyncService.lastError ?? 'Unknown error';
             iconColor = scheme.error;
+            driveApiDisabled = DriveApiSetupHelper.isDriveApiDisabledError(
+              AutoSyncService.lastError,
+            );
           case SyncState.success:
           case SyncState.idle:
             icon = Icons.cloud_done_outlined;
             title = AutoSyncService.lastSyncText;
-            subtitle = AutoSyncService.nextSyncText.isNotEmpty
+            subtitleText = AutoSyncService.nextSyncText.isNotEmpty
                 ? '${AutoSyncService.nextSyncText} \u2022 Auto-sync every 24h'
                 : 'Auto-sync every 24 hours on app open';
             iconColor = scheme.primary;
+            driveApiDisabled = false;
+        }
+
+        final Widget subtitleWidget;
+        if (syncState == SyncState.error && driveApiDisabled) {
+          subtitleWidget = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                DriveApiSetupHelper.friendlyMessage,
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Tooltip(
+                message:
+                    'Enable the Google Drive API for this app\u2019s cloud project',
+                child: TextButton(
+                  onPressed: () => _openDriveApiConsole(
+                    AutoSyncService.lastError ?? '',
+                  ),
+                  child: Text(
+                    'Open Google Cloud Console',
+                    style: AppTypography.button(context).copyWith(
+                      color: scheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          subtitleWidget = Text(
+            subtitleText,
+            style: AppTypography.secondary(context),
+          );
         }
 
         return Card(
           child: ListTile(
+            isThreeLine:
+                syncState == SyncState.error && driveApiDisabled,
             leading: syncState == SyncState.syncing
                 ? SizedBox(
                     width: 24,
@@ -182,12 +228,27 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   )
                 : Icon(icon, color: iconColor),
             title: Text(title),
-            subtitle: Text(subtitle,
-                style: AppTypography.secondary(context)),
+            subtitle: subtitleWidget,
           ),
         );
       },
     );
+  }
+
+  Future<void> _openDriveApiConsole(String rawError) async {
+    final uri = DriveApiSetupHelper.consoleUrlFromDriveError(rawError);
+    if (uri == null) return;
+    if (!await canLaunchUrl(uri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the link.'),
+          ),
+        );
+      }
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Widget _buildBackupNowButton(ColorScheme scheme) {
@@ -239,22 +300,35 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Widget _buildInfoSection(ColorScheme scheme) {
+    final bulletStyle = AppTypography.bodySmall(context).copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    Widget bulletLine(String line) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('\u2022 ', style: bulletStyle),
+          Expanded(
+            child: Text(line, style: bulletStyle),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('About backups',
-            style: AppTypography.heading3(context)),
+        Text('About backups', style: AppTypography.heading3(context)),
         const SizedBox(height: 8),
-        Text(
-          '\u2022 Backups are encrypted with AES-256 before upload\n'
-          '\u2022 Auto-sync runs every 24 hours when you open the app\n'
-          '\u2022 Last ${GoogleDriveBackupService.maxBackups} backups are kept\n'
-          '\u2022 Estimated size: ${_formatBytes(_estimatedSize)}',
-          style: AppTypography.bodySmall(context).copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.5,
-              ),
+        bulletLine('Backups are encrypted with AES-256 before upload'),
+        const SizedBox(height: 4),
+        bulletLine('Auto-sync runs every 24 hours when you open the app'),
+        const SizedBox(height: 4),
+        bulletLine(
+          'Last ${GoogleDriveBackupService.maxBackups} backups are kept',
         ),
+        const SizedBox(height: 4),
+        bulletLine('Estimated size: ${_formatBytes(_estimatedSize)}'),
       ],
     );
   }
@@ -302,22 +376,70 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   Future<void> _confirmRestore(DriveBackupInfo backup) async {
     final choice = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Restore from backup?'),
-        content: const Text(
-            'Choose how to handle your current data:'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, 'keep'),
-              child: const Text('Keep local data')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'replace'),
-              child: const Text('Replace all data')),
-        ],
-      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: Text(
+            'Restore from backup?',
+            style: AppTypography.heading3(ctx),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose how to handle your current data:',
+                style: AppTypography.body(ctx).copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, 'keep'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: cs.primary,
+                  side: BorderSide(color: cs.outline),
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Keep local data',
+                  style: AppTypography.button(ctx).copyWith(color: cs.primary),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, 'replace'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.error,
+                  foregroundColor: cs.onError,
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Replace all data',
+                  style: AppTypography.button(ctx).copyWith(color: cs.onError),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: AppTypography.button(ctx).copyWith(color: cs.primary),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
     if (choice == null) return;
     if (choice == 'keep') return;

@@ -16,6 +16,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <!-- Microphone for voice notes in journal -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Required for exact habit reminder alarms on Android 12+ (API 31+).
+         Without this, zonedSchedule with exactAllowWhileIdle silently does nothing. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="com.android.vending.BILLING"/>
     <application
         android:label="Habit Seeding"

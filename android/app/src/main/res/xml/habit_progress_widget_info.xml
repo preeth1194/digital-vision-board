@@ -5,5 +5,9 @@
     android:minHeight="110dp"
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:previewLayout="@layout/habit_progress_widget"
+    android:description="@string/widget_description" />
 

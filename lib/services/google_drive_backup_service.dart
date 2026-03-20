@@ -239,10 +239,15 @@ class GoogleDriveBackupService {
   }
 
   /// Unlink Google account from backup.
+  ///
+  /// Intentionally keeps [_folderIdKey] so that if the user re-links the same
+  /// Google account the app finds the existing Drive folder and its backups
+  /// rather than creating a new orphaned folder. With [drive.file] scope the
+  /// app cannot search for folders it didn't create in the current session, so
+  /// the cached ID is the only way to recover the original backup history.
   static Future<void> unlinkGoogleAccount({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     await p.setBool(_googleLinkedKey, false);
-    await p.remove(_folderIdKey);
   }
 
   static Future<_GoogleAuthClient> _getAuthClient() async {

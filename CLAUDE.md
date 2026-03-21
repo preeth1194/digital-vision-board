@@ -158,7 +158,7 @@ App is locked to portrait (`portraitUp` + `portraitDown`).
 
 ### Theme System
 
-Always use `_buildTheme()` pattern in `main.dart`. Theme is applied via `ValueListenableBuilder` on `AppSettingsService.themeMode`. Uses Material 3 (`useMaterial3: true`) with `GoogleFonts.inter`.
+Always use `_buildTheme()` pattern in `main.dart`. Theme is applied via `ValueListenableBuilder` on `AppSettingsService.themeMode`. Uses Material 3 (`useMaterial3: true`) with `GoogleFonts.inter`. `AppColors.lightScheme` / `darkScheme` use mist/sky and `sproutGreen` aligned to the app icon (medium tint), with `brand*` tokens documenting raw icon samples.
 
 ---
 
@@ -170,13 +170,14 @@ Always use `_buildTheme()` pattern in `main.dart`. Theme is applied via `ValueLi
 
 | Token | Hex | Use |
 |---|---|---|
-| `AppColors.mistBackground` | `#F6F4EF` | Page background (warm cream) |
-| `AppColors.skyTopTint` | `#EAF2EA` | Background gradient top |
-| `AppColors.sproutGreen` | `#4A7A5A` | Primary CTA, active icons, progress rings |
+| `AppColors.mistBackground` | `#F6F1DD` | Page background (butter-warm mist, logo-tinted) |
+| `AppColors.skyTopTint` | `#ECEFD5` | Background gradient top |
+| `AppColors.sproutGreen` | `#3F6E38` | Primary CTA, active icons, progress rings (icon-aligned, WCAG AA) |
+| `AppColors.brandLogoFieldYellow` etc. | (see `app_colors.dart`) | Sampled from app icon — accents / splash, not full-page fill |
 | `AppColors.forestDeep` | `#3B2D20` | Bottom nav bg, headings, earthy anchors |
 | `AppColors.seedGold` | `#C48B3C` | Coin/badge icon fill — NOT as text |
 | `AppColors.honeyText` | `#7A5520` | Any amber/reward text (WCAG AA: 6.7:1) |
-| `AppColors.sageContainer` | `#DCF0E4` | Chips, selected rows, tags |
+| `AppColors.sageContainer` | `#D6EBD4` | Chips, selected rows, tags |
 | `AppColors.seedChampagne` | `#FDF3E3` | Badge/reward container backgrounds |
 | `AppColors.lavenderDew` | `#7B74A8` | Mood, journal, affirmations |
 | `AppColors.lavenderContainer` | `#EEEDF8` | Lavender feature containers |

@@ -1,6 +1,6 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+
+import '../../utils/app_colors.dart';
 import '../models/preset_preview_section.dart';
 import '../models/preset_template_config.dart';
 
@@ -46,100 +46,108 @@ class PresetTemplateScreen extends StatelessWidget {
                 cutoutCenterOffset: 10,
               )
             : null,
-        child: _GlassSection(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        child: Builder(
+          builder: (context) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Container(
+              decoration: AppColors.cloudDecoration(isDark: isDark),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(config.icon, color: colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        presetName,
-                        style: Theme.of(context).textTheme.titleMedium,
+                    Row(
+                      children: [
+                        Icon(config.icon, color: colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            presetName,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        if (config.allowEdit && onEdit != null)
+                          IconButton(
+                            tooltip: 'Edit preset',
+                            onPressed: onEdit,
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: SingleChildScrollView(
+                        child: previewSections.isEmpty
+                            ? Text(
+                                'No preview section configured for this preset.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                              )
+                            : Column(
+                                children: [
+                                  for (
+                                    int i = 0;
+                                    i < previewSections.length;
+                                    i++
+                                  ) ...[
+                                    _buildRoutinePreview(
+                                      context,
+                                      previewSections[i],
+                                    ),
+                                    if (i < previewSections.length - 1)
+                                      const SizedBox(height: 8),
+                                  ],
+                                ],
+                              ),
                       ),
                     ),
-                    if (config.allowEdit && onEdit != null)
-                      IconButton(
-                        tooltip: 'Edit preset',
-                        onPressed: onEdit,
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 360),
-                  child: SingleChildScrollView(
-                    child: previewSections.isEmpty
-                        ? Text(
-                            'No preview section configured for this preset.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colorScheme.onSurfaceVariant),
-                          )
-                        : Column(
-                            children: [
-                              for (
-                                int i = 0;
-                                i < previewSections.length;
-                                i++
-                              ) ...[
-                                _buildRoutinePreview(
-                                  context,
-                                  previewSections[i],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onClose,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(
+                                previewActionButtonHeight,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  closeButtonRadius,
                                 ),
-                                if (i < previewSections.length - 1)
-                                  const SizedBox(height: 8),
-                              ],
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onClose,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(
-                            previewActionButtonHeight,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              closeButtonRadius,
+                              ),
                             ),
+                            child: const Text('Close'),
                           ),
                         ),
-                        child: const Text('Close'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: onCreate,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(
-                            previewActionButtonHeight,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              actionButtonRadius,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: onCreate,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(
+                                previewActionButtonHeight,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  actionButtonRadius,
+                                ),
+                              ),
                             ),
+                            child: Text(config.createButtonLabel),
                           ),
                         ),
-                        child: Text(config.createButtonLabel),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -265,37 +273,5 @@ class _NotchedBottomClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant _NotchedBottomClipper oldClipper) {
     return cutoutRadius != oldClipper.cutoutRadius ||
         cutoutCenterOffset != oldClipper.cutoutCenterOffset;
-  }
-}
-
-class _GlassSection extends StatelessWidget {
-  final Widget child;
-  const _GlassSection({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surface.withValues(alpha: 0.30)
-                : Colors.white.withValues(alpha: 0.42),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.white.withValues(alpha: 0.60),
-              width: 1.1,
-            ),
-          ),
-          child: child,
-        ),
-      ),
-    );
   }
 }

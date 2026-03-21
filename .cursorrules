@@ -36,13 +36,13 @@ LIGHT MODE
 ─────────────────────────────────────────────────────────────────────────
 NAME              TOKEN / USAGE                       HEX        CONTRAST*
 ─────────────────────────────────────────────────────────────────────────
-Warm Cream Mist   AppColors.mistBackground             #F6F4EF    — (bg)
-Sage Morning Haze AppColors.skyTopTint                 #EAF2EA    — (bg top)
-Sage Leaf         AppColors.sproutGreen (primary CTA)  #4A7A5A    4.9:1 ✅
+Butter Mist       AppColors.mistBackground             #F6F1DD    — (bg, logo-tinted)
+Sage–Sun Haze     AppColors.skyTopTint                 #ECEFD5    — (bg top)
+Sage Leaf         AppColors.sproutGreen (primary CTA)  #3F6E38    ~6:1 on white ✅
 Warm Soil         AppColors.forestDeep (nav, headings) #3B2D20   13.7:1 ✅
 Honey Amber       AppColors.seedGold (icon/badge fill) #C48B3C    2.9:1 ⚠️
 Honey Text        AppColors.honeyText (amber text use) #7A5520    6.7:1 ✅
-Pale Sage         AppColors.sageContainer (chips/rows) #DCF0E4    — (container)
+Pale Sage         AppColors.sageContainer (chips/rows) #D6EBD4    — (container)
 Pale Honey        AppColors.seedChampagne (badge bg)   #FDF3E3    — (container)
 Lavender Dew      AppColors.lavenderDew (mood/journal) #7B74A8    4.6:1 ✅
 Pale Lavender     AppColors.lavenderContainer          #EEEDF8    — (container)
@@ -53,8 +53,10 @@ DARK MODE
 Night Soil        colorScheme.surface (dark)           #0F1510    — (bg)
 Warm Grove Card   AppColors.cloudDark                  #1F2B22    — (card)
 ─────────────────────────────────────────────────────────────────────────
-* Contrast vs white background
+* Contrast vs white background (sproutGreen ratios are vs white / vs mist as noted in §2d).
 ```
+
+**App icon (brand reference, sampled from 1024px icon):** `AppColors.brandLogoFieldYellow` (#FEDE59), `brandSproutGreenVivid`, `brandSproutShadowGreen`, `brandSeedBrown` / `brandSeedBrownDeep` — for splash, marketing, or rare accents; **do not** replace `mistBackground` with raw icon yellow at full screen.
 
 ### 2b. Semantic Usage Map
 
@@ -62,10 +64,10 @@ Warm Grove Card   AppColors.cloudDark                  #1F2B22    — (card)
 |------------------------------------|-------------------------------------------|
 | Page background                    | `AppColors.pageBackgroundDecoration(isDark: isDark)` — `minimal: true` (flat) default for new screens; `minimal: false` or `skyDecoration` for texture |
 | Screen scaffold background color   | `colorScheme.surface`                     |
-| Primary button / FAB               | `colorScheme.primary` (#4A7A5A sage)      |
+| Primary button / FAB               | `colorScheme.primary` (#3F6E38 sprout)    |
 | Primary button text                | `colorScheme.onPrimary` (white)           |
 | Bottom nav background              | `AppColors.forestDeep` (#3B2D20 soil)     |
-| Active nav icon + label            | `AppColors.sproutGreen` (#4A7A5A)         |
+| Active nav icon + label            | `AppColors.sproutGreen` (#3F6E38)         |
 | Inactive nav icon + label          | `AppColors.sproutGreen.withValues(alpha: 0.45)` |
 | Section header / screen title text | `colorScheme.onSurface` (warm soil)       |
 | Secondary / hint text              | `colorScheme.onSurfaceVariant` (#5C4E40)  |
@@ -76,7 +78,7 @@ Warm Grove Card   AppColors.cloudDark                  #1F2B22    — (card)
 | Habit streak / progress ring       | `colorScheme.primary`                     |
 | Completion checkmark               | `colorScheme.primary`                     |
 | Mood / journal / affirmation       | `AppColors.lavenderDew` (#7B74A8)         |
-| Chips, selected rows, tags         | `AppColors.sageContainer` (#DCF0E4) bg    |
+| Chips, selected rows, tags         | `AppColors.sageContainer` (#D6EBD4) bg    |
 | Error states                       | `colorScheme.error`                       |
 | Dividers / outlines                | `colorScheme.outlineVariant`              |
 
@@ -101,8 +103,8 @@ Text('🌱 +50 seeds', style: TextStyle(color: AppColors.honeyText))
 // ✅ CORRECT — sage text (completion/growth meaning)
 Text('Done', style: TextStyle(color: cs.onPrimaryContainer))
 
-// ❌ WRONG — hardcoded hex
-Container(color: const Color(0xFF4A7A5A))
+// ❌ WRONG — hardcoded hex (always use colorScheme / AppColors tokens)
+Container(color: const Color(0xFF2E7D32))
 
 // ❌ WRONG — old neon green
 Container(color: const Color(0xFF4CAF50))
@@ -119,14 +121,14 @@ Scaffold(backgroundColor: Colors.white)
 | Pairing                                       | Ratio  | Status |
 |-----------------------------------------------|--------|--------|
 | `forestDeep` (#3B2D20) on white               | 13.7:1 | ✅ AAA |
-| `forestDeep` on `mistBackground`              | 12.8:1 | ✅ AAA |
-| `sproutGreen` (#4A7A5A) on white              | 4.9:1  | ✅ AA  |
-| `sproutGreen` on `mistBackground`             | 4.6:1  | ✅ AA  |
+| `forestDeep` on `mistBackground`              | ~11.7:1 | ✅ AAA |
+| `sproutGreen` (#3F6E38) on white              | ~6.0:1  | ✅ AA  |
+| `sproutGreen` on `mistBackground`             | ~5.3:1  | ✅ AA  |
 | `lavenderDew` (#7B74A8) on white              | 4.6:1  | ✅ AA  |
 | `honeyText` (#7A5520) on white                | 6.7:1  | ✅ AA  |
-| `onSurfaceVariant` (#5C4E40) on `mistBg`      | 5.8:1  | ✅ AA  |
+| `onSurfaceVariant` (#5C4E40) on `mistBg`      | ~7.1:1  | ✅ AA  |
 | `seedGold` (#C48B3C) on white — ICON ONLY     | 2.9:1  | ❌ text fails — use honeyText for text |
-| white on `sproutGreen` — button labels        | 4.9:1  | ✅ AA  |
+| white on `sproutGreen` — button labels        | ~6.0:1  | ✅ AA  |
 
 ### 2e. Legacy Colors — DEPRECATED
 
@@ -432,7 +434,7 @@ Every widget you write must satisfy these checks before it is considered done:
 | Placeholder / hint text on mistBackground     | 3:1       | Use colorScheme.onSurfaceVariant |
 | sproutGreen (#4CAF50) as TEXT on white        | —         | ❌ NEVER — use onPrimaryContainer instead |
 | seedGold (#D4AF37) as TEXT on white           | —         | ❌ NEVER — use onTertiaryContainer instead |
-| White text on sproutGreen button              | 4.5:1     | ✅ ~4.6:1 — acceptable for button labels |
+| White text on sproutGreen button              | 4.5:1     | ✅ ~6.0:1 — acceptable for button labels |
 
 ### 7b. Semantics
 

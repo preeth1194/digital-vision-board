@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -24,6 +23,9 @@ import '../services/meal_prep_storage_service.dart';
 import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
+import '../utils/app_typography.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
 class PlannerGuideScreen extends StatefulWidget {
@@ -45,7 +47,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   String? _error;
   List<ActionStepTemplate> _templates = const [];
   List<HabitItem> _existingHabits = const [];
-  double _scrollOffset = 0;
   String _categorySearchQuery = '';
   String? _expandedCategory;
   int? _liveSkincareGuideStepCount;
@@ -2274,8 +2275,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   ];
   static const String _challengeGuideCategory = 'Challenges';
   static const String _mealPrepGuideCategory = 'Weekly Meal Prep';
-  static const double _categoryDeckCardHeight = 156;
-  static const double _categoryDeckPeekHeight = 66;
 
   IconData _iconForCategory(String category) {
     switch (category) {
@@ -2393,88 +2392,86 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(
             onRefresh: _load,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification.metrics.axis == Axis.vertical) {
-                  setState(() {
-                    _scrollOffset = notification.metrics.pixels;
-                  });
-                }
-                return false;
-              },
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  if (_error != null)
-                    _GlassSection(
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_off_outlined,
-                            color: colorScheme.onSurfaceVariant,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+              children: [
+                if (_error != null)
+                  _MinimalOutlinePanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: AppTypography.bodySmall(context),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(_error!)),
-                        ],
-                      ),
-                    ),
-                  _GlassSection(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() => _categorySearchQuery = value);
-                      },
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: 'Search categories or presets',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: IconButton(
-                          tooltip: 'Preset shop',
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const PresetShopScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.storefront_outlined),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (visibleCategories.isEmpty)
-                    _GlassSection(
-                      child: Text(
-                        'No category or preset matches your search.',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                _DoubleBorderSearchField(
+                  onChanged: (value) {
+                    setState(() => _categorySearchQuery = value);
+                  },
+                  onOpenShop: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PresetShopScreen(),
                       ),
-                    )
-                  else
-                    _CategoryDeck(
-                      categories: visibleCategories,
-                      cardHeight: _categoryDeckCardHeight,
-                      peekHeight: _categoryDeckPeekHeight,
-                      scrollOffset: _scrollOffset,
-                      expandedCategory: _expandedCategory,
-                      iconForCategory: _iconForCategory,
-                      subtitleForCategory: _categoryDescription,
-                      guideCountForCategory: _guideCountForPlannerCategory,
-                      guideForCategory: _primaryGuideForPlannerCategory,
-                      onTapCategory: _onPlannerCategoryTap,
-                      onTapGuide: _onPlannerGuideTap,
-                      guideTitleForCard: _guideTitleTextForCategory,
-                      guideSummaryTextForCard: _guideSummaryTextForCategory,
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (visibleCategories.isEmpty)
+                  _MinimalOutlinePanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No category or preset matches your search.',
+                      style: AppTypography.body(context).copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else ...[
+                  for (int i = 0; i < visibleCategories.length; i++)
+                    _StaggeredPresetRow(
+                      listIndex: i,
+                      animationSignature:
+                          '${_categorySearchQuery}_'
+                          '${visibleCategories.join('|')}',
+                      child: _CategoryGuideCard(
+                        title: visibleCategories[i],
+                        subtitle: _categoryDescription(visibleCategories[i]),
+                        icon: _iconForCategory(visibleCategories[i]),
+                        guideCount:
+                            _guideCountForPlannerCategory(visibleCategories[i]),
+                        isExpanded:
+                            visibleCategories[i] == _expandedCategory,
+                        guide: _primaryGuideForPlannerCategory(
+                          visibleCategories[i],
+                        ),
+                        guideTitle: _guideTitleTextForCategory(
+                          visibleCategories[i],
+                          _primaryGuideForPlannerCategory(visibleCategories[i]),
+                        ),
+                        onTap: () =>
+                            _onPlannerCategoryTap(visibleCategories[i]),
+                        onTapGuide: () =>
+                            _onPlannerGuideTap(visibleCategories[i]),
+                        guideSummaryText: _guideSummaryTextForCategory(
+                          visibleCategories[i],
+                          _primaryGuideForPlannerCategory(visibleCategories[i]),
+                        ),
+                        showDividerBelow: i < visibleCategories.length - 1,
+                      ),
                     ),
                 ],
-              ),
+              ],
             ),
           );
     return Scaffold(
@@ -2519,7 +2516,7 @@ class _GuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return _CloudSection(
       child: Padding(
         padding: const EdgeInsets.all(2),
         child: Row(
@@ -2544,127 +2541,65 @@ class _GuideCard extends StatelessWidget {
   }
 }
 
-class _CategoryDeck extends StatelessWidget {
-  final List<String> categories;
-  final double cardHeight;
-  final double peekHeight;
-  final double scrollOffset;
-  final String? expandedCategory;
-  final IconData Function(String) iconForCategory;
-  final String Function(String) subtitleForCategory;
-  final int Function(String) guideCountForCategory;
-  final ActionStepTemplate? Function(String) guideForCategory;
-  final Future<void> Function(String category) onTapCategory;
-  final Future<void> Function(String category) onTapGuide;
-  final String Function(String category, ActionStepTemplate? guide)
-  guideTitleForCard;
-  final String Function(String category, ActionStepTemplate? guide)
-  guideSummaryTextForCard;
-
-  const _CategoryDeck({
-    required this.categories,
-    required this.cardHeight,
-    required this.peekHeight,
-    required this.scrollOffset,
-    required this.expandedCategory,
-    required this.iconForCategory,
-    required this.subtitleForCategory,
-    required this.guideCountForCategory,
-    required this.guideForCategory,
-    required this.onTapCategory,
-    required this.onTapGuide,
-    required this.guideTitleForCard,
-    required this.guideSummaryTextForCard,
+/// Subtle entrance when the filtered list changes (search / order).
+class _StaggeredPresetRow extends StatelessWidget {
+  const _StaggeredPresetRow({
+    required this.listIndex,
+    required this.animationSignature,
+    required this.child,
   });
+
+  final int listIndex;
+  final String animationSignature;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox.shrink();
-    const expandedPanelHeight = 86.0;
-    final expandedIndex = expandedCategory == null
-        ? -1
-        : categories.indexOf(expandedCategory!);
-    final totalHeight =
-        cardHeight +
-        ((categories.length - 1) * peekHeight) +
-        (expandedIndex >= 0 ? expandedPanelHeight : 0);
-    return SizedBox(
-      height: totalHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (int i = 0; i < categories.length; i++)
-            Positioned(
-              left: 0,
-              right: 0,
-              top:
-                  (i * peekHeight) +
-                  (expandedIndex >= 0 && i > expandedIndex
-                      ? expandedPanelHeight
-                      : 0),
-              child: _CategoryGuideCard(
-                index: i,
-                title: categories[i],
-                subtitle: subtitleForCategory(categories[i]),
-                icon: iconForCategory(categories[i]),
-                guideCount: guideCountForCategory(categories[i]),
-                scrollOffset: scrollOffset,
-                cardHeight: cardHeight,
-                expandedPanelHeight: expandedPanelHeight,
-                isExpanded: categories[i] == expandedCategory,
-                guide: guideForCategory(categories[i]),
-                guideTitle: guideTitleForCard(
-                  categories[i],
-                  guideForCategory(categories[i]),
-                ),
-                zDepth: (i + 1).toDouble(),
-                onTap: () => onTapCategory(categories[i]),
-                onTapGuide: () => onTapGuide(categories[i]),
-                guideSummaryText: guideSummaryTextForCard(
-                  categories[i],
-                  guideForCategory(categories[i]),
-                ),
-              ),
-            ),
-        ],
-      ),
+    final capped = listIndex.clamp(0, 12);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('preset_stagger_${animationSignature}_$listIndex'),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 200 + capped * 24),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 6),
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
 
 class _CategoryGuideCard extends StatefulWidget {
-  final int index;
   final String title;
   final String subtitle;
   final IconData icon;
   final int guideCount;
-  final double scrollOffset;
-  final double cardHeight;
-  final double expandedPanelHeight;
   final bool isExpanded;
   final ActionStepTemplate? guide;
   final String guideTitle;
-  final double zDepth;
   final VoidCallback onTap;
   final VoidCallback onTapGuide;
   final String guideSummaryText;
+  final bool showDividerBelow;
 
   const _CategoryGuideCard({
-    required this.index,
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.guideCount,
-    required this.scrollOffset,
-    required this.cardHeight,
-    required this.expandedPanelHeight,
     required this.isExpanded,
     required this.guide,
     required this.guideTitle,
-    required this.zDepth,
     required this.onTap,
     required this.onTapGuide,
     required this.guideSummaryText,
+    this.showDividerBelow = true,
   });
 
   @override
@@ -2672,316 +2607,365 @@ class _CategoryGuideCard extends StatefulWidget {
 }
 
 class _CategoryGuideCardState extends State<_CategoryGuideCard> {
-  bool _pressed = false;
-  bool _pulse = false;
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final guide = widget.guide;
+    final expanded = widget.isExpanded;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: expanded
+                ? colorScheme.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 4, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 48,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Icon(
+                          widget.icon,
+                          size: 24,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.heading3(context)
+                                      .copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Text(
+                                ' · ',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              Text(
+                                '${widget.guideCount} preset${widget.guideCount == 1 ? '' : 's'}',
+                                style: AppTypography.caption(context).copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.bodySmall(context).copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: AnimatedRotation(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        turns: expanded ? 0.25 : 0,
+                        child: Icon(
+                          Icons.keyboard_arrow_right_rounded,
+                          color: colorScheme.primary,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: expanded
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.45,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        widget.guideTitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTypography.body(context)
+                                            .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ),
+                                    if (guide?.isOfficial == true)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              colorScheme.primaryContainer,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Default',
+                                          style: AppTypography.caption(
+                                            context,
+                                          ).copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: colorScheme
+                                                .onPrimaryContainer,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.guideSummaryText,
+                                  style: AppTypography.bodySmall(context)
+                                      .copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonal(
+                            onPressed:
+                                guide == null ? null : widget.onTapGuide,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(0, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'View',
+                              style: AppTypography.button(context).copyWith(
+                                color: guide == null
+                                    ? colorScheme.onSurfaceVariant
+                                    : colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        if (widget.showDividerBelow)
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+      ],
+    );
+  }
+}
+
+/// Flat outlined surface for Presets — minimal chrome (no cloud shadow).
+class _MinimalOutlinePanel extends StatelessWidget {
+  const _MinimalOutlinePanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final EdgeInsetsGeometry padding;
+  final Widget child;
 
   @override
-  void didUpdateWidget(covariant _CategoryGuideCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isExpanded == widget.isExpanded) return;
-    setState(() => _pulse = true);
-    Future<void>.delayed(const Duration(milliseconds: 140), () {
-      if (!mounted) return;
-      setState(() => _pulse = false);
-    });
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Search field with outer + inner borders (Morning Garden accent ring).
+class _DoubleBorderSearchField extends StatefulWidget {
+  const _DoubleBorderSearchField({
+    required this.onChanged,
+    required this.onOpenShop,
+  });
+
+  final ValueChanged<String> onChanged;
+  final VoidCallback onOpenShop;
+
+  @override
+  State<_DoubleBorderSearchField> createState() =>
+      _DoubleBorderSearchFieldState();
+}
+
+class _DoubleBorderSearchFieldState extends State<_DoubleBorderSearchField> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final scrollDrift =
-        math.sin((widget.scrollOffset / 68) + (widget.index * 0.48)) * 2.4;
-    final guide = widget.guide;
-    final expanded = widget.isExpanded;
-    return SizedBox(
-      height: widget.cardHeight + (expanded ? widget.expandedPanelHeight : 0),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()
-          ..translate(0.0, scrollDrift + (_pressed ? -3.0 : 0.0))
-          ..scale(_pressed ? 0.992 : (_pulse ? 1.012 : 1.0)),
-        child: _GlassSection(
-          zDepth: widget.zDepth,
-          radius: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            children: [
-              InkWell(
-                onTap: widget.onTap,
-                onHighlightChanged: (highlighted) {
-                  if (_pressed == highlighted) return;
-                  setState(() {
-                    _pressed = highlighted;
-                  });
-                },
-                borderRadius: BorderRadius.circular(28),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.primary.withValues(alpha: 0.14),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.86,
-                            ),
-                          ),
-                        ),
-                        child: Icon(
-                          widget.icon,
-                          size: 21,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    widget.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: colorScheme.onSurface,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                        ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(999),
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.12,
-                                    ),
-                                    border: Border.all(
-                                      color: colorScheme.outlineVariant
-                                          .withValues(alpha: 0.75),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${widget.guideCount} preset${widget.guideCount == 1 ? '' : 's'}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 130),
-                        curve: Curves.easeOut,
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.primary.withValues(
-                            alpha: _pressed ? 0.26 : 0.18,
-                          ),
-                        ),
-                        child: AnimatedRotation(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutBack,
-                          turns: expanded ? 0.25 : 0,
-                          child: Icon(
-                            Icons.keyboard_arrow_right_rounded,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          // Warm cream tier — avoids stark cloud-white against mist page.
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colorScheme.primary.withValues(alpha: 0.52),
+          ),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 12),
+            Icon(
+              Icons.search_rounded,
+              color: colorScheme.onSurfaceVariant,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                onChanged: widget.onChanged,
+                cursorColor: colorScheme.primary,
+                style: AppTypography.body(context).copyWith(
+                  color: colorScheme.onSurface,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search categories or presets',
+                  hintStyle: AppTypography.secondary(context),
+                  border: InputBorder.none,
+                  isDense: true,
+                  filled: false,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 0,
                   ),
                 ),
               ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: expanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Column(
-                          children: [
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              widget.guideTitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                          ),
-                                          if (guide?.isOfficial == true)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                left: 8,
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: colorScheme
-                                                    .primaryContainer,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                'Default',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelSmall
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: colorScheme
-                                                          .onPrimaryContainer,
-                                                      fontSize: 12,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        widget.guideSummaryText,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                FilledButton.tonal(
-                                  onPressed: guide == null
-                                      ? null
-                                      : widget.onTapGuide,
-                                  child: const Text('View'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+            ),
+            Tooltip(
+              message: 'Preset shop',
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.storefront_outlined,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: widget.onOpenShop,
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _GlassSection extends StatelessWidget {
+/// Solid Morning Garden card surface (replaces frosted glass on Presets).
+class _CloudSection extends StatelessWidget {
   final Widget child;
-  final double zDepth;
-  final double radius;
   final EdgeInsetsGeometry padding;
 
-  const _GlassSection({
-    super.key,
+  const _CloudSection({
     required this.child,
-    this.zDepth = 0,
-    this.radius = 18,
     this.padding = const EdgeInsets.all(12),
   });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surface.withValues(alpha: 0.30)
-                : Colors.white.withValues(alpha: 0.42),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.white.withValues(alpha: 0.60),
-              width: 1.1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: isDark
-                      ? (0.20 + (zDepth * 0.008)).clamp(0.20, 0.30)
-                      : (0.08 + (zDepth * 0.006)).clamp(0.08, 0.16),
-                ),
-                blurRadius: 16 + (zDepth * 1.8),
-                offset: Offset(0, 6 + (zDepth * 0.6)),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
+    return Container(
+      padding: padding,
+      decoration: AppColors.cloudDecoration(isDark: isDark),
+      child: child,
     );
   }
 }

@@ -238,11 +238,15 @@ class AppColors {
       case 'Mindfulness':
         return isDark ? categoryMindfulnessBgDark : categoryMindfulnessBgLight;
       case 'Productivity':
-        return isDark ? categoryProductivityBgDark : categoryProductivityBgLight;
+        return isDark
+            ? categoryProductivityBgDark
+            : categoryProductivityBgLight;
       case 'Learning':
         return isDark ? categoryLearningBgDark : categoryLearningBgLight;
       case 'Relationships':
-        return isDark ? categoryRelationshipsBgDark : categoryRelationshipsBgLight;
+        return isDark
+            ? categoryRelationshipsBgDark
+            : categoryRelationshipsBgLight;
       case 'Finance':
         return isDark ? categoryFinanceBgDark : categoryFinanceBgLight;
       case 'Creativity':
@@ -260,17 +264,25 @@ class AppColors {
       case 'Fitness':
         return isDark ? categoryFitnessIconDark : categoryFitnessIconLight;
       case 'Mindfulness':
-        return isDark ? categoryMindfulnessIconDark : categoryMindfulnessIconLight;
+        return isDark
+            ? categoryMindfulnessIconDark
+            : categoryMindfulnessIconLight;
       case 'Productivity':
-        return isDark ? categoryProductivityIconDark : categoryProductivityIconLight;
+        return isDark
+            ? categoryProductivityIconDark
+            : categoryProductivityIconLight;
       case 'Learning':
         return isDark ? categoryLearningIconDark : categoryLearningIconLight;
       case 'Relationships':
-        return isDark ? categoryRelationshipsIconDark : categoryRelationshipsIconLight;
+        return isDark
+            ? categoryRelationshipsIconDark
+            : categoryRelationshipsIconLight;
       case 'Finance':
         return isDark ? categoryFinanceIconDark : categoryFinanceIconLight;
       case 'Creativity':
-        return isDark ? categoryCreativityIconDark : categoryCreativityIconLight;
+        return isDark
+            ? categoryCreativityIconDark
+            : categoryCreativityIconLight;
       default:
         return isDark ? categoryDefaultIconDark : categoryDefaultIconLight;
     }
@@ -518,6 +530,23 @@ class AppColors {
         opacity: 0.18,
       ),
     );
+  }
+
+  /// Full-page background: same as [skyDecoration] or a flat “onboarding-minimal” canvas.
+  ///
+  /// Use [minimal] `true` for the flat warm cream / night soil look (no texture overlay),
+  /// matching onboarding steps. Use `false` (default) to keep the subtle garden texture.
+  static BoxDecoration pageBackgroundDecoration({
+    required bool isDark,
+    bool minimal = false,
+  }) {
+    if (!minimal) {
+      return skyDecoration(isDark: isDark);
+    }
+    if (isDark) {
+      return const BoxDecoration(color: _backgroundDark);
+    }
+    return const BoxDecoration(color: mistBackground);
   }
 
   /// Floating Card / Cloud Decoration.

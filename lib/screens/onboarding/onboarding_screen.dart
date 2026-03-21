@@ -13,7 +13,7 @@ import 'steps/step_terms.dart';
 import 'steps/step_welcome.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  /// When true (e.g. App Tour from settings), finishing pops without re-marking onboarding.
+  /// When true, finishing pops without re-marking onboarding (e.g. internal replay entry points).
   final bool replayMode;
 
   const OnboardingScreen({super.key, this.replayMode = false});

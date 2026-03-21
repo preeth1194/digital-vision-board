@@ -60,7 +60,7 @@ Warm Grove Card   AppColors.cloudDark                  #1F2B22    — (card)
 
 | What you're building               | Color to use                              |
 |------------------------------------|-------------------------------------------|
-| Page background                    | `AppColors.skyDecoration(isDark: isDark)` |
+| Page background                    | `AppColors.pageBackgroundDecoration(isDark: isDark)` — `minimal: true` (flat) default for new screens; `minimal: false` or `skyDecoration` for texture |
 | Screen scaffold background color   | `colorScheme.surface`                     |
 | Primary button / FAB               | `colorScheme.primary` (#4A7A5A sage)      |
 | Primary button text                | `colorScheme.onPrimary` (white)           |
@@ -285,19 +285,44 @@ Every screen in this app uses exactly ONE of two backgrounds:
 
 ### 5a. Full-Screen Scaffold
 
-Always apply `AppColors.skyDecoration` to the Scaffold body:
+Apply a Morning Garden **page** background to the scaffold body (never bare white).
+
+**Textured vs minimal (flat) canvas**
+
+| API | When to use |
+|-----|-------------|
+| `AppColors.pageBackgroundDecoration(isDark: isDark, minimal: false)` | Same as `skyDecoration` — warm cream / night soil **plus** subtle `light_bg` / `dark_bg` texture (0.18 opacity). |
+| `AppColors.pageBackgroundDecoration(isDark: isDark, minimal: true)` | **Onboarding-style** flat `mistBackground` / night soil — no texture overlay. Default for new list/form flows aligned with settings, FAQ, legal, subscription. |
+| `AppColors.skyDecoration(isDark: isDark)` | Equivalent to `pageBackgroundDecoration(..., minimal: false)`. Kept for existing call sites. |
+
+**Shell widget:** Prefer `MorningGardenScaffold` from `lib/widgets/layout/morning_garden_scaffold.dart` for standard pushed routes — it applies `pageBackgroundDecoration` (default `minimal: true`), transparent `Scaffold`, and optional `SafeArea` on the body. Set `minimalPageBackground: false` if you need the textured grain. Use `wrapBodyInSafeArea: false` when the screen wraps its own `SafeArea` (e.g. legal consent).
+
+**Hero titles:** For sparse top-of-screen intros (not dense dashboard cards), use `MinimalSectionHeader` from `lib/widgets/layout/minimal_section_header.dart`.
 
 ```dart
-// ✅ CORRECT pattern for every new screen
+// ✅ CORRECT — textured page (legacy / explicit grain)
 @override
 Widget build(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   return Scaffold(
     extendBodyBehindAppBar: true,
     body: Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
+      decoration: AppColors.pageBackgroundDecoration(isDark: isDark, minimal: false),
       child: SafeArea(child: _buildContent(context)),
     ),
+  );
+}
+
+// ✅ CORRECT — minimal shell (new standard for simple screens)
+@override
+Widget build(BuildContext context) {
+  return MorningGardenScaffold(
+    appBar: AppBar(
+      title: Text('Title', style: AppTypography.heading3(context)),
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+    ),
+    body: _buildContent(context),
   );
 }
 

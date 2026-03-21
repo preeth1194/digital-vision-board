@@ -1151,7 +1151,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       onViewHabits: () => setState(() => _tabIndex = 7),
     );
 
-    final colorScheme = Theme.of(context).colorScheme;
     final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
       // Hide app bar only for habits timeline calendar mode.
@@ -1160,7 +1159,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           : AppBar(
               toolbarHeight: 72,
               automaticallyImplyLeading: false,
-              backgroundColor: colorScheme.surface,
+              backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               titleSpacing: 0,
@@ -1251,7 +1250,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
+      decoration: AppColors.pageBackgroundDecoration(
+        isDark: isDark,
+        minimal: true,
+      ),
       child: Stack(
         children: [
           scaffold,

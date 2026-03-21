@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 
 class WidgetGuideScreen extends StatelessWidget {
   const WidgetGuideScreen({super.key});
@@ -8,17 +8,13 @@ class WidgetGuideScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
+    return MorningGardenScaffold(
+      appBar: AppBar(
+        title: const Text('Widget Guide'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('Widget Guide'),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-        ),
+        surfaceTintColor: Colors.transparent,
+      ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
@@ -87,7 +83,6 @@ class WidgetGuideScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
       ),
     );
   }

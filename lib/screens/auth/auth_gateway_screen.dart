@@ -6,8 +6,8 @@ import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/google_sign_in_config.dart';
 import '../../services/image_service.dart';
-import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
+import '../../widgets/layout/morning_garden_scaffold.dart';
 import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
 import '../../widgets/profile_avatar.dart';
@@ -95,15 +95,14 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final forced = widget.forced;
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
-      backgroundColor: Colors.transparent,
+    return MorningGardenScaffold(
       appBar: AppBar(
         title: const Text('Account'),
         automaticallyImplyLeading: !forced,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: FutureBuilder<bool>(
         future: _isSignedIn(),
@@ -115,7 +114,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           return _buildLoginView(context, theme, forced);
         },
       ),
-    ),
     );
   }
 

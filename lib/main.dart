@@ -62,11 +62,11 @@ Future<void> main() async {
   ]);
 
   // Existing users skip onboarding; new users see it.
-  final onboardingDone = await isOnboardingCompleted(prefs: prefs);
-  final legalConsentAccepted = await isLegalConsentAccepted(prefs: prefs);
+  final onboardingDone = await DvAuthService.isOnboardingCompleted(prefs: prefs);
+  final legalConsentAccepted = await DvAuthService.isLegalConsentAccepted(prefs: prefs);
   final showOnboarding = !onboardingDone && !existingUser;
   if (!onboardingDone && existingUser) {
-    await markOnboardingCompleted(prefs: prefs);
+    await DvAuthService.markOnboardingCompleted(prefs: prefs);
   }
 
   runApp(

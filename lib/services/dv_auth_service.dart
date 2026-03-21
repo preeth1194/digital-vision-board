@@ -27,6 +27,8 @@ final class DvAuthService {
   static const _activityLevelKey = 'dv_user_activity_level_v1';
   static const _dietPreferenceKey = 'dv_user_diet_preference_v1';
   static const _allergiesKey = 'dv_user_allergies_v1';
+  static const _onboardingCompletedKey = 'onboarding_completed_v1';
+  static const _legalConsentAcceptedKey = 'legal_consent_accepted_v1';
 
   static String backendBaseUrl() {
     const raw = String.fromEnvironment(
@@ -366,6 +368,26 @@ final class DvAuthService {
       return;
     }
     await p.setString(_allergiesKey, jsonEncode(values));
+  }
+
+  static Future<bool> isOnboardingCompleted({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    return p.getBool(_onboardingCompletedKey) ?? false;
+  }
+
+  static Future<void> markOnboardingCompleted({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.setBool(_onboardingCompletedKey, true);
+  }
+
+  static Future<bool> isLegalConsentAccepted({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    return p.getBool(_legalConsentAcceptedKey) ?? false;
+  }
+
+  static Future<void> markLegalConsentAccepted({SharedPreferences? prefs}) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    await p.setBool(_legalConsentAcceptedKey, true);
   }
 
   static Uri _url(String path) => Uri.parse('${backendBaseUrl()}$path');

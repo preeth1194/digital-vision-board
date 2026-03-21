@@ -1419,12 +1419,29 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
     switch (template.category) {
       case ActionTemplateCategory.skincare:
-        return 'Health';
-      case ActionTemplateCategory.workout:
-        return 'Fitness';
+      case ActionTemplateCategory.health:
       case ActionTemplateCategory.mealPrep:
       case ActionTemplateCategory.recipe:
         return 'Health';
+      case ActionTemplateCategory.workout:
+      case ActionTemplateCategory.fitness:
+        return 'Fitness';
+      case ActionTemplateCategory.challenges:
+        return _challengeGuideCategory;
+      case ActionTemplateCategory.weeklyMealPrep:
+        return _mealPrepGuideCategory;
+      case ActionTemplateCategory.productivity:
+        return 'Productivity';
+      case ActionTemplateCategory.mindfulness:
+        return 'Mindfulness';
+      case ActionTemplateCategory.learning:
+        return 'Learning';
+      case ActionTemplateCategory.relationships:
+        return 'Relationships';
+      case ActionTemplateCategory.finance:
+        return 'Finance';
+      case ActionTemplateCategory.creativity:
+        return 'Creativity';
     }
   }
 

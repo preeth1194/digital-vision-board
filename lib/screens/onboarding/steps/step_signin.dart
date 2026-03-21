@@ -11,8 +11,13 @@ import '_step_header.dart';
 /// with `true` and we call [onComplete] to finish onboarding.
 class StepSignIn extends StatefulWidget {
   final VoidCallback onComplete;
+  final bool replayMode;
 
-  const StepSignIn({super.key, required this.onComplete});
+  const StepSignIn({
+    super.key,
+    required this.onComplete,
+    this.replayMode = false,
+  });
 
   @override
   State<StepSignIn> createState() => _StepSignInState();
@@ -113,6 +118,21 @@ class _StepSignInState extends State<StepSignIn> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
+              if (widget.replayMode) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _loading ? null : widget.onComplete,
+                    child: Text(
+                      'Close tour',
+                      style: AppTypography.button(context).copyWith(
+                        color: AppColors.forestDeep.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               Center(
                 child: Text(
                   'Guest sessions last 10 days · Sign in anytime from Settings',

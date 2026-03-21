@@ -13,7 +13,11 @@ import 'steps/step_terms.dart';
 import 'steps/step_welcome.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// When true (e.g. App Tour from Settings), completing or closing returns to
+  /// the previous route without re-marking onboarding or replacing the stack.
+  final bool replayMode;
+
+  const OnboardingScreen({super.key, this.replayMode = false});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -36,11 +40,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
-    await DvAuthService.markOnboardingCompleted();
+    if (!widget.replayMode) {
+      await DvAuthService.markOnboardingCompleted();
+    }
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
+    if (widget.replayMode) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    }
   }
 
   @override
@@ -78,7 +88,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               StepFeatures(onNext: _nextPage),
               StepTerms(onNext: _nextPage),
-              StepSignIn(onComplete: _completeOnboarding),
+              StepSignIn(
+                replayMode: widget.replayMode,
+                onComplete: _completeOnboarding,
+              ),
             ],
           ),
           // Thin animated progress bar overlaid at the top

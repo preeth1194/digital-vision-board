@@ -71,10 +71,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onNext: (_) => _nextPage(),
               ),
               StepGenderDob(
-                onNext: (_, _b) => _nextPage(),
+                onNext: (gender, dob) => _nextPage(),
               ),
               StepBodyActivity(
-                onNext: (_, _b, _c) => _nextPage(),
+                onNext: (heightCm, weightKg, activityLevel) => _nextPage(),
               ),
               StepFeatures(onNext: _nextPage),
               StepTerms(onNext: _nextPage),
@@ -122,8 +122,8 @@ class _OnboardingProgressBar extends StatelessWidget {
             value: progress,
             minHeight: 2,
             backgroundColor: isDarkStep
-                ? Colors.white.withOpacity(0.2)
-                : AppColors.forestDeep.withOpacity(0.12),
+                ? Colors.white.withValues(alpha:0.2)
+                : AppColors.forestDeep.withValues(alpha:0.12),
             valueColor: AlwaysStoppedAnimation<Color>(
               isDarkStep ? AppColors.seedGold : AppColors.sproutGreen,
             ),

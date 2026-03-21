@@ -5,6 +5,7 @@ import '../../../services/dv_auth_service.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
+import '_step_header.dart';
 
 class StepGenderDob extends StatefulWidget {
   final void Function(String? gender, DateTime? dob) onNext;
@@ -51,12 +52,11 @@ class _StepGenderDobState extends State<StepGenderDob> {
   }
 
   Future<void> _onContinue() async {
-    if (_selectedGender != null) {
-      await DvAuthService.setGender(_selectedGender);
-    }
-    if (_dob != null) {
-      await DvAuthService.setDateOfBirth(_dob!.toIso8601String());
-    }
+    await Future.wait([
+      if (_selectedGender != null) DvAuthService.setGender(_selectedGender),
+      if (_dob != null)
+        DvAuthService.setDateOfBirth(_dob!.toIso8601String()),
+    ]);
     widget.onNext(_selectedGender, _dob);
   }
 
@@ -76,28 +76,15 @@ class _StepGenderDobState extends State<StepGenderDob> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Tell us a bit\nmore.',
-                style: AppTypography.heading1(context).copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.forestDeep,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Helps tailor your habit recommendations.',
-                style: AppTypography.body(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
-                ),
+              const StepHeader(
+                title: 'Tell us a bit\nmore.',
+                subtitle: 'Helps tailor your habit recommendations.',
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
                 'GENDER',
                 style: AppTypography.caption(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
+                  color: AppColors.forestDeep.withValues(alpha: 0.5),
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -122,7 +109,7 @@ class _StepGenderDobState extends State<StepGenderDob> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.forestDeep
-                            : AppColors.forestDeep.withOpacity(0.06),
+                            : AppColors.forestDeep.withValues(alpha: 0.06),
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusChip),
                       ),
@@ -131,11 +118,13 @@ class _StepGenderDobState extends State<StepGenderDob> {
                           Expanded(
                             child: Text(
                               label,
-                              style: AppTypography.bodySmall(context).copyWith(
+                              style:
+                                  AppTypography.bodySmall(context).copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isSelected
                                     ? Colors.white
-                                    : AppColors.forestDeep.withOpacity(0.6),
+                                    : AppColors.forestDeep
+                                        .withValues(alpha: 0.6),
                               ),
                             ),
                           ),
@@ -158,7 +147,7 @@ class _StepGenderDobState extends State<StepGenderDob> {
               Text(
                 'DATE OF BIRTH',
                 style: AppTypography.caption(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
+                  color: AppColors.forestDeep.withValues(alpha: 0.5),
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -168,11 +157,13 @@ class _StepGenderDobState extends State<StepGenderDob> {
                 onTap: _pickDob,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: AppColors.forestDeep.withOpacity(0.12),
+                        color:
+                            AppColors.forestDeep.withValues(alpha: 0.12),
                         width: 1.5,
                       ),
                     ),
@@ -188,14 +179,16 @@ class _StepGenderDobState extends State<StepGenderDob> {
                             fontWeight: FontWeight.w700,
                             color: _dob != null
                                 ? AppColors.forestDeep
-                                : AppColors.forestDeep.withOpacity(0.3),
+                                : AppColors.forestDeep
+                                    .withValues(alpha: 0.3),
                           ),
                         ),
                       ),
                       Icon(
                         Icons.calendar_today_outlined,
                         size: 18,
-                        color: AppColors.sproutGreen.withOpacity(0.7),
+                        color:
+                            AppColors.sproutGreen.withValues(alpha: 0.7),
                       ),
                     ],
                   ),
@@ -208,8 +201,8 @@ class _StepGenderDobState extends State<StepGenderDob> {
                   onPressed: _onContinue,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.sproutGreen,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md),
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppSpacing.radiusInput),

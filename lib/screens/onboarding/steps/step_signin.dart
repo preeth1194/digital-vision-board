@@ -4,6 +4,7 @@ import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../../auth/auth_gateway_screen.dart';
+import '_step_header.dart';
 
 /// Final onboarding step — delegates sign-in to [AuthGatewayScreen].
 /// When the user completes auth (Google or Guest), [AuthGatewayScreen] pops
@@ -51,40 +52,23 @@ class _StepSignInState extends State<StepSignIn> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                'ALMOST THERE',
-                style: AppTypography.caption(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.4),
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Save your\njourney.',
-                style: AppTypography.heading1(context).copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.forestDeep,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Sign in to sync across devices and\nnever lose your progress.',
-                style: AppTypography.body(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
-                ),
+              StepHeader(
+                overline: 'ALMOST THERE',
+                title: 'Save your\njourney.',
+                subtitle:
+                    'Sign in to sync across devices and\nnever lose your progress.',
+                overlineColor:
+                    AppColors.forestDeep.withValues(alpha: 0.4),
+                subtitleColor:
+                    AppColors.forestDeep.withValues(alpha: 0.5),
               ),
               const Spacer(),
-              // Illustration / icon
               Center(
                 child: Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.sproutGreen.withOpacity(0.1),
+                    color: AppColors.sproutGreen.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -95,7 +79,6 @@ class _StepSignInState extends State<StepSignIn> {
                 ),
               ),
               const Spacer(),
-              // Sign in / Guest CTA — opens AuthGatewayScreen
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -103,7 +86,7 @@ class _StepSignInState extends State<StepSignIn> {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.sproutGreen,
                     disabledBackgroundColor:
-                        AppColors.sproutGreen.withOpacity(0.4),
+                        AppColors.sproutGreen.withValues(alpha: 0.4),
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     shape: RoundedRectangleBorder(
@@ -135,7 +118,7 @@ class _StepSignInState extends State<StepSignIn> {
                   'Guest sessions last 10 days · Sign in anytime from Settings',
                   textAlign: TextAlign.center,
                   style: AppTypography.caption(context).copyWith(
-                    color: AppColors.forestDeep.withOpacity(0.35),
+                    color: AppColors.forestDeep.withValues(alpha: 0.35),
                   ),
                 ),
               ),

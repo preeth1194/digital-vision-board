@@ -5,6 +5,7 @@ import '../../../services/dv_auth_service.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
+import '_step_header.dart';
 
 class StepBodyActivity extends StatefulWidget {
   final void Function(double? heightCm, double? weightKg, String activityLevel)
@@ -25,7 +26,8 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
   bool _heightSet = false;
   bool _weightSet = false;
 
-  String _activityLevel = 'moderately_active';
+  static const _defaultActivityLevel = 'moderately_active';
+  String _activityLevel = _defaultActivityLevel;
 
   static const _activities = [
     ('sedentary', '🪑', 'Sedentary'),
@@ -104,6 +106,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
   }) {
     final items = List.generate(max - min + 1, (i) => min + i);
     int selected = (initialValue - min).clamp(0, items.length - 1);
+    final controller = FixedExtentScrollController(initialItem: selected);
 
     showModalBottomSheet<void>(
       context: context,
@@ -129,7 +132,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                     onPressed: () => Navigator.pop(context),
                     child: Text('Cancel',
                         style: AppTypography.bodySmall(context).copyWith(
-                          color: AppColors.forestDeep.withOpacity(0.5),
+                          color: AppColors.forestDeep.withValues(alpha: 0.5),
                         )),
                   ),
                   TextButton(
@@ -148,8 +151,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
             ),
             Expanded(
               child: CupertinoPicker(
-                scrollController: FixedExtentScrollController(
-                    initialItem: (initialValue - min).clamp(0, items.length - 1)),
+                scrollController: controller,
                 itemExtent: 40,
                 onSelectedItemChanged: (i) => selected = i,
                 children: items
@@ -167,12 +169,16 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
           ],
         ),
       ),
-    );
+    ).then((_) => controller.dispose());
   }
 
   void _showImperialHeightPicker(int initFt, int initIn) {
     int selFt = initFt;
     int selIn = initIn;
+    final ftController =
+        FixedExtentScrollController(initialItem: (initFt - 3).clamp(0, 5));
+    final inController =
+        FixedExtentScrollController(initialItem: initIn.clamp(0, 11));
 
     showModalBottomSheet<void>(
       context: context,
@@ -198,7 +204,8 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                     onPressed: () => Navigator.pop(context),
                     child: Text('Cancel',
                         style: AppTypography.bodySmall(context).copyWith(
-                            color: AppColors.forestDeep.withOpacity(0.5))),
+                            color:
+                                AppColors.forestDeep.withValues(alpha: 0.5))),
                   ),
                   TextButton(
                     onPressed: () {
@@ -222,8 +229,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                 children: [
                   Expanded(
                     child: CupertinoPicker(
-                      scrollController: FixedExtentScrollController(
-                          initialItem: (initFt - 3).clamp(0, 5)),
+                      scrollController: ftController,
                       itemExtent: 40,
                       onSelectedItemChanged: (i) => selFt = i + 3,
                       children: List.generate(
@@ -238,8 +244,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                   ),
                   Expanded(
                     child: CupertinoPicker(
-                      scrollController: FixedExtentScrollController(
-                          initialItem: initIn.clamp(0, 11)),
+                      scrollController: inController,
                       itemExtent: 40,
                       onSelectedItemChanged: (i) => selIn = i,
                       children: List.generate(
@@ -258,7 +263,10 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      ftController.dispose();
+      inController.dispose();
+    });
   }
 
   Future<void> _onSkip() async {
@@ -292,22 +300,9 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Body &\nActivity.',
-                style: AppTypography.heading1(context).copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.forestDeep,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Helps personalise activity suggestions.',
-                style: AppTypography.body(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
-                ),
+              const StepHeader(
+                title: 'Body &\nActivity.',
+                subtitle: 'Helps personalise activity suggestions.',
               ),
               const SizedBox(height: AppSpacing.lg),
               // Stat boxes
@@ -351,7 +346,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
               Text(
                 'ACTIVITY LEVEL',
                 style: AppTypography.caption(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
+                  color: AppColors.forestDeep.withValues(alpha:0.5),
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -374,7 +369,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.sproutGreen
-                            : AppColors.forestDeep.withOpacity(0.05),
+                            : AppColors.forestDeep.withValues(alpha:0.05),
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusChip),
                       ),
@@ -389,7 +384,7 @@ class _StepBodyActivityState extends State<StepBodyActivity> {
                               fontWeight: FontWeight.w600,
                               color: isSelected
                                   ? Colors.white
-                                  : AppColors.forestDeep.withOpacity(0.7),
+                                  : AppColors.forestDeep.withValues(alpha:0.7),
                             ),
                           ),
                         ],
@@ -464,7 +459,7 @@ class _StatBox extends StatelessWidget {
           horizontal: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.sproutGreen.withOpacity(0.08),
+          color: AppColors.sproutGreen.withValues(alpha:0.08),
           borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
         ),
         child: Column(
@@ -523,7 +518,7 @@ class _UnitToggle extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: selected
                 ? Colors.white
-                : AppColors.forestDeep.withOpacity(0.4),
+                : AppColors.forestDeep.withValues(alpha:0.4),
           ),
         ),
       ),

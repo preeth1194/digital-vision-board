@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../services/dv_auth_service.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
+import '_step_header.dart';
 
 class StepPhoto extends StatefulWidget {
   final String name;
@@ -28,7 +28,6 @@ class _StepPhotoState extends State<StepPhoto> {
     setState(() => _picking = true);
     try {
       final picker = ImagePicker();
-      // On iOS/Android the OS sheet handles Camera vs Gallery selection
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
@@ -37,6 +36,7 @@ class _StepPhotoState extends State<StepPhoto> {
       );
       if (picked != null && mounted) {
         setState(() => _photoPath = picked.path);
+        // Save immediately on selection — no redundant save needed on Continue
         await DvAuthService.setProfilePicPath(picked.path);
       }
     } finally {
@@ -49,12 +49,8 @@ class _StepPhotoState extends State<StepPhoto> {
     widget.onNext(null);
   }
 
-  Future<void> _onContinue() async {
-    if (_photoPath != null) {
-      await DvAuthService.setProfilePicPath(_photoPath);
-    }
-    widget.onNext(_photoPath);
-  }
+  // Photo was already saved in _pickPhoto; just advance.
+  void _onContinue() => widget.onNext(_photoPath);
 
   @override
   Widget build(BuildContext context) {
@@ -74,25 +70,11 @@ class _StepPhotoState extends State<StepPhoto> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Add a photo,\n$displayName.',
-                style: GoogleFonts.inter(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.forestDeep,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Tap to choose from camera or gallery.',
-                style: AppTypography.body(context).copyWith(
-                  color: AppColors.forestDeep.withOpacity(0.5),
-                ),
+              StepHeader(
+                title: 'Add a photo,\n$displayName.',
+                subtitle: 'Tap to choose from camera or gallery.',
               ),
               const SizedBox(height: AppSpacing.xxl),
-              // Avatar ring
               Center(
                 child: GestureDetector(
                   onTap: _pickPhoto,
@@ -104,11 +86,11 @@ class _StepPhotoState extends State<StepPhoto> {
                       shape: BoxShape.circle,
                       color: _photoPath != null
                           ? Colors.transparent
-                          : AppColors.sproutGreen.withOpacity(0.08),
+                          : AppColors.sproutGreen.withValues(alpha: 0.08),
                       border: Border.all(
                         color: _photoPath != null
                             ? AppColors.sproutGreen
-                            : AppColors.sproutGreen.withOpacity(0.4),
+                            : AppColors.sproutGreen.withValues(alpha: 0.4),
                         width: 2,
                         strokeAlign: BorderSide.strokeAlignOutside,
                       ),
@@ -156,15 +138,13 @@ class _StepPhotoState extends State<StepPhoto> {
                 ),
               ),
               const Spacer(),
-              // Skip
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
                   onPressed: _onSkip,
                   child: Text(
                     'Skip for now',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
+                    style: AppTypography.bodySmall(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.sproutGreen,
                     ),
@@ -172,22 +152,22 @@ class _StepPhotoState extends State<StepPhoto> {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              // Continue
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _onContinue,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.sproutGreen,
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusInput),
                     ),
                   ),
                   child: Text(
                     'Continue',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
+                    style: AppTypography.button(context).copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),

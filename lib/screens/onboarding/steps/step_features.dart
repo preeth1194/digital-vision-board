@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
-
+import '_step_header.dart';
 
 class StepFeatures extends StatelessWidget {
   final VoidCallback onNext;
@@ -19,6 +19,7 @@ class StepFeatures extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final white40 = Colors.white.withValues(alpha: 0.4);
     return Container(
       color: AppColors.cloudDark,
       child: SafeArea(
@@ -33,31 +34,13 @@ class StepFeatures extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                'YOUR TOOLS',
-                style: AppTypography.caption(context).copyWith(
-                  color: Colors.white.withOpacity(0.4),
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Built for\nreal growth.',
-                style: AppTypography.heading1(context).copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Everything you need in one place.',
-                style: AppTypography.body(context).copyWith(
-                  color: Colors.white.withOpacity(0.4),
-                ),
+              StepHeader(
+                overline: 'YOUR TOOLS',
+                title: 'Built for\nreal growth.',
+                subtitle: 'Everything you need in one place.',
+                titleColor: Colors.white,
+                subtitleColor: white40,
+                overlineColor: white40,
               ),
               const SizedBox(height: AppSpacing.xl),
               Expanded(
@@ -120,7 +103,7 @@ class _FeatureRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withOpacity(0.07),
+            color: Colors.white.withValues(alpha: 0.07),
           ),
         ),
       ),
@@ -133,8 +116,7 @@ class _FeatureRow extends StatelessWidget {
               number,
               style: AppTypography.bodySmall(context).copyWith(
                 fontWeight: FontWeight.w800,
-                // seedGold used as non-text icon-like accent on dark bg — acceptable
-                color: AppColors.honeyText.withOpacity(0.9),
+                color: AppColors.honeyText.withValues(alpha: 0.9),
               ),
             ),
           ),
@@ -153,7 +135,7 @@ class _FeatureRow extends StatelessWidget {
               Text(
                 subtitle,
                 style: AppTypography.caption(context).copyWith(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                 ),
               ),
             ],

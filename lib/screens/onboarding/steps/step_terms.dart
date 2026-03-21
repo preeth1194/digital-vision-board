@@ -6,6 +6,7 @@ import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../../privacy_policy_screen.dart';
 import '../../terms_and_conditions_screen.dart';
+import '_step_header.dart';
 
 class StepTerms extends StatefulWidget {
   final VoidCallback onNext;
@@ -23,7 +24,6 @@ class _StepTermsState extends State<StepTerms> {
   @override
   void initState() {
     super.initState();
-    // Pre-check if already accepted (e.g. user navigated back from sign-in)
     DvAuthService.isLegalConsentAccepted().then((accepted) {
       if (accepted && mounted) setState(() => _agreed = true);
     });
@@ -52,6 +52,10 @@ class _StepTermsState extends State<StepTerms> {
 
   @override
   Widget build(BuildContext context) {
+    final white50 = Colors.white.withValues(alpha: 0.5);
+    final white60 = Colors.white.withValues(alpha: 0.6);
+    final white70 = Colors.white.withValues(alpha: 0.7);
+
     return Container(
       color: AppColors.sproutGreen,
       child: SafeArea(
@@ -66,41 +70,23 @@ class _StepTermsState extends State<StepTerms> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                'BEFORE WE START',
-                style: AppTypography.caption(context).copyWith(
-                  color: Colors.white.withOpacity(0.5),
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'One last\nthing.',
-                style: AppTypography.heading1(context).copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Please read and agree to continue.',
-                style: AppTypography.body(context).copyWith(
-                  color: Colors.white.withOpacity(0.6),
-                ),
+              StepHeader(
+                overline: 'BEFORE WE START',
+                title: 'One last\nthing.',
+                subtitle: 'Please read and agree to continue.',
+                titleColor: Colors.white,
+                subtitleColor: white60,
+                overlineColor: white50,
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Scrollable T&C summary
               Expanded(
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusCard),
                   ),
                   child: SingleChildScrollView(
                     child: Text(
@@ -114,7 +100,7 @@ class _StepTermsState extends State<StepTerms> {
                       'By tapping "Accept & Continue" you confirm you are 13 years '
                       'of age or older and agree to be bound by these terms.',
                       style: AppTypography.bodySmall(context).copyWith(
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         height: 1.6,
                       ),
                     ),
@@ -122,7 +108,6 @@ class _StepTermsState extends State<StepTerms> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              // Read full links
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -131,16 +116,16 @@ class _StepTermsState extends State<StepTerms> {
                     child: Text(
                       'Full Terms',
                       style: AppTypography.caption(context).copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: white70,
                         decoration: TextDecoration.underline,
-                        decorationColor: Colors.white.withOpacity(0.5),
+                        decorationColor: white50,
                       ),
                     ),
                   ),
                   Text(
                     '  ·  ',
                     style: AppTypography.caption(context).copyWith(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                   GestureDetector(
@@ -148,16 +133,15 @@ class _StepTermsState extends State<StepTerms> {
                     child: Text(
                       'Privacy Policy',
                       style: AppTypography.caption(context).copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: white70,
                         decoration: TextDecoration.underline,
-                        decorationColor: Colors.white.withOpacity(0.5),
+                        decorationColor: white50,
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              // Checkbox row
               GestureDetector(
                 onTap: () => setState(() => _agreed = !_agreed),
                 child: Row(
@@ -172,7 +156,8 @@ class _StepTermsState extends State<StepTerms> {
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusBadge),
                         border: Border.all(
-                          color: Colors.white.withOpacity(_agreed ? 1 : 0.5),
+                          color: Colors.white
+                              .withValues(alpha: _agreed ? 1 : 0.5),
                           width: 2,
                         ),
                       ),
@@ -189,7 +174,7 @@ class _StepTermsState extends State<StepTerms> {
                       child: Text(
                         'I agree to the Terms of Service and Privacy Policy',
                         style: AppTypography.bodySmall(context).copyWith(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           height: 1.4,
                         ),
                       ),
@@ -204,7 +189,8 @@ class _StepTermsState extends State<StepTerms> {
                   onPressed: (_agreed && !_saving) ? _acceptAndContinue : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white.withOpacity(0.3),
+                    disabledBackgroundColor:
+                        Colors.white.withValues(alpha: 0.3),
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     shape: RoundedRectangleBorder(

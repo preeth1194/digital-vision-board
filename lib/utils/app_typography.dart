@@ -86,8 +86,8 @@ class AppTypography {
     );
   }
 
-  /// Button - 16sp, medium
-  /// Used for button text
+  /// Button - 16sp, medium. Uses [ColorScheme.onPrimary] for labels on filled primary buttons;
+  /// on [OutlinedButton] or mist backgrounds, apply `.copyWith(color: colorScheme.onSurface)`.
   static TextStyle button(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return GoogleFonts.inter(

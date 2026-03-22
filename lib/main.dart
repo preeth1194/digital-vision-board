@@ -9,7 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/legal_consent_screen.dart';
-import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/onboarding/install_welcome_screen.dart';
 import 'services/habit_geofence_tracking_service.dart';
 import 'services/dv_auth_service.dart';
 import 'services/app_settings_service.dart';
@@ -204,7 +204,7 @@ class DigitalVisionBoardApp extends StatelessWidget {
           darkTheme: _buildTheme(colorScheme: AppColors.darkScheme, isDark: true),
           themeMode: mode,
           home: showOnboarding
-              ? const OnboardingScreen()
+              ? const InstallWelcomeScreen()
               : (!legalConsentAccepted
                     ? const LegalConsentScreen()
                     : const DashboardScreen()),

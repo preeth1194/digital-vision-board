@@ -17,7 +17,14 @@ import 'profile_completion_screen.dart';
 class AuthGatewayScreen extends StatefulWidget {
   final bool forced; // true when opened because guest expired
 
-  const AuthGatewayScreen({super.key, this.forced = false});
+  /// When true (and not [forced]), only Google sign-in is shown — e.g. install welcome “I already have an account”.
+  final bool googleOnly;
+
+  const AuthGatewayScreen({
+    super.key,
+    this.forced = false,
+    this.googleOnly = false,
+  });
 
   @override
   State<AuthGatewayScreen> createState() => _AuthGatewayScreenState();
@@ -354,16 +361,28 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
 
   Widget _buildLoginView(BuildContext context, ThemeData theme, bool forced) {
     final colorScheme = theme.colorScheme;
+    final googleOnly = widget.googleOnly && !forced;
+    final title = forced
+        ? 'Your guest access expired'
+        : googleOnly
+            ? 'Welcome back'
+            : 'Welcome';
+    final subtitle = forced
+        ? 'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.'
+        : googleOnly
+            ? 'Sign in with Google to sync your garden across devices.'
+            : 'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.';
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          forced ? 'Your guest access expired' : 'Welcome',
+          title,
           style: AppTypography.heading2(context),
         ),
         const SizedBox(height: 8),
         Text(
-          'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.',
+          subtitle,
           style: AppTypography.bodySmall(context).copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -390,30 +409,32 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           icon: const Icon(Icons.g_mobiledata),
           label: const Text('Continue with Google'),
         ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _loading ? null : _continueAsGuest,
-          child: _loading
-              ? const SizedBox(
-                  height: 20,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Continue as Guest'),
-        ),
-        const SizedBox(height: 20),
-        ExpansionTile(
-          title: Text('Why login?', style: AppTypography.body(context)),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          children: [
-            Text(
-              'Guest sessions expire after 10 days. Logging in will let you sync across devices and preserve full history.',
-              style: AppTypography.bodySmall(context).copyWith(
-                color: colorScheme.onSurfaceVariant,
+        if (!googleOnly) ...[
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _loading ? null : _continueAsGuest,
+            child: _loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Continue as Guest'),
+          ),
+          const SizedBox(height: 20),
+          ExpansionTile(
+            title: Text('Why login?', style: AppTypography.body(context)),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            children: [
+              Text(
+                'Guest sessions expire after 10 days. Logging in will let you sync across devices and preserve full history.',
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }

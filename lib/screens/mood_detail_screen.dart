@@ -217,7 +217,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
+      decoration: AppColors.pageBackgroundDecoration(isDark: isDark, minimal: true),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(

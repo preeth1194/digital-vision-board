@@ -255,8 +255,6 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
             ),
             children: [
               JournalHeroSection(
-                onType: () {},
-                onRecord: () {},
                 books: _books,
                 entryCounts: _bookEntryCounts,
                 recipeCount: _recipeCount,

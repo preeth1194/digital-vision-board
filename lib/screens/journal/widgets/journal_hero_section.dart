@@ -7,9 +7,6 @@ import 'journal_bookshelf.dart';
 ///
 /// Renders a [JournalBookshelf] for navigating to books and managing their colors.
 class JournalHeroSection extends StatelessWidget {
-  final VoidCallback onType;
-  final VoidCallback onRecord;
-
   /// List of journal books to display on the bookshelf.
   final List<JournalBook> books;
 
@@ -31,8 +28,6 @@ class JournalHeroSection extends StatelessWidget {
 
   const JournalHeroSection({
     super.key,
-    required this.onType,
-    required this.onRecord,
     this.books = const [],
     this.entryCounts = const {},
     this.recipeCount = 0,

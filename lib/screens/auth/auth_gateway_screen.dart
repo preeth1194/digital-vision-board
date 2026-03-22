@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -70,8 +71,14 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     } on GoogleSignInException catch (e) {
       if (!mounted) return;
       if (e.code == GoogleSignInExceptionCode.canceled) return;
+      if (kDebugMode) {
+        debugPrint('[AuthGateway] GoogleSignInException: ${e.code} ${e.description}');
+      }
       setState(() => _error = 'Google sign-in failed. Please try again.');
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AuthGateway] Google sign-in failed: $e\n$st');
+      }
       if (!mounted) return;
       setState(() => _error = 'Sign-in failed. Please try again.');
     } finally {

@@ -119,6 +119,21 @@ class _StepSignInState extends State<StepSignIn> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
+              if (widget.replayMode) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _loading ? null : widget.onComplete,
+                    child: Text(
+                      'Close tour',
+                      style: AppTypography.button(context).copyWith(
+                        color: AppColors.forestDeep.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               Center(
                 child: Text(
                   'Guest sessions last 10 days · Sign in anytime from Settings',

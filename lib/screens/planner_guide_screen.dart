@@ -1454,6 +1454,14 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       case ActionTemplateCategory.health:
       case ActionTemplateCategory.mealPrep:
       case ActionTemplateCategory.recipe:
+      case ActionTemplateCategory.health:
+      case ActionTemplateCategory.weeklyMealPrep:
+      case ActionTemplateCategory.productivity:
+      case ActionTemplateCategory.mindfulness:
+      case ActionTemplateCategory.learning:
+      case ActionTemplateCategory.relationships:
+      case ActionTemplateCategory.finance:
+      case ActionTemplateCategory.creativity:
         return 'Health';
       case ActionTemplateCategory.workout:
       case ActionTemplateCategory.fitness:

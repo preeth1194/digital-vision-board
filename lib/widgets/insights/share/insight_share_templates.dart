@@ -321,7 +321,7 @@ class _RhythmGrid extends StatelessWidget {
                 final done = habit.isCompletedOnDate(d);
                 Color bg;
                 if (!scheduled) {
-                  bg = Colors.white.withValues(alpha: 0.25);
+                  bg = AppColors.cloudWhite.withValues(alpha: 0.25);
                 } else if (done) {
                   bg = AppColors.sproutGreen.withValues(alpha: 0.85);
                 } else {
@@ -345,7 +345,7 @@ class _RhythmGrid extends StatelessWidget {
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: scheduled && done
-                                ? Colors.white
+                                ? AppColors.cloudWhite
                                 : AppColors.forestDeep.withValues(alpha: 0.5),
                           ),
                         ),

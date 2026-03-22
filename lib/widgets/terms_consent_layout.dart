@@ -62,9 +62,9 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final white50 = Colors.white.withValues(alpha: 0.5);
-    final white60 = Colors.white.withValues(alpha: 0.6);
-    final white70 = Colors.white.withValues(alpha: 0.7);
+    final white50 = AppColors.cloudWhite.withValues(alpha: 0.5);
+    final white60 = AppColors.cloudWhite.withValues(alpha: 0.6);
+    final white70 = AppColors.cloudWhite.withValues(alpha: 0.7);
 
     return SafeArea(
       child: Padding(
@@ -82,7 +82,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
               overline: 'BEFORE WE START',
               title: 'One last\nthing.',
               subtitle: 'Please read and agree to continue.',
-              titleColor: Colors.white,
+              titleColor: AppColors.cloudWhite,
               subtitleColor: white60,
               overlineColor: white50,
             ),
@@ -92,7 +92,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: AppColors.cloudWhite.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
                 ),
                 child: SingleChildScrollView(
@@ -107,7 +107,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                     'By tapping "Accept & Continue" you confirm you are 13 years '
                     'of age or older and agree to be bound by these terms.',
                     style: AppTypography.bodySmall(context).copyWith(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: AppColors.cloudWhite.withValues(alpha: 0.85),
                       height: 1.6,
                     ),
                   ),
@@ -132,7 +132,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                 Text(
                   '  ·  ',
                   style: AppTypography.caption(context).copyWith(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: AppColors.cloudWhite.withValues(alpha: 0.4),
                   ),
                 ),
                 GestureDetector(
@@ -159,12 +159,12 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                     width: AppSpacing.lg,
                     height: AppSpacing.lg,
                     decoration: BoxDecoration(
-                      color: _agreed ? Colors.white : Colors.transparent,
+                      color: _agreed ? AppColors.cloudWhite : Colors.transparent,
                       borderRadius:
                           BorderRadius.circular(AppSpacing.radiusBadge),
                       border: Border.all(
                         color:
-                            Colors.white.withValues(alpha: _agreed ? 1 : 0.5),
+                            AppColors.cloudWhite.withValues(alpha: _agreed ? 1 : 0.5),
                         width: 2,
                       ),
                     ),
@@ -181,7 +181,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                     child: Text(
                       'I agree to the Terms of Service and Privacy Policy',
                       style: AppTypography.bodySmall(context).copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.cloudWhite.withValues(alpha: 0.9),
                         height: 1.4,
                       ),
                     ),
@@ -204,7 +204,7 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                       style: IconButton.styleFrom(
                         minimumSize: const Size(48, 48),
                         fixedSize: const Size(48, 48),
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.cloudWhite,
                       ),
                     ),
                   ),
@@ -215,9 +215,9 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
                     onPressed:
                         (_agreed && !_saving) ? _acceptAndContinue : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.cloudWhite,
                       disabledBackgroundColor:
-                          Colors.white.withValues(alpha: 0.3),
+                          AppColors.cloudWhite.withValues(alpha: 0.3),
                       padding: const EdgeInsets.symmetric(
                         vertical: AppSpacing.md,
                       ),

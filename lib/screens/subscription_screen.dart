@@ -7,6 +7,7 @@ import '../services/subscription_service.dart';
 import '../utils/app_typography.dart';
 import '../widgets/layout/morning_garden_scaffold.dart';
 import 'auth/auth_gateway_screen.dart';
+import '../utils/app_colors.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -430,7 +431,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         )
                       : const Text('Redeem'),

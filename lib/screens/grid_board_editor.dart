@@ -647,7 +647,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   static const List<Color?> _bgColorOptions = [
     null, // theme default
-    Colors.white,
+    AppColors.cloudWhite,
     AppColors.pastelGreen,
     AppColors.pastelBlue,
     AppColors.pastelPurple,

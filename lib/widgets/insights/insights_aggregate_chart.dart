@@ -6,6 +6,7 @@ import '../../models/insights_month_summary.dart';
 import '../../services/logical_date_service.dart';
 import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
+import '../../utils/app_colors.dart';
 
 /// Line chart showing aggregate habit completions per day for the selected month.
 /// Used in the "All habits" view on the Insights screen.
@@ -169,7 +170,7 @@ class _InsightsAggregateChartState extends State<InsightsAggregateChart> {
               radius: 4,
               color: colorScheme.primary,
               strokeWidth: 2,
-              strokeColor: Colors.white,
+              strokeColor: AppColors.cloudWhite,
             ),
           ),
           belowBarData: BarAreaData(

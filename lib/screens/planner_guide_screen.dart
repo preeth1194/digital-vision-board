@@ -2535,7 +2535,7 @@ class _PresetRichCard extends StatelessWidget {
         (guideTitle.isNotEmpty && guideTitle != 'No preset available');
 
     final allSteps = guide?.steps ?? const <HabitActionStep>[];
-    final previewSteps = allSteps.take(3).toList();
+    final previewSteps = allSteps.take(2).toList();
     final extraCount = allSteps.length - previewSteps.length;
 
     final headerContent = Container(
@@ -2608,7 +2608,7 @@ class _PresetRichCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: AppColors.pureBlack.withValues(alpha: 0.06),
                   blurRadius: 6,
                   offset: const Offset(0, 1),
                 ),
@@ -2631,10 +2631,10 @@ class _PresetRichCard extends StatelessWidget {
                     headerContent,
                   if (previewSteps.isNotEmpty || extraCount > 0)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
                       child: Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           for (final step in previewSteps)
                             _StepChip(label: _stepLabel(step)),
@@ -2679,19 +2679,21 @@ class _StepChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final borderColor = isMore
+        ? cs.primary.withValues(alpha: 0.35)
+        : cs.outlineVariant.withValues(alpha: 0.85);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isMore ? Colors.transparent : cs.primaryContainer.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(5),
-        border: isMore
-            ? Border.all(color: cs.primary.withValues(alpha: 0.3))
-            : null,
+        color: isMore
+            ? cs.primary.withValues(alpha: 0.08)
+            : cs.primaryContainer.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor, width: 1),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontSize: 7,
+        style: AppTypography.caption(context).copyWith(
           color: isMore ? cs.primary : cs.onPrimaryContainer,
           fontWeight: FontWeight.w600,
         ),

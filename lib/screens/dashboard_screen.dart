@@ -367,76 +367,89 @@ class _DashboardScreenState extends State<DashboardScreen>
         return GestureDetector(
           onTap: _openPresetShop,
           behavior: HitTestBehavior.opaque,
-          child: Row(
+          child: Container(
             key: _coinTargetKey,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Coin count first
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position:
-                          Tween<Offset>(
-                            begin: const Offset(0, 0.4),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutCubic,
-                            ),
-                          ),
-                      child: child,
-                    ),
-                  );
-                },
-                child: Text(
-                  '$coins',
-                  key: ValueKey(coins),
-                  style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isDark
+                  ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.55)
+                  : colorScheme.surface.withValues(alpha: 0.94),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
               ),
-              const SizedBox(width: 8),
-              Container(
-                width: AppSpacing.coinAppBarSize,
-                height: AppSpacing.coinAppBarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppColors.goldLight, AppColors.goldDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: isDark
-                        ? colorScheme.outline.withValues(alpha: 0.45)
-                        : colorScheme.surface.withValues(alpha: 0.95),
-                    width: 1.25,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pureBlack.withValues(alpha: isDark ? 0.32 : 0.07),
+                  offset: const Offset(0, 1),
+                  blurRadius: 3,
+                  spreadRadius: 0,
+                  blurStyle: BlurStyle.inner,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 8),
+                Container(
+                  width: AppSpacing.coinAppBarSize,
+                  height: AppSpacing.coinAppBarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [AppColors.goldLight, AppColors.goldDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
                       color: isDark
-                          ? Colors.black.withValues(alpha: 0.28)
-                          : AppColors.forestDeep.withValues(alpha: 0.14),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
+                          ? colorScheme.outline.withValues(alpha: 0.45)
+                          : colorScheme.surface.withValues(alpha: 0.95),
+                      width: 1.25,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.monetization_on_rounded,
-                    size: AppSpacing.coinAppBarIcon,
-                    color: Colors.white,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.monetization_on_rounded,
+                      size: AppSpacing.coinAppBarIcon,
+                      color: AppColors.cloudWhite,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position:
+                            Tween<Offset>(
+                              begin: const Offset(0, 0.4),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              ),
+                            ),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    '$coins',
+                    key: ValueKey(coins),
+                    style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                
+              ],
+            ),
           ),
         );
       },
@@ -1339,7 +1352,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _hideCreatePanel,
-                child: Container(color: Colors.black.withOpacity(0.35 * t)),
+                child: Container(color: AppColors.pureBlack.withOpacity(0.35 * t)),
               ),
             ),
             // Panel sliding up from behind the nav bar
@@ -1364,8 +1377,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                         child: Material(
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.white.withValues(alpha: 0.6),
+                              ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                              : AppColors.cloudWhite.withValues(alpha: 0.6),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(20),
                           ),
@@ -1375,8 +1388,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               border: Border(
                                 top: BorderSide(
                                   color: isDark
-                                      ? Colors.white.withValues(alpha: 0.12)
-                                      : Colors.white.withValues(alpha: 0.8),
+                                      ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                                      : AppColors.cloudWhite.withValues(alpha: 0.8),
                                 ),
                               ),
                             ),
@@ -1451,13 +1464,13 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Ink(
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.white.withValues(alpha: 0.45),
+                  ? AppColors.cloudWhite.withValues(alpha: 0.06)
+                  : AppColors.cloudWhite.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.white.withValues(alpha: 0.6),
+                    ? AppColors.cloudWhite.withValues(alpha: 0.1)
+                    : AppColors.cloudWhite.withValues(alpha: 0.6),
                 width: 1,
               ),
             ),

@@ -181,7 +181,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
                   primary: AppColors.seedGold,
-                  onPrimary: Colors.white,
+                  onPrimary: AppColors.cloudWhite,
                 ),
           ),
           child: child!,
@@ -259,7 +259,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                   child: Text(
                     title,
                     style: AppTypography.bodySmall(context).copyWith(
-                      color: Colors.white,
+                      color: AppColors.cloudWhite,
                     ),
                   ),
                 ),
@@ -275,9 +275,9 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       constraints: const BoxConstraints(maxHeight: 220),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: AppColors.cloudWhite.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        border: Border.all(color: AppColors.cloudWhite.withValues(alpha: 0.18)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
@@ -303,7 +303,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                 child: Text(
                   'Your habits',
                   style: AppTypography.caption(context).copyWith(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: AppColors.cloudWhite.withValues(alpha: 0.5),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -324,7 +324,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                 child: Text(
                   'Common anchors',
                   style: AppTypography.caption(context).copyWith(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: AppColors.cloudWhite.withValues(alpha: 0.5),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -357,8 +357,8 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
 
   @override
   Widget build(BuildContext context) {
-    final labelMuted = Colors.white.withValues(alpha: 0.5);
-    final bodyMuted = Colors.white.withValues(alpha: 0.62);
+    final labelMuted = AppColors.cloudWhite.withValues(alpha: 0.5);
+    final bodyMuted = AppColors.cloudWhite.withValues(alpha: 0.62);
     final timeLabel = _reminderOn
         ? MaterialLocalizations.of(context).formatTimeOfDay(
               _reminderTime ?? _defaultReminder,
@@ -393,7 +393,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                       title: 'Shape your\nroutine.',
                       subtitle:
                           'Optional: break the habit into small steps, a daily reminder, or anchor it to something you already do.',
-                      titleColor: Colors.white,
+                      titleColor: AppColors.cloudWhite,
                       subtitleColor: labelMuted,
                       overlineColor: labelMuted,
                     ),
@@ -422,23 +422,23 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                             child: TextField(
                               controller: _stepControllers[i],
                               style: AppTypography.body(context).copyWith(
-                                color: Colors.white,
+                                color: AppColors.cloudWhite,
                               ),
                               cursorColor: AppColors.seedGold,
                               decoration: InputDecoration(
                                 hintText: 'Step ${i + 1}',
                                 hintStyle: AppTypography.secondary(context)
                                     .copyWith(
-                                  color: Colors.white.withValues(alpha: 0.45),
+                                  color: AppColors.cloudWhite.withValues(alpha: 0.45),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white.withValues(alpha: 0.08),
+                                fillColor: AppColors.cloudWhite.withValues(alpha: 0.08),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(
                                     AppSpacing.radiusInput,
                                   ),
                                   borderSide: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.2),
+                                    color: AppColors.cloudWhite.withValues(alpha: 0.2),
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
@@ -466,7 +466,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                               onPressed: () => _removeStepRow(i),
                               icon: Icon(
                                 Icons.close,
-                                color: Colors.white.withValues(alpha: 0.7),
+                                color: AppColors.cloudWhite.withValues(alpha: 0.7),
                               ),
                             ),
                           ),
@@ -485,7 +485,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                         label: Text(
                           'Add step',
                           style: AppTypography.button(context).copyWith(
-                            color: Colors.white.withValues(alpha: 0.92),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.92),
                           ),
                         ),
                       ),
@@ -504,7 +504,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                       title: Text(
                         'Daily notification',
                         style: AppTypography.body(context).copyWith(
-                          color: Colors.white,
+                          color: AppColors.cloudWhite,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -543,11 +543,11 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                               vertical: AppSpacing.md,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: AppColors.cloudWhite.withValues(alpha: 0.08),
                               borderRadius:
                                   BorderRadius.circular(AppSpacing.radiusInput),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.22),
+                                color: AppColors.cloudWhite.withValues(alpha: 0.22),
                               ),
                             ),
                             child: Row(
@@ -556,7 +556,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                                   child: Text(
                                     timeLabel ?? '',
                                     style: AppTypography.body(context).copyWith(
-                                      color: Colors.white,
+                                      color: AppColors.cloudWhite,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -593,7 +593,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                       title: Text(
                         'Anchor to an existing habit',
                         style: AppTypography.body(context).copyWith(
-                          color: Colors.white,
+                          color: AppColors.cloudWhite,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -623,7 +623,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                           vertical: AppSpacing.xs,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: AppColors.cloudWhite.withValues(alpha: 0.08),
                           borderRadius:
                               BorderRadius.circular(AppSpacing.radiusInput),
                         ),
@@ -635,11 +635,11 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                           dropdownColor: AppColors.cloudDark,
                           underline: const SizedBox(),
                           style: AppTypography.body(context).copyWith(
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                           icon: Icon(
                             Icons.keyboard_arrow_down,
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.7),
                           ),
                           items: [
                             DropdownMenuItem(
@@ -647,7 +647,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                               child: Text(
                                 'Before',
                                 style: AppTypography.body(context).copyWith(
-                                  color: Colors.white,
+                                  color: AppColors.cloudWhite,
                                 ),
                               ),
                             ),
@@ -656,7 +656,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                               child: Text(
                                 'After',
                                 style: AppTypography.body(context).copyWith(
-                                  color: Colors.white,
+                                  color: AppColors.cloudWhite,
                                 ),
                               ),
                             ),
@@ -681,35 +681,35 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                           _scrollAnchorSuggestionsIntoView();
                         },
                         style: AppTypography.body(context).copyWith(
-                          color: Colors.white,
+                          color: AppColors.cloudWhite,
                         ),
                         cursorColor: AppColors.seedGold,
                         decoration: InputDecoration(
                           hintText: 'Search or type a habit…',
                           hintStyle: AppTypography.body(context).copyWith(
-                            color: Colors.white.withValues(alpha: 0.45),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.45),
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: Colors.white.withValues(alpha: 0.55),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.55),
                           ),
                           suffixIcon: _anchorController.text.isNotEmpty
                               ? IconButton(
                                   tooltip: 'Clear',
                                   icon: Icon(
                                     Icons.clear,
-                                    color: Colors.white.withValues(alpha: 0.6),
+                                    color: AppColors.cloudWhite.withValues(alpha: 0.6),
                                   ),
                                   onPressed: _clearAnchorSelection,
                                 )
                               : null,
                           filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.08),
+                          fillColor: AppColors.cloudWhite.withValues(alpha: 0.08),
                           border: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusInput),
                             borderSide: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: AppColors.cloudWhite.withValues(alpha: 0.2),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -742,7 +742,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
               ),
               child: OnboardingBottomActions(
                 onBack: widget.onBack,
-                backIconColor: Colors.white,
+                backIconColor: AppColors.cloudWhite,
                 primary: FilledButton(
                   onPressed: _onContinue,
                   style: FilledButton.styleFrom(
@@ -759,7 +759,7 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                     'Continue',
                     style: AppTypography.button(context).copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppColors.cloudWhite,
                     ),
                   ),
                 ),

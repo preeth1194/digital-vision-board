@@ -167,8 +167,8 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
 
   @override
   Widget build(BuildContext context) {
-    final labelMuted = Colors.white.withValues(alpha: 0.5);
-    final bodyMuted = Colors.white.withValues(alpha: 0.62);
+    final labelMuted = AppColors.cloudWhite.withValues(alpha: 0.5);
+    final bodyMuted = AppColors.cloudWhite.withValues(alpha: 0.62);
     final canSave = widget.draft.habitId != null &&
         widget.draft.name.trim().isNotEmpty &&
         !_saving;
@@ -196,7 +196,7 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
                       title: 'Your why\n(optional).',
                       subtitle:
                           'Photos can sit on your Vision Board as a quiet reminder of what you are growing toward.',
-                      titleColor: Colors.white,
+                      titleColor: AppColors.cloudWhite,
                       subtitleColor: labelMuted,
                       overlineColor: labelMuted,
                     ),
@@ -248,7 +248,7 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
                                     shape: const CircleBorder(),
                                     child: IconButton(
                                       icon: const Icon(Icons.close, size: 18),
-                                      color: Colors.white,
+                                      color: AppColors.cloudWhite,
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(
                                         minWidth: 48,
@@ -280,18 +280,18 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
                               )
                             : Icon(
                                 Icons.add_photo_alternate_outlined,
-                                color: Colors.white.withValues(alpha: 0.92),
+                                color: AppColors.cloudWhite.withValues(alpha: 0.92),
                               ),
                         label: Text(
                           _picking ? 'Opening…' : 'Add inspiration photos',
                           style: AppTypography.button(context).copyWith(
-                            color: Colors.white.withValues(alpha: 0.92),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.92),
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.cloudWhite,
                           side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: AppColors.cloudWhite.withValues(alpha: 0.5),
                           ),
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.md,
@@ -316,7 +316,7 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
               ),
               child: OnboardingBottomActions(
                 onBack: widget.onBack,
-                backIconColor: Colors.white,
+                backIconColor: AppColors.cloudWhite,
                 primary: FilledButton(
                   onPressed: canSave ? _onContinue : null,
                   style: FilledButton.styleFrom(
@@ -337,14 +337,14 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
                           width: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         )
                       : Text(
                           'Continue',
                           style: AppTypography.button(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         ),
                 ),

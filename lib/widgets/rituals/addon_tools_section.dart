@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../screens/subscription_screen.dart';
 import '../../utils/app_typography.dart';
 import 'habit_form_constants.dart';
+import '../../utils/app_colors.dart';
 
 // --- ADDON TOOLS SECTION ---
 class AddonToolsSection extends StatelessWidget {
@@ -59,16 +60,16 @@ class AddonToolsSection extends StatelessWidget {
                 child: Container(
               decoration: BoxDecoration(
                 color: sheetIsDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.7),
+                    ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                    : AppColors.cloudWhite.withValues(alpha: 0.7),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
                 border: Border(
                   top: BorderSide(
                     color: sheetIsDark
-                        ? Colors.white.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.8),
+                        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                        : AppColors.cloudWhite.withValues(alpha: 0.8),
                   ),
                 ),
               ),

@@ -62,7 +62,7 @@ class _PresetShopScreenState extends State<PresetShopScreen> {
       SnackBar(
         content: const Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.white),
+            Icon(Icons.check_circle, color: AppColors.cloudWhite),
             SizedBox(width: 8),
             Text('Ad-free for today!'),
           ],
@@ -161,7 +161,7 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withValues(alpha: 0.28)
+                ? AppColors.pureBlack.withValues(alpha: 0.28)
                 : AppColors.forestDeep.withValues(alpha: 0.06),
             blurRadius: 14,
             offset: const Offset(0, 4),
@@ -198,7 +198,7 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
                   : [
                       BoxShadow(
                         color: isDark
-                            ? Colors.black.withValues(alpha: 0.28)
+                            ? AppColors.pureBlack.withValues(alpha: 0.28)
                             : AppColors.forestDeep.withValues(alpha: 0.14),
                         blurRadius: 5,
                         offset: const Offset(0, 2),
@@ -213,7 +213,7 @@ class _CoinsAndAdFreeCard extends StatelessWidget {
                 size: 22,
                 color: isActiveToday
                     ? colorScheme.primary
-                    : Colors.white,
+                    : AppColors.cloudWhite,
               ),
             ),
           ),

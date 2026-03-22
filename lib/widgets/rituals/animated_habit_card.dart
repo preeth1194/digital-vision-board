@@ -231,20 +231,20 @@ class _AnimatedHabitCardState extends State<AnimatedHabitCard>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.white.withValues(alpha: 0.55),
+                      ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                      : AppColors.cloudWhite.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: isDark
-                        ? Colors.white.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.7),
+                        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                        : AppColors.cloudWhite.withValues(alpha: 0.7),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: isDark
-                          ? Colors.black.withValues(alpha: 0.25)
-                          : Colors.black.withValues(alpha: 0.06),
+                          ? AppColors.pureBlack.withValues(alpha: 0.25)
+                          : AppColors.pureBlack.withValues(alpha: 0.06),
                       blurRadius: _isPressed ? 4 : 20,
                       offset: Offset(0, _isPressed ? 1 : 4),
                     ),

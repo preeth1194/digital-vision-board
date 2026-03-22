@@ -24,6 +24,7 @@ import 'habit_form_identity_section.dart';
 import 'habit_form_pacing_section.dart';
 import 'habit_form_strategy_section.dart';
 import 'habit_form_triggers_section.dart';
+import '../../utils/app_colors.dart';
 
 // ============================================================================
 // Main Entry Function
@@ -1190,13 +1191,13 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
           child: Container(
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.white.withValues(alpha: 0.6),
+                  ? AppColors.cloudWhite.withValues(alpha: 0.06)
+                  : AppColors.cloudWhite.withValues(alpha: 0.6),
               border: Border(
                 top: BorderSide(
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.white.withValues(alpha: 0.8),
+                      ? AppColors.cloudWhite.withValues(alpha: 0.1)
+                      : AppColors.cloudWhite.withValues(alpha: 0.8),
                 ),
               ),
             ),

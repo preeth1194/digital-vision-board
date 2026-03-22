@@ -999,11 +999,11 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                                         ? scheme.surfaceContainerLow.withValues(
                                             alpha: 0.62,
                                           )
-                                        : Colors.white.withValues(alpha: 0.74),
+                                        : AppColors.cloudWhite.withValues(alpha: 0.74),
                                     border: Border.all(
                                       color: isDark
-                                          ? Colors.white.withValues(alpha: 0.16)
-                                          : Colors.white.withValues(
+                                          ? AppColors.cloudWhite.withValues(alpha: 0.16)
+                                          : AppColors.cloudWhite.withValues(
                                               alpha: 0.72,
                                             ),
                                     ),
@@ -1298,11 +1298,11 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                                   ? scheme.surfaceContainerLow.withValues(
                                       alpha: 0.62,
                                     )
-                                  : Colors.white.withValues(alpha: 0.74),
+                                  : AppColors.cloudWhite.withValues(alpha: 0.74),
                               border: Border.all(
                                 color: isDark
-                                    ? Colors.white.withValues(alpha: 0.16)
-                                    : Colors.white.withValues(alpha: 0.72),
+                                    ? AppColors.cloudWhite.withValues(alpha: 0.16)
+                                    : AppColors.cloudWhite.withValues(alpha: 0.72),
                               ),
                             ),
                             child: ListView.builder(

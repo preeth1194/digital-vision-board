@@ -180,7 +180,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.cloudWhite,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppSpacing.radiusDialog),
@@ -258,7 +258,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.cloudWhite,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppSpacing.radiusDialog),
@@ -452,7 +452,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                                                 ),
                                                 child: const Icon(
                                                   Icons.add,
-                                                  color: Colors.white,
+                                                  color: AppColors.cloudWhite,
                                                   size: 24,
                                                 ),
                                               ),
@@ -538,7 +538,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                                   style: AppTypography.caption(context).copyWith(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white.withValues(alpha: 0.6),
+                                    color: AppColors.cloudWhite.withValues(alpha: 0.6),
                                     letterSpacing: 1.2,
                                   ),
                                 ),
@@ -548,14 +548,14 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                                   style: AppTypography.heading2(context).copyWith(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.white,
+                                    color: AppColors.cloudWhite,
                                   ),
                                 ),
                                 Text(
                                   'Welcome to Habit Seeding',
                                   style: AppTypography.body(context).copyWith(
                                     fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.7),
+                                    color: AppColors.cloudWhite.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -740,7 +740,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                                           .copyWith(
                                         fontWeight: FontWeight.w600,
                                         color: isSelected
-                                            ? Colors.white
+                                            ? AppColors.cloudWhite
                                             : AppColors.forestDeep
                                                 .withValues(alpha: 0.7),
                                       ),
@@ -789,7 +789,7 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                         'Continue',
                         style: AppTypography.button(context).copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: AppColors.cloudWhite,
                         ),
                       ),
                     ),
@@ -845,7 +845,7 @@ class _GenderRowChip extends StatelessWidget {
                 style: AppTypography.bodySmall(context).copyWith(
                   fontWeight: FontWeight.w600,
                   color: selected
-                      ? Colors.white
+                      ? AppColors.cloudWhite
                       : AppColors.forestDeep.withValues(alpha: 0.75),
                 ),
               ),
@@ -943,7 +943,7 @@ class _ProfileUnitToggle extends StatelessWidget {
             style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w700,
               color: selected
-                  ? Colors.white
+                  ? AppColors.cloudWhite
                   : AppColors.forestDeep.withValues(alpha: 0.4),
             ),
           ),

@@ -100,7 +100,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
   List<Color> _gradientFor(int? colorValue) {
     final base = Color(colorValue ?? JournalBook.defaultCoverColor);
     return [
-      Color.lerp(base, Colors.white, 0.25) ?? base,
+      Color.lerp(base, AppColors.cloudWhite, 0.25) ?? base,
       base,
     ];
   }
@@ -108,9 +108,9 @@ class _JournalBookshelfState extends State<JournalBookshelf>
   List<Color> _spineGradient(int? colorValue) {
     final base = Color(colorValue ?? JournalBook.defaultCoverColor);
     return [
-      Color.lerp(base, Colors.white, 0.2) ?? base,
+      Color.lerp(base, AppColors.cloudWhite, 0.2) ?? base,
       base,
-      Color.lerp(base, Colors.black, 0.15) ?? base,
+      Color.lerp(base, AppColors.pureBlack, 0.15) ?? base,
     ];
   }
 
@@ -280,7 +280,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: AppColors.pureBlack.withValues(alpha: 0.25),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -394,7 +394,7 @@ class _DefaultBookCover extends StatelessWidget {
               child: Container(
                 width: 6,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.15),
+                  color: AppColors.pureBlack.withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(4),
                     bottomLeft: Radius.circular(4),
@@ -414,7 +414,7 @@ class _DefaultBookCover extends StatelessWidget {
                     style: AppTypography.caption(context).copyWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppColors.cloudWhite,
                       height: 1.2,
                     ),
                     maxLines: 3,
@@ -502,10 +502,10 @@ class _UserBookSpineState extends State<_UserBookSpine> {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: AppColors.cloudWhite,
                     height: 1.1,
                     shadows: [
-                      Shadow(color: Colors.black38, blurRadius: 3),
+                      Shadow(color: AppColors.black38, blurRadius: 3),
                     ],
                   ),
                   maxLines: 1,
@@ -517,7 +517,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w400,
-                      color: Colors.white70,
+                      color: AppColors.white70,
                       height: 1.2,
                     ),
                   ),
@@ -642,7 +642,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                 child: GestureDetector(
                   onTap: widget.onDismiss,
                   child: ColoredBox(
-                    color: Colors.black.withValues(alpha: 0.35 * t),
+                    color: AppColors.pureBlack.withValues(alpha: 0.35 * t),
                   ),
                 ),
               ),
@@ -798,7 +798,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
               'Apply',
               style: AppTypography.button(
                 context,
-              ).copyWith(color: Colors.white),
+              ).copyWith(color: AppColors.cloudWhite),
             ),
           ),
         ),

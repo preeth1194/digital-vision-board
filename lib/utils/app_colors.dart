@@ -97,9 +97,16 @@ class AppColors {
   static const Color missedHabitCell = Color(0xFF5c2020);
 
   // ── Cloud Surfaces ──
-  static const Color cloudWhite = Colors.white;
+  static const Color cloudWhite = Color(0xFFFFFFFF);
   // cloudDark: warm grove dark — replaces cold navy.
   static const Color cloudDark = Color(0xFF1F2B22);
+
+  // ── Primitive aliases (Material `Colors.*` lives only here) ──
+  static const Color pureBlack = Color(0xFF000000);
+  /// Material black87 — body text on light scrims.
+  static const Color black87 = Color(0xDD000000);
+  static const Color black38 = Color(0x61000000);
+  static const Color white70 = Color(0xB3FFFFFF);
 
   // ── Legacy palette (kept for backward-compat references) ──
   static const Color darkest = Color(0xFF2C1810);
@@ -124,11 +131,40 @@ class AppColors {
   static const Color skyGradientBottomLight = Color(0xFFF4F7F5);
   static const Color skyGradientTopDark = Color(0xFF0D1B2A);
   static const Color skyGradientBottomDark = Color(0xFF1B263B);
-  static const Color cloudLight = Colors.white;
+  static const Color cloudLight = Color(0xFFFFFFFF);
   static const Color cloudBorderDark = Color(0xFF2A3A4A);
 
   // ── Domain accent (not in ColorScheme) ──
   static const Color completedOrange = Color(0xFFE8802A);
+
+  // ── Goal canvas (default board background) ──
+  static const Color goalCanvasDefaultBackground = Color(0xFFF8F9F4);
+
+  // ── Water dashboard (paired light / dark accents) ──
+  static const Color waterAccentLight = Color(0xFF039BE5);
+  static const Color waterAccentDark = Color(0xFF29B6F6);
+  static const Color waterDeepLight = Color(0xFF01579B);
+  static const Color waterDeepDark = Color(0xFF0288D1);
+
+  // ── Calorie log / macro field accents ──
+  static const Color calorieLogIconTint = Color(0xFFFF7043);
+  static const Color calorieMacroProtein = Color(0xFF42A5F5);
+  static const Color calorieMacroCarbs = Color(0xFFFF7043);
+  static const Color calorieMacroFat = Color(0xFFEF5350);
+  static const Color calorieMacroFiber = Color(0xFF66BB6A);
+
+  // ── Text editor color swatches (Material-aligned basics) ──
+  static const Color editorSwatchRed = Color(0xFFF44336);
+  static const Color editorSwatchBlue = Color(0xFF2196F3);
+  static const Color editorSwatchGreen = Color(0xFF4CAF50);
+  static const Color editorSwatchOrange = Color(0xFFFF9800);
+  static const Color editorSwatchPurple = Color(0xFF9C27B0);
+  static const Color editorSwatchPink = Color(0xFFE91E63);
+  static const Color editorSwatchTeal = Color(0xFF009688);
+  static const Color editorSwatchAmber = Color(0xFFFFC107);
+
+  /// Trophy / achievement accent (Material amber family).
+  static const Color iconTrophyAmber = editorSwatchAmber;
 
   // ── ColorScheme source values (used only inside lightScheme/darkScheme) ──
   // _backgroundDark: deep organic night soil — warm dark, not cold navy.
@@ -513,8 +549,8 @@ class AppColors {
     outline: Color(0xFF8A7E72),
     outlineVariant: Color(0xFF3D342C),
     // Shadow & Scrim
-    shadow: Colors.black,
-    scrim: Colors.black,
+    shadow: pureBlack,
+    scrim: pureBlack,
     // Inverse
     inverseSurface: Color(0xFFE4DDD5),
     onInverseSurface: Color(0xFF1E1A16),
@@ -593,7 +629,7 @@ class AppColors {
       boxShadow: [
         BoxShadow(
           color: isDark
-              ? Colors.black.withValues(alpha: 0.35)
+              ? pureBlack.withValues(alpha: 0.35)
               : forestDeep.withValues(alpha: 0.07),
           blurRadius: 20,
           offset: const Offset(0, 6),

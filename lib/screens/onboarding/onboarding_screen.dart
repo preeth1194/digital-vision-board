@@ -151,7 +151,7 @@ class _OnboardingProgressBar extends StatelessWidget {
             value: progress,
             minHeight: 2,
             backgroundColor: isDarkStep
-                ? Colors.white.withValues(alpha: 0.2)
+                ? AppColors.cloudWhite.withValues(alpha: 0.2)
                 : AppColors.forestDeep.withValues(alpha: 0.12),
             valueColor: AlwaysStoppedAnimation<Color>(
               isDarkStep ? AppColors.seedGold : AppColors.sproutGreen,

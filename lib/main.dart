@@ -125,7 +125,7 @@ class DigitalVisionBoardApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
         ),
         shadowColor: isDark
-            ? Colors.black.withValues(alpha: 0.30)
+            ? AppColors.pureBlack.withValues(alpha: 0.30)
             : AppColors.forestDeep.withValues(alpha: 0.07),
       ),
       textTheme: textTheme,

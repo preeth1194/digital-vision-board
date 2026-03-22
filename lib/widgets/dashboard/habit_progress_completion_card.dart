@@ -87,6 +87,66 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
     });
   }
 
+  /// Fixed-width leading columns so every completion icon and category icon
+  /// shares the same horizontal start.
+  Widget _buildHabitProgressListRow(
+    BuildContext context, {
+    required HabitItem h,
+    required DateTime today,
+    required Color checkDoneColor,
+    required Color checkTodoColor,
+    required Color nameColorWhenDone,
+    required Color nameColorWhenTodo,
+    required Color categoryIconColor,
+  }) {
+    final done = h.isCompletedOnDate(today);
+    final iconIdx = h.iconIndex ?? 0;
+    final iconData = (iconIdx < habitIcons.length)
+        ? habitIcons[iconIdx].$1
+        : Icons.check_circle;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 24,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Icon(
+                done
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: done ? checkDoneColor : checkTodoColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 20,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Icon(iconData, size: 14, color: categoryIconColor),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              h.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(context).copyWith(
+                color: done ? nameColorWhenDone : nameColorWhenTodo,
+                decoration: done ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -149,25 +209,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                Icon(
-                  Icons.track_changes_rounded,
-                  color: cs.onPrimaryContainer,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Habit Progress',
-                    style: AppTypography.heading3(context).copyWith(
-                      color: cs.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
@@ -185,64 +226,27 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                 ),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Today\'s Habits',
-                        style: AppTypography.bodySmall(context).copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: cs.onPrimaryContainer.withValues(alpha: 0.75),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      ...todaysHabits.take(4).map((h) {
-                        final done = h.isCompletedOnDate(today);
-                        final iconIdx = h.iconIndex ?? 0;
-                        final iconData = (iconIdx < habitIcons.length)
-                            ? habitIcons[iconIdx].$1
-                            : Icons.check_circle;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 200),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  done
-                                      ? Icons.check_circle_rounded
-                                      : Icons.radio_button_unchecked,
-                                  size: 16,
-                                  color: done
-                                      ? cs.primary
-                                      : cs.onPrimaryContainer.withValues(alpha: 0.35),
-                                ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  iconData,
-                                  size: 14,
-                                  color: cs.onPrimaryContainer.withValues(alpha: 0.5),
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    h.name,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTypography.caption(context).copyWith(
-                                      color: done
-                                          ? cs.onPrimaryContainer.withValues(alpha: 0.45)
-                                          : cs.onPrimaryContainer,
-                                      decoration:
-                                          done ? TextDecoration.lineThrough : null,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      ...todaysHabits.take(4).map(
+                        (h) => _buildHabitProgressListRow(
+                          context,
+                          h: h,
+                          today: today,
+                          checkDoneColor: cs.primary,
+                          checkTodoColor: cs.onPrimaryContainer.withValues(
+                            alpha: 0.35,
                           ),
-                        );
-                      }),
+                          nameColorWhenDone: cs.onPrimaryContainer.withValues(
+                            alpha: 0.45,
+                          ),
+                          nameColorWhenTodo: cs.onPrimaryContainer,
+                          categoryIconColor: cs.onPrimaryContainer.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
                       if (todaysHabits.isEmpty)
                         Text(
                           'No habits today',
@@ -298,40 +302,25 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.military_tech_rounded,
-                  color: accent,
-                  size: 22,
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Habit Progress',
-                    style: AppTypography.heading3(context).copyWith(
-                      color: accent,
-                    ),
+                child: Text(
+                  'Day ${challenge.currentDay}/${challenge.totalDays}',
+                  style: AppTypography.caption(context).copyWith(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Day ${challenge.currentDay}/${challenge.totalDays}',
-                    style: AppTypography.caption(context).copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -350,61 +339,32 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
                 ),
                 Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        allDoneToday ? 'All done today!' : 'Today\'s Habits',
-                        style: AppTypography.bodySmall(context).copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: allDoneToday
-                              ? cs.primary
-                              : accent.withValues(alpha: 0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      ...todaysHabits.take(6).map((h) {
-                        final done = h.isCompletedOnDate(today);
-                        final iconIdx = h.iconIndex ?? 0;
-                        final iconData = (iconIdx < habitIcons.length)
-                            ? habitIcons[iconIdx].$1
-                            : Icons.check_circle;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
-                          child: Row(
-                            children: [
-                              Icon(
-                                done
-                                    ? Icons.check_circle_rounded
-                                    : Icons.radio_button_unchecked,
-                                size: 16,
-                                color: done
-                                    ? cs.primary
-                                    : accent.withValues(alpha: 0.35),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                iconData,
-                                size: 14,
-                                color: accent.withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  h.name,
-                                  style: AppTypography.caption(context).copyWith(
-                                    color: done
-                                        ? accent.withValues(alpha: 0.45)
-                                        : accent,
-                                    decoration:
-                                        done ? TextDecoration.lineThrough : null,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                      if (allDoneToday) ...[
+                        Text(
+                          'All done today!',
+                          style: AppTypography.bodySmall(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: cs.primary,
                           ),
-                        );
-                      }),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      ...todaysHabits.take(6).map(
+                        (h) => _buildHabitProgressListRow(
+                          context,
+                          h: h,
+                          today: today,
+                          checkDoneColor: cs.primary,
+                          checkTodoColor: accent.withValues(alpha: 0.35),
+                          nameColorWhenDone: accent.withValues(alpha: 0.45),
+                          nameColorWhenTodo: accent,
+                          categoryIconColor: accent.withValues(alpha: 0.5),
+                        ),
+                      ),
                       if (todaysHabits.isEmpty)
                         Text(
                           'No habits today',

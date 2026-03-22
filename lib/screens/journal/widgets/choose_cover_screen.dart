@@ -291,13 +291,13 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                           ? Icon(
                               Icons.add_photo_alternate_outlined,
                               size: isSelected ? 18 : 14,
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: AppColors.cloudWhite.withValues(alpha: 0.8),
                             )
                           : style.hasPattern && isSelected
                               ? Icon(
                                   Icons.auto_awesome,
                                   size: 16,
-                                  color: Colors.white.withValues(alpha: 0.8),
+                                  color: AppColors.cloudWhite.withValues(alpha: 0.8),
                                 )
                               : null,
                     ),

@@ -9,6 +9,7 @@ import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../../utils/file_image_provider.dart';
 import '../../utils/app_typography.dart';
+import '../../utils/app_colors.dart';
 
 /// Widget that displays a minified preview of a vision board.
 /// Shows grid tiles for grid boards, or a placeholder for other board types.
@@ -86,8 +87,8 @@ class VisionBoardPreviewCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.7),
-                    Colors.black.withOpacity(0.85),
+                    AppColors.pureBlack.withOpacity(0.7),
+                    AppColors.pureBlack.withOpacity(0.85),
                   ],
                 ),
               ),
@@ -102,7 +103,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                         Text(
                           board.title,
                           style: AppTypography.heading3(context).copyWith(
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                             fontWeight: FontWeight.w700,
                           ),
                           maxLines: 1,
@@ -114,7 +115,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                             child: Text(
                               'Selected',
                               style: AppTypography.caption(context).copyWith(
-                                color: Colors.white.withOpacity(0.9),
+                                color: AppColors.cloudWhite.withOpacity(0.9),
                               ),
                             ),
                           ),
@@ -127,7 +128,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                       Material(
                         color: Colors.transparent,
                         child: IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.white),
+                          icon: const Icon(Icons.edit, color: AppColors.cloudWhite),
                           tooltip: 'Edit',
                           onPressed: onEdit,
                           iconSize: 20,
@@ -136,7 +137,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                       Material(
                         color: Colors.transparent,
                         child: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.white),
+                          icon: const Icon(Icons.delete, color: AppColors.cloudWhite),
                           tooltip: 'Delete',
                           onPressed: onDelete,
                           iconSize: 20,
@@ -272,8 +273,8 @@ class VisionBoardPreviewCard extends StatelessWidget {
     IconData iconData,
   ) {
     final iconColor = tileColor.computeLuminance() < 0.45
-        ? Colors.white
-        : Colors.black87;
+        ? AppColors.cloudWhite
+        : AppColors.black87;
 
     return Container(
       height: 150,

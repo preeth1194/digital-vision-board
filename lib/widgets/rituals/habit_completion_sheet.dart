@@ -52,7 +52,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withOpacity(0.35),
+    barrierColor: AppColors.pureBlack.withOpacity(0.35),
     builder: (ctx) => _HabitCompletionSheetContent(
       habit: habit,
       baseCoins: baseCoins,
@@ -580,7 +580,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
                             boxShadow: [
                               BoxShadow(
                                 color: isDark
-                                    ? Colors.black.withValues(alpha: 0.24)
+                                    ? AppColors.pureBlack.withValues(alpha: 0.24)
                                     : AppColors.forestDeep.withValues(alpha: 0.12),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
@@ -591,7 +591,7 @@ class _HabitCompletionSheetContentState extends State<_HabitCompletionSheetConte
                             child: Icon(
                               Icons.monetization_on_rounded,
                               size: AppSpacing.coinChipIcon,
-                              color: Colors.white,
+                              color: AppColors.cloudWhite,
                             ),
                           ),
                         ),

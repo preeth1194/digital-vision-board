@@ -106,14 +106,14 @@ class _StepSignInState extends State<StepSignIn> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         )
                       : Text(
                           'Sign in / Continue as Guest',
                           style: AppTypography.button(context).copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         ),
                 ),

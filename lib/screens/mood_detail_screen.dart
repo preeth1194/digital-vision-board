@@ -656,7 +656,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                   radius: 6,
                   color: colorForMood(moodVal),
                   strokeWidth: 2.5,
-                  strokeColor: Colors.white,
+                  strokeColor: AppColors.cloudWhite,
                 );
               },
             ),

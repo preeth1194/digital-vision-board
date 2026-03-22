@@ -125,31 +125,20 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: iconColor,
+        Icon(icon, size: 18, color: iconColor),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          value,
+          style: AppTypography.heading2(context).copyWith(color: iconColor),
         ),
-        SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                value,
-                style: AppTypography.heading2(context).copyWith(
-                  color: iconColor,
-                ),
-              ),
-              Text(
-                label,
-                style: AppTypography.caption(context),
-              ),
-            ],
-          ),
+        Text(
+          label,
+          style: AppTypography.caption(context),
+          textAlign: TextAlign.center,
         ),
       ],
     );

@@ -46,6 +46,7 @@ class InsightsStatGrid extends StatelessWidget {
       _StatTileData(
         icon: Icons.local_fire_department,
         iconColor: AppColors.seedGold,
+        valueColor: AppColors.honeyText,
         value: '$streak',
         label: 'Current streak',
       ),
@@ -80,12 +81,17 @@ class InsightsStatGrid extends StatelessWidget {
 class _StatTileData {
   final IconData icon;
   final Color iconColor;
+
+  /// Color for the value text. Defaults to [iconColor] when null.
+  final Color? valueColor;
+
   final String value;
   final String label;
 
   const _StatTileData({
     required this.icon,
     required this.iconColor,
+    this.valueColor,
     required this.value,
     required this.label,
   });
@@ -114,7 +120,7 @@ class _StatTile extends StatelessWidget {
           Text(
             tile.value,
             style: AppTypography.heading2(context).copyWith(
-              color: tile.iconColor,
+              color: tile.valueColor ?? tile.iconColor,
             ),
           ),
           Text(

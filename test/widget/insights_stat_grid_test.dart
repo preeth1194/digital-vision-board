@@ -34,5 +34,31 @@ void main() {
       ));
       expect(find.text('—'), findsOneWidget);
     });
+
+    testWidgets('shows seed count from feedbackByDate', (tester) async {
+      // Build a habit with 5+5=10 coins earned in March 2026
+      final habit = HabitItem(
+        id: 'h1',
+        name: 'Run',
+        frequency: 'Daily',
+        feedbackByDate: {
+          '2026-03-01': HabitCompletionFeedback(
+            rating: 5,
+            note: null,
+            coinsEarned: 5,
+          ),
+          '2026-03-02': HabitCompletionFeedback(
+            rating: 5,
+            note: null,
+            coinsEarned: 5,
+          ),
+        },
+      );
+      final summary = InsightsMonthSummary.forMonth(2026, 3);
+      await tester.pumpWidget(_wrap(
+        InsightsStatGrid(habit: habit, summary: summary),
+      ));
+      expect(find.text('10'), findsOneWidget);
+    });
   });
 }

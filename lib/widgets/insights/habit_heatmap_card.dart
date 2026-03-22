@@ -6,6 +6,8 @@ import '../../services/logical_date_service.dart';
 import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 
+const _missedCellColor = Color(0xFF5c2020);
+
 class HabitHeatmapCard extends StatelessWidget {
   const HabitHeatmapCard({
     super.key,
@@ -187,7 +189,7 @@ class HabitHeatmapCard extends StatelessWidget {
         bgColor = colorScheme.primary;
       } else if (habit!.isScheduledOnDate(date) &&
           !habit!.isCompletedOnDate(date)) {
-        bgColor = const Color(0xFF5c2020).withValues(alpha: 0.7);
+        bgColor = _missedCellColor.withValues(alpha: 0.7);
       } else {
         bgColor = colorScheme.surfaceContainerHigh;
       }
@@ -225,7 +227,7 @@ class HabitHeatmapCard extends StatelessWidget {
   Widget _buildLegend(BuildContext context, ColorScheme colorScheme) {
     final items = [
       (colorScheme.primary, null as double?, 'Done'),
-      (const Color(0xFF5c2020), 0.7, 'Missed'),
+      (_missedCellColor, 0.7, 'Missed'),
       (colorScheme.surfaceContainerHigh, null as double?, 'Future / not scheduled'),
     ];
     return Wrap(

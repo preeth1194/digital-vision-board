@@ -447,7 +447,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
               vertical: 3,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Flexible(
                   child: Text(

@@ -244,6 +244,13 @@ class AppColors {
   static const Color hueBlue = Color(0xFF0000FF);
   static const Color hueMagenta = Color(0xFFFF00FF);
 
+  // ── Bookshelf wood grain (journal bookshelf shelf-line gradient) ──
+  /// Mid-tone warm oak — shelf gradient stop 1 (lightest).
+  static const Color shelfWoodLight = Color(0xFFC4956A);
+  /// Warm walnut — shelf gradient stop 2 (mid).
+  static const Color shelfWoodMid = Color(0xFFA0724A);
+  // Stop 3 (darkest) reuses AppColors.honeyText (0xFF7A5520).
+
   // ── Special journal cover styles ──
   static const int coverFijiPrimary = 0xFF4A7DFF;
   static const int coverFijiSecondary = 0xFF2E5BDB;

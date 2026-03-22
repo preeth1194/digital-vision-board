@@ -39,28 +39,49 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
   }
 
   Future<void> _loadEntries() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    if (!mounted) return;
-    _prefs = prefs;
+    setState(() => _loading = true);
+    try {
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      if (!mounted) return;
+      _prefs = prefs;
 
-    final all = await JournalStorageService.loadEntries(prefs: prefs);
-    if (!mounted) return;
+      final all = await JournalStorageService.loadEntries(prefs: prefs);
+      if (!mounted) return;
 
-    final isDefault =
-        widget.book.id == JournalBookStorageService.defaultBookId;
+      final isDefault =
+          widget.book.id == JournalBookStorageService.defaultBookId;
 
-    final filtered = all.where((e) {
-      if (isDefault) {
-        return e.bookId == null || e.bookId!.isEmpty;
+      final filtered = all.where((e) {
+        if (isDefault) {
+          return e.bookId == null || e.bookId!.isEmpty;
+        }
+        return e.bookId == widget.book.id;
+      }).toList()
+        ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
+
+      if (!mounted) return;
+      setState(() {
+        _entries = filtered;
+        _loading = false;
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  List<String> get _allTags {
+    final set = <String>{};
+    for (final e in _entries) {
+      for (final t in e.tags) {
+        final s = t.trim();
+        if (s.isNotEmpty) set.add(s);
       }
-      return e.bookId == widget.book.id;
-    }).toList()
-      ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
-
-    setState(() {
-      _entries = filtered;
-      _loading = false;
-    });
+    }
+    return set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
   // ---------------------------------------------------------------------------
@@ -87,13 +108,16 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
       PageRouteBuilder(
         pageBuilder: (ctx, anim, secAnim) => JournalEntryEditorScreen(
           goalTitles: widget.goalTitles,
-          existingTags: const [],
+          existingTags: _allTags,
           bookId: widget.book.id,
         ),
         transitionsBuilder: _pageTransition,
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
       ),
     );
 
+    if (!mounted) return;
     if (result != null) {
       await JournalStorageService.addEntry(
         text: result.plainText,
@@ -113,13 +137,16 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
       PageRouteBuilder(
         pageBuilder: (ctx, anim, secAnim) => JournalEntryEditorScreen(
           goalTitles: widget.goalTitles,
-          existingTags: entry.tags,
+          existingTags: _allTags,
           existingEntry: entry,
           bookId: widget.book.id,
         ),
         transitionsBuilder: _pageTransition,
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
       ),
     );
+    if (!mounted) return;
     await _loadEntries();
   }
 
@@ -174,7 +201,6 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bookColor = Color(
       widget.book.coverColor ?? JournalBook.defaultCoverColor,
     );
@@ -185,7 +211,7 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty
-              ? _buildEmptyState(context, isDark)
+              ? _buildEmptyState(context)
               : _buildList(context, bookColor),
       floatingActionButton: FloatingActionButton(
         onPressed: _openNewEntry,
@@ -240,7 +266,7 @@ class _JournalBookDetailScreenState extends State<JournalBookDetailScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, bool isDark) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),

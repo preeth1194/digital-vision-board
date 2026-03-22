@@ -202,18 +202,6 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               ),
             ),
           const SizedBox(width: AppSpacing.sm),
-          if (recipeBook != null)
-            Expanded(
-              flex: 3,
-              child: _DefaultBookCover(
-                book: recipeBook,
-                height: 88,
-                gradient: _gradientFor(recipeBook.coverColor),
-                onTap: () => widget.onBookTap(recipeBook),
-                onLongPress: () => _showColorPicker(recipeBook),
-              ),
-            ),
-          const SizedBox(width: AppSpacing.sm),
           if (goalLogsBook != null)
             Expanded(
               flex: 5,
@@ -223,6 +211,18 @@ class _JournalBookshelfState extends State<JournalBookshelf>
                 gradient: _gradientFor(goalLogsBook.coverColor),
                 onTap: () => widget.onBookTap(goalLogsBook),
                 onLongPress: () => _showColorPicker(goalLogsBook),
+              ),
+            ),
+          const SizedBox(width: AppSpacing.sm),
+          if (recipeBook != null)
+            Expanded(
+              flex: 3,
+              child: _DefaultBookCover(
+                book: recipeBook,
+                height: 88,
+                gradient: _gradientFor(recipeBook.coverColor),
+                onTap: () => widget.onBookTap(recipeBook),
+                onLongPress: () => _showColorPicker(recipeBook),
               ),
             ),
         ],
@@ -447,7 +447,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
               vertical: 3,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Flexible(
                   child: Text(

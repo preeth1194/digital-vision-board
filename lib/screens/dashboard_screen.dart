@@ -47,6 +47,7 @@ import '../services/routine_storage_service.dart';
 import '../models/challenge_template.dart';
 import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
+import '../services/notifications_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/rituals/add_habit_modal.dart';
@@ -62,6 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static const String _addWidgetPromptShownKey =
       'dv_add_widget_prompt_shown_v1';
+  /// One-shot hook so we do not re-prompt every cold start (Android exact-alarm flow, etc.).
+  static const String _postDashboardNotifPermissionKey =
+      'dv_post_dashboard_notif_permission_v1';
   int _tabIndex = 1;
   bool _loading = true;
   bool _showHabitsCalendarMode = false;
@@ -209,6 +213,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Auto-sync: check if 24h backup is due
     unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
+
+    final prefs = _prefs!;
+    if (prefs.getBool(_postDashboardNotifPermissionKey) != true) {
+      await prefs.setBool(_postDashboardNotifPermissionKey, true);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(NotificationsService.requestPermissionsIfNeeded());
+      });
+    }
 
     _syncAuthListener ??= () {
       if (!mounted) return;
@@ -1155,9 +1169,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     const visibleTabIndices = <int>[
       1,
       7,
-      6,
       2,
-    ]; // Dashboard, Rituals, Presets, Journal
+      6,
+    ]; // Dashboard, Rituals, Journal, Presets
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -1272,14 +1286,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           label: 'Habits',
         ),
         AnimatedNavItem(
-          icon: Icons.schedule_outlined,
-          activeIcon: Icons.schedule_rounded,
-          label: 'Presets',
-        ),
-        AnimatedNavItem(
           icon: Icons.book_outlined,
           activeIcon: Icons.book_rounded,
           label: 'Journal',
+        ),
+        AnimatedNavItem(
+          icon: Icons.schedule_outlined,
+          activeIcon: Icons.schedule_rounded,
+          label: 'Presets',
         ),
       ],
     );

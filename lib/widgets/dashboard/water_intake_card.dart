@@ -414,7 +414,7 @@ class _ControlButton extends StatelessWidget {
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(12),
           child: SizedBox(
-            height: 52,
+            height: 36,
             child: Center(
               child: Icon(icon, size: 20, color: color),
             ),

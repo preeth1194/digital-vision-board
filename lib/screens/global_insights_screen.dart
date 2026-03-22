@@ -197,33 +197,65 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
         const SizedBox(height: AppSpacing.lg),
         RepaintBoundary(
           key: _chartKey,
-          child: focus == null
-              ? InsightsAggregateChart(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (focus == null)
+                InsightsAggregateChart(
                   habits: allHabits,
                   year: _year,
                   month: _month,
                 )
-              : HabitHeatmapCard(
+              else
+                HabitHeatmapCard(
                   habit: focus,
                   habits: allHabits,
                   year: _year,
                   month: _month,
                 ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        if (focus != null) InsightsStatGrid(habit: focus, summary: summary),
-        if (focus != null) const SizedBox(height: AppSpacing.md),
-        if (focus == null) ...[
-          InsightsMonthOverviewCard(habits: allHabits, summary: summary),
-          const SizedBox(height: AppSpacing.md),
-          InsightsConsistencyCard(
-            habits: allHabits,
-            year: _year,
-            month: _month,
-            onSelect: (id) => setState(() => _focusHabitId = id),
+              const SizedBox(height: AppSpacing.md),
+              if (focus != null) ...[
+                InsightsStatGrid(habit: focus, summary: summary),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              if (focus == null) ...[
+                InsightsMonthOverviewCard(
+                  habits: allHabits,
+                  summary: summary,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                InsightsConsistencyCard(
+                  habits: allHabits,
+                  year: _year,
+                  month: _month,
+                  onSelect: (id) => setState(() => _focusHabitId = id),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              // Branding footer — appears in shared image
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 18,
+                    height: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Habit Seeding',
+                    style: AppTypography.caption(context).copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.md),
-        ],
+        ),
+        const SizedBox(height: AppSpacing.md),
         Semantics(
           label: 'Share insight card',
           button: true,

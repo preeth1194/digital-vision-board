@@ -114,6 +114,10 @@ class _InsightsAggregateChartState extends State<InsightsAggregateChart> {
               if (d != 1 && d != n && d % interval != 0) {
                 return const SizedBox.shrink();
               }
+              // Skip intermediate label when it's too close to the last day.
+              if (d != n && (n - d) < interval) {
+                return const SizedBox.shrink();
+              }
               final isToday = isCurrentMonth && d == logicalToday.day;
               return Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -200,9 +204,29 @@ class _InsightsAggregateChartState extends State<InsightsAggregateChart> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'All Habits — Activity',
-            style: AppTypography.heading3(context),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'All Habits — Activity',
+                  style: AppTypography.heading3(context),
+                ),
+              ),
+              Image.asset(
+                'assets/icon/app_icon.png',
+                width: 18,
+                height: 18,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'Habit Seeding',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(

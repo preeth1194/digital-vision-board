@@ -232,26 +232,6 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
-              // Branding footer — appears in shared image
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/icon/app_icon.png',
-                    width: 18,
-                    height: 18,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    'Habit Seeding',
-                    style: AppTypography.caption(context).copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),

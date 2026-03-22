@@ -71,6 +71,7 @@ Do not use Unicode emoji character literals anywhere. Always use `Image.asset` w
 - Right pill (hidden during loading): `Container` with `AppColors.lavenderDew.withValues(alpha: 0.15)` background, `AppSpacing.radiusChip` border radius, `padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs)`. Child: `Text` styled with `AppTypography.caption(context).copyWith(color: AppColors.lavenderDew, fontWeight: FontWeight.w700)`.
 
 Card padding: `EdgeInsets.all(AppSpacing.md)`.
+During loading, the card container retains the same `AppColors.lavenderContainer` background and `AppSpacing.radiusCard` border radius — only the inner content reflects the loading state.
 Tap entire card → `MoodDetailScreen` (same as current). Use `GestureDetector` or wrap the `Container` in `Material` + `InkWell` with matching border radius.
 
 ---
@@ -130,9 +131,11 @@ Collapse from a tall card with a big counter + full-width button into a single h
 | `SizedBox(width: AppSpacing.sm)` | — |
 | `Expanded` column | `"Rewards"` label: `AppTypography.caption(context).copyWith(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)` · `SizedBox(height: AppSpacing.xs)` · Segment bar (3 segments, height `AppSpacing.xs`, filled color `colorScheme.primary`, unfilled color `colorScheme.surfaceContainerHighest`) · `SizedBox(height: AppSpacing.xs)` · caption `"X of 3 · +20 coins per ad"` when ads enabled; `"Ads disabled"` when ad-free — both in `AppTypography.caption(context)` default style |
 | `SizedBox(width: AppSpacing.sm)` | — |
-| Watch button | `FilledButton.icon` with `minimumSize: Size(72, 36)`, `shape: StadiumBorder()`, `icon: Icon(Icons.play_arrow_rounded, size: 14)`, `label: Text("Watch")` when ads enabled and not loading; `CircularProgressIndicator` sized 16×16 wrapped in `SizedBox(width: 72, height: 36)` when loading; `FilledButton` with label `"Off"` and `onPressed: null` when ad-free (disabled). |
+| Watch button | When ads enabled and not loading: `FilledButton.icon` with `minimumSize: Size(72, 36)`, `shape: StadiumBorder()`, `icon: Icon(Icons.play_arrow_rounded, size: 14)`, `label: Text("Watch")`. When loading: `SizedBox(width: 72, height: 36)` containing a centered `CircularProgressIndicator` sized 16×16 (not a `FilledButton`). When ad-free: `FilledButton` (no icon) with `label: Text("Off")`, `minimumSize: Size(72, 36)`, `shape: StadiumBorder()`, `onPressed: null`. |
 
-**Ad-free state:** When `_showAds == false`, button shows `"Off"` and is disabled (`onPressed: null`). Caption shows `"Ads disabled"`. All other row elements remain visible.
+**Ad-free state:** When `_showAds == false`, button shows `"Off"` (plain `FilledButton`, disabled). Caption shows `"Ads disabled"`. All other row elements remain visible.
+
+**Tap behavior:** The `GlassCard` itself is not tappable. Only the Watch button is interactive.
 
 Remove from the widget: the large `"0/3"` heading text, the tall `SizedBox(height: 52)` button, and the standalone `"Each ad earns X coins"` text widget.
 

@@ -161,16 +161,42 @@ class _JournalBookshelfState extends State<JournalBookshelf>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        _buildSectionLabel(context, 'DEFAULT BOOKS', colorScheme),
         _buildDefaultRow(context),
         _buildShelfLine(),
         const SizedBox(height: AppSpacing.xs),
+        _buildSectionLabel(context, 'MY BOOKS', colorScheme),
         _buildUserSpinesRow(context),
         _buildShelfLine(),
       ],
+    );
+  }
+
+  Widget _buildSectionLabel(
+    BuildContext context,
+    String label,
+    ColorScheme colorScheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: AppSpacing.md,
+        bottom: 4,
+        top: AppSpacing.xs,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: colorScheme.onSurface.withValues(alpha: 0.38),
+          letterSpacing: 0.9,
+        ),
+      ),
     );
   }
 
@@ -194,7 +220,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 5,
               child: _DefaultBookCover(
                 book: defaultBook,
-                height: 110,
+                height: 120,
                 gradient: _gradientFor(defaultBook.coverColor),
                 onTap: () => widget.onBookTap(defaultBook),
                 onLongPress: () => _showColorPicker(defaultBook),
@@ -206,7 +232,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 5,
               child: _DefaultBookCover(
                 book: goalLogsBook,
-                height: 110,
+                height: 120,
                 gradient: _gradientFor(goalLogsBook.coverColor),
                 onTap: () => widget.onBookTap(goalLogsBook),
                 onLongPress: () => _showColorPicker(goalLogsBook),
@@ -218,7 +244,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 3,
               child: _DefaultBookCover(
                 book: recipeBook,
-                height: 88,
+                height: 120,
                 gradient: _gradientFor(recipeBook.coverColor),
                 onTap: () => widget.onBookTap(recipeBook),
                 onLongPress: () => _showColorPicker(recipeBook),
@@ -421,7 +447,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
         curve: Curves.easeOutCubic,
         transform: Matrix4.translationValues(0, _pressed ? -5 : 0, 0),
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 40,
+        width: 64,
         height: widget.height,
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -441,36 +467,36 @@ class _UserBookSpineState extends State<_UserBookSpine> {
         child: RotatedBox(
           quarterTurns: 3,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: 3,
-            ),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Text(
-                    widget.book.name,
-                    style: AppTypography.caption(context).copyWith(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1.0,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 3),
                 Text(
-                  '${widget.entryCount}',
-                  style: AppTypography.caption(context).copyWith(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.8),
-                    height: 1.0,
+                  widget.book.name,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.1,
+                    shadows: [
+                      Shadow(color: Colors.black38, blurRadius: 3),
+                    ],
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (widget.entryCount > 0)
+                  Text(
+                    '${widget.entryCount} entries',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white70,
+                      height: 1.2,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -494,7 +520,7 @@ class _AddBookSpine extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 40,
+        width: 64,
         height: 72,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),

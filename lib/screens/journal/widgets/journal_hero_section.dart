@@ -44,7 +44,7 @@ class JournalHeroSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + 12),
+          const SizedBox(height: 8),
           if (books.isNotEmpty)
             JournalBookshelf(
               books: books,
@@ -55,7 +55,7 @@ class JournalHeroSection extends StatelessWidget {
               onColorChanged: onColorChanged,
               onDeleteBook: onDeleteBook,
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     );

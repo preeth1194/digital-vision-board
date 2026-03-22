@@ -8,16 +8,15 @@ import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/insight_share_service.dart';
 import '../services/logical_date_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/insights_period_bounds.dart';
 import '../models/vision_components.dart';
 import '../widgets/insights/insights_period_selector.dart';
 import '../widgets/insights/share/insight_share_templates.dart';
-import '../widgets/insights/stat_card.dart';
-import '../widgets/insights/today_progress_card.dart';
-import '../widgets/insights/weekly_activity_card.dart';
+import '../widgets/insights/insights_habit_chips.dart';
+import '../widgets/insights/habit_heatmap_card.dart';
+import '../widgets/insights/insights_stat_grid.dart';
 
 class GlobalInsightsScreen extends StatefulWidget {
   final List<VisionComponent> components;
@@ -186,15 +185,6 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
       );
     }
 
-    final now = LogicalDateService.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todaysHabits = allHabits.where((h) => h.isScheduledOnDate(today)).toList();
-    final completedHabitsToday =
-        todaysHabits.where((h) => h.isCompletedOnDate(today)).length;
-    final completionRate = todaysHabits.isNotEmpty
-        ? (completedHabitsToday / todaysHabits.length * 100)
-        : 0.0;
-
     final summary = InsightsMonthSummary.forMonth(_year, _month);
     final focus = _focusHabit;
 
@@ -202,17 +192,6 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
       key: ValueKey(widget.components.length),
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        TodayProgressCard(
-          completionRate: completionRate,
-          completedToday: completedHabitsToday,
-          totalHabits: todaysHabits.length,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          'Month',
-          style: AppTypography.heading3(context),
-        ),
-        const SizedBox(height: AppSpacing.sm),
         InsightsPeriodSelector(
           year: _year,
           month: _month,
@@ -225,35 +204,22 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
             });
           },
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Habit',
-          style: AppTypography.heading3(context),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _HabitDropdown(
+        const SizedBox(height: AppSpacing.lg),
+        InsightsHabitChips(
           habits: allHabits,
           selectedId: _focusHabitId,
           onChanged: (id) => setState(() => _focusHabitId = id),
         ),
         const SizedBox(height: AppSpacing.lg),
-        HabitTrendsChart(
+        HabitHeatmapCard(
+          habit: focus,
           habits: allHabits,
           year: _year,
           month: _month,
-          focusHabit: focus,
         ),
         const SizedBox(height: AppSpacing.lg),
-        if (focus != null) _HabitInsightStrip(habit: focus, summary: summary),
-        if (focus == null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text(
-              'Select a habit to see scheduled days, seeds, and streak for this month — and to share a card.',
-              style: AppTypography.secondary(context),
-            ),
-          ),
-        const SizedBox(height: AppSpacing.md),
+        if (focus != null) InsightsStatGrid(habit: focus, summary: summary),
+        if (focus != null) const SizedBox(height: AppSpacing.md),
         Semantics(
           label: 'Share insight card',
           button: true,
@@ -273,172 +239,7 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: AppSpacing.md,
-          crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.5,
-          children: [
-            StatCard(
-              title: 'Active Habits',
-              value: allHabits.length.toString(),
-              icon: Icons.check_circle_outline,
-              color: colorScheme.primary,
-            ),
-            StatCard(
-              title: 'Longest Streak',
-              value: _calculateLongestStreak(allHabits).toString(),
-              icon: Icons.local_fire_department,
-              color: AppColors.seedGold,
-            ),
-          ],
-        ),
       ],
-    );
-  }
-
-  static int _calculateLongestStreak(List<HabitItem> habits) {
-    final logicalToday = LogicalDateService.today();
-    var maxStreak = 0;
-    for (final habit in habits) {
-      final streak = habit.currentStreakAsOf(logicalToday);
-      if (streak > maxStreak) maxStreak = streak;
-    }
-    return maxStreak;
-  }
-}
-
-class _HabitDropdown extends StatelessWidget {
-  const _HabitDropdown({
-    required this.habits,
-    required this.selectedId,
-    required this.onChanged,
-  });
-
-  final List<HabitItem> habits;
-  final String? selectedId;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          isExpanded: true,
-          value: selectedId,
-          hint: Text(
-            'All habits',
-            style: AppTypography.body(context),
-          ),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text(
-                'All habits',
-                style: AppTypography.body(context),
-              ),
-            ),
-            ...habits.map(
-              (h) => DropdownMenuItem<String?>(
-                value: h.id,
-                child: Text(
-                  h.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.body(context),
-                ),
-              ),
-            ),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-class _HabitInsightStrip extends StatelessWidget {
-  const _HabitInsightStrip({
-    required this.habit,
-    required this.summary,
-  });
-
-  final HabitItem habit;
-  final InsightsMonthSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final scheduled = InsightsMonthSummary.scheduledDaysInMonth(habit, summary);
-    final done = InsightsMonthSummary.completedScheduledDaysInMonth(
-      habit,
-      summary,
-    );
-    final seeds = InsightsMonthSummary.seedsEarnedInMonth(habit, summary);
-    final est = InsightsMonthSummary.estimatedMinutesInvested(habit, summary);
-    final streak = habit.currentStreakAsOf(LogicalDateService.today());
-    final run = InsightsMonthSummary.longestCompletionRunInMonth(
-      habit,
-      summary,
-    );
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              habit.name,
-              style: AppTypography.heading3(context),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '$done of $scheduled scheduled days completed this month',
-              style: AppTypography.body(context),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '$seeds seeds this month',
-              style: AppTypography.bodySmall(context).copyWith(
-                color: AppColors.honeyText,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (est != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'About $est minutes invested (from your session length)',
-                style: AppTypography.bodySmall(context),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Streak: $streak · Best run this month: $run days',
-              style: AppTypography.secondary(context),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Small steps add up. Your garden grows at its own pace.',
-              style: AppTypography.caption(context).copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

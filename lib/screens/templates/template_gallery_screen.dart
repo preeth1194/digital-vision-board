@@ -13,6 +13,7 @@ import '../../services/dv_auth_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/templates_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
+import '../../widgets/dialogs/confirm_dialog.dart';
 import '../../widgets/dialogs/new_board_dialog.dart';
 import '../goal_canvas_editor_screen.dart';
 import '../grid_editor.dart';
@@ -54,6 +55,30 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
     }
   }
 
+  Future<bool> _boardHasUserContent(
+    VisionBoardInfo board,
+    SharedPreferences prefs,
+  ) async {
+    if (board.layoutType == VisionBoardInfo.layoutGrid) {
+      final tiles = await GridTilesStorageService.loadTiles(
+        board.id,
+        prefs: prefs,
+      );
+      for (final t in tiles) {
+        if (t.isPlaceholder) continue;
+        final c = (t.content ?? '').trim();
+        if (c.isEmpty) continue;
+        if (t.type == 'image' || t.type == 'text') return true;
+      }
+      return false;
+    }
+    final comps = await VisionBoardComponentsStorageService.loadComponents(
+      board.id,
+      prefs: prefs,
+    );
+    return comps.isNotEmpty;
+  }
+
   Future<void> _useTemplate(BoardTemplateSummary summary) async {
     final token = await DvAuthService.getDvToken();
     if (token == null) {
@@ -76,8 +101,24 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
     try {
       final tpl = await TemplatesService.getTemplate(summary.id, dvToken: token);
       final prefs = await SharedPreferences.getInstance();
+      final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
 
-      final boardId = 'board_${DateTime.now().millisecondsSinceEpoch}';
+      if (!mounted) return;
+      if (await _boardHasUserContent(sole, prefs)) {
+        final ok = await showConfirmDialog(
+          context,
+          title: 'Replace vision board?',
+          message:
+              'Your current vision board will be replaced with this template. This cannot be undone.',
+          confirmText: 'Replace',
+        );
+        if (!mounted) return;
+        if (!ok) return;
+      }
+
+      await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
+
+      final boardId = sole.id;
       final kind = tpl.kind;
       final core = CoreValues.byId(config.coreValueId);
 
@@ -115,8 +156,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
           templateId: null,
         );
 
-        final boards = await BoardsStorageService.loadBoards(prefs: prefs);
-        await BoardsStorageService.saveBoards([board, ...boards], prefs: prefs);
+        await BoardsStorageService.saveBoards([board], prefs: prefs);
         await BoardsStorageService.setActiveBoardId(boardId, prefs: prefs);
         await VisionBoardComponentsStorageService.saveComponents(boardId, components, prefs: prefs);
         if (canvasW > 0 && canvasH > 0) {
@@ -162,8 +202,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
           templateId: templateId,
         );
 
-        final boards = await BoardsStorageService.loadBoards(prefs: prefs);
-        await BoardsStorageService.saveBoards([board, ...boards], prefs: prefs);
+        await BoardsStorageService.saveBoards([board], prefs: prefs);
         await BoardsStorageService.setActiveBoardId(boardId, prefs: prefs);
 
         // Persist tiles first so editor can load immediately.

@@ -37,6 +37,7 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
     setState(() => _loading = true);
     final prefs = await SharedPreferences.getInstance();
     await DvAuthService.ensureFirstInstallRecorded(prefs: prefs);
+    await BoardsStorageService.ensureSingleBoard(prefs: prefs);
     final boards = await BoardsStorageService.loadBoards(prefs: prefs);
     final activeId = await BoardsStorageService.loadActiveBoardId(prefs: prefs);
     if (!mounted) return;
@@ -85,16 +86,6 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
     return found ?? _boards.first;
   }
 
-  Future<void> _pickDefaultBoard() async {
-    if (_boards.length < 2) return;
-    final picked = await showBoardPickerSheet(context, boards: _boards, activeBoardId: _activeBoardId);
-    if (picked == null) return;
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    await BoardsStorageService.setActiveBoardId(picked.id, prefs: prefs);
-    if (!mounted) return;
-    setState(() => _activeBoardId = picked.id);
-  }
-
   Future<void> _openDashboard() async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
@@ -123,12 +114,6 @@ class _VisionBoardHomeScreenState extends State<VisionBoardHomeScreen> {
         appBar: AppBar(
           title: Text(board.title),
           actions: [
-            if (_boards.length > 1)
-              IconButton(
-                tooltip: 'Change default board',
-                icon: const Icon(Icons.swap_horiz),
-                onPressed: _pickDefaultBoard,
-              ),
             IconButton(
               tooltip: 'Dashboard',
               icon: const Icon(Icons.dashboard_outlined),

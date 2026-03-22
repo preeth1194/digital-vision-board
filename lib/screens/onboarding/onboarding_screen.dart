@@ -4,13 +4,13 @@ import '../../services/dv_auth_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
 import '../dashboard_screen.dart';
-import 'steps/step_body_activity.dart';
-import 'steps/step_features.dart';
-import 'steps/step_gender_dob.dart';
-import 'steps/step_photo.dart';
+import 'onboarding_first_habit_draft.dart';
+import 'steps/step_first_habit.dart';
+import 'steps/step_first_habit_photos.dart';
+import 'steps/step_first_habit_routine.dart';
+import 'steps/step_profile_setup.dart';
 import 'steps/step_signin.dart';
 import 'steps/step_terms.dart';
-import 'steps/step_welcome.dart';
 
 class OnboardingScreen extends StatefulWidget {
   /// When true, finishing pops without re-marking onboarding (e.g. internal replay entry points).
@@ -24,12 +24,9 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
+  final OnboardingFirstHabitDraft _habitDraft = OnboardingFirstHabitDraft();
   int _currentPage = 0;
-  static const int _totalPages = 7;
-
-  // Name is passed to StepPhoto for personalised title.
-  // Other fields are saved to SharedPreferences directly by each step widget.
-  String _name = '';
+  static const int _totalPages = 6;
 
   void _nextPage() {
     _pageController.nextPage(
@@ -37,6 +34,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       curve: Curves.easeInOut,
     );
   }
+
+  void _notifyHabitDraft() => setState(() {});
 
   Future<void> _completeOnboarding() async {
     if (!widget.replayMode) {
@@ -69,28 +68,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (i) => setState(() => _currentPage = i),
             children: [
-              StepWelcome(
-                onNext: (name) {
-                  setState(() => _name = name);
-                  _nextPage();
-                },
+              StepProfileSetup(onNext: _nextPage),
+              StepFirstHabit(
+                draft: _habitDraft,
+                notifyParent: _notifyHabitDraft,
+                onNext: _nextPage,
               ),
-              StepPhoto(
-                name: _name,
-                onNext: (_) => _nextPage(),
+              StepFirstHabitRoutine(
+                draft: _habitDraft,
+                notifyParent: _notifyHabitDraft,
+                onNext: _nextPage,
               ),
-              StepGenderDob(
-                onNext: (gender, dob) => _nextPage(),
+              StepFirstHabitPhotos(
+                draft: _habitDraft,
+                notifyParent: _notifyHabitDraft,
+                onNext: _nextPage,
               ),
-              StepBodyActivity(
-                onNext: (heightCm, weightKg, activityLevel) => _nextPage(),
-              ),
-              StepFeatures(onNext: _nextPage),
               StepTerms(onNext: _nextPage),
               StepSignIn(onComplete: _completeOnboarding),
             ],
           ),
-          // Thin animated progress bar overlaid at the top
           Positioned(
             top: 0,
             left: 0,
@@ -115,8 +112,7 @@ class _OnboardingProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = (current + 1) / total;
-    // Screen 5 (index 4) uses AppColors.cloudDark background — use gold accent
-    final isDarkStep = current == 4;
+    final isDarkStep = current >= 1 && current <= 3;
 
     return SafeArea(
       bottom: false,
@@ -131,8 +127,8 @@ class _OnboardingProgressBar extends StatelessWidget {
             value: progress,
             minHeight: 2,
             backgroundColor: isDarkStep
-                ? Colors.white.withValues(alpha:0.2)
-                : AppColors.forestDeep.withValues(alpha:0.12),
+                ? Colors.white.withValues(alpha: 0.2)
+                : AppColors.forestDeep.withValues(alpha: 0.12),
             valueColor: AlwaysStoppedAnimation<Color>(
               isDarkStep ? AppColors.seedGold : AppColors.sproutGreen,
             ),

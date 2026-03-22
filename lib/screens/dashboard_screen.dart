@@ -275,6 +275,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _reload() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    await BoardsStorageService.ensureSingleBoard(prefs: prefs);
     final boards = await BoardsStorageService.loadBoards(prefs: prefs);
     final activeId = await BoardsStorageService.loadActiveBoardId(prefs: prefs);
     if (!mounted) return;
@@ -813,6 +815,28 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  Future<bool> _boardHasNonEmptyContent(
+    VisionBoardInfo board, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? _prefs ?? await SharedPreferences.getInstance();
+    if (board.layoutType == VisionBoardInfo.layoutGrid) {
+      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: p);
+      for (final t in tiles) {
+        if (t.isPlaceholder) continue;
+        final c = (t.content ?? '').trim();
+        if (c.isEmpty) continue;
+        if (t.type == 'image' || t.type == 'text') return true;
+      }
+      return false;
+    }
+    final comps = await VisionBoardComponentsStorageService.loadComponents(
+      board.id,
+      prefs: p,
+    );
+    return comps.isNotEmpty;
+  }
+
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     await BoardsStorageService.saveBoards(boards, prefs: prefs);
@@ -996,10 +1020,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
     if (config == null || config.title.isEmpty) return;
 
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
+    if (!mounted) return;
+    if (await _boardHasNonEmptyContent(sole, prefs: prefs)) {
+      final ok = await showConfirmDialog(
+        context,
+        title: 'Replace vision board?',
+        message:
+            'Your current vision board will be replaced. This cannot be undone.',
+        confirmText: 'Replace',
+      );
+      if (!mounted || !ok) return;
+    }
+
+    await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
+
     final core = CoreValues.byId(config.coreValueId);
-    final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
     final board = VisionBoardInfo(
-      id: id,
+      id: sole.id,
       title: config.title,
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
       coreValueId: core.id,
@@ -1009,16 +1049,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       templateId: null,
     );
 
-    final next = [board, ..._boards];
+    final next = <VisionBoardInfo>[board];
     await _saveBoards(next);
-    await _setActiveBoard(id);
+    await _setActiveBoard(sole.id);
     if (!mounted) return;
     setState(() => _boards = next);
 
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GoalCanvasEditorScreen(boardId: id, title: board.title),
+        builder: (_) =>
+            GoalCanvasEditorScreen(boardId: sole.id, title: board.title),
       ),
     );
     await _clearActiveBoard();

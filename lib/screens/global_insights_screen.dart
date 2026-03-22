@@ -17,6 +17,8 @@ import '../widgets/insights/insights_habit_chips.dart';
 import '../widgets/insights/habit_heatmap_card.dart';
 import '../widgets/insights/insights_aggregate_chart.dart';
 import '../widgets/insights/insights_stat_grid.dart';
+import '../widgets/insights/insights_consistency_card.dart';
+import '../widgets/insights/insights_month_overview_card.dart';
 
 class GlobalInsightsScreen extends StatefulWidget {
   final List<VisionComponent> components;
@@ -211,6 +213,17 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
         const SizedBox(height: AppSpacing.lg),
         if (focus != null) InsightsStatGrid(habit: focus, summary: summary),
         if (focus != null) const SizedBox(height: AppSpacing.md),
+        if (focus == null) ...[
+          InsightsMonthOverviewCard(habits: allHabits, summary: summary),
+          const SizedBox(height: AppSpacing.md),
+          InsightsConsistencyCard(
+            habits: allHabits,
+            year: _year,
+            month: _month,
+            onSelect: (id) => setState(() => _focusHabitId = id),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         Semantics(
           label: 'Share insight card',
           button: true,

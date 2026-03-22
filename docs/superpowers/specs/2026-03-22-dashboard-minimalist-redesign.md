@@ -28,15 +28,15 @@ Rethink the layout and sizing of all dashboard cards below `HabitProgressComplet
 
 [MoodTrackerCard]               ← full width, lavender banner
 
-[InsightsSummaryCard | WaterIntakeCard]   ← half-row, equal flex
+[InsightsSummaryCard | WaterIntakeCard]   ← fixed-height row (160 px), equal flex
 
 [RewardAdsCoinCard]             ← full width, slim horizontal row
 
 [PuzzleSummaryCard]             ← full width
 ```
 
-All spacing between cards: `12` px (no change from current).
-Outer horizontal padding: `16` px (no change from current).
+All spacing between cards: `AppSpacing.sm` (8 px — matches current, no change).
+Outer horizontal padding: `AppSpacing.md` (16 px — matches current, no change).
 
 ---
 
@@ -46,18 +46,32 @@ Outer horizontal padding: `16` px (no change from current).
 
 **File:** `lib/widgets/dashboard/mood_tracker_card.dart`
 
-**Layout:** Horizontal `Row` inside a `GlassCard` (or plain `Container`).
+**Layout:** Horizontal `Row` inside a plain `Container` (no `GlassCard` backdrop blur).
 
-**Background:** `AppColors.lavenderContainer` (i.e., `Color(0xFFEEEDF8)`) with `AppSpacing.radiusCard` border radius. Use a plain `Container` with this fill color — no `GlassCard` backdrop blur needed here.
+**Background:** `AppColors.lavenderContainer` — use the token directly, never the raw `Color()` value. Border radius: `AppSpacing.radiusCard`.
+
+**States:**
+
+| State | Emoji/asset | Body text | Pill label |
+|---|---|---|---|
+| Loading | `SizedBox(width: 52, height: 52)` placeholder (empty box, same size as current) | `"Loading..."` caption | hide pill |
+| Not logged | `Image.asset('assets/moods/okay.png', width: 52, height: 52, opacity: AlwaysStoppedAnimation(0.5))` | `"How are you feeling today?"` | `"Log →"` |
+| Logged | `Image.asset(moodAssetPath, width: 52, height: 52)` (from `MoodStorageService`, same asset resolution as current) | mood label text (e.g. `"Feeling good"`) | `"Edit →"` |
+
+Do not use Unicode emoji character literals anywhere. Always use `Image.asset` with the existing mood asset paths.
 
 **Row children (left → right):**
-- Mood emoji / asset: `56` logical px tall. When mood is logged show the real mood widget; when not logged show a neutral placeholder emoji (`😐`).
+- Mood asset/placeholder: fixed `52 × 52` logical px (unchanged from current implementation — see states above).
+- `SizedBox(width: AppSpacing.md)`
 - Middle `Expanded` column:
-  - Label: `"Mood"` in `AppTypography.caption(context)`, color `AppColors.lavenderDew`, uppercase, letter-spacing `0.5`.
-  - Body: `"How are you feeling today?"` (not logged) or the mood label text (logged) in `AppTypography.body(context)`, `colorScheme.onSurface`, `fontWeight: FontWeight.w500`.
-- Right pill button: `"Log →"` (not logged) or `"Edit →"` (already logged). Style: `AppColors.lavenderDew` at `alpha 0.15` background, `AppColors.lavenderDew` text, `AppSpacing.radiusChip` border radius, `padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs)`.
+  - Label: `"Mood"` in `AppTypography.caption(context).copyWith(color: AppColors.lavenderDew, fontWeight: FontWeight.w600, letterSpacing: 0.5)`.
+  - `SizedBox(height: AppSpacing.xs)`
+  - Body text (see states above): `AppTypography.body(context).copyWith(fontWeight: FontWeight.w500)`, color `colorScheme.onSurface` (default, no override needed).
+- `SizedBox(width: AppSpacing.sm)`
+- Right pill (hidden during loading): `Container` with `AppColors.lavenderDew.withValues(alpha: 0.15)` background, `AppSpacing.radiusChip` border radius, `padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs)`. Child: `Text` styled with `AppTypography.caption(context).copyWith(color: AppColors.lavenderDew, fontWeight: FontWeight.w700)`.
 
-Tap the entire card → navigate to `MoodDetailScreen` (same as current).
+Card padding: `EdgeInsets.all(AppSpacing.md)`.
+Tap entire card → `MoodDetailScreen` (same as current). Use `GestureDetector` or wrap the `Container` in `Material` + `InkWell` with matching border radius.
 
 ---
 
@@ -65,23 +79,24 @@ Tap the entire card → navigate to `MoodDetailScreen` (same as current).
 
 **File:** `lib/widgets/dashboard/insights_summary_card.dart`
 
-**Container:** `GlassCard` (unchanged wrapper), `flex: 1` in the half-row.
+**Container:** `GlassCard` (unchanged wrapper), `flex: 1` in the fixed-height row.
 
-**Internal layout:** Single `Column`, `crossAxisAlignment: CrossAxisAlignment.center`, `mainAxisAlignment: MainAxisAlignment.center`.
+**Internal layout:** `Padding(EdgeInsets.all(AppSpacing.md))` → `Column`, `crossAxisAlignment: CrossAxisAlignment.center`, `mainAxisAlignment: MainAxisAlignment.center`.
 
 **Children (top → bottom):**
 1. `Icon(Icons.insights_rounded)` — size `22`, color `colorScheme.primary`.
 2. `SizedBox(height: AppSpacing.xs)`
-3. Percentage text — `AppTypography.heading2(context)`, color `colorScheme.primary`.
-4. Subtitle — `"X of Y done"` in `AppTypography.caption(context)`, `colorScheme.onSurfaceVariant`.
+3. Percentage text — `AppTypography.heading2(context).copyWith(color: colorScheme.primary)`.
+4. Subtitle — `"X of Y done"` in `AppTypography.caption(context)` (default color `colorScheme.onSurfaceVariant` unchanged).
 5. `SizedBox(height: AppSpacing.sm)`
-6. `LinearProgressIndicator` — full width, value `completed/total`, `borderRadius: BorderRadius.circular(4)`.
+6. `LinearProgressIndicator` — full width, value `completed/total`, `borderRadius: BorderRadius.circular(AppSpacing.xs)`.
 7. `SizedBox(height: AppSpacing.sm)`
-8. `"Insights ›"` — `AppTypography.caption(context)`, color `colorScheme.primary.withValues(alpha: 0.5)`.
+8. `"Insights ›"` — `AppTypography.caption(context).copyWith(color: colorScheme.primary.withValues(alpha: 0.5))`.
 
-Empty/no-habits states ("No habits today", "No habits tracked yet") remain as currently implemented, just centered.
+Loading state (`!_loaded`): show a slim `SizedBox(height: AppSpacing.xs, child: LinearProgressIndicator())` centered in the column — same as current implementation.
+Empty/no-habits states: when `total == 0`, show a centered `Text` — `"No habits today"` if habits exist but none scheduled, `"No habits tracked yet"` if no habits at all — styled `AppTypography.bodySmall(context).copyWith(color: colorScheme.onSurfaceVariant)`. Layout is centered (same as current implementation).
 
-Tap → navigate to `GlobalInsightsScreen` (same as current).
+Tap → `GlobalInsightsScreen` (same as current).
 
 ---
 
@@ -93,6 +108,8 @@ Tap → navigate to `GlobalInsightsScreen` (same as current).
 
 Specifically change the `SizedBox(height: 52)` inside `_ControlButton.build()` to `SizedBox(height: 36)`.
 
+**Layout note:** The Insights + Water row uses a fixed height of `160` px (see `dashboard_tab.dart` below) instead of `IntrinsicHeight`. This avoids double-layout passes on every frame of the wave animation. `WaterIntakeCard` already uses a `Stack` with `Positioned.fill` so it stretches naturally to the row height.
+
 ---
 
 ### 4. `RewardAdsCoinCard` — Slim horizontal row
@@ -101,30 +118,31 @@ Specifically change the `SizedBox(height: 52)` inside `_ControlButton.build()` t
 
 Collapse from a tall card with a big counter + full-width button into a single horizontal row.
 
-**Container:** `GlassCard`, full width.
+**Container:** `GlassCard`, full width. `Padding(EdgeInsets.all(AppSpacing.md))`.
 
-**Internal layout:** `Padding(AppSpacing.md)` → `Row`:
+**Internal layout:** `Row`, `crossAxisAlignment: CrossAxisAlignment.center`.
 
 | Slot | Content |
 |---|---|
 | Leading icon | `Icon(Icons.ondemand_video_rounded, size: 18, color: colorScheme.primary)` |
 | `SizedBox(width: AppSpacing.sm)` | — |
-| `Expanded` column | Tag `"Rewards"` (caption style) · `SizedBox(height: 3)` · Segment bar (3 segments, height 3 px, same colors as current) · `SizedBox(height: 3)` · `"X of 3 · +20 coins per ad"` caption |
+| `Expanded` column | `"Rewards"` label: `AppTypography.caption(context).copyWith(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)` · `SizedBox(height: AppSpacing.xs)` · Segment bar (3 segments, height `AppSpacing.xs`, filled color `colorScheme.primary`, unfilled color `colorScheme.surfaceContainerHighest`) · `SizedBox(height: AppSpacing.xs)` · caption `"X of 3 · +20 coins per ad"` when ads enabled; `"Ads disabled"` when ad-free — both in `AppTypography.caption(context)` default style |
 | `SizedBox(width: AppSpacing.sm)` | — |
-| Watch button | `FilledButton` (or `ElevatedButton.icon`) label `"▶ Watch"`, compact: `minimumSize: Size(72, 36)` |
+| Watch button | `FilledButton.icon` with `minimumSize: Size(72, 36)`, `shape: StadiumBorder()`, `icon: Icon(Icons.play_arrow_rounded, size: 14)`, `label: Text("Watch")` when ads enabled and not loading; `CircularProgressIndicator` sized 16×16 wrapped in `SizedBox(width: 72, height: 36)` when loading; `FilledButton` with label `"Off"` and `onPressed: null` when ad-free (disabled). |
 
-Remove: the large `"0/3"` heading text, the tall `SizedBox(height: 52)` ElevatedButton.icon, and the `"Each ad earns X coins"` full line (fold it into the row caption above).
+**Ad-free state:** When `_showAds == false`, button shows `"Off"` and is disabled (`onPressed: null`). Caption shows `"Ads disabled"`. All other row elements remain visible.
 
-All existing logic (`_onWatchAdTap`, `_handleRewardEarned`, loading state, snack bars, ad-free check) stays exactly the same — only the visual layout changes.
+Remove from the widget: the large `"0/3"` heading text, the tall `SizedBox(height: 52)` button, and the standalone `"Each ad earns X coins"` text widget.
+
+All existing logic (`_onWatchAdTap`, `_handleRewardEarned`, loading state, snack bars, ad-free check, `coinNotifier`) stays exactly the same — only the visual layout changes.
 
 ---
 
 ### 5. `PuzzleSummaryCard` — Full width (layout change only)
 
-**File:** `lib/widgets/dashboard/puzzle_summary_card.dart`
 **File:** `lib/widgets/dashboard/dashboard_tab.dart`
 
-No changes to `PuzzleSummaryCard` itself. In `dashboard_tab.dart`, move it so it renders full-width below `RewardAdsCoinCard`, not in a row with any other card.
+No changes to `PuzzleSummaryCard` internals. Move it to render full-width below `RewardAdsCoinCard` in `dashboard_tab.dart`.
 
 ---
 
@@ -132,49 +150,50 @@ No changes to `PuzzleSummaryCard` itself. In `dashboard_tab.dart`, move it so it
 
 ```dart
 SingleChildScrollView(
-  padding: const EdgeInsets.symmetric(vertical: 16),
+  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
   child: Column(
     children: [
       // 1. Habit progress (unchanged)
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: HabitProgressCompletionCard(...),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.sm),
 
       // 2. Mood banner (full width)
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: MoodTrackerCard(),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.sm),
 
-      // 3. Insights + Water (half-row)
+      // 3. Insights + Water — fixed height row (avoids IntrinsicHeight + animation perf issue)
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: IntrinsicHeight(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: SizedBox(
+          height: 160,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(child: InsightsSummaryCard()),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(child: WaterIntakeCard()),
             ],
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.sm),
 
       // 4. Rewards slim row (full width)
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: RewardAdsCoinCard(coinNotifier: coinNotifier),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.sm),
 
       // 5. Puzzle (full width)
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: PuzzleSummaryCard(),
       ),
     ],
@@ -182,18 +201,31 @@ SingleChildScrollView(
 )
 ```
 
+The fixed `height: 160` for the Insights+Water row is an intentional exception to the no-hardcoded-values rule — it replaces `IntrinsicHeight` specifically to avoid double-layout passes on every frame of the wave animation. If `AppSpacing` gains a semantic token for this value in future, use it.
+
 ---
 
 ## Design Tokens
 
-- Card backgrounds: `GlassCard` (existing) for Insights, Water, Rewards, Puzzle.
-- Mood card background: plain `Container` with `AppColors.lavenderContainer`, radius `AppSpacing.radiusCard`.
-- Mood pill: `AppColors.lavenderDew` tint background, `AppColors.lavenderDew` text.
-- Insights icon/value/link: `colorScheme.primary`.
+- Mood card background: `AppColors.lavenderContainer` — token only, no raw `Color()` literal.
+- Mood pill: `AppColors.lavenderDew.withValues(alpha: 0.15)` background, `AppColors.lavenderDew` text.
+- Mood asset: `Image.asset` with paths from `MoodStorageService` — no Unicode emoji strings.
+- Insights icon / value / nav link: `colorScheme.primary`.
 - Insights subtitle / caption: `colorScheme.onSurfaceVariant`.
+- Mood asset size: `52 × 52` px (intentional exception — unchanged from current; applies to both the `Image.asset` and the `SizedBox` loading placeholder).
+- Mood pill labels `"Log →"` and `"Edit →"` use the Unicode `→` character as decorative label text in a `Text()` widget — this is a permitted string literal, not a standalone icon replacement.
+- Water button height: `36` px (intentional exception — shrinking from `52`).
+- Rewards segment bar height / spacers: `AppSpacing.xs` (token, not hardcoded).
+- Rewards watch button: `FilledButton.icon` with `Icon(Icons.play_arrow_rounded, size: 14)` — no standalone Unicode `▶` character literals. Icon size `14` is an intentional exception.
+- Rewards leading icon: `Icon(Icons.ondemand_video_rounded, size: 18)` — size `18` is an intentional exception.
+- Rewards watch button `minimumSize: Size(72, 36)` — `72` px minimum width is an intentional exception (standard compact `FilledButton` minimum width).
+- Rewards loading indicator: `SizedBox(width: 16, height: 16)` wrapping `CircularProgressIndicator` — `16` px is an intentional exception (standard small inline spinner size).
 - Rewards segment fill: `colorScheme.primary` (unchanged).
-- No hardcoded pixel values except existing wave animation math and the button height change (`36`).
-- No emoji strings — Mood emoji asset from `MoodStorageService` (existing pattern).
+- `InsightsSummaryCard` icon: `Icon(Icons.insights_rounded, size: 22)` — size `22` is an intentional exception.
+- `InsightsSummaryCard` nav label `"Insights ›"` uses Unicode `›` (U+203A) as decorative chevron text in a `Text()` widget — this is a permitted string literal, not a standalone icon replacement.
+- `MoodTrackerCard` label `letterSpacing: 0.5` — intentional exception; `AppSpacing` has no letter-spacing token.
+- All other cards: `GlassCard` surface (unchanged).
+- No other hardcoded pixel values.
 
 ---
 
@@ -201,11 +233,11 @@ SingleChildScrollView(
 
 | File | Change |
 |---|---|
-| `lib/widgets/dashboard/dashboard_tab.dart` | Reorder children per new layout |
-| `lib/widgets/dashboard/mood_tracker_card.dart` | Redesign as full-width lavender banner |
+| `lib/widgets/dashboard/dashboard_tab.dart` | Reorder children, replace `IntrinsicHeight` with fixed `SizedBox(height: 160)` for Insights+Water row |
+| `lib/widgets/dashboard/mood_tracker_card.dart` | Redesign as full-width lavender banner with loading/not-logged/logged states |
 | `lib/widgets/dashboard/insights_summary_card.dart` | Centered column layout |
 | `lib/widgets/dashboard/water_intake_card.dart` | Button height 52 → 36 |
-| `lib/widgets/dashboard/reward_ads_coin_card.dart` | Collapse to slim horizontal row |
+| `lib/widgets/dashboard/reward_ads_coin_card.dart` | Collapse to slim horizontal row, ad-free state mapped |
 
 ---
 

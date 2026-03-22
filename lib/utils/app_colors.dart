@@ -92,6 +92,10 @@ class AppColors {
   static const Color lavenderDew = Color(0xFF7B74A8);
   static const Color lavenderContainer = Color(0xFFEEEDF8);
 
+  // ── Habit Heatmap ──
+  // Deep rose-brown used for missed habit cells in the calendar heatmap.
+  static const Color missedHabitCell = Color(0xFF5c2020);
+
   // ── Cloud Surfaces ──
   static const Color cloudWhite = Colors.white;
   // cloudDark: warm grove dark — replaces cold navy.

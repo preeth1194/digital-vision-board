@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import '../../models/habit_item.dart';
 import '../../models/insights_month_summary.dart';
 import '../../services/logical_date_service.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
-
-const _missedCellColor = Color(0xFF5c2020);
 
 class HabitHeatmapCard extends StatelessWidget {
   const HabitHeatmapCard({
@@ -78,9 +77,29 @@ class HabitHeatmapCard extends StatelessWidget {
           if (habit != null)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Text(
-                habit!.name,
-                style: AppTypography.heading3(context),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      habit!.name,
+                      style: AppTypography.heading3(context),
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 18,
+                    height: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Habit Seeding',
+                    style: AppTypography.caption(context).copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
               ),
             ),
           // Day-of-week headers
@@ -189,7 +208,7 @@ class HabitHeatmapCard extends StatelessWidget {
         bgColor = colorScheme.primary;
       } else if (habit!.isScheduledOnDate(date) &&
           !habit!.isCompletedOnDate(date)) {
-        bgColor = _missedCellColor.withValues(alpha: 0.7);
+        bgColor = AppColors.missedHabitCell.withValues(alpha: 0.7);
       } else {
         bgColor = colorScheme.surfaceContainerHigh;
       }
@@ -227,7 +246,7 @@ class HabitHeatmapCard extends StatelessWidget {
   Widget _buildLegend(BuildContext context, ColorScheme colorScheme) {
     final items = [
       (colorScheme.primary, null as double?, 'Done'),
-      (_missedCellColor, 0.7, 'Missed'),
+      (AppColors.missedHabitCell, 0.7, 'Missed'),
       (colorScheme.surfaceContainerHigh, null as double?, 'Future / not scheduled'),
     ];
     return Wrap(

@@ -18,7 +18,7 @@ const List<List<Color>> _coverGradients = [
   [AppColors.habitVioletLight, AppColors.habitVioletDark],
 ];
 
-enum _OverlayMode { colorPicker, deleteConfirm }
+enum _OverlayMode { colorPicker, deleteConfirm, userBookActions }
 
 /// A bookshelf layout for journal books.
 ///
@@ -133,6 +133,14 @@ class _JournalBookshelfState extends State<JournalBookshelf>
           _hideOverlay();
           widget.onDeleteBook(book.id);
         },
+        onSwitchToColorPicker: () {
+          _overlayController.reset();
+          _showOverlay(_OverlayMode.colorPicker, book);
+        },
+        onSwitchToDelete: () {
+          _overlayController.reset();
+          _showOverlay(_OverlayMode.deleteConfirm, book);
+        },
       ),
     );
     Overlay.of(context).insert(_overlayEntry!);
@@ -154,8 +162,8 @@ class _JournalBookshelfState extends State<JournalBookshelf>
   void _showColorPicker(JournalBook book) =>
       _showOverlay(_OverlayMode.colorPicker, book);
 
-  void _confirmDeleteBook(JournalBook book) =>
-      _showOverlay(_OverlayMode.deleteConfirm, book);
+  void _showUserBookActions(JournalBook book) =>
+      _showOverlay(_OverlayMode.userBookActions, book);
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
@@ -220,7 +228,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 5,
               child: _DefaultBookCover(
                 book: defaultBook,
-                height: 120,
+                height: 144,
                 gradient: _gradientFor(defaultBook.coverColor),
                 onTap: () => widget.onBookTap(defaultBook),
                 onLongPress: () => _showColorPicker(defaultBook),
@@ -232,7 +240,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 5,
               child: _DefaultBookCover(
                 book: goalLogsBook,
-                height: 120,
+                height: 144,
                 gradient: _gradientFor(goalLogsBook.coverColor),
                 onTap: () => widget.onBookTap(goalLogsBook),
                 onLongPress: () => _showColorPicker(goalLogsBook),
@@ -244,7 +252,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
               flex: 3,
               child: _DefaultBookCover(
                 book: recipeBook,
-                height: 120,
+                height: 144,
                 gradient: _gradientFor(recipeBook.coverColor),
                 onTap: () => widget.onBookTap(recipeBook),
                 onLongPress: () => _showColorPicker(recipeBook),
@@ -287,33 +295,47 @@ class _JournalBookshelfState extends State<JournalBookshelf>
     final userBooks = _userBooks;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            ...userBooks.map((book) {
-              final entryCount = _displayCountForBook(book);
-              final spineHeight = (120.0 + entryCount * 5.0).clamp(120.0, 220.0);
-              return _UserBookSpine(
-                book: book,
-                height: spineHeight,
-                gradient: _spineGradient(book.coverColor),
-                entryCount: entryCount,
-                onTap: () => widget.onBookTap(book),
-                onLongPress: () => _confirmDeleteBook(book),
-              );
-            }),
-            _AddBookSpine(
-              color: colorScheme.onSurfaceVariant,
-              onTap: widget.onAddBook,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Show exactly 4 books + hint of 5th before scroll kicks in
+        const visibleBooks = 4.4;
+        const spineMarginTotal = 6.0;
+        final availableWidth = constraints.maxWidth - 2 * AppSpacing.md;
+        final spineWidth =
+            (availableWidth / visibleBooks - spineMarginTotal).clamp(52.0, 88.0);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ...userBooks.map((book) {
+                  final entryCount = _displayCountForBook(book);
+                  final spineHeight =
+                      (120.0 + entryCount * 5.0).clamp(120.0, 220.0);
+                  return _UserBookSpine(
+                    book: book,
+                    width: spineWidth,
+                    height: spineHeight,
+                    gradient: _spineGradient(book.coverColor),
+                    entryCount: entryCount,
+                    onTap: () => widget.onBookTap(book),
+                    onLongPress: () => _showUserBookActions(book),
+                  );
+                }),
+                _AddBookSpine(
+                  width: spineWidth,
+                  color: colorScheme.onSurfaceVariant,
+                  onTap: widget.onAddBook,
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -412,6 +434,7 @@ class _DefaultBookCover extends StatelessWidget {
 
 class _UserBookSpine extends StatefulWidget {
   final JournalBook book;
+  final double width;
   final double height;
   final List<Color> gradient;
   final int entryCount;
@@ -420,6 +443,7 @@ class _UserBookSpine extends StatefulWidget {
 
   const _UserBookSpine({
     required this.book,
+    required this.width,
     required this.height,
     required this.gradient,
     required this.entryCount,
@@ -447,7 +471,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
         curve: Curves.easeOutCubic,
         transform: Matrix4.translationValues(0, _pressed ? -5 : 0, 0),
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 64,
+        width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -509,10 +533,15 @@ class _UserBookSpineState extends State<_UserBookSpine> {
 // ─── Add book spine ───────────────────────────────────────────────────────
 
 class _AddBookSpine extends StatelessWidget {
+  final double width;
   final Color color;
   final VoidCallback onTap;
 
-  const _AddBookSpine({required this.color, required this.onTap});
+  const _AddBookSpine({
+    required this.width,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -520,7 +549,7 @@ class _AddBookSpine extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 64,
+        width: width,
         height: 72,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
@@ -545,6 +574,8 @@ class _JournalOverlayPanel extends StatefulWidget {
   final VoidCallback onDismiss;
   final ValueChanged<int> onColorApplied;
   final VoidCallback onDeleteConfirmed;
+  final VoidCallback? onSwitchToColorPicker;
+  final VoidCallback? onSwitchToDelete;
 
   const _JournalOverlayPanel({
     required this.animation,
@@ -554,6 +585,8 @@ class _JournalOverlayPanel extends StatefulWidget {
     required this.onDismiss,
     required this.onColorApplied,
     required this.onDeleteConfirmed,
+    this.onSwitchToColorPicker,
+    this.onSwitchToDelete,
   });
 
   @override
@@ -589,7 +622,11 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     final navTotalHeight = barHeight + circleOverflow + bottomPad;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final panelHeight = widget.mode == _OverlayMode.colorPicker ? 240.0 : 200.0;
+    final panelHeight = widget.mode == _OverlayMode.colorPicker
+        ? 240.0
+        : widget.mode == _OverlayMode.userBookActions
+            ? 160.0
+            : 200.0;
 
     return AnimatedBuilder(
       animation: widget.animation,
@@ -634,7 +671,9 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                             padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                             child: widget.mode == _OverlayMode.colorPicker
                                 ? _buildColorPickerContent(colorScheme)
-                                : _buildDeleteConfirmContent(colorScheme),
+                                : widget.mode == _OverlayMode.userBookActions
+                                    ? _buildUserActionsContent(colorScheme)
+                                    : _buildDeleteConfirmContent(colorScheme),
                           ),
                         ),
                       ),
@@ -646,6 +685,49 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildUserActionsContent(ColorScheme colorScheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(widget.book.name, style: AppTypography.heading3(context)),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: widget.onSwitchToColorPicker,
+                icon: const Icon(Icons.palette_outlined),
+                label: const Text('Change Color'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: widget.onSwitchToDelete,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                  foregroundColor: colorScheme.onError,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

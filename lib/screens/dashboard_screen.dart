@@ -735,30 +735,26 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openChallengeSetup() async {
-    final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
 
-    if (shouldShowAds) {
-      final existingSession = await AdService.getChallengeSession(
-        prefs: _prefs,
+    final totalCoins = await CoinsService.getTotalCoins(prefs: prefs);
+    final cost = CoinsService.presetHabitCreationCoins;
+    if (totalCoins < cost) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Need $cost coins to start this challenge.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      if (existingSession != null) {
-        final complete = await AdService.isChallengeSessionComplete(
-          existingSession,
-          prefs: _prefs,
-        );
-        if (!complete) {
-          _boardDataVersion.value++;
-          return;
-        }
-      } else {
-        final sessionKey =
-            'challenge_75hard_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setChallengeSession(sessionKey, prefs: _prefs);
-        _boardDataVersion.value++;
-        return;
-      }
+      return;
     }
 
+    await _pushChallengeSetupScreen();
+  }
+
+  Future<void> _pushChallengeSetupScreen() async {
     if (!mounted) return;
     final res = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(

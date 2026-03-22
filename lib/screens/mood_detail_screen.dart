@@ -217,11 +217,13 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: AppColors.pageBackgroundDecoration(isDark: isDark, minimal: true),
+      decoration: AppColors.skyDecoration(isDark: isDark),
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         title: const Text('Mood'),
       ),
       body: ListView(

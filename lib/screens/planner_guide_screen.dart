@@ -2275,8 +2275,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   List<String> get _plannerGuideCategories => [
-    ..._habitCategoriesInOrder,
     _challengeGuideCategory,
+    ..._habitCategoriesInOrder,
     _mealPrepGuideCategory,
   ];
 

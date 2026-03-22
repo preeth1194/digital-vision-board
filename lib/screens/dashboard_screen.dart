@@ -1169,9 +1169,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     const visibleTabIndices = <int>[
       1,
       7,
-      2,
       6,
-    ]; // Dashboard, Rituals, Journal, Presets
+      2,
+    ]; // Dashboard, Rituals, Presets, Journal
     final visibleNavIndex = visibleTabIndices.indexOf(_tabIndex);
 
     final body = DashboardBody(
@@ -1286,14 +1286,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           label: 'Habits',
         ),
         AnimatedNavItem(
-          icon: Icons.book_outlined,
-          activeIcon: Icons.book_rounded,
-          label: 'Journal',
-        ),
-        AnimatedNavItem(
           icon: Icons.schedule_outlined,
           activeIcon: Icons.schedule_rounded,
           label: 'Presets',
+        ),
+        AnimatedNavItem(
+          icon: Icons.book_outlined,
+          activeIcon: Icons.book_rounded,
+          label: 'Journal',
         ),
       ],
     );

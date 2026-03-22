@@ -110,6 +110,8 @@ Specifically change the `SizedBox(height: 52)` inside `_ControlButton.build()` t
 
 **Layout note:** The Insights + Water row uses a fixed height of `160` px (see `dashboard_tab.dart` below) instead of `IntrinsicHeight`. This avoids double-layout passes on every frame of the wave animation. `WaterIntakeCard` already uses a `Stack` with `Positioned.fill` so it stretches naturally to the row height.
 
+All existing WaterIntakeCard states (no goal set, partial fill, goal reached, loading) are preserved unchanged — only the `+`/`−` button height changes. Before shipping, verify the card renders without overflow or clipping at `160 px` in each state.
+
 ---
 
 ### 4. `RewardAdsCoinCard` — Slim horizontal row

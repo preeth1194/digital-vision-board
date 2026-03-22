@@ -623,10 +623,10 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     final colorScheme = Theme.of(context).colorScheme;
 
     final panelHeight = widget.mode == _OverlayMode.colorPicker
-        ? 240.0
+        ? 260.0
         : widget.mode == _OverlayMode.userBookActions
-            ? 160.0
-            : 200.0;
+            ? 190.0
+            : 290.0;
 
     return AnimatedBuilder(
       animation: widget.animation,
@@ -668,7 +668,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                         child: SizedBox(
                           height: panelHeight,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                             child: widget.mode == _OverlayMode.colorPicker
                                 ? _buildColorPickerContent(colorScheme)
                                 : widget.mode == _OverlayMode.userBookActions

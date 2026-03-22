@@ -79,8 +79,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
 
   int _displayCountForBook(JournalBook book) {
     final isRecipeBook =
-        book.id == JournalBookStorageService.recipeBookId ||
-        book.name.trim().toLowerCase() == 'recipe book';
+        book.id == JournalBookStorageService.recipeBookId;
     if (isRecipeBook) return widget.recipeCount;
     return widget.entryCounts[book.id] ?? 0;
   }
@@ -247,7 +246,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -331,7 +330,7 @@ class _DefaultBookCover extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: gradient.last.withOpacity(0.4),
+              color: gradient.last.withValues(alpha: 0.4),
               blurRadius: 8,
               offset: const Offset(2, 4),
             ),
@@ -347,7 +346,7 @@ class _DefaultBookCover extends StatelessWidget {
               child: Container(
                 width: 6,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(4),
                     bottomLeft: Radius.circular(4),
@@ -433,7 +432,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
           borderRadius: BorderRadius.circular(4),
           boxShadow: [
             BoxShadow(
-              color: widget.gradient[1].withOpacity(_pressed ? 0.5 : 0.3),
+              color: widget.gradient[1].withValues(alpha: _pressed ? 0.5 : 0.3),
               blurRadius: _pressed ? 10 : 5,
               offset: Offset(2, _pressed ? 6 : 3),
             ),
@@ -468,7 +467,7 @@ class _UserBookSpineState extends State<_UserBookSpine> {
                   style: AppTypography.caption(context).copyWith(
                     fontSize: 8,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     height: 1.0,
                   ),
                 ),
@@ -499,11 +498,11 @@ class _AddBookSpine extends StatelessWidget {
         height: 72,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withOpacity(0.4), width: 1.5),
-          color: color.withOpacity(0.06),
+          border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+          color: color.withValues(alpha: 0.06),
         ),
         child: Center(
-          child: Icon(Icons.add, size: 18, color: color.withOpacity(0.5)),
+          child: Icon(Icons.add, size: 18, color: color.withValues(alpha: 0.5)),
         ),
       ),
     );
@@ -537,12 +536,23 @@ class _JournalOverlayPanel extends StatefulWidget {
 
 class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
   late int _pickerSelectedColor;
+  late CurvedAnimation _curvedAnimation;
 
   @override
   void initState() {
     super.initState();
     _pickerSelectedColor =
         widget.book.coverColor ?? JournalBook.defaultCoverColor;
+    _curvedAnimation = CurvedAnimation(
+      parent: widget.animation,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _curvedAnimation.dispose();
+    super.dispose();
   }
 
   @override
@@ -558,10 +568,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
     return AnimatedBuilder(
       animation: widget.animation,
       builder: (context, _) {
-        final t = CurvedAnimation(
-          parent: widget.animation,
-          curve: Curves.easeOutCubic,
-        ).value;
+        final t = _curvedAnimation.value;
 
         return Material(
           color: Colors.transparent,
@@ -572,7 +579,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
                 child: GestureDetector(
                   onTap: widget.onDismiss,
                   child: ColoredBox(
-                    color: Colors.black.withOpacity(0.35 * t),
+                    color: Colors.black.withValues(alpha: 0.35 * t),
                   ),
                 ),
               ),

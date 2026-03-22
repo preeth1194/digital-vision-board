@@ -4,6 +4,7 @@ import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../../auth/auth_gateway_screen.dart';
+import '../widgets/onboarding_bottom_actions.dart';
 import '_step_header.dart';
 
 /// Final onboarding step — delegates sign-in to [AuthGatewayScreen].
@@ -11,8 +12,13 @@ import '_step_header.dart';
 /// with `true` and we call [onComplete] to finish onboarding.
 class StepSignIn extends StatefulWidget {
   final VoidCallback onComplete;
+  final VoidCallback? onBack;
 
-  const StepSignIn({super.key, required this.onComplete});
+  const StepSignIn({
+    super.key,
+    required this.onComplete,
+    this.onBack,
+  });
 
   @override
   State<StepSignIn> createState() => _StepSignInState();
@@ -79,9 +85,9 @@ class _StepSignInState extends State<StepSignIn> {
                 ),
               ),
               const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
+              OnboardingBottomActions(
+                onBack: widget.onBack,
+                primary: FilledButton(
                   onPressed: _loading ? null : _openAuth,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.sproutGreen,

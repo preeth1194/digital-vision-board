@@ -9,13 +9,19 @@ import '../../../services/dv_auth_service.dart';
 import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
+import '../widgets/onboarding_bottom_actions.dart';
 import '_step_header.dart';
 
 /// Combined onboarding: photo, name, gender, DOB, height, weight, activity.
 class StepProfileSetup extends StatefulWidget {
   final VoidCallback onNext;
+  final VoidCallback? onBack;
 
-  const StepProfileSetup({super.key, required this.onNext});
+  const StepProfileSetup({
+    super.key,
+    required this.onNext,
+    this.onBack,
+  });
 
   @override
   State<StepProfileSetup> createState() => _StepProfileSetupState();
@@ -481,11 +487,15 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                         color: AppColors.forestDeep,
                       ),
                       decoration: InputDecoration(
+                        // This step uses a fixed light canvas; override app-wide filled inputs so
+                        // dark-mode theme does not paint a near-black fill behind the name field.
+                        filled: true,
+                        fillColor: AppColors.mistBackground,
                         hintText: 'Your name',
                         hintStyle: AppTypography.heading2(context).copyWith(
                           fontSize: 26,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.forestDeep.withValues(alpha: 0.25),
+                          color: AppColors.forestDeep.withValues(alpha: 0.35),
                         ),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(
@@ -759,9 +769,9 @@ class _StepProfileSetupState extends State<StepProfileSetup> {
                 valueListenable: _nameController,
                 builder: (context, value, _) {
                   final hasName = value.text.trim().isNotEmpty;
-                  return SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
+                  return OnboardingBottomActions(
+                    onBack: widget.onBack,
+                    primary: FilledButton(
                       onPressed: hasName ? _onContinue : null,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.sproutGreen,

@@ -25,7 +25,14 @@ class NotificationsService {
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings();
+    // Do not request notification permission during initialize — that runs from
+    // main() before onboarding completes. [requestPermissionsIfNeeded] is
+    // invoked after the dashboard is shown (see [DashboardScreen]).
+    const ios = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestSoundPermission: false,
+      requestBadgePermission: false,
+    );
     const initSettings = InitializationSettings(android: android, iOS: ios);
 
     await _plugin.initialize(

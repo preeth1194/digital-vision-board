@@ -14,10 +14,14 @@ class TermsConsentLayout extends StatefulWidget {
   const TermsConsentLayout({
     super.key,
     required this.onAcceptComplete,
+    this.onBack,
   });
 
   /// Called after consent is saved. Use for navigation or onboarding advance.
   final VoidCallback onAcceptComplete;
+
+  /// Optional back control (e.g. previous onboarding page or dismiss route).
+  final VoidCallback? onBack;
 
   @override
   State<TermsConsentLayout> createState() => _TermsConsentLayoutState();
@@ -186,38 +190,61 @@ class _TermsConsentLayoutState extends State<TermsConsentLayout> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: (_agreed && !_saving) ? _acceptAndContinue : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      Colors.white.withValues(alpha: 0.3),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusInput),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (widget.onBack != null) ...[
+                  Semantics(
+                    label: 'Back',
+                    button: true,
+                    child: IconButton(
+                      onPressed: widget.onBack,
+                      icon: const Icon(Icons.arrow_back_ios_new),
+                      tooltip: 'Back',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        fixedSize: const Size(48, 48),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: FilledButton(
+                    onPressed:
+                        (_agreed && !_saving) ? _acceptAndContinue : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          Colors.white.withValues(alpha: 0.3),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusInput),
+                      ),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.sproutGreen,
+                            ),
+                          )
+                        : Text(
+                            'Accept & Continue',
+                            style: AppTypography.button(context).copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.sproutGreen,
+                            ),
+                          ),
                   ),
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.sproutGreen,
-                        ),
-                      )
-                    : Text(
-                        'Accept & Continue',
-                        style: AppTypography.button(context).copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.sproutGreen,
-                        ),
-                      ),
-              ),
+              ],
             ),
           ],
         ),

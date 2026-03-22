@@ -1,14 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../models/habit_item.dart';
-import '../../utils/app_colors.dart';
+import '../../models/insights_month_summary.dart';
+import '../../services/logical_date_service.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 
 enum _ChartMode { activity, coins }
-
-enum _TimeRange { week, month, year }
 
 const _habitColors = [
   Color(0xFF4A7C59),
@@ -23,10 +22,20 @@ const _habitColors = [
   Color(0xFFF06292),
 ];
 
+/// Calendar-month habit trends (activity aggregate or per-habit, coins cumulative).
 class HabitTrendsChart extends StatefulWidget {
   final List<HabitItem> habits;
+  final int year;
+  final int month;
+  final HabitItem? focusHabit;
 
-  const HabitTrendsChart({super.key, required this.habits});
+  const HabitTrendsChart({
+    super.key,
+    required this.habits,
+    required this.year,
+    required this.month,
+    this.focusHabit,
+  });
 
   @override
   State<HabitTrendsChart> createState() => _HabitTrendsChartState();
@@ -35,7 +44,6 @@ class HabitTrendsChart extends StatefulWidget {
 class _HabitTrendsChartState extends State<HabitTrendsChart>
     with SingleTickerProviderStateMixin {
   _ChartMode _mode = _ChartMode.activity;
-  _TimeRange _selectedRange = _TimeRange.week;
 
   late final AnimationController _legendController;
   late final Animation<double> _legendFade;
@@ -55,6 +63,9 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
       parent: _legendController,
       curve: Curves.easeInOutCubic,
     );
+    if (_mode == _ChartMode.coins) {
+      _legendController.value = 1;
+    }
   }
 
   @override
@@ -68,7 +79,6 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     setState(() {
       _slideDirection = mode == _ChartMode.coins ? 1 : -1;
       _mode = mode;
-      _selectedRange = _TimeRange.week;
     });
     if (mode == _ChartMode.coins) {
       _legendController.forward();
@@ -77,12 +87,28 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     }
   }
 
+  InsightsMonthSummary get _summary =>
+      InsightsMonthSummary.forMonth(widget.year, widget.month);
+
+  bool _isAxisToday(double x) {
+    final logical = LogicalDateService.today();
+    if (widget.year != logical.year || widget.month != logical.month) {
+      return false;
+    }
+    return x.toInt() == logical.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final keySuffix =
+        '${widget.year}_${widget.month}_${widget.focusHabit?.id ?? 'all'}_${_mode.name}';
+
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -97,11 +123,6 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                 const Spacer(),
                 _buildModePills(colorScheme),
               ],
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: _buildRangeSelector(colorScheme),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -124,7 +145,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                   );
                 },
                 child: KeyedSubtree(
-                  key: ValueKey('${_mode.name}_${_selectedRange.name}'),
+                  key: ValueKey(keySuffix),
                   child: _mode == _ChartMode.activity
                       ? _buildActivityChart(colorScheme)
                       : _buildCoinsChart(colorScheme),
@@ -137,7 +158,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               alignment: Alignment.topCenter,
               child: FadeTransition(
                 opacity: _legendFade,
-                child: _mode == _ChartMode.coins && widget.habits.isNotEmpty
+                child: _shouldShowLegend()
                     ? Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: _buildLegend(colorScheme),
@@ -151,7 +172,11 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     );
   }
 
-  // ── Mode pills with animated indicator ──────────────────────────────────
+  bool _shouldShowLegend() {
+    if (_mode != _ChartMode.coins) return false;
+    if (widget.focusHabit != null) return false;
+    return widget.habits.length > 1;
+  }
 
   Widget _buildModePills(ColorScheme colorScheme) {
     return Container(
@@ -196,48 +221,6 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     );
   }
 
-  // ── Time range selector ─────────────────────────────────────────────────
-
-  Widget _buildRangeSelector(ColorScheme colorScheme) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: _TimeRange.values.map((range) {
-        final selected = _selectedRange == range;
-        final label = switch (range) {
-          _TimeRange.week => '7D',
-          _TimeRange.month => '30D',
-          _TimeRange.year => '1Y',
-        };
-        return Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: ChoiceChip(
-            label: Text(label),
-            selected: selected,
-            onSelected: (_) => setState(() => _selectedRange = range),
-            selectedColor: colorScheme.primary,
-            labelStyle: AppTypography.caption(context).copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            backgroundColor: colorScheme.surfaceContainerHigh,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide.none,
-            ),
-            showCheckmark: false,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ── Legend (coins mode only) ─────────────────────────────────────────────
-
   Widget _buildLegend(ColorScheme colorScheme) {
     final cardColor = Theme.of(context).cardColor;
     return SizedBox(
@@ -260,7 +243,8 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
           padding: const EdgeInsets.symmetric(horizontal: 4),
           physics: const BouncingScrollPhysics(),
           itemCount: widget.habits.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 16),
+          separatorBuilder: (context, index) =>
+              const SizedBox(width: 16),
           itemBuilder: (context, index) {
             final color = _colorForHabit(index);
             final name = widget.habits[index].name;
@@ -279,7 +263,6 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                 Text(
                   name,
                   style: AppTypography.caption(context).copyWith(
-                    fontSize: 12,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -291,128 +274,151 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ACTIVITY MODE – single aggregate line
-  // ═══════════════════════════════════════════════════════════════════════════
-
   Widget _buildActivityChart(ColorScheme colorScheme) {
-    switch (_selectedRange) {
-      case _TimeRange.week:
-        return _activityWeek(colorScheme);
-      case _TimeRange.month:
-        return _activityMonth(colorScheme);
-      case _TimeRange.year:
-        return _activityYear(colorScheme);
-    }
-  }
+    final summary = _summary;
+    final n = summary.daysInMonth;
+    final habits = widget.habits;
+    final focus = widget.focusHabit;
 
-  Widget _activityWeek(ColorScheme colorScheme) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dayLabels = <String>[];
-    final spots = <FlSpot>[];
-
-    for (int i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      final dateOnly = DateTime(date.year, date.month, date.day);
-      final count =
-          widget.habits.where((h) => h.isCompletedOnDate(dateOnly)).length;
-      dayLabels.add(DateFormat('E').format(date));
-      spots.add(FlSpot((6 - i).toDouble(), count.toDouble()));
+    if (habits.isEmpty) {
+      return _emptyChart(colorScheme, 'No habits to chart.');
     }
 
-    return _singleLineChart(
-      spots: spots,
-      minX: 0,
-      maxX: 6,
-      maxY: (widget.habits.length + 10).toDouble(),
-      colorScheme: colorScheme,
-      bottomInterval: 1,
-      getBottomTitle: (v) {
-        final i = v.toInt();
-        return (i >= 0 && i < dayLabels.length) ? dayLabels[i] : '';
-      },
-      isTodayIndex: (v) => v.toInt() == 6,
-    );
-  }
+    final List<FlSpot> spots;
+    double maxY;
 
-  Widget _activityMonth(ColorScheme colorScheme) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final spots = <FlSpot>[];
-
-    for (int i = 29; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      final dateOnly = DateTime(date.year, date.month, date.day);
-      final count =
-          widget.habits.where((h) => h.isCompletedOnDate(dateOnly)).length;
-      spots.add(FlSpot((30 - i).toDouble(), count.toDouble()));
+    if (focus != null) {
+      final series = InsightsMonthSummary.habitCompletionSeries(focus, summary);
+      spots = List.generate(
+        n,
+        (i) => FlSpot((i + 1).toDouble(), series[i].toDouble()),
+      );
+      maxY = 4;
+    } else {
+      final perDay = InsightsMonthSummary.aggregateCompletionsPerDay(
+        habits,
+        summary,
+      );
+      final peak = perDay.isEmpty ? 0 : perDay.reduce((a, b) => a > b ? a : b);
+      spots = List.generate(
+        n,
+        (i) => FlSpot((i + 1).toDouble(), perDay[i].toDouble()),
+      );
+      maxY = (peak > habits.length ? peak : habits.length).toDouble() + 4;
     }
 
     return _singleLineChart(
       spots: spots,
       minX: 1,
-      maxX: 30,
-      maxY: (widget.habits.length + 10).toDouble(),
+      maxX: n.toDouble(),
+      maxY: maxY,
       colorScheme: colorScheme,
-      bottomInterval: 5,
-      getBottomTitle: (v) {
-        final d = v.toInt();
-        return (d == 1 || d % 5 == 0 || d == 30) ? '$d' : '';
-      },
-      isTodayIndex: (v) => v.toInt() == 30,
+      lineColor: colorScheme.primary,
+      bottomInterval: _bottomTitleInterval(n),
+      getBottomTitle: (v) => _bottomTitleForDay(v, n),
+      isTodayIndex: _isAxisToday,
+      coinsMode: false,
+      aggregateActivity: focus == null,
     );
   }
 
-  Widget _activityYear(ColorScheme colorScheme) {
-    const monthLabels = [
-      'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'
-    ];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yearStart = DateTime(now.year, 1, 1);
+  double _bottomTitleInterval(int n) {
+    if (n <= 10) return 1;
+    if (n <= 20) return 2;
+    return 5;
+  }
 
-    final Map<int, List<int>> countsByMonth = {};
-    var date = yearStart;
-    while (!date.isAfter(today)) {
-      final count =
-          widget.habits.where((h) => h.isCompletedOnDate(date)).length;
-      countsByMonth.putIfAbsent(date.month, () => []).add(count);
-      date = date.add(const Duration(days: 1));
+  String _bottomTitleForDay(double v, int n) {
+    final d = v.toInt();
+    if (d < 1 || d > n) return '';
+    final interval = _bottomTitleInterval(n).toInt();
+    if (d == 1 || d == n || d % interval == 0) return '$d';
+    return '';
+  }
+
+  Widget _buildCoinsChart(ColorScheme colorScheme) {
+    final summary = _summary;
+    final n = summary.daysInMonth;
+    final habits = widget.habits;
+    final focus = widget.focusHabit;
+
+    if (habits.isEmpty) {
+      return _emptyChart(colorScheme, 'No habits to chart.');
     }
 
-    final spots = <FlSpot>[];
-    for (int m = 1; m <= 12; m++) {
-      final vals = countsByMonth[m];
-      if (vals != null && vals.isNotEmpty) {
-        final avg = vals.reduce((a, b) => a + b) / vals.length;
-        spots.add(FlSpot(m.toDouble(), avg));
+    if (focus != null) {
+      final result = _computeCumulativeForHabits([focus], summary);
+      if (result.maxY <= 0) {
+        return _emptyChart(colorScheme, 'No coins this month yet.');
       }
-    }
-
-    if (spots.isEmpty) {
-      return Center(
-        child: Text(
-          'No data this year yet.',
-          style: AppTypography.bodySmall(context).copyWith(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-        ),
+      return _singleLineChart(
+        spots: result.spotsPerHabit[0]!,
+        minX: 1,
+        maxX: n.toDouble(),
+        maxY: result.maxY,
+        colorScheme: colorScheme,
+        lineColor: colorScheme.primary,
+        bottomInterval: _bottomTitleInterval(n),
+        getBottomTitle: (v) => _bottomTitleForDay(v, n),
+        isTodayIndex: _isAxisToday,
+        coinsMode: true,
       );
     }
 
-    return _singleLineChart(
-      spots: spots,
+    final result = _computeCumulativeForHabits(habits, summary);
+    if (result.maxY <= 0) {
+      return _emptyChart(colorScheme, 'No coins this month yet.');
+    }
+
+    return _multiLineChart(
+      spotsPerHabit: result.spotsPerHabit,
       minX: 1,
-      maxX: 12,
-      maxY: (widget.habits.length + 10).toDouble(),
+      maxX: n.toDouble(),
+      maxY: result.maxY,
       colorScheme: colorScheme,
-      bottomInterval: 1,
-      getBottomTitle: (v) {
-        final m = v.toInt();
-        return (m >= 1 && m <= 12) ? monthLabels[m - 1] : '';
-      },
-      isTodayIndex: (v) => v.toInt() == now.month,
+      bottomInterval: _bottomTitleInterval(n),
+      getBottomTitle: (v) => _bottomTitleForDay(v, n),
+      isTodayIndex: _isAxisToday,
+    );
+  }
+
+  Widget _emptyChart(ColorScheme colorScheme, String message) {
+    return Center(
+      child: Text(
+        message,
+        style: AppTypography.bodySmall(context).copyWith(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+
+  _CumulativeResult _computeCumulativeForHabits(
+    List<HabitItem> habits,
+    InsightsMonthSummary summary,
+  ) {
+    double globalMax = 0;
+    final Map<int, List<FlSpot>> spotsPerHabit = {};
+
+    for (int hi = 0; hi < habits.length; hi++) {
+      final habit = habits[hi];
+      double cumulative = 0;
+      final spots = <FlSpot>[];
+
+      for (int di = 0; di < summary.days.length; di++) {
+        final iso = LogicalDateService.toIsoDate(summary.days[di]);
+        final feedback = habit.feedbackByDate[iso];
+        cumulative += feedback?.coinsEarned ?? 0;
+        spots.add(FlSpot((di + 1).toDouble(), cumulative));
+      }
+
+      if (cumulative > globalMax) globalMax = cumulative;
+      spotsPerHabit[hi] = spots;
+    }
+
+    return _CumulativeResult(
+      spotsPerHabit: spotsPerHabit,
+      maxY: globalMax + 10,
     );
   }
 
@@ -422,9 +428,12 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
     required double maxX,
     required double maxY,
     required ColorScheme colorScheme,
+    required Color lineColor,
     required double bottomInterval,
     required String Function(double) getBottomTitle,
     required bool Function(double) isTodayIndex,
+    required bool coinsMode,
+    bool aggregateActivity = true,
   }) {
     return _GrowingLineChart(
       data: LineChartData(
@@ -455,13 +464,20 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (_) => colorScheme.surfaceContainerHighest,
             getTooltipItems: (touchedSpots) => touchedSpots.map((s) {
-              final val = _selectedRange == _TimeRange.year
-                  ? s.y.toStringAsFixed(1)
-                  : s.y.toInt().toString();
+              final intVal = s.y.toInt();
+              final val = intVal.toString();
+              final String label;
+              if (coinsMode) {
+                label = '$val seeds';
+              } else if (aggregateActivity) {
+                label = '$val habits';
+              } else {
+                label = intVal >= 1 ? 'Completed' : 'Not completed';
+              }
               return LineTooltipItem(
-                '$val completed',
+                label,
                 AppTypography.bodySmall(context).copyWith(
-                  color: AppColors.mossGreen,
+                  color: lineColor,
                   fontWeight: FontWeight.w600,
                 ),
               );
@@ -474,7 +490,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
             isCurved: true,
             curveSmoothness: 0.35,
             preventCurveOverShooting: true,
-            color: AppColors.mossGreen,
+            color: lineColor,
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: FlDotData(
@@ -483,7 +499,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               getDotPainter: (spot, percent, bar, index) {
                 return FlDotCirclePainter(
                   radius: 4,
-                  color: AppColors.mossGreen,
+                  color: lineColor,
                   strokeWidth: 2,
                   strokeColor: Colors.white,
                 );
@@ -495,172 +511,14 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.mossGreen.withValues(alpha: 0.25),
-                  AppColors.mossGreen.withValues(alpha: 0.02),
+                  lineColor.withValues(alpha: 0.25),
+                  lineColor.withValues(alpha: 0.02),
                 ],
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // COINS MODE – per-habit cumulative lines
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Widget _buildCoinsChart(ColorScheme colorScheme) {
-    switch (_selectedRange) {
-      case _TimeRange.week:
-        return _coinsWeek(colorScheme);
-      case _TimeRange.month:
-        return _coinsMonth(colorScheme);
-      case _TimeRange.year:
-        return _coinsYear(colorScheme);
-    }
-  }
-
-  _CumulativeResult _computeCumulative(
-      List<DateTime> dates, double Function(int) xMapper) {
-    double globalMax = 0;
-    final Map<int, List<FlSpot>> spotsPerHabit = {};
-
-    for (int hi = 0; hi < widget.habits.length; hi++) {
-      final habit = widget.habits[hi];
-      double cumulative = 0;
-      final spots = <FlSpot>[];
-
-      for (int di = 0; di < dates.length; di++) {
-        final iso = dates[di].toIso8601String().split('T')[0];
-        final feedback = habit.feedbackByDate[iso];
-        cumulative += feedback?.coinsEarned ?? 0;
-        spots.add(FlSpot(xMapper(di), cumulative));
-      }
-
-      if (cumulative > globalMax) globalMax = cumulative;
-      spotsPerHabit[hi] = spots;
-    }
-
-    return _CumulativeResult(
-        spotsPerHabit: spotsPerHabit, maxY: globalMax + 10);
-  }
-
-  Widget _coinsWeek(ColorScheme colorScheme) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dates = <DateTime>[];
-    final dayLabels = <String>[];
-
-    for (int i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      dates.add(DateTime(date.year, date.month, date.day));
-      dayLabels.add(DateFormat('E').format(date));
-    }
-
-    final result = _computeCumulative(dates, (di) => di.toDouble());
-
-    return _multiLineChart(
-      spotsPerHabit: result.spotsPerHabit,
-      minX: 0,
-      maxX: 6,
-      maxY: result.maxY,
-      colorScheme: colorScheme,
-      bottomInterval: 1,
-      getBottomTitle: (v) {
-        final i = v.toInt();
-        return (i >= 0 && i < dayLabels.length) ? dayLabels[i] : '';
-      },
-      isTodayIndex: (v) => v.toInt() == 6,
-    );
-  }
-
-  Widget _coinsMonth(ColorScheme colorScheme) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dates = <DateTime>[];
-
-    for (int i = 29; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      dates.add(DateTime(date.year, date.month, date.day));
-    }
-
-    final result = _computeCumulative(dates, (di) => (di + 1).toDouble());
-
-    return _multiLineChart(
-      spotsPerHabit: result.spotsPerHabit,
-      minX: 1,
-      maxX: 30,
-      maxY: result.maxY,
-      colorScheme: colorScheme,
-      bottomInterval: 5,
-      getBottomTitle: (v) {
-        final d = v.toInt();
-        return (d == 1 || d % 5 == 0 || d == 30) ? '$d' : '';
-      },
-      isTodayIndex: (v) => v.toInt() == 30,
-    );
-  }
-
-  Widget _coinsYear(ColorScheme colorScheme) {
-    const monthLabels = [
-      'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'
-    ];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    double globalMax = 0;
-    final Map<int, List<FlSpot>> spotsPerHabit = {};
-
-    for (int hi = 0; hi < widget.habits.length; hi++) {
-      final habit = widget.habits[hi];
-      double cumulative = 0;
-      final spots = <FlSpot>[];
-
-      for (int m = 1; m <= 12; m++) {
-        final daysInMonth = DateTime(now.year, m + 1, 0).day;
-        final lastDay = (m == now.month) ? today.day : daysInMonth;
-        if (m > now.month) break;
-
-        for (int d = 1; d <= lastDay; d++) {
-          final iso =
-              DateTime(now.year, m, d).toIso8601String().split('T')[0];
-          final feedback = habit.feedbackByDate[iso];
-          cumulative += feedback?.coinsEarned ?? 0;
-        }
-        spots.add(FlSpot(m.toDouble(), cumulative));
-      }
-
-      if (cumulative > globalMax) globalMax = cumulative;
-      spotsPerHabit[hi] = spots;
-    }
-
-    final maxY = globalMax + 10;
-    final hasData = spotsPerHabit.values.any((s) => s.isNotEmpty);
-
-    if (!hasData) {
-      return Center(
-        child: Text(
-          'No data this year yet.',
-          style: AppTypography.bodySmall(context).copyWith(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-        ),
-      );
-    }
-
-    return _multiLineChart(
-      spotsPerHabit: spotsPerHabit,
-      minX: 1,
-      maxX: 12,
-      maxY: maxY,
-      colorScheme: colorScheme,
-      bottomInterval: 1,
-      getBottomTitle: (v) {
-        final m = v.toInt();
-        return (m >= 1 && m <= 12) ? monthLabels[m - 1] : '';
-      },
-      isTodayIndex: (v) => v.toInt() == now.month,
     );
   }
 
@@ -736,7 +594,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
                   : 'Habit';
               final color = _colorForHabit(habitIdx);
               return LineTooltipItem(
-                '$habitName: ${s.y.toInt()} pts',
+                '$habitName: ${s.y.toInt()} seeds',
                 AppTypography.caption(context).copyWith(
                   color: color,
                   fontWeight: FontWeight.w600,
@@ -749,8 +607,6 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
       ),
     );
   }
-
-  // ── Shared axis title builder ───────────────────────────────────────────
 
   FlTitlesData _buildTitles({
     required ColorScheme colorScheme,
@@ -776,9 +632,7 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               child: Text(
                 value.toInt().toString(),
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 12,
-                  color:
-                      colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ),
             );
@@ -803,12 +657,10 @@ class _HabitTrendsChartState extends State<HabitTrendsChart>
               child: Text(
                 label,
                 style: AppTypography.caption(context).copyWith(
-                  fontSize: 12,
                   fontWeight: today ? FontWeight.w700 : FontWeight.w400,
                   color: today
                       ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.6),
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ),
             );
@@ -826,19 +678,11 @@ class _CumulativeResult {
   const _CumulativeResult({required this.spotsPerHabit, required this.maxY});
 }
 
-/// Wraps [LineChart] with a grow-from-zero animation.
-///
-/// On first build the Y values are zeroed out; after one frame the real data
-/// is set and fl_chart's built-in interpolation animates the lines upward.
 class _GrowingLineChart extends StatefulWidget {
   final LineChartData data;
-  final Duration growDuration;
-  final Curve growCurve;
 
   const _GrowingLineChart({
     required this.data,
-    this.growDuration = const Duration(milliseconds: 600),
-    this.growCurve = Curves.easeOutCubic,
   });
 
   @override
@@ -870,8 +714,8 @@ class _GrowingLineChartState extends State<_GrowingLineChart> {
   Widget build(BuildContext context) {
     return LineChart(
       _grown ? widget.data : _zeroedData(widget.data),
-      duration: widget.growDuration,
-      curve: widget.growCurve,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
     );
   }
 }

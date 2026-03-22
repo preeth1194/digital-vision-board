@@ -69,6 +69,7 @@ class _InstallWelcomeScreenState extends State<InstallWelcomeScreen> {
             backgroundColor: AppColors.sproutGreen,
             body: StepTerms(
               onNext: () => Navigator.of(termsContext).pop(true),
+              onBack: () => Navigator.of(termsContext).pop(false),
             ),
           ),
         ),

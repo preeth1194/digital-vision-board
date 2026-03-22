@@ -6,18 +6,21 @@ import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../../../widgets/rituals/habit_form_constants.dart';
 import '../onboarding_first_habit_draft.dart';
+import '../widgets/onboarding_bottom_actions.dart';
 import '_step_header.dart';
 
 class StepFirstHabit extends StatefulWidget {
   final OnboardingFirstHabitDraft draft;
   final VoidCallback notifyParent;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
 
   const StepFirstHabit({
     super.key,
     required this.draft,
     required this.notifyParent,
     required this.onNext,
+    this.onBack,
   });
 
   @override
@@ -127,77 +130,75 @@ class _StepFirstHabitState extends State<StepFirstHabit> {
     widget.onNext();
   }
 
-  Widget _ifThenRow({
+  Widget _copingPlanField({
     required BuildContext context,
-    required String badge,
-    required Color badgeColor,
-    required Color badgeBg,
+    required String semanticLabel,
+    required String labelText,
+    required Color labelAccent,
     required TextEditingController controller,
     required String hint,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 48,
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: badgeBg,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
+    final borderRadius = BorderRadius.circular(AppSpacing.radiusInput);
+    return Semantics(
+      label: semanticLabel,
+      textField: true,
+      child: TextField(
+        controller: controller,
+        maxLength: 200,
+        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+        style: AppTypography.body(context).copyWith(
+          color: Colors.white,
+        ),
+        cursorColor: AppColors.seedGold,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: AppTypography.caption(context).copyWith(
+            color: labelAccent.withValues(alpha: 0.88),
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
           ),
-          alignment: Alignment.center,
-          child: Text(
-            badge,
-            style: AppTypography.caption(context).copyWith(
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
-              color: badgeColor,
-              letterSpacing: 0.5,
+          floatingLabelStyle: AppTypography.caption(context).copyWith(
+            color: labelAccent,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+          hintText: hint,
+          hintStyle: AppTypography.body(context).copyWith(
+            color: Colors.white.withValues(alpha: 0.42),
+            fontSize: 14,
+          ),
+          counterStyle: AppTypography.caption(context).copyWith(
+            color: Colors.white.withValues(alpha: 0.35),
+          ),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.08),
+          border: OutlineInputBorder(
+            borderRadius: borderRadius,
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.2),
             ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: borderRadius,
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.22),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: borderRadius,
+            borderSide: const BorderSide(
+              color: AppColors.seedGold,
+              width: 2,
+            ),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.md,
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            maxLength: 200,
-            maxLengthEnforcement: MaxLengthEnforcement.enforced,
-            style: AppTypography.body(context).copyWith(
-              color: Colors.white,
-            ),
-            cursorColor: AppColors.seedGold,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: AppTypography.body(context).copyWith(
-                color: Colors.white.withValues(alpha: 0.42),
-                fontSize: 14,
-              ),
-              counterStyle: AppTypography.caption(context).copyWith(
-                color: Colors.white.withValues(alpha: 0.35),
-              ),
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.08),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
-                borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
-                borderSide: const BorderSide(
-                  color: AppColors.seedGold,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.md,
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -302,31 +303,22 @@ class _StepFirstHabitState extends State<StepFirstHabit> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _ifThenRow(
+                    _copingPlanField(
                       context: context,
-                      badge: 'IF',
-                      badgeColor: AppColors.seedGold,
-                      badgeBg: AppColors.seedGold.withValues(alpha: 0.18),
+                      semanticLabel:
+                          'If, when things feel hard — what is the situation?',
+                      labelText: 'IF',
+                      labelAccent: AppColors.seedGold,
                       controller: _copingIfController,
                       hint: "I'm feeling too tired...",
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 24),
-                      child: Container(
-                        height: 16,
-                        width: 2,
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.sproutGreen.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
-                    ),
-                    _ifThenRow(
+                    const SizedBox(height: AppSpacing.sm),
+                    _copingPlanField(
                       context: context,
-                      badge: 'THEN',
-                      badgeColor: AppColors.sproutGreen,
-                      badgeBg: AppColors.sproutGreen.withValues(alpha: 0.18),
+                      semanticLabel:
+                          'Then, your gentle plan — what will you do?',
+                      labelText: 'THEN',
+                      labelAccent: AppColors.sproutGreen,
                       controller: _copingThenController,
                       hint: 'I will just do 2 minutes.',
                     ),
@@ -402,9 +394,10 @@ class _StepFirstHabitState extends State<StepFirstHabit> {
                 valueListenable: _nameController,
                 builder: (context, value, _) {
                   final ok = value.text.trim().isNotEmpty;
-                  return SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
+                  return OnboardingBottomActions(
+                    onBack: widget.onBack,
+                    backIconColor: Colors.white,
+                    primary: FilledButton(
                       onPressed: ok ? _onContinue : null,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.seedGold,

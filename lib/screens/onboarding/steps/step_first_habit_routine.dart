@@ -8,6 +8,7 @@ import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../../../widgets/rituals/habit_form_constants.dart';
 import '../onboarding_first_habit_draft.dart';
+import '../widgets/onboarding_bottom_actions.dart';
 import '_step_header.dart';
 
 class _StackSuggestion {
@@ -27,12 +28,14 @@ class StepFirstHabitRoutine extends StatefulWidget {
   final OnboardingFirstHabitDraft draft;
   final VoidCallback notifyParent;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
 
   const StepFirstHabitRoutine({
     super.key,
     required this.draft,
     required this.notifyParent,
     required this.onNext,
+    this.onBack,
   });
 
   @override
@@ -737,9 +740,10 @@ class _StepFirstHabitRoutineState extends State<StepFirstHabitRoutine> {
                 AppSpacing.lg,
                 AppSpacing.lg,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
+              child: OnboardingBottomActions(
+                onBack: widget.onBack,
+                backIconColor: Colors.white,
+                primary: FilledButton(
                   onPressed: _onContinue,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.seedGold,

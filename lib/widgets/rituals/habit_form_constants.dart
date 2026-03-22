@@ -165,8 +165,8 @@ const List<String> kWeekdayLabelsSundayFirst = ['S', 'M', 'T', 'W', 'T', 'F', 'S
 /// 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
 const List<int> kSundayFirstToMondayBasedWeekdayIndex = [6, 0, 1, 2, 3, 4, 5];
 
-/// Alert dropdown options: minutes before start time (5 mins to 1 hour)
-const List<int> kReminderMinutesBeforeOptions = [5, 10, 15, 20, 25, 30, 45, 60];
+/// Alert dropdown options: minutes before start time (0 = at start, then 5 mins–1 hour)
+const List<int> kReminderMinutesBeforeOptions = [0, 5, 10, 15, 20, 25, 30, 45, 60];
 
 /// Built-in notification sound presets: (id, display label, icon).
 const List<(String, String, IconData)> kNotificationSoundOptions = [

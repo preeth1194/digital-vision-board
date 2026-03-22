@@ -35,6 +35,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  void _previousPage() {
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  VoidCallback? _backForPage(int pageIndex) {
+    if (pageIndex > 0) return _previousPage;
+    if (widget.replayMode) {
+      return () {
+        if (!mounted) return;
+        Navigator.of(context).pop();
+      };
+    }
+    return null;
+  }
+
   void _notifyHabitDraft() => setState(() {});
 
   Future<void> _completeOnboarding() async {
@@ -68,24 +86,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (i) => setState(() => _currentPage = i),
             children: [
-              StepProfileSetup(onNext: _nextPage),
+              StepProfileSetup(onNext: _nextPage, onBack: _backForPage(0)),
               StepFirstHabit(
                 draft: _habitDraft,
                 notifyParent: _notifyHabitDraft,
                 onNext: _nextPage,
+                onBack: _backForPage(1),
               ),
               StepFirstHabitRoutine(
                 draft: _habitDraft,
                 notifyParent: _notifyHabitDraft,
                 onNext: _nextPage,
+                onBack: _backForPage(2),
               ),
               StepFirstHabitPhotos(
                 draft: _habitDraft,
                 notifyParent: _notifyHabitDraft,
                 onNext: _nextPage,
+                onBack: _backForPage(3),
               ),
-              StepTerms(onNext: _nextPage),
-              StepSignIn(onComplete: _completeOnboarding),
+              StepTerms(onNext: _nextPage, onBack: _backForPage(4)),
+              StepSignIn(
+                onComplete: _completeOnboarding,
+                onBack: _backForPage(5),
+              ),
             ],
           ),
           Positioned(

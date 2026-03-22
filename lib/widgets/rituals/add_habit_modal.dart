@@ -810,6 +810,16 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       }
     }
 
+    // Legacy / onboarding-only: reminder time saved without timeBound — mirror notification window for UI
+    if ((tb == null || !tb.enabled) &&
+        habit.reminderEnabled &&
+        habit.reminderMinutes != null) {
+      final m = habit.reminderMinutes!;
+      _timeBoundStartTime = TimeOfDay(hour: m ~/ 60, minute: m % 60);
+      _timeBoundDurationValue = 15;
+      _timeBoundDurationUnit = 'minutes';
+    }
+
     // Derive reminderMinutesBefore from start time and reminder time (after Pacing sets start time)
     if (_reminderEnabled && habit.reminderMinutes != null) {
       final startTime =
@@ -817,7 +827,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       final startMins = startTime.hour * 60 + startTime.minute;
       final reminderMins = habit.reminderMinutes!;
       final before = startMins - reminderMins;
-      if (kReminderMinutesBeforeOptions.contains(before)) {
+      if (before == 0) {
+        _reminderMinutesBefore = 0;
+      } else if (kReminderMinutesBeforeOptions.contains(before)) {
         _reminderMinutesBefore = before;
       } else {
         _reminderMinutesBefore = 15;
@@ -1618,7 +1630,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                     width: 48,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: colorScheme.tertiary.withValues(alpha: 0.12),
+                      color: colorScheme.tertiaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     alignment: Alignment.center,
@@ -1627,7 +1639,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
-                        color: colorScheme.tertiary,
+                        color: colorScheme.onTertiaryContainer,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -1640,6 +1652,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       style: AppTypography.body(context),
                       decoration: InputDecoration(
+                        filled: false,
                         hintText: "I'm feeling too tired...",
                         hintStyle: AppTypography.body(context).copyWith(
                           color: colorScheme.onSurfaceVariant.withValues(
@@ -1699,7 +1712,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                     width: 48,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.12),
+                      color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     alignment: Alignment.center,
@@ -1708,7 +1721,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       style: AppTypography.caption(context).copyWith(
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
-                        color: colorScheme.primary,
+                        color: colorScheme.onPrimaryContainer,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -1721,6 +1734,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       style: AppTypography.body(context),
                       decoration: InputDecoration(
+                        filled: false,
                         hintText: "I will just do 2 minutes.",
                         hintStyle: AppTypography.body(context).copyWith(
                           color: colorScheme.onSurfaceVariant.withValues(

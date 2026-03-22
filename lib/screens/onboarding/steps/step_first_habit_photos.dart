@@ -14,6 +14,7 @@ import '../../../utils/app_colors.dart';
 import '../../../utils/app_spacing.dart';
 import '../../../utils/app_typography.dart';
 import '../onboarding_first_habit_draft.dart';
+import '../widgets/onboarding_bottom_actions.dart';
 import '_step_header.dart';
 
 /// Optional motivation photos, then persist habit + board seed + reminders.
@@ -21,12 +22,14 @@ class StepFirstHabitPhotos extends StatefulWidget {
   final OnboardingFirstHabitDraft draft;
   final VoidCallback notifyParent;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
 
   const StepFirstHabitPhotos({
     super.key,
     required this.draft,
     required this.notifyParent,
     required this.onNext,
+    this.onBack,
   });
 
   @override
@@ -102,6 +105,20 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
           ? _formatTimeOfDay(context, t)
           : null;
 
+      // Match add-habit "Notification Alert": start window + default duration so the editor
+      // shows the timer addon on and scheduling stays consistent with onboarding time.
+      const defaultWindowMinutes = 15;
+      HabitTimeBoundSpec? timeBoundSpec;
+      int? startTimeMin;
+      if (reminderOn && reminderMinutes != null) {
+        startTimeMin = reminderMinutes;
+        timeBoundSpec = const HabitTimeBoundSpec(
+          enabled: true,
+          duration: defaultWindowMinutes,
+          unit: 'minutes',
+        );
+      }
+
       final stackOn = widget.draft.stackAnchorEnabled;
       final anchorText = widget.draft.stackAnchorText.trim();
       HabitChaining? chaining;
@@ -127,6 +144,8 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
         actionSteps: List<HabitActionStep>.from(widget.draft.actionSteps),
         chaining: chaining,
         cbtEnhancements: cbtEnhancements,
+        timeBound: timeBoundSpec,
+        startTimeMinutes: startTimeMin,
       );
 
       await HabitStorageService.addHabit(habit);
@@ -295,9 +314,10 @@ class _StepFirstHabitPhotosState extends State<StepFirstHabitPhotos> {
                 AppSpacing.lg,
                 AppSpacing.lg,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
+              child: OnboardingBottomActions(
+                onBack: widget.onBack,
+                backIconColor: Colors.white,
+                primary: FilledButton(
                   onPressed: canSave ? _onContinue : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.seedGold,

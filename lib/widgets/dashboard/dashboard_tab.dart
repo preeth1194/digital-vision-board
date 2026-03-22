@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
-import 'affirmation_summary_card.dart';
 import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
@@ -95,11 +94,6 @@ class DashboardTab extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: PuzzleSummaryCard(),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: AffirmationSummaryCard(),
           ),
         ],
       ),

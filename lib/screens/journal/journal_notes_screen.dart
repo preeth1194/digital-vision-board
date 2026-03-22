@@ -15,9 +15,9 @@ import '../../services/recipe_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../recipes/recipe_book_screen.dart';
 
+import '../../widgets/dashboard/affirmation_summary_card.dart';
 import 'journal_book_detail_screen.dart';
 import 'widgets/choose_cover_screen.dart';
-import 'widgets/journal_browse.dart';
 import 'widgets/journal_hero_section.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
@@ -245,27 +245,26 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _journalTab() {
-    return Column(
+    return ListView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 100,
+      ),
       children: [
-        JournalBrowseSection(onAddBook: _handleAddBook),
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 100,
-            ),
-            children: [
-              JournalHeroSection(
-                books: _books,
-                entryCounts: _bookEntryCounts,
-                recipeCount: _recipeCount,
-                onBookTap: _handleBookTap,
-                onAddBook: _handleAddBook,
-                onColorChanged: _handleColorChanged,
-                onDeleteBook: _handleDeleteBook,
-              ),
-            ],
-          ),
+        JournalHeroSection(
+          books: _books,
+          entryCounts: _bookEntryCounts,
+          recipeCount: _recipeCount,
+          onBookTap: _handleBookTap,
+          onAddBook: _handleAddBook,
+          onColorChanged: _handleColorChanged,
+          onDeleteBook: _handleDeleteBook,
         ),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AffirmationSummaryCard(),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }

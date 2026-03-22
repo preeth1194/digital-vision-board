@@ -20,8 +20,9 @@ class RewardAdsCoinCard extends StatefulWidget {
 
 class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
   static const String _cycleWatchCountKey = 'dashboard_reward_cycle_watches_v1';
+  /// Segments in the progress row (visual rhythm only; coins grant every ad).
   static const int _adsPerReward = 3;
-  static const int _coinsPerReward = 5;
+  static const int _coinsPerAd = 20;
 
   SharedPreferences? _prefs;
   int _watchedInCycle = 0;
@@ -48,7 +49,11 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
   Future<void> _loadState() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
-    final watched = (prefs.getInt(_cycleWatchCountKey) ?? 0).clamp(0, _adsPerReward - 1);
+    final watched =
+        ((prefs.getInt(_cycleWatchCountKey) ?? 0) % _adsPerReward).clamp(
+      0,
+      _adsPerReward - 1,
+    );
     final showAds = await AdFreeService.shouldShowAds(prefs: prefs);
     if (!mounted) return;
     setState(() {
@@ -93,39 +98,20 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
 
-    final previousCount = (prefs.getInt(_cycleWatchCountKey) ?? 0).clamp(0, _adsPerReward - 1);
-    var nextCount = previousCount + 1;
-    var awardedCoins = 0;
-    int? newTotal;
-
-    if (nextCount >= _adsPerReward) {
-      nextCount = 0;
-      awardedCoins = _coinsPerReward;
-      newTotal = await CoinsService.addCoins(awardedCoins, prefs: prefs);
-    }
+    final previousRaw = prefs.getInt(_cycleWatchCountKey) ?? 0;
+    final previousCount = previousRaw % _adsPerReward;
+    final nextCount = (previousCount + 1) % _adsPerReward;
 
     await prefs.setInt(_cycleWatchCountKey, nextCount);
+    final newTotal = await CoinsService.addCoins(_coinsPerAd, prefs: prefs);
 
     if (!mounted) return;
     setState(() => _watchedInCycle = nextCount);
-
-    if (awardedCoins > 0 && newTotal != null) {
-      widget.coinNotifier?.value = newTotal;
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Great! +$awardedCoins coins added.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    HapticFeedback.selectionClick();
-    final left = _adsPerReward - nextCount;
+    widget.coinNotifier?.value = newTotal;
+    HapticFeedback.heavyImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$left more ad(s) to earn $_coinsPerReward coins.'),
+        content: Text('Great! +$_coinsPerAd coins added.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -134,7 +120,6 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final left = _adsPerReward - _watchedInCycle;
 
     return GlassCard(
       child: Padding(
@@ -160,7 +145,7 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '+$_coinsPerReward',
+                    '+$_coinsPerAd',
                     style: AppTypography.caption(
                       context,
                     ).copyWith(fontWeight: FontWeight.w600, color: cs.onSecondaryContainer),
@@ -191,7 +176,7 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
             ),
             const SizedBox(height: 8),
             Text(
-              _showAds ? '$left ad(s) left for $_coinsPerReward coins' : 'Ads disabled',
+              _showAds ? 'Each ad earns $_coinsPerAd coins' : 'Ads disabled',
               style: AppTypography.caption(context).copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 12),

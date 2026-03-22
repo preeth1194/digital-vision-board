@@ -1538,9 +1538,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         trailing: trailing,
         title: Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         iconColor: colorScheme.primary,
         collapsedIconColor: colorScheme.onSurfaceVariant,
@@ -1549,10 +1549,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         backgroundColor: Colors.transparent,
         collapsedBackgroundColor: Colors.transparent,
         visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-        subtitle: const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Text('Tap to expand', style: TextStyle(fontSize: 12)),
-        ),
         children: [child],
       ),
     );
@@ -1590,79 +1586,100 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
         .toSet();
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return _GlassSection(
-      padding: const EdgeInsets.all(12),
-      child: Table(
-        columnWidths: {
-          0: const FlexColumnWidth(1.2),
-          if (morningEnabled) 1: const FlexColumnWidth(2.4),
-          if (eveningEnabled)
-            (morningEnabled ? 2 : 1): const FlexColumnWidth(2.4),
-        },
-        border: TableBorder.symmetric(
-          inside: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    // Header row
+    Widget headerRow = Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+      child: Row(
         children: [
-          TableRow(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.28,
+          SizedBox(
+            width: 44,
+            child: Text(
+              'Day',
+              style: textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  'Day',
-                  style: textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+          ),
+          if (morningEnabled)
+            Expanded(
+              child: Text(
+                'AM',
+                style: textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.primary,
                 ),
               ),
-              if (morningEnabled)
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    'Morning',
-                    style: textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            ),
+          if (morningEnabled && eveningEnabled) const SizedBox(width: 8),
+          if (eveningEnabled)
+            Expanded(
+              child: Text(
+                'PM',
+                style: textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurfaceVariant,
                 ),
-              if (eveningEnabled)
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Text(
-                    'Evening',
-                    style: textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          for (final day in displayWeekDays)
-            () {
-              final plan =
-                  weeklyPlan.weeklyPlanByDay[day] ??
-                  SkincareWeeklyDayPlan(dayKey: day);
-              final safeMorningValue =
-                  morningEnabled &&
-                      morningItemValues.contains(plan.morningSourceId)
-                  ? (plan.morningSourceId ?? '')
-                  : '';
-              final safeEveningValue =
-                  eveningEnabled &&
-                      eveningItemValues.contains(plan.eveningSourceId)
-                  ? (plan.eveningSourceId ?? '')
-                  : '';
-              return TableRow(
+              ),
+            ),
+        ],
+      ),
+    );
+
+    Widget buildDropdown({
+      required String value,
+      required List<DropdownMenuItem<String>> items,
+      required Future<void> Function(String?) onChanged,
+    }) {
+      return DropdownButton<String>(
+        value: value,
+        isExpanded: true,
+        underline: const SizedBox.shrink(),
+        isDense: true,
+        borderRadius: BorderRadius.circular(10),
+        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
+        icon: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          size: 18,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        items: items,
+        onChanged: (v) => onChanged(v),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        headerRow,
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        for (int i = 0; i < displayWeekDays.length; i++) ...[
+          () {
+            final day = displayWeekDays[i];
+            final plan =
+                weeklyPlan.weeklyPlanByDay[day] ??
+                SkincareWeeklyDayPlan(dayKey: day);
+            final safeMorningValue =
+                morningEnabled &&
+                    morningItemValues.contains(plan.morningSourceId)
+                ? (plan.morningSourceId ?? '')
+                : '';
+            final safeEveningValue =
+                eveningEnabled &&
+                    eveningItemValues.contains(plan.eveningSourceId)
+                ? (plan.eveningSourceId ?? '')
+                : '';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8),
+                  SizedBox(
+                    width: 44,
                     child: Text(
                       shortDayLabel(day),
                       style: textTheme.bodySmall?.copyWith(
@@ -1671,15 +1688,9 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     ),
                   ),
                   if (morningEnabled)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: DropdownButtonFormField<String>(
+                    Expanded(
+                      child: buildDropdown(
                         value: safeMorningValue,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
                         items: morningSourceItems,
                         onChanged: (value) async {
                           await _updatePlanner((current) {
@@ -1709,16 +1720,12 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                         },
                       ),
                     ),
+                  if (morningEnabled && eveningEnabled)
+                    const SizedBox(width: 8),
                   if (eveningEnabled)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: DropdownButtonFormField<String>(
+                    Expanded(
+                      child: buildDropdown(
                         value: safeEveningValue,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
                         items: eveningSourceItems,
                         onChanged: (value) async {
                           await _updatePlanner((current) {
@@ -1749,10 +1756,17 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                       ),
                     ),
                 ],
-              );
-            }(),
+              ),
+            );
+          }(),
+          if (i < displayWeekDays.length - 1)
+            Divider(
+              height: 1,
+              thickness: 0.5,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1763,40 +1777,15 @@ class _GlassSection extends StatelessWidget {
 
   const _GlassSection({
     required this.child,
-    this.padding = const EdgeInsets.all(12),
+    this.padding = const EdgeInsets.all(16),
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: isDark
-                ? scheme.surfaceContainerLow.withValues(alpha: 0.42)
-                : Colors.white.withValues(alpha: 0.44),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.white.withValues(alpha: 0.68),
-              width: 1.05,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.10),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
+    return Container(
+      decoration: AppColors.cloudDecoration(isDark: isDark),
+      child: Padding(padding: padding, child: child),
     );
   }
 }

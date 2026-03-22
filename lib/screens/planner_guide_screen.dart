@@ -48,16 +48,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   List<ActionStepTemplate> _templates = const [];
   List<HabitItem> _existingHabits = const [];
   String _categorySearchQuery = '';
-  String? _expandedCategory;
   int? _liveSkincareGuideStepCount;
   String? _liveSkincarePresetTitle;
-  _PlannerGuideOverlayData? _activeGuideOverlay;
-  Completer<String?>? _guideOverlayCompleter;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -93,6 +95,17 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         if (templates.isEmpty) {
           templates = _fallbackTemplates();
           source = 'fallback_empty_cloud';
+        } else {
+          // Fill in fallback templates for any UI category not covered by cloud
+          final fallbacks = _fallbackTemplates();
+          final cloudCategories =
+              templates.map(_habitCategoryForTemplate).toSet();
+          for (final fb in fallbacks) {
+            if (!cloudCategories.contains(_habitCategoryForTemplate(fb))) {
+              templates = [...templates, fb];
+            }
+          }
+          source = 'cloud_with_fallback_fill';
         }
       }
       if (!mounted) return;
@@ -1308,106 +1321,124 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       ),
       t(
         id: 'default_productivity_guide',
-        name: 'Productivity Daily Focus Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Daily Focus System',
+        category: ActionTemplateCategory.productivity,
         habitCategory: 'Productivity',
         setKey: 'default_set_beginner',
         steps: [
-          'Pick top 3 priorities',
-          'Deep work block',
-          'Inbox cleanup',
-          'Plan tomorrow',
+          'Review yesterday\'s wins & gaps',
+          'Set top 3 priorities for today',
+          'Clear distractions (phone, tabs)',
+          '90-min deep work block',
+          'Midday check-in on priorities',
+          'Process inbox to zero',
+          'Plan tomorrow\'s top 3',
+          'End-of-day shutdown ritual',
         ],
       ),
       t(
         id: 'default_mindfulness_guide',
-        name: 'Mindfulness Reset Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Morning Mindfulness Reset',
+        category: ActionTemplateCategory.mindfulness,
         habitCategory: 'Mindfulness',
         setKey: 'default_set_beginner',
         steps: [
-          'Breathing reset',
-          'Body scan',
-          'Gratitude note',
-          'End-of-day reflection',
+          '5-min breathing reset (box breathing)',
+          'Body scan head to toe',
+          'Set one intention for the day',
+          'Write 3 gratitude points',
+          '5-min evening reflection',
+          'Note one thing to release',
         ],
       ),
       t(
         id: 'default_mindfulness_meditation',
-        name: 'Meditation Focus Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Meditation Practice',
+        category: ActionTemplateCategory.mindfulness,
         habitCategory: 'Mindfulness',
         setKey: 'default_set_structured',
         steps: [
-          'Settle posture',
-          'Breath awareness',
-          'Open monitoring',
-          'Journal one insight',
+          'Settle posture, close eyes',
+          '2-min breath awareness',
+          '10-min open monitoring',
+          'Gently return when mind wanders',
+          'Journal one insight after sitting',
         ],
       ),
       t(
         id: 'default_learning_guide',
-        name: 'Learning Sprint Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Learning Sprint',
+        category: ActionTemplateCategory.learning,
         habitCategory: 'Learning',
         setKey: 'default_set_beginner',
         steps: [
-          'Choose learning topic',
-          'Study session',
-          'Practice/revision',
-          'Capture insights',
+          'Choose one focused topic',
+          '25-min active study (Pomodoro)',
+          'Summarise in your own words',
+          'Test yourself with questions',
+          'Connect to something you already know',
+          'Capture key insights in notes',
+          'Review previous session\'s notes',
         ],
       ),
       t(
         id: 'default_relationships_guide',
-        name: 'Relationship Care Preset',
-        category: ActionTemplateCategory.mealPrep,
+        name: 'Relationship Nurturing',
+        category: ActionTemplateCategory.relationships,
         habitCategory: 'Relationships',
         setKey: 'default_set_beginner',
         steps: [
-          'Reach out',
-          'Meaningful conversation',
-          'Follow-up action',
-          'Express appreciation',
+          'Reach out to one person',
+          'Ask a meaningful question',
+          'Listen without interrupting',
+          'Follow up on something they shared',
+          'Express appreciation or acknowledgement',
+          'Plan next touchpoint',
         ],
       ),
       t(
         id: 'default_finance_guide',
-        name: 'Finance Check-in Preset',
-        category: ActionTemplateCategory.mealPrep,
+        name: 'Weekly Finance Check-in',
+        category: ActionTemplateCategory.finance,
         habitCategory: 'Finance',
         setKey: 'default_set_beginner',
         steps: [
-          'Review expenses',
-          'Check budget',
-          'Transfer to savings',
-          'Track goal progress',
+          'Review all transactions from the week',
+          'Categorise any uncategorised spend',
+          'Check budget vs actuals',
+          'Transfer planned amount to savings',
+          'Check progress toward financial goal',
+          'Note one spending win and one area to cut',
         ],
       ),
       t(
         id: 'default_creativity_guide',
-        name: 'Creativity Flow Preset',
-        category: ActionTemplateCategory.recipe,
+        name: 'Creative Flow Session',
+        category: ActionTemplateCategory.creativity,
         habitCategory: 'Creativity',
         setKey: 'default_set_beginner',
         steps: [
-          'Collect inspiration',
-          'Create first draft',
-          'Refine one section',
-          'Publish/share',
+          'Collect 3 sources of inspiration',
+          'Write / sketch without judging',
+          'Create a rough first draft',
+          'Refine one section or element',
+          'Step away and rest',
+          'Return and iterate',
+          'Share or publish the output',
         ],
       ),
       t(
         id: 'default_other_guide',
-        name: 'General Habit Preset',
-        category: ActionTemplateCategory.recipe,
-        habitCategory: 'Other',
+        name: 'General Habit Starter',
+        category: ActionTemplateCategory.health,
+        habitCategory: 'Health',
         setKey: 'default_set_beginner',
         steps: [
-          'Define tiny action',
-          'Do it immediately',
-          'Track completion',
-          'Improve next step',
+          'Define the smallest possible action',
+          'Do it immediately after a trigger',
+          'Track completion in the app',
+          'Reflect: what made it easy or hard?',
+          'Improve one thing for tomorrow',
         ],
       ),
     ];
@@ -1899,9 +1930,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _openGuidePreview(ActionStepTemplate template) async {
-    // Planner overlay is rendered inside Scaffold body, which already reserves
-    // bottom-nav space via _NavBarSpacer in DashboardScreen.
-    final navClearance = 0.0;
     var confirmMessage = 'This will create habits from the selected preset.';
     final adapter = PresetRouteRegistry.adapterForTemplate(template);
     final config = adapter.buildConfig(template);
@@ -1947,14 +1975,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
             (sum, section) => sum + section.steps.length,
           );
 
-    final action = await _showGuideOverlay(
-      _PlannerGuideOverlayData(
-        presetName: resolvedPresetName,
-        habitCategory: _habitCategoryForTemplate(template),
-        totalSteps: resolvedTotalSteps,
-        config: config,
-        previewSections: previewSections,
-        bottomInset: navClearance,
+    if (!mounted) return;
+    final heroTag = 'preset_header_${template.id}';
+    final action = await Navigator.of(context).push<String?>(
+      MaterialPageRoute(
+        builder: (_) => PresetDetailPage(
+          heroTag: heroTag,
+          presetName: resolvedPresetName,
+          habitCategory: _habitCategoryForTemplate(template),
+          totalSteps: resolvedTotalSteps,
+          config: config,
+          previewSections: previewSections,
+        ),
       ),
     );
     if (!mounted || action == null || action == 'close') return;
@@ -2002,68 +2034,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
   }
 
-  Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
-    // Guard against double-complete when users tap quickly.
-    if (_guideOverlayCompleter?.isCompleted == false) {
-      _guideOverlayCompleter!.complete('close');
-    }
-    _guideOverlayCompleter = Completer<String?>();
-    setState(() => _activeGuideOverlay = overlay);
-    return _guideOverlayCompleter!.future;
-  }
-
-  void _closeGuideOverlay(String action) {
-    final completer = _guideOverlayCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(action);
-    }
-    _guideOverlayCompleter = null;
-    if (mounted) {
-      setState(() => _activeGuideOverlay = null);
-    }
-  }
-
-  Widget _buildGuideOverlay() {
-    final overlay = _activeGuideOverlay;
-    if (overlay == null) return const SizedBox.shrink();
-    return Positioned.fill(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: () => _closeGuideOverlay('close'),
-                  child: Container(color: Colors.black.withValues(alpha: 0.35)),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: PresetTemplateScreen(
-                  presetName: overlay.presetName,
-                  habitCategory: overlay.habitCategory,
-                  totalSteps: overlay.totalSteps,
-                  config: overlay.config,
-                  bottomInset: overlay.bottomInset,
-                  showBottomNotch: false,
-                  previewSections: overlay.previewSections,
-                  onClose: () => _closeGuideOverlay('close'),
-                  onEdit: overlay.config.allowEdit
-                      ? () => _closeGuideOverlay('edit')
-                      : null,
-                  onCreate: overlay.config.allowCreateHabits
-                      ? () => _closeGuideOverlay('create')
-                      : null,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 
   List<PresetPreviewSection> _previewSectionsForTemplate({
     required ActionStepTemplate template,
@@ -2369,9 +2339,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _onPlannerCategoryTap(String category) async {
-    setState(() {
-      _expandedCategory = _expandedCategory == category ? null : category;
-    });
+    await _onPlannerGuideTap(category);
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
@@ -2444,14 +2412,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                       animationSignature:
                           '${_categorySearchQuery}_'
                           '${visibleCategories.join('|')}',
-                      child: _CategoryGuideCard(
-                        title: visibleCategories[i],
-                        subtitle: _categoryDescription(visibleCategories[i]),
-                        icon: _iconForCategory(visibleCategories[i]),
-                        guideCount:
-                            _guideCountForPlannerCategory(visibleCategories[i]),
-                        isExpanded:
-                            visibleCategories[i] == _expandedCategory,
+                      child: _PresetRichCard(
+                        category: visibleCategories[i],
+                        categoryIcon: _iconForCategory(visibleCategories[i]),
                         guide: _primaryGuideForPlannerCategory(
                           visibleCategories[i],
                         ),
@@ -2459,49 +2422,17 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
                           visibleCategories[i],
                           _primaryGuideForPlannerCategory(visibleCategories[i]),
                         ),
-                        onTap: () =>
-                            _onPlannerCategoryTap(visibleCategories[i]),
-                        onTapGuide: () =>
-                            _onPlannerGuideTap(visibleCategories[i]),
-                        guideSummaryText: _guideSummaryTextForCategory(
-                          visibleCategories[i],
-                          _primaryGuideForPlannerCategory(visibleCategories[i]),
-                        ),
-                        showDividerBelow: i < visibleCategories.length - 1,
+                        onTap: () => _onPlannerGuideTap(visibleCategories[i]),
                       ),
                     ),
                 ],
               ],
             ),
           );
-    return Scaffold(
-      body: Stack(
-        children: [
-          content,
-          if (_activeGuideOverlay != null) _buildGuideOverlay(),
-        ],
-      ),
-    );
+    return Scaffold(body: content);
   }
 }
 
-class _PlannerGuideOverlayData {
-  final String presetName;
-  final String habitCategory;
-  final int totalSteps;
-  final PresetTemplateConfig config;
-  final List<PresetPreviewSection> previewSections;
-  final double bottomInset;
-
-  const _PlannerGuideOverlayData({
-    required this.presetName,
-    required this.habitCategory,
-    required this.totalSteps,
-    required this.config,
-    required this.previewSections,
-    required this.bottomInset,
-  });
-}
 
 class _GuideCard extends StatelessWidget {
   final String title;
@@ -2575,258 +2506,196 @@ class _StaggeredPresetRow extends StatelessWidget {
   }
 }
 
-class _CategoryGuideCard extends StatefulWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final int guideCount;
-  final bool isExpanded;
+class _PresetRichCard extends StatelessWidget {
+  final String category;
+  final IconData categoryIcon;
   final ActionStepTemplate? guide;
   final String guideTitle;
-  final VoidCallback onTap;
-  final VoidCallback onTapGuide;
-  final String guideSummaryText;
-  final bool showDividerBelow;
+  final VoidCallback? onTap;
 
-  const _CategoryGuideCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.guideCount,
-    required this.isExpanded,
+  const _PresetRichCard({
+    required this.category,
+    required this.categoryIcon,
     required this.guide,
     required this.guideTitle,
     required this.onTap,
-    required this.onTapGuide,
-    required this.guideSummaryText,
-    this.showDividerBelow = true,
   });
 
   @override
-  State<_CategoryGuideCard> createState() => _CategoryGuideCardState();
-}
-
-class _CategoryGuideCardState extends State<_CategoryGuideCard> {
-  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final guide = widget.guide;
-    final expanded = widget.isExpanded;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: expanded
-                ? colorScheme.primary.withValues(alpha: 0.08)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerColor = AppColors.categoryBgColor(category, isDark);
+    final iconColor = AppColors.categoryIconColor(category, isDark);
+    final hasGuide = guide != null;
+    final heroTag = hasGuide ? 'preset_header_${guide!.id}' : null;
+    // isActive: card has real content — either a loaded preset OR a special
+    // category route (e.g. Challenges → "75 Hard") with its own handler.
+    final isActive = hasGuide ||
+        (guideTitle.isNotEmpty && guideTitle != 'No preset available');
+
+    final allSteps = guide?.steps ?? const <HabitActionStep>[];
+    final previewSteps = allSteps.take(3).toList();
+    final extraCount = allSteps.length - previewSteps.length;
+
+    final headerContent = Container(
+      height: 62,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            headerColor.withValues(alpha: 0.55),
+            headerColor,
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          Icon(categoryIcon, color: iconColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.toUpperCase(),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  guideTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isActive
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 12, 4, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 48,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Icon(
-                          widget.icon,
-                          size: 24,
-                          color: colorScheme.primary,
-                        ),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: isActive
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+            size: 18,
+          ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isActive ? onTap : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (heroTag != null)
+                    Hero(
+                      tag: heroTag,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: headerContent,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    )
+                  else
+                    headerContent,
+                  if (previewSteps.isNotEmpty || extraCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                      child: Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  widget.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.heading3(context)
-                                      .copyWith(fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              Text(
-                                ' · ',
-                                style: AppTypography.caption(context).copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              Text(
-                                '${widget.guideCount} preset${widget.guideCount == 1 ? '' : 's'}',
-                                style: AppTypography.caption(context).copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.bodySmall(context).copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                          for (final step in previewSteps)
+                            _StepChip(label: _stepLabel(step)),
+                          if (extraCount > 0)
+                            _StepChip(
+                              label: '+$extraCount',
+                              isMore: true,
                             ),
-                          ),
                         ],
                       ),
                     ),
-                    SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: AnimatedRotation(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        turns: expanded ? 0.25 : 0,
-                        child: Icon(
-                          Icons.keyboard_arrow_right_rounded,
-                          color: colorScheme.primary,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
           ),
         ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: expanded
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.45,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        widget.guideTitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTypography.body(context)
-                                            .copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ),
-                                    if (guide?.isOfficial == true)
-                                      Container(
-                                        margin: const EdgeInsets.only(left: 8),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              colorScheme.primaryContainer,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          'Default',
-                                          style: AppTypography.caption(
-                                            context,
-                                          ).copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: colorScheme
-                                                .onPrimaryContainer,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.guideSummaryText,
-                                  style: AppTypography.bodySmall(context)
-                                      .copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton.tonal(
-                            onPressed:
-                                guide == null ? null : widget.onTapGuide,
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size(0, 48),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              'View',
-                              style: AppTypography.button(context).copyWith(
-                                color: guide == null
-                                    ? colorScheme.onSurfaceVariant
-                                    : colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-              : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  String _stepLabel(HabitActionStep step) {
+    final t = step.title.trim();
+    if (t.isNotEmpty) {
+      final words = t.split(' ');
+      return words.take(2).join(' ');
+    }
+    final d = step.displayTitle.trim();
+    if (d.isNotEmpty) {
+      final words = d.split(' ');
+      return words.take(2).join(' ');
+    }
+    return 'Step';
+  }
+}
+
+class _StepChip extends StatelessWidget {
+  final String label;
+  final bool isMore;
+
+  const _StepChip({required this.label, this.isMore = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: isMore ? Colors.transparent : cs.primaryContainer.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(5),
+        border: isMore
+            ? Border.all(color: cs.primary.withValues(alpha: 0.3))
+            : null,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontSize: 7,
+          color: isMore ? cs.primary : cs.onPrimaryContainer,
+          fontWeight: FontWeight.w600,
         ),
-        if (widget.showDividerBelow)
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-          ),
-      ],
+      ),
     );
   }
 }
@@ -2884,66 +2753,57 @@ class _DoubleBorderSearchFieldState extends State<_DoubleBorderSearchField> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+          width: 0.8,
+        ),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          // Warm cream tier — avoids stark cloud-white against mist page.
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colorScheme.primary.withValues(alpha: 0.52),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          Icon(
+            Icons.search_rounded,
+            color: colorScheme.onSurfaceVariant,
+            size: 20,
           ),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 12),
-            Icon(
-              Icons.search_rounded,
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onChanged: widget.onChanged,
+              cursorColor: colorScheme.primary,
+              style: AppTypography.body(context).copyWith(
+                color: colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search categories or presets',
+                hintStyle: AppTypography.secondary(context),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                isDense: true,
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 0,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.storefront_outlined,
               color: colorScheme.onSurfaceVariant,
-              size: 24,
+              size: 20,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                onChanged: widget.onChanged,
-                cursorColor: colorScheme.primary,
-                style: AppTypography.body(context).copyWith(
-                  color: colorScheme.onSurface,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Search categories or presets',
-                  hintStyle: AppTypography.secondary(context),
-                  border: InputBorder.none,
-                  isDense: true,
-                  filled: false,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 0,
-                  ),
-                ),
-              ),
-            ),
-            Tooltip(
-              message: 'Preset shop',
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.storefront_outlined,
-                    color: colorScheme.primary,
-                  ),
-                  onPressed: widget.onOpenShop,
-                ),
-              ),
-            ),
-          ],
-        ),
+            tooltip: 'Preset shop',
+            onPressed: widget.onOpenShop,
+          ),
+        ],
       ),
     );
   }

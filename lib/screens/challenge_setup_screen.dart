@@ -416,11 +416,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     required Widget child,
   }) {
     final fillColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
+        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+        : AppColors.cloudWhite.withValues(alpha: 0.55);
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.7);
+        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+        : AppColors.cloudWhite.withValues(alpha: 0.7);
 
     return Padding(
       padding: margin ?? EdgeInsets.zero,
@@ -437,8 +437,8 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               boxShadow: [
                 BoxShadow(
                   color: isDark
-                      ? Colors.black.withValues(alpha: 0.25)
-                      : Colors.black.withValues(alpha: 0.06),
+                      ? AppColors.pureBlack.withValues(alpha: 0.25)
+                      : AppColors.pureBlack.withValues(alpha: 0.06),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -661,11 +661,11 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
 
   Widget _buildBottomBar(ColorScheme colorScheme, bool isDark) {
     final fillColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
+        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+        : AppColors.cloudWhite.withValues(alpha: 0.55);
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.7);
+        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+        : AppColors.cloudWhite.withValues(alpha: 0.7);
 
     return ClipRect(
       child: BackdropFilter(
@@ -692,7 +692,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cloudWhite),
                     )
                   : const Icon(Icons.rocket_launch_rounded),
               label: Text(_saving ? 'Starting...' : 'Start Challenge'),

@@ -5,15 +5,14 @@ import '../services/auto_sync_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../services/subscription_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 import '../widgets/profile_avatar.dart';
 import 'backup_restore_screen.dart';
 import 'contact_us_screen.dart';
 import 'faq_screen.dart';
 import 'my_issues_screen.dart';
-import 'onboarding/onboarding_screen.dart';
 import 'presets/preset_shop_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'report_issue_screen.dart';
@@ -86,17 +85,15 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dcs = Theme.of(context).colorScheme;
-    final isDark = dcs.brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: dcs.surface,
+    return MorningGardenScaffold(
       appBar: AppBar(
         title: Text(
           'Settings and activity',
           style: AppTypography.heading3(context),
         ),
-        backgroundColor: dcs.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: FutureBuilder<_MenuProfile>(
         future: _loadProfile(),
@@ -109,9 +106,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                 initial: '?',
                 picPath: null,
               );
-          return Container(
-            decoration: AppColors.skyDecoration(isDark: isDark),
-            child: ListView(
+          return ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
                 AppSpacing.sm,
@@ -186,11 +181,6 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                   label: 'Widget Guide',
                   onTap: () => _open(const WidgetGuideScreen()),
                 ),
-                _MenuRow(
-                  icon: Icons.info_outline,
-                  label: 'App Tour',
-                  onTap: () => _open(const OnboardingScreen(replayMode: true)),
-                ),
                 const SizedBox(height: AppSpacing.sm),
                 const _SectionHeader('Help'),
                 _MenuRow(
@@ -227,8 +217,7 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
                     onTap: _runSignOut,
                   ),
               ],
-            ),
-          );
+            );
         },
       ),
     );

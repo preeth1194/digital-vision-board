@@ -369,7 +369,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
               Positioned.fill(
                 child: GestureDetector(
                   onTap: widget.onDismiss,
-                  child: ColoredBox(color: Colors.black.withOpacity(0.35 * t)),
+                  child: ColoredBox(color: AppColors.pureBlack.withOpacity(0.35 * t)),
                 ),
               ),
               // Panel sliding up from behind the nav bar
@@ -479,7 +479,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
               'Apply',
               style: AppTypography.button(
                 context,
-              ).copyWith(color: Colors.white),
+              ).copyWith(color: AppColors.cloudWhite),
             ),
           ),
         ),

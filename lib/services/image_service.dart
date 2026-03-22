@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 
 import 'image_persistence.dart';
+import '../utils/app_colors.dart';
 
 /// Handles all image picking + cropping logic.
 ///
@@ -60,7 +61,7 @@ class ImageService {
           AndroidUiSettings(
             toolbarTitle: 'Crop',
             toolbarColor: Theme.of(context).colorScheme.primary,
-            toolbarWidgetColor: Colors.white,
+            toolbarWidgetColor: AppColors.cloudWhite,
             statusBarColor: Theme.of(context).colorScheme.primary,
             activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
             initAspectRatio: CropAspectRatioPreset.original,
@@ -122,7 +123,7 @@ class ImageService {
           AndroidUiSettings(
             toolbarTitle: 'Crop',
             toolbarColor: Theme.of(context).colorScheme.primary,
-            toolbarWidgetColor: Colors.white,
+            toolbarWidgetColor: AppColors.cloudWhite,
             statusBarColor: Theme.of(context).colorScheme.primary,
             activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
             initAspectRatio: CropAspectRatioPreset.square,
@@ -210,7 +211,7 @@ class ImageService {
         AndroidUiSettings(
           toolbarTitle: 'Crop for Puzzle',
           toolbarColor: Theme.of(context).colorScheme.primary,
-          toolbarWidgetColor: Colors.white,
+          toolbarWidgetColor: AppColors.cloudWhite,
           statusBarColor: Theme.of(context).colorScheme.primary,
           activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
           initAspectRatio: CropAspectRatioPreset.square,

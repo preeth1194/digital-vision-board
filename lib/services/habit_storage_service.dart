@@ -47,10 +47,24 @@ class HabitStorageService {
       return list
           .whereType<Map<String, dynamic>>()
           .map(HabitItem.fromJson)
+          .map(_stripOrphanTimelineStart)
           .toList();
     } catch (_) {
       return [];
     }
+  }
+
+  /// Timeline UI uses [HabitItem.startTimeMinutes] only with an active session
+  /// timer. Orphan values (e.g. old saves) hid habits from Flexible Habits and
+  /// left empty-looking timelines.
+  static HabitItem _stripOrphanTimelineStart(HabitItem habit) {
+    final tb = habit.timeBound;
+    final hasTimer =
+        tb != null && tb.enabled && tb.durationMinutes > 0;
+    if (!hasTimer && habit.startTimeMinutes != null) {
+      return habit.copyWith(clearStartTimeMinutes: true);
+    }
+    return habit;
   }
 
   static Future<void> saveAll(

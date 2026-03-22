@@ -9,6 +9,7 @@ import '../services/backup_service.dart';
 import '../services/google_drive_backup_service.dart';
 import '../utils/app_typography.dart';
 import '../utils/drive_api_setup_helper.dart';
+import '../utils/app_colors.dart';
 
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -265,7 +266,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     width: 20,
                     height: 18,
                     child:
-                        CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        CircularProgressIndicator(strokeWidth: 2, color: AppColors.cloudWhite),
                   )
                 : const Icon(Icons.backup_outlined),
             label: Text(syncing ? 'Backing up...' : 'Back Up Now'),

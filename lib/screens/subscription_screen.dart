@@ -4,9 +4,10 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../services/dv_auth_service.dart';
 import '../services/subscription_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 import 'auth/auth_gateway_screen.dart';
+import '../utils/app_colors.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -122,10 +123,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
-      backgroundColor: Colors.transparent,
+    return MorningGardenScaffold(
       appBar: AppBar(
         title: Text(
           'Habit Seeding',
@@ -144,7 +142,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           return _buildSubscriptionPicker(isDark, colorScheme);
         },
       ),
-    ),
     );
   }
 
@@ -434,7 +431,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.cloudWhite,
                           ),
                         )
                       : const Text('Redeem'),

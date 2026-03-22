@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/dv_auth_service.dart';
 import '../services/support_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 
 class ReportIssueScreen extends StatefulWidget {
   const ReportIssueScreen({super.key});
@@ -100,19 +100,15 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dcs = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
+    return MorningGardenScaffold(
+      appBar: AppBar(
+        title: const Text('Report Issue'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('Report Issue'),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: ListView(
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Report Issue', style: AppTypography.heading1(context)),
@@ -220,7 +216,6 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 }

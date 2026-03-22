@@ -165,8 +165,8 @@ const List<String> kWeekdayLabelsSundayFirst = ['S', 'M', 'T', 'W', 'T', 'F', 'S
 /// 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
 const List<int> kSundayFirstToMondayBasedWeekdayIndex = [6, 0, 1, 2, 3, 4, 5];
 
-/// Alert dropdown options: minutes before start time (5 mins to 1 hour)
-const List<int> kReminderMinutesBeforeOptions = [5, 10, 15, 20, 25, 30, 45, 60];
+/// Alert dropdown options: minutes before start time (0 = at start, then 5 mins–1 hour)
+const List<int> kReminderMinutesBeforeOptions = [0, 5, 10, 15, 20, 25, 30, 45, 60];
 
 /// Built-in notification sound presets: (id, display label, icon).
 const List<(String, String, IconData)> kNotificationSoundOptions = [
@@ -235,20 +235,20 @@ BoxDecoration habitSectionDecoration(ColorScheme colorScheme) {
   final isDark = colorScheme.brightness == Brightness.dark;
   return BoxDecoration(
     color: isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55),
+        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+        : AppColors.cloudWhite.withValues(alpha: 0.55),
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
       color: isDark
-          ? Colors.white.withValues(alpha: 0.12)
-          : Colors.white.withValues(alpha: 0.7),
+          ? AppColors.cloudWhite.withValues(alpha: 0.12)
+          : AppColors.cloudWhite.withValues(alpha: 0.7),
       width: 1,
     ),
     boxShadow: [
       BoxShadow(
         color: isDark
-            ? Colors.black.withValues(alpha: 0.2)
-            : Colors.black.withValues(alpha: 0.04),
+            ? AppColors.pureBlack.withValues(alpha: 0.2)
+            : AppColors.pureBlack.withValues(alpha: 0.04),
         blurRadius: 16,
         offset: const Offset(0, 4),
       ),
@@ -259,12 +259,12 @@ BoxDecoration habitSectionDecoration(ColorScheme colorScheme) {
 Color habitSectionSeparatorColor(ColorScheme colorScheme) {
   final isDark = colorScheme.brightness == Brightness.dark;
   return isDark
-      ? Colors.white.withValues(alpha: 0.08)
-      : Colors.white.withValues(alpha: 0.5);
+      ? AppColors.cloudWhite.withValues(alpha: 0.08)
+      : AppColors.cloudWhite.withValues(alpha: 0.5);
 }
 
 Color contrastColor(Color background) {
   return background.computeLuminance() > 0.5
       ? AppColors.darkest
-      : Colors.white;
+      : AppColors.cloudWhite;
 }

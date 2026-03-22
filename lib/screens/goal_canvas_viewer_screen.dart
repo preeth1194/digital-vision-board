@@ -42,7 +42,7 @@ class GoalCanvasViewerScreen extends StatefulWidget {
 class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
   bool _loading = true;
   List<VisionComponent> _components = [];
-  Color _backgroundColor = const Color(0xFFF8F9F4);
+  Color _backgroundColor = AppColors.goalCanvasDefaultBackground;
   ImageProvider? _backgroundImage;
   Size? _canvasSize;
   String? _selectedId;

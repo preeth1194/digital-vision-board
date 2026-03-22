@@ -15,10 +15,9 @@ import '../../services/recipe_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';
 import '../recipes/recipe_book_screen.dart';
 
-import 'journal_editor_screen.dart';
-import 'models/journal_editor_models.dart';
+import '../../widgets/dashboard/affirmation_summary_card.dart';
+import 'journal_book_detail_screen.dart';
 import 'widgets/choose_cover_screen.dart';
-import 'widgets/journal_browse.dart';
 import 'widgets/journal_hero_section.dart';
 
 final class JournalNotesScreen extends StatefulWidget {
@@ -86,10 +85,8 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
 
   // Journal books state
   List<JournalBook> _books = const [];
-  String? _selectedBookId;
   Map<String, int> _bookEntryCounts = const {};
   int _recipeCount = 0;
-  String? _newBookId; // ID of newly created book for auto-focus
 
   @override
   void initState() {
@@ -148,146 +145,11 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
         _books = books;
         _bookEntryCounts = entryCounts;
         _recipeCount = recipes.length;
-        // Select first book if none selected
-        _selectedBookId ??= books.isNotEmpty ? books.first.id : null;
         _loading = false;
       });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Navigation helpers
-  // ---------------------------------------------------------------------------
-
-  Future<void> _openJournalEditorForEdit(JournalEntry entry) async {
-    await Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            JournalEntryEditorScreen(
-              goalTitles: _goalTitles,
-              existingTags: _allJournalTags(_journalEntries),
-              existingEntry: entry,
-            ),
-        transitionsBuilder: _pageTransition,
-        transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    await _reload(prefs: prefs);
-  }
-
-  static List<String> _allJournalTags(List<JournalEntry> entries) {
-    final set = <String>{};
-    for (final e in entries) {
-      for (final t in e.tags) {
-        final s = t.trim();
-        if (s.isEmpty) continue;
-        set.add(s);
-      }
-    }
-    final out = set.toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return out;
-  }
-
-  Future<void> _openNewJournalEditor() async {
-    // Open the editor directly for the selected book
-    final res = await Navigator.of(context).push<JournalEditorResult?>(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            JournalEntryEditorScreen(
-              goalTitles: _goalTitles,
-              existingTags: _allJournalTags(_journalEntries),
-              bookId: _selectedBookId,
-            ),
-        transitionsBuilder: _pageTransition,
-        transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-    if (!mounted) return;
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    if (res != null) {
-      await JournalStorageService.addEntry(
-        title: res.title,
-        text: res.plainText,
-        delta: res.deltaJson,
-        tags: res.tags,
-        goalTitle: res.legacyGoalTitle,
-        bookId: _selectedBookId,
-        prefs: prefs,
-      );
-    }
-    await _reload(prefs: prefs);
-  }
-
-  Future<void> _openNewJournalEditorWithVoice() async {
-    await Navigator.of(context).push<JournalEditorResult?>(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            JournalEntryEditorScreen(
-              goalTitles: _goalTitles,
-              existingTags: _allJournalTags(_journalEntries),
-              autoShowVoiceRecorder: true,
-              bookId: _selectedBookId,
-            ),
-        transitionsBuilder: (context, animation, _, child) {
-          final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-          );
-          final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-            ),
-          );
-          return FadeTransition(
-            opacity: fade,
-            child: ScaleTransition(scale: scale, child: child),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    await _reload(prefs: prefs);
-  }
-
-  static Widget _pageTransition(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final scale = Tween<double>(
-      begin: 0.92,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-    final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: animation,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
-    final slide = Tween<Offset>(
-      begin: const Offset(0, 0.03),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-
-    return FadeTransition(
-      opacity: fade,
-      child: SlideTransition(
-        position: slide,
-        child: ScaleTransition(scale: scale, child: child),
-      ),
-    );
   }
 
   // ---------------------------------------------------------------------------
@@ -309,69 +171,40 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
       prefs: prefs,
     );
     if (book != null && mounted) {
-      setState(() {
-        _selectedBookId = book.id;
-        _newBookId = book.id; // Trigger auto-focus on title
-      });
       await _reload(prefs: prefs);
-      // Clear newBookId after a short delay to prevent re-triggering
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) setState(() => _newBookId = null);
-      });
     }
   }
 
-  void _handleBookSelected(JournalBook book) {
-    setState(() => _selectedBookId = book.id);
-  }
-
-  Future<void> _openRecipeBook() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const RecipeBookScreen()));
-  }
-
-  void _handleBookTap(JournalBook book) {
-    if (book.id == JournalBookStorageService.recipeBookId) {
-      _openRecipeBook();
-      return;
-    }
-    _handleBookSelected(book);
-  }
-
-  Future<void> _handleOpenEntry(JournalEntry entry) async {
-    await _openJournalEditorForEdit(entry);
-  }
-
-  Future<void> _handleDeleteEntry(JournalEntry entry) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final colorScheme = Theme.of(ctx).colorScheme;
-        return AlertDialog(
-          title: const Text('Delete Entry?'),
-          content: Text(
-            'This will permanently delete "${entry.title ?? 'Untitled'}". This cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed != true || !mounted) return;
-
+  Future<void> _handleBookTap(JournalBook book) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs ??= prefs;
-    await JournalStorageService.deleteEntry(entry.id, prefs: prefs);
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    if (book.id == JournalBookStorageService.recipeBookId) {
+      await nav.push(
+        MaterialPageRoute(builder: (_) => const RecipeBookScreen()),
+      );
+    } else {
+      final goalTitles = _goalTitles;
+      await nav.push(
+        PageRouteBuilder(
+          pageBuilder: (ctx, anim, secAnim) => JournalBookDetailScreen(
+            book: book,
+            goalTitles: goalTitles,
+          ),
+          transitionsBuilder: (ctx, animation, secAnim, child) {
+            final slide = Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 280),
+        ),
+      );
+    }
+    if (!mounted) return;
     await _reload(prefs: prefs);
   }
 
@@ -393,11 +226,6 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     // Delete the book itself
     await JournalBookStorageService.deleteBook(bookId, prefs: prefs);
 
-    // Select another book if available
-    if (_selectedBookId == bookId) {
-      setState(() => _selectedBookId = null);
-    }
-
     await _reload(prefs: prefs);
   }
 
@@ -412,84 +240,31 @@ class _JournalNotesScreenState extends State<JournalNotesScreen> {
     await _reload(prefs: prefs);
   }
 
-  Future<void> _handleTitleChanged(String bookId, String newTitle) async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    await JournalBookStorageService.updateBook(
-      id: bookId,
-      name: newTitle,
-      prefs: prefs,
-    );
-    await _reload(prefs: prefs);
-  }
-
-  // Get entries grouped by book
-  Map<String, List<JournalEntry>> get _entriesByBook {
-    final result = <String, List<JournalEntry>>{};
-    for (final entry in _journalEntries) {
-      final bookId = (entry.bookId == null || entry.bookId!.isEmpty)
-          ? JournalBookStorageService.defaultBookId
-          : entry.bookId!;
-      (result[bookId] ??= []).add(entry);
-    }
-    // Sort entries by date (newest first)
-    for (final list in result.values) {
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
-    return result;
-  }
-
-  // Get entries filtered by selected book
-  List<JournalEntry> get _filteredJournalEntries {
-    if (_selectedBookId == null) return _journalEntries;
-    return _journalEntries.where((e) {
-      if (e.bookId == null || e.bookId!.isEmpty) {
-        return _selectedBookId == JournalBookStorageService.defaultBookId;
-      }
-      return e.bookId == _selectedBookId;
-    }).toList();
-  }
-
   // ---------------------------------------------------------------------------
   // Tab builders
   // ---------------------------------------------------------------------------
 
   Widget _journalTab() {
-    final filteredEntries = _filteredJournalEntries;
-
-    return Column(
+    return ListView(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 100,
+      ),
       children: [
-        // Pinned header (acts like an app bar)
-        JournalBrowseSection(onAddBook: _handleAddBook),
-        // Scrollable content beneath
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.only(
-              top: 0,
-              bottom: MediaQuery.of(context).padding.bottom + 100,
-            ),
-            children: [
-              JournalHeroSection(
-                onType: _openNewJournalEditor,
-                onRecord: _openNewJournalEditorWithVoice,
-                books: _books,
-                selectedBookId: _selectedBookId,
-                entryCounts: _bookEntryCounts,
-                recipeCount: _recipeCount,
-                entriesByBook: _entriesByBook,
-                onBookSelected: _handleBookSelected,
-                onAddBook: _handleAddBook,
-                onOpenEntry: _handleOpenEntry,
-                onDeleteEntry: _handleDeleteEntry,
-                onDeleteBook: _handleDeleteBook,
-                onColorChanged: _handleColorChanged,
-                onTitleChanged: _handleTitleChanged,
-                newBookId: _newBookId,
-                onBookTap: _handleBookTap,
-              ),
-            ],
-          ),
+        JournalHeroSection(
+          books: _books,
+          entryCounts: _bookEntryCounts,
+          recipeCount: _recipeCount,
+          onBookTap: _handleBookTap,
+          onAddBook: _handleAddBook,
+          onColorChanged: _handleColorChanged,
+          onDeleteBook: _handleDeleteBook,
         ),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AffirmationSummaryCard(),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }

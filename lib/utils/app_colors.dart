@@ -15,20 +15,43 @@ import 'package:flutter/material.dart';
 /// - Lavender Dew   -> Mood / Journal / Affirmations (calm mind)
 ///
 /// WCAG AA contrast (4.5:1+) verified for all text-on-background pairings.
+///
+/// **Logo alignment (medium):** Reference swatches below are sampled from
+/// `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`.
+/// UI tokens (`mistBackground`, `skyTopTint`, `sproutGreen`) are derived — calmer
+/// than the icon — so the app stays “Morning Garden” quiet while echoing the
+/// seed/sprout/yellow field brand.
 class AppColors {
   AppColors._();
+
+  // ═══════════════════════════════════════════════════════════════
+  // ── 0. Brand reference (app icon — not always used raw in UI)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Solid icon field / sunflower yellow (background of the app icon).
+  static const Color brandLogoFieldYellow = Color(0xFFFEDE59);
+
+  /// Typical sprout leaf midtone from the icon (too vivid for primary buttons).
+  static const Color brandSproutGreenVivid = Color(0xFF71A905);
+
+  /// Deep shadow green sampled from sprout shading in the icon.
+  static const Color brandSproutShadowGreen = Color(0xFF275100);
+
+  /// Seed body (warm brown) and shadow — useful for illustration / accents.
+  static const Color brandSeedBrown = Color(0xFF7A300B);
+  static const Color brandSeedBrownDeep = Color(0xFF954C0B);
 
   // ═══════════════════════════════════════════════════════════════
   // ── 1. The Core Morning Garden Foundation ──
   // ═══════════════════════════════════════════════════════════════
 
   // ── Mist & Sky (Warm Cream Atmospheres) ──
-  // mistBackground: warm cream — like morning light through leaves.
-  //   Contrast vs soilDeep: ~13:1 ✅
-  static const Color mistBackground = Color(0xFFF6F4EF);
+  // mistBackground: ~88% prior cream + ~12% brandLogoFieldYellow — buttery mist.
+  //   Contrast vs forestDeep: ~11.7:1 ✅
+  static const Color mistBackground = Color(0xFFF6F1DD);
 
-  // skyTopTint: soft sage haze at the top of the gradient.
-  static const Color skyTopTint = Color(0xFFEAF2EA);
+  // skyTopTint: prior sage haze + ~14% brandLogoFieldYellow — warmer sky band.
+  static const Color skyTopTint = Color(0xFFECEFD5);
 
   // ── Soil & Seed (Earthy Anchors — Navigation, Headers) ──
   // forestDeep: warm soil brown. Replaces cold dark green.
@@ -37,18 +60,18 @@ class AppColors {
   // "soilDeep" — warm, earthy, grounding. Feels like the earth a seed rests in.
   static const Color forestDeep = Color(0xFF3B2D20);
 
-  // ── Sage Leaf (Primary Actions — calm, muted growth) ──
-  // sproutGreen: muted sage. Replaces neon #4CAF50 which failed WCAG AA.
-  //   Contrast on white: ~4.9:1 ✅  |  Contrast on mistBackground: ~4.6:1 ✅
+  // ── Sage Leaf (Primary Actions — logo-aligned forest green, WCAG-safe) ──
+  // sproutGreen: hue nudged toward brandSproutGreenVivid, darkened for contrast.
+  //   Contrast on white: ~6.0:1 ✅  |  on mistBackground: ~5.3:1 ✅
   // Use as: filled button bg, active icon, progress ring, toggle on-state.
   // Do NOT use as body text color — use onPrimaryContainer instead.
-  static const Color sproutGreen = Color(0xFF4A7A5A);
+  static const Color sproutGreen = Color(0xFF3F6E38);
 
   // sageDark: for pressed/hover states of primary actions.
-  static const Color springWater = Color(0xFF2A5040);
+  static const Color springWater = Color(0xFF2A4A26);
 
-  // sageContainer: pale sage for chips, selected rows, subtle highlights.
-  static const Color sageContainer = Color(0xFFDCF0E4);
+  // sageContainer: pale fill harmonized with new primary (still calm, not lime).
+  static const Color sageContainer = Color(0xFFD6EBD4);
 
   // ── Honey Seed (Rewards, Coins, Achievements) ──
   // seedGold: warm honey amber. Replaces shiny #D4AF37 which felt glitzy.
@@ -69,10 +92,21 @@ class AppColors {
   static const Color lavenderDew = Color(0xFF7B74A8);
   static const Color lavenderContainer = Color(0xFFEEEDF8);
 
+  // ── Habit Heatmap ──
+  // Deep rose-brown used for missed habit cells in the calendar heatmap.
+  static const Color missedHabitCell = Color(0xFF5c2020);
+
   // ── Cloud Surfaces ──
-  static const Color cloudWhite = Colors.white;
+  static const Color cloudWhite = Color(0xFFFFFFFF);
   // cloudDark: warm grove dark — replaces cold navy.
   static const Color cloudDark = Color(0xFF1F2B22);
+
+  // ── Primitive aliases (Material `Colors.*` lives only here) ──
+  static const Color pureBlack = Color(0xFF000000);
+  /// Material black87 — body text on light scrims.
+  static const Color black87 = Color(0xDD000000);
+  static const Color black38 = Color(0x61000000);
+  static const Color white70 = Color(0xB3FFFFFF);
 
   // ── Legacy palette (kept for backward-compat references) ──
   static const Color darkest = Color(0xFF2C1810);
@@ -97,11 +131,40 @@ class AppColors {
   static const Color skyGradientBottomLight = Color(0xFFF4F7F5);
   static const Color skyGradientTopDark = Color(0xFF0D1B2A);
   static const Color skyGradientBottomDark = Color(0xFF1B263B);
-  static const Color cloudLight = Colors.white;
+  static const Color cloudLight = Color(0xFFFFFFFF);
   static const Color cloudBorderDark = Color(0xFF2A3A4A);
 
   // ── Domain accent (not in ColorScheme) ──
   static const Color completedOrange = Color(0xFFE8802A);
+
+  // ── Goal canvas (default board background) ──
+  static const Color goalCanvasDefaultBackground = Color(0xFFF8F9F4);
+
+  // ── Water dashboard (paired light / dark accents) ──
+  static const Color waterAccentLight = Color(0xFF039BE5);
+  static const Color waterAccentDark = Color(0xFF29B6F6);
+  static const Color waterDeepLight = Color(0xFF01579B);
+  static const Color waterDeepDark = Color(0xFF0288D1);
+
+  // ── Calorie log / macro field accents ──
+  static const Color calorieLogIconTint = Color(0xFFFF7043);
+  static const Color calorieMacroProtein = Color(0xFF42A5F5);
+  static const Color calorieMacroCarbs = Color(0xFFFF7043);
+  static const Color calorieMacroFat = Color(0xFFEF5350);
+  static const Color calorieMacroFiber = Color(0xFF66BB6A);
+
+  // ── Text editor color swatches (Material-aligned basics) ──
+  static const Color editorSwatchRed = Color(0xFFF44336);
+  static const Color editorSwatchBlue = Color(0xFF2196F3);
+  static const Color editorSwatchGreen = Color(0xFF4CAF50);
+  static const Color editorSwatchOrange = Color(0xFFFF9800);
+  static const Color editorSwatchPurple = Color(0xFF9C27B0);
+  static const Color editorSwatchPink = Color(0xFFE91E63);
+  static const Color editorSwatchTeal = Color(0xFF009688);
+  static const Color editorSwatchAmber = Color(0xFFFFC107);
+
+  /// Trophy / achievement accent (Material amber family).
+  static const Color iconTrophyAmber = editorSwatchAmber;
 
   // ── ColorScheme source values (used only inside lightScheme/darkScheme) ──
   // _backgroundDark: deep organic night soil — warm dark, not cold navy.
@@ -221,6 +284,13 @@ class AppColors {
   static const Color hueBlue = Color(0xFF0000FF);
   static const Color hueMagenta = Color(0xFFFF00FF);
 
+  // ── Bookshelf wood grain (journal bookshelf shelf-line gradient) ──
+  /// Mid-tone warm oak — shelf gradient stop 1 (lightest).
+  static const Color shelfWoodLight = Color(0xFFC4956A);
+  /// Warm walnut — shelf gradient stop 2 (mid).
+  static const Color shelfWoodMid = Color(0xFFA0724A);
+  // Stop 3 (darkest) reuses AppColors.honeyText (0xFF7A5520).
+
   // ── Special journal cover styles ──
   static const int coverFijiPrimary = 0xFF4A7DFF;
   static const int coverFijiSecondary = 0xFF2E5BDB;
@@ -238,11 +308,15 @@ class AppColors {
       case 'Mindfulness':
         return isDark ? categoryMindfulnessBgDark : categoryMindfulnessBgLight;
       case 'Productivity':
-        return isDark ? categoryProductivityBgDark : categoryProductivityBgLight;
+        return isDark
+            ? categoryProductivityBgDark
+            : categoryProductivityBgLight;
       case 'Learning':
         return isDark ? categoryLearningBgDark : categoryLearningBgLight;
       case 'Relationships':
-        return isDark ? categoryRelationshipsBgDark : categoryRelationshipsBgLight;
+        return isDark
+            ? categoryRelationshipsBgDark
+            : categoryRelationshipsBgLight;
       case 'Finance':
         return isDark ? categoryFinanceBgDark : categoryFinanceBgLight;
       case 'Creativity':
@@ -260,17 +334,25 @@ class AppColors {
       case 'Fitness':
         return isDark ? categoryFitnessIconDark : categoryFitnessIconLight;
       case 'Mindfulness':
-        return isDark ? categoryMindfulnessIconDark : categoryMindfulnessIconLight;
+        return isDark
+            ? categoryMindfulnessIconDark
+            : categoryMindfulnessIconLight;
       case 'Productivity':
-        return isDark ? categoryProductivityIconDark : categoryProductivityIconLight;
+        return isDark
+            ? categoryProductivityIconDark
+            : categoryProductivityIconLight;
       case 'Learning':
         return isDark ? categoryLearningIconDark : categoryLearningIconLight;
       case 'Relationships':
-        return isDark ? categoryRelationshipsIconDark : categoryRelationshipsIconLight;
+        return isDark
+            ? categoryRelationshipsIconDark
+            : categoryRelationshipsIconLight;
       case 'Finance':
         return isDark ? categoryFinanceIconDark : categoryFinanceIconLight;
       case 'Creativity':
-        return isDark ? categoryCreativityIconDark : categoryCreativityIconLight;
+        return isDark
+            ? categoryCreativityIconDark
+            : categoryCreativityIconLight;
       default:
         return isDark ? categoryDefaultIconDark : categoryDefaultIconLight;
     }
@@ -381,15 +463,15 @@ class AppColors {
   static const Color _surfaceContainerSoil = Color(0xFF182018);
   static const Color _surfaceContainerSoilLow = Color(0xFF121810);
 
-  /// Light theme ColorScheme — "Morning Garden".
+  /// Light theme ColorScheme — "Morning Garden" (logo-tinted mist + sprout primary).
   ///
-  /// primary     = sage leaf — calm growth actions
+  /// primary     = sprout leaf — growth actions (aligned to app icon, WCAG AA)
   /// secondary   = warm soil — grounded anchor
   /// tertiary    = honey amber — rewards and achievement (icon/fill use only)
-  /// surface     = warm cream mist — breathable page background
+  /// surface     = butter-warm mist — breathable page background
   static const ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
-    // Primary: sage leaf — muted, calm, WCAG AA on white (4.9:1)
+    // Primary: logo-aligned forest green — WCAG AA on white (~6:1)
     primary: sproutGreen,
     onPrimary: cloudWhite,
     primaryContainer: sageContainer,
@@ -397,7 +479,7 @@ class AppColors {
     // Secondary: warm soil — earthy, grounding
     secondary: forestDeep,
     onSecondary: cloudWhite,
-    secondaryContainer: Color(0xFFEDE8E2),
+    secondaryContainer: Color(0xFFEEE8DC),
     onSecondaryContainer: forestDeep,
     // Tertiary: honey amber — coins, badges, rewards (fill/icon only, not text)
     tertiary: seedGold,
@@ -422,14 +504,14 @@ class AppColors {
     // Inverse
     inverseSurface: forestDeep,
     onInverseSurface: Color(0xFFF0EDE8),
-    inversePrimary: Color(0xFF8FBF9F),
-    // Surface containers: warm cream tints
-    surfaceContainerHighest: Color(0xFFEDE8E2),
-    surfaceContainerHigh: Color(0xFFF1EDE8),
-    surfaceContainer: Color(0xFFF6F4EF),
-    surfaceContainerLow: Color(0xFFFAF8F4),
+    inversePrimary: Color(0xFF9DC995),
+    // Surface containers: butter-warm cream tints (tier with mistBackground)
+    surfaceContainerHighest: Color(0xFFEEE8DC),
+    surfaceContainerHigh: Color(0xFFF2EDE0),
+    surfaceContainer: mistBackground,
+    surfaceContainerLow: Color(0xFFFAF7ED),
     surfaceContainerLowest: cloudWhite,
-    surfaceDim: Color(0xFFE8E4DE),
+    surfaceDim: Color(0xFFEAE6D6),
     surfaceBright: cloudWhite,
   );
 
@@ -439,16 +521,16 @@ class AppColors {
   /// Not cold/navy — everything has a warm soil undertone.
   static const ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    // Primary: sage leaf (consistent brand, lighter on dark)
+    // Primary: sprout green (same token as light; reads on night soil)
     primary: sproutGreen,
     onPrimary: Color(0xFF0F1510),
-    primaryContainer: Color(0xFF2A5040),
+    primaryContainer: Color(0xFF2D4A30),
     onPrimaryContainer: sageContainer,
     // Secondary: pale sage — moonlit leaf
     secondary: Color(0xFFCADDCE),
     onSecondary: forestDeep,
     secondaryContainer: Color(0xFF2C3C28),
-    onSecondaryContainer: Color(0xFFEAF2EA),
+    onSecondaryContainer: skyTopTint,
     // Tertiary: softened honey amber — warm glow in darkness
     tertiary: _tertiaryGoldDark,
     onTertiary: _tertiaryOnDark,
@@ -467,12 +549,12 @@ class AppColors {
     outline: Color(0xFF8A7E72),
     outlineVariant: Color(0xFF3D342C),
     // Shadow & Scrim
-    shadow: Colors.black,
-    scrim: Colors.black,
+    shadow: pureBlack,
+    scrim: pureBlack,
     // Inverse
     inverseSurface: Color(0xFFE4DDD5),
     onInverseSurface: Color(0xFF1E1A16),
-    inversePrimary: Color(0xFF2E6848),
+    inversePrimary: Color(0xFF35683C),
     // Surface containers: warm soil-tinted darks
     surfaceContainerHighest: Color(0xFF28332A),
     surfaceContainerHigh: _surfaceContainerSoilHigh,
@@ -520,6 +602,23 @@ class AppColors {
     );
   }
 
+  /// Full-page background: same as [skyDecoration] or a flat “onboarding-minimal” canvas.
+  ///
+  /// Use [minimal] `true` for the flat warm cream / night soil look (no texture overlay),
+  /// matching onboarding steps. Use `false` (default) to keep the subtle garden texture.
+  static BoxDecoration pageBackgroundDecoration({
+    required bool isDark,
+    bool minimal = false,
+  }) {
+    if (!minimal) {
+      return skyDecoration(isDark: isDark);
+    }
+    if (isDark) {
+      return const BoxDecoration(color: _backgroundDark);
+    }
+    return const BoxDecoration(color: mistBackground);
+  }
+
   /// Floating Card / Cloud Decoration.
   /// Light: white card, soft warm shadow (soil-tinted, not grey)
   /// Dark:  warm grove dark card, deep shadow
@@ -530,7 +629,7 @@ class AppColors {
       boxShadow: [
         BoxShadow(
           color: isDark
-              ? Colors.black.withValues(alpha: 0.35)
+              ? pureBlack.withValues(alpha: 0.35)
               : forestDeep.withValues(alpha: 0.07),
           blurRadius: 20,
           offset: const Offset(0, 6),

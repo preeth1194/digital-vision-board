@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
 import '../../models/routine.dart';
-import 'affirmation_summary_card.dart';
+import '../../utils/app_spacing.dart';
 import 'habit_progress_completion_card.dart';
 import 'puzzle_summary_card.dart';
 import 'insights_summary_card.dart';
@@ -46,60 +46,56 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Column(
         children: [
-          // Habit progress completion
+          // 1. Habit progress (unchanged)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: HabitProgressCompletionCard(
               onTap: onViewHabits,
               onStartChallenge: onStartChallenge,
               dataVersion: dataVersion,
             ),
           ),
-          const SizedBox(height: 12),
-          // Row 1: Insights | Mood
+          const SizedBox(height: AppSpacing.sm),
+
+          // 2. Mood banner (full width)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: IntrinsicHeight(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: const MoodTrackerCard(),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          // 3. Insights + Water — fixed height row
+          // Fixed height avoids IntrinsicHeight + double-layout on every wave animation frame
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: SizedBox(
+              height: 160,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+                children: const [
                   Expanded(child: InsightsSummaryCard()),
-                  const SizedBox(width: 12),
-                  Expanded(child: MoodTrackerCard()),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(child: WaterIntakeCard()),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          // Row 2: Water + Reward ads
+          const SizedBox(height: AppSpacing.sm),
+
+          // 4. Rewards slim row (full width)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Expanded(child: WaterIntakeCard()),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RewardAdsCoinCard(coinNotifier: coinNotifier),
-                  ),
-                ],
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: RewardAdsCoinCard(coinNotifier: coinNotifier),
           ),
-          const SizedBox(height: 12),
-          // Row 3: Puzzle (height follows puzzle / image content)
+          const SizedBox(height: AppSpacing.sm),
+
+          // 5. Puzzle (full width)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: PuzzleSummaryCard(),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: AffirmationSummaryCard(),
           ),
         ],
       ),

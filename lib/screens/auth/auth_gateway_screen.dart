@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,8 +7,8 @@ import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/google_sign_in_config.dart';
 import '../../services/image_service.dart';
-import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
+import '../../widgets/layout/morning_garden_scaffold.dart';
 import '../../utils/measurement_utils.dart';
 import '../../widgets/grid/image_source_sheet.dart';
 import '../../widgets/profile_avatar.dart';
@@ -17,7 +18,14 @@ import 'profile_completion_screen.dart';
 class AuthGatewayScreen extends StatefulWidget {
   final bool forced; // true when opened because guest expired
 
-  const AuthGatewayScreen({super.key, this.forced = false});
+  /// When true (and not [forced]), only Google sign-in is shown — e.g. install welcome “I already have an account”.
+  final bool googleOnly;
+
+  const AuthGatewayScreen({
+    super.key,
+    this.forced = false,
+    this.googleOnly = false,
+  });
 
   @override
   State<AuthGatewayScreen> createState() => _AuthGatewayScreenState();
@@ -63,8 +71,14 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
     } on GoogleSignInException catch (e) {
       if (!mounted) return;
       if (e.code == GoogleSignInExceptionCode.canceled) return;
+      if (kDebugMode) {
+        debugPrint('[AuthGateway] GoogleSignInException: ${e.code} ${e.description}');
+      }
       setState(() => _error = 'Google sign-in failed. Please try again.');
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AuthGateway] Google sign-in failed: $e\n$st');
+      }
       if (!mounted) return;
       setState(() => _error = 'Sign-in failed. Please try again.');
     } finally {
@@ -95,15 +109,14 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final forced = widget.forced;
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
-      backgroundColor: Colors.transparent,
+    return MorningGardenScaffold(
       appBar: AppBar(
         title: const Text('Account'),
         automaticallyImplyLeading: !forced,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: FutureBuilder<bool>(
         future: _isSignedIn(),
@@ -115,7 +128,6 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           return _buildLoginView(context, theme, forced);
         },
       ),
-    ),
     );
   }
 
@@ -356,16 +368,28 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
 
   Widget _buildLoginView(BuildContext context, ThemeData theme, bool forced) {
     final colorScheme = theme.colorScheme;
+    final googleOnly = widget.googleOnly && !forced;
+    final title = forced
+        ? 'Your guest access expired'
+        : googleOnly
+            ? 'Welcome back'
+            : 'Welcome';
+    final subtitle = forced
+        ? 'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.'
+        : googleOnly
+            ? 'Sign in with Google to sync your garden across devices.'
+            : 'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.';
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          forced ? 'Your guest access expired' : 'Welcome',
+          title,
           style: AppTypography.heading2(context),
         ),
         const SizedBox(height: 8),
         Text(
-          'Continue as guest (expires after 10 days), or create an account to keep your data synced long-term.',
+          subtitle,
           style: AppTypography.bodySmall(context).copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -392,30 +416,32 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
           icon: const Icon(Icons.g_mobiledata),
           label: const Text('Continue with Google'),
         ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _loading ? null : _continueAsGuest,
-          child: _loading
-              ? const SizedBox(
-                  height: 20,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Continue as Guest'),
-        ),
-        const SizedBox(height: 20),
-        ExpansionTile(
-          title: Text('Why login?', style: AppTypography.body(context)),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          children: [
-            Text(
-              'Guest sessions expire after 10 days. Logging in will let you sync across devices and preserve full history.',
-              style: AppTypography.bodySmall(context).copyWith(
-                color: colorScheme.onSurfaceVariant,
+        if (!googleOnly) ...[
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _loading ? null : _continueAsGuest,
+            child: _loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Continue as Guest'),
+          ),
+          const SizedBox(height: 20),
+          ExpansionTile(
+            title: Text('Why login?', style: AppTypography.body(context)),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            children: [
+              Text(
+                'Guest sessions expire after 10 days. Logging in will let you sync across devices and preserve full history.',
+                style: AppTypography.bodySmall(context).copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }

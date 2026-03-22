@@ -363,7 +363,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                       boxShadow: [
                         BoxShadow(
                           color: isDark
-                              ? Colors.black.withValues(alpha: 0.24)
+                              ? AppColors.pureBlack.withValues(alpha: 0.24)
                               : AppColors.forestDeep.withValues(alpha: 0.12),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
@@ -374,7 +374,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                       child: Icon(
                         Icons.monetization_on_rounded,
                         size: AppSpacing.coinDialogIcon,
-                        color: Colors.white,
+                        color: AppColors.cloudWhite,
                       ),
                     ),
                   ),

@@ -947,7 +947,15 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                   hintStyle: _selectedFont.getTitleStyle(
                                     color: colorScheme.onSurface.withOpacity(0.25),
                                   ),
+                                  // Override app-wide filled + outlined inputs so the title
+                                  // sits flush on the paper card (no nested box).
+                                  filled: false,
                                   border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
                                   counterText: '',
                                 ),

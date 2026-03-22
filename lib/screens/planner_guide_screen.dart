@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -24,6 +23,9 @@ import '../services/meal_prep_storage_service.dart';
 import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
+import '../utils/app_typography.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
 class PlannerGuideScreen extends StatefulWidget {
@@ -45,18 +47,19 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   String? _error;
   List<ActionStepTemplate> _templates = const [];
   List<HabitItem> _existingHabits = const [];
-  double _scrollOffset = 0;
   String _categorySearchQuery = '';
-  String? _expandedCategory;
   int? _liveSkincareGuideStepCount;
   String? _liveSkincarePresetTitle;
-  _PlannerGuideOverlayData? _activeGuideOverlay;
-  Completer<String?>? _guideOverlayCompleter;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -92,6 +95,17 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         if (templates.isEmpty) {
           templates = _fallbackTemplates();
           source = 'fallback_empty_cloud';
+        } else {
+          // Fill in fallback templates for any UI category not covered by cloud
+          final fallbacks = _fallbackTemplates();
+          final cloudCategories =
+              templates.map(_habitCategoryForTemplate).toSet();
+          for (final fb in fallbacks) {
+            if (!cloudCategories.contains(_habitCategoryForTemplate(fb))) {
+              templates = [...templates, fb];
+            }
+          }
+          source = 'cloud_with_fallback_fill';
         }
       }
       if (!mounted) return;
@@ -1307,106 +1321,124 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       ),
       t(
         id: 'default_productivity_guide',
-        name: 'Productivity Daily Focus Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Daily Focus System',
+        category: ActionTemplateCategory.productivity,
         habitCategory: 'Productivity',
         setKey: 'default_set_beginner',
         steps: [
-          'Pick top 3 priorities',
-          'Deep work block',
-          'Inbox cleanup',
-          'Plan tomorrow',
+          'Review yesterday\'s wins & gaps',
+          'Set top 3 priorities for today',
+          'Clear distractions (phone, tabs)',
+          '90-min deep work block',
+          'Midday check-in on priorities',
+          'Process inbox to zero',
+          'Plan tomorrow\'s top 3',
+          'End-of-day shutdown ritual',
         ],
       ),
       t(
         id: 'default_mindfulness_guide',
-        name: 'Mindfulness Reset Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Morning Mindfulness Reset',
+        category: ActionTemplateCategory.mindfulness,
         habitCategory: 'Mindfulness',
         setKey: 'default_set_beginner',
         steps: [
-          'Breathing reset',
-          'Body scan',
-          'Gratitude note',
-          'End-of-day reflection',
+          '5-min breathing reset (box breathing)',
+          'Body scan head to toe',
+          'Set one intention for the day',
+          'Write 3 gratitude points',
+          '5-min evening reflection',
+          'Note one thing to release',
         ],
       ),
       t(
         id: 'default_mindfulness_meditation',
-        name: 'Meditation Focus Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Meditation Practice',
+        category: ActionTemplateCategory.mindfulness,
         habitCategory: 'Mindfulness',
         setKey: 'default_set_structured',
         steps: [
-          'Settle posture',
-          'Breath awareness',
-          'Open monitoring',
-          'Journal one insight',
+          'Settle posture, close eyes',
+          '2-min breath awareness',
+          '10-min open monitoring',
+          'Gently return when mind wanders',
+          'Journal one insight after sitting',
         ],
       ),
       t(
         id: 'default_learning_guide',
-        name: 'Learning Sprint Preset',
-        category: ActionTemplateCategory.workout,
+        name: 'Learning Sprint',
+        category: ActionTemplateCategory.learning,
         habitCategory: 'Learning',
         setKey: 'default_set_beginner',
         steps: [
-          'Choose learning topic',
-          'Study session',
-          'Practice/revision',
-          'Capture insights',
+          'Choose one focused topic',
+          '25-min active study (Pomodoro)',
+          'Summarise in your own words',
+          'Test yourself with questions',
+          'Connect to something you already know',
+          'Capture key insights in notes',
+          'Review previous session\'s notes',
         ],
       ),
       t(
         id: 'default_relationships_guide',
-        name: 'Relationship Care Preset',
-        category: ActionTemplateCategory.mealPrep,
+        name: 'Relationship Nurturing',
+        category: ActionTemplateCategory.relationships,
         habitCategory: 'Relationships',
         setKey: 'default_set_beginner',
         steps: [
-          'Reach out',
-          'Meaningful conversation',
-          'Follow-up action',
-          'Express appreciation',
+          'Reach out to one person',
+          'Ask a meaningful question',
+          'Listen without interrupting',
+          'Follow up on something they shared',
+          'Express appreciation or acknowledgement',
+          'Plan next touchpoint',
         ],
       ),
       t(
         id: 'default_finance_guide',
-        name: 'Finance Check-in Preset',
-        category: ActionTemplateCategory.mealPrep,
+        name: 'Weekly Finance Check-in',
+        category: ActionTemplateCategory.finance,
         habitCategory: 'Finance',
         setKey: 'default_set_beginner',
         steps: [
-          'Review expenses',
-          'Check budget',
-          'Transfer to savings',
-          'Track goal progress',
+          'Review all transactions from the week',
+          'Categorise any uncategorised spend',
+          'Check budget vs actuals',
+          'Transfer planned amount to savings',
+          'Check progress toward financial goal',
+          'Note one spending win and one area to cut',
         ],
       ),
       t(
         id: 'default_creativity_guide',
-        name: 'Creativity Flow Preset',
-        category: ActionTemplateCategory.recipe,
+        name: 'Creative Flow Session',
+        category: ActionTemplateCategory.creativity,
         habitCategory: 'Creativity',
         setKey: 'default_set_beginner',
         steps: [
-          'Collect inspiration',
-          'Create first draft',
-          'Refine one section',
-          'Publish/share',
+          'Collect 3 sources of inspiration',
+          'Write / sketch without judging',
+          'Create a rough first draft',
+          'Refine one section or element',
+          'Step away and rest',
+          'Return and iterate',
+          'Share or publish the output',
         ],
       ),
       t(
         id: 'default_other_guide',
-        name: 'General Habit Preset',
-        category: ActionTemplateCategory.recipe,
-        habitCategory: 'Other',
+        name: 'General Habit Starter',
+        category: ActionTemplateCategory.health,
+        habitCategory: 'Health',
         setKey: 'default_set_beginner',
         steps: [
-          'Define tiny action',
-          'Do it immediately',
-          'Track completion',
-          'Improve next step',
+          'Define the smallest possible action',
+          'Do it immediately after a trigger',
+          'Track completion in the app',
+          'Reflect: what made it easy or hard?',
+          'Improve one thing for tomorrow',
         ],
       ),
     ];
@@ -1419,12 +1451,37 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
     switch (template.category) {
       case ActionTemplateCategory.skincare:
-        return 'Health';
-      case ActionTemplateCategory.workout:
-        return 'Fitness';
+      case ActionTemplateCategory.health:
       case ActionTemplateCategory.mealPrep:
       case ActionTemplateCategory.recipe:
+      case ActionTemplateCategory.health:
+      case ActionTemplateCategory.weeklyMealPrep:
+      case ActionTemplateCategory.productivity:
+      case ActionTemplateCategory.mindfulness:
+      case ActionTemplateCategory.learning:
+      case ActionTemplateCategory.relationships:
+      case ActionTemplateCategory.finance:
+      case ActionTemplateCategory.creativity:
         return 'Health';
+      case ActionTemplateCategory.workout:
+      case ActionTemplateCategory.fitness:
+        return 'Fitness';
+      case ActionTemplateCategory.challenges:
+        return _challengeGuideCategory;
+      case ActionTemplateCategory.weeklyMealPrep:
+        return _mealPrepGuideCategory;
+      case ActionTemplateCategory.productivity:
+        return 'Productivity';
+      case ActionTemplateCategory.mindfulness:
+        return 'Mindfulness';
+      case ActionTemplateCategory.learning:
+        return 'Learning';
+      case ActionTemplateCategory.relationships:
+        return 'Relationships';
+      case ActionTemplateCategory.finance:
+        return 'Finance';
+      case ActionTemplateCategory.creativity:
+        return 'Creativity';
     }
   }
 
@@ -1881,9 +1938,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _openGuidePreview(ActionStepTemplate template) async {
-    // Planner overlay is rendered inside Scaffold body, which already reserves
-    // bottom-nav space via _NavBarSpacer in DashboardScreen.
-    final navClearance = 0.0;
     var confirmMessage = 'This will create habits from the selected preset.';
     final adapter = PresetRouteRegistry.adapterForTemplate(template);
     final config = adapter.buildConfig(template);
@@ -1929,14 +1983,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
             (sum, section) => sum + section.steps.length,
           );
 
-    final action = await _showGuideOverlay(
-      _PlannerGuideOverlayData(
-        presetName: resolvedPresetName,
-        habitCategory: _habitCategoryForTemplate(template),
-        totalSteps: resolvedTotalSteps,
-        config: config,
-        previewSections: previewSections,
-        bottomInset: navClearance,
+    if (!mounted) return;
+    final heroTag = 'preset_header_${template.id}';
+    final action = await Navigator.of(context).push<String?>(
+      MaterialPageRoute(
+        builder: (_) => PresetDetailPage(
+          heroTag: heroTag,
+          presetName: resolvedPresetName,
+          habitCategory: _habitCategoryForTemplate(template),
+          totalSteps: resolvedTotalSteps,
+          config: config,
+          previewSections: previewSections,
+        ),
       ),
     );
     if (!mounted || action == null || action == 'close') return;
@@ -1984,68 +2042,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     }
   }
 
-  Future<String?> _showGuideOverlay(_PlannerGuideOverlayData overlay) async {
-    // Guard against double-complete when users tap quickly.
-    if (_guideOverlayCompleter?.isCompleted == false) {
-      _guideOverlayCompleter!.complete('close');
-    }
-    _guideOverlayCompleter = Completer<String?>();
-    setState(() => _activeGuideOverlay = overlay);
-    return _guideOverlayCompleter!.future;
-  }
-
-  void _closeGuideOverlay(String action) {
-    final completer = _guideOverlayCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(action);
-    }
-    _guideOverlayCompleter = null;
-    if (mounted) {
-      setState(() => _activeGuideOverlay = null);
-    }
-  }
-
-  Widget _buildGuideOverlay() {
-    final overlay = _activeGuideOverlay;
-    if (overlay == null) return const SizedBox.shrink();
-    return Positioned.fill(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: () => _closeGuideOverlay('close'),
-                  child: Container(color: Colors.black.withValues(alpha: 0.35)),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: PresetTemplateScreen(
-                  presetName: overlay.presetName,
-                  habitCategory: overlay.habitCategory,
-                  totalSteps: overlay.totalSteps,
-                  config: overlay.config,
-                  bottomInset: overlay.bottomInset,
-                  showBottomNotch: false,
-                  previewSections: overlay.previewSections,
-                  onClose: () => _closeGuideOverlay('close'),
-                  onEdit: overlay.config.allowEdit
-                      ? () => _closeGuideOverlay('edit')
-                      : null,
-                  onCreate: overlay.config.allowCreateHabits
-                      ? () => _closeGuideOverlay('create')
-                      : null,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 
   List<PresetPreviewSection> _previewSectionsForTemplate({
     required ActionStepTemplate template,
@@ -2257,8 +2253,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   ];
   static const String _challengeGuideCategory = 'Challenges';
   static const String _mealPrepGuideCategory = 'Weekly Meal Prep';
-  static const double _categoryDeckCardHeight = 156;
-  static const double _categoryDeckPeekHeight = 66;
 
   IconData _iconForCategory(String category) {
     switch (category) {
@@ -2289,8 +2283,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   List<String> get _plannerGuideCategories => [
-    ..._habitCategoriesInOrder,
     _challengeGuideCategory,
+    ..._habitCategoriesInOrder,
     _mealPrepGuideCategory,
   ];
 
@@ -2353,9 +2347,7 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _onPlannerCategoryTap(String category) async {
-    setState(() {
-      _expandedCategory = _expandedCategory == category ? null : category;
-    });
+    await _onPlannerGuideTap(category);
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
@@ -2376,118 +2368,79 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
         ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(
             onRefresh: _load,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification.metrics.axis == Axis.vertical) {
-                  setState(() {
-                    _scrollOffset = notification.metrics.pixels;
-                  });
-                }
-                return false;
-              },
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  if (_error != null)
-                    _GlassSection(
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_off_outlined,
-                            color: colorScheme.onSurfaceVariant,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+              children: [
+                if (_error != null)
+                  _MinimalOutlinePanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: AppTypography.bodySmall(context),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(_error!)),
-                        ],
-                      ),
-                    ),
-                  _GlassSection(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() => _categorySearchQuery = value);
-                      },
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: 'Search categories or presets',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: IconButton(
-                          tooltip: 'Preset shop',
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const PresetShopScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.storefront_outlined),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (visibleCategories.isEmpty)
-                    _GlassSection(
-                      child: Text(
-                        'No category or preset matches your search.',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                _DoubleBorderSearchField(
+                  onChanged: (value) {
+                    setState(() => _categorySearchQuery = value);
+                  },
+                  onOpenShop: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PresetShopScreen(),
                       ),
-                    )
-                  else
-                    _CategoryDeck(
-                      categories: visibleCategories,
-                      cardHeight: _categoryDeckCardHeight,
-                      peekHeight: _categoryDeckPeekHeight,
-                      scrollOffset: _scrollOffset,
-                      expandedCategory: _expandedCategory,
-                      iconForCategory: _iconForCategory,
-                      subtitleForCategory: _categoryDescription,
-                      guideCountForCategory: _guideCountForPlannerCategory,
-                      guideForCategory: _primaryGuideForPlannerCategory,
-                      onTapCategory: _onPlannerCategoryTap,
-                      onTapGuide: _onPlannerGuideTap,
-                      guideTitleForCard: _guideTitleTextForCategory,
-                      guideSummaryTextForCard: _guideSummaryTextForCategory,
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (visibleCategories.isEmpty)
+                  _MinimalOutlinePanel(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No category or preset matches your search.',
+                      style: AppTypography.body(context).copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else ...[
+                  for (int i = 0; i < visibleCategories.length; i++)
+                    _StaggeredPresetRow(
+                      listIndex: i,
+                      animationSignature:
+                          '${_categorySearchQuery}_'
+                          '${visibleCategories.join('|')}',
+                      child: _PresetRichCard(
+                        category: visibleCategories[i],
+                        categoryIcon: _iconForCategory(visibleCategories[i]),
+                        guide: _primaryGuideForPlannerCategory(
+                          visibleCategories[i],
+                        ),
+                        guideTitle: _guideTitleTextForCategory(
+                          visibleCategories[i],
+                          _primaryGuideForPlannerCategory(visibleCategories[i]),
+                        ),
+                        onTap: () => _onPlannerGuideTap(visibleCategories[i]),
+                      ),
                     ),
                 ],
-              ),
+              ],
             ),
           );
-    return Scaffold(
-      body: Stack(
-        children: [
-          content,
-          if (_activeGuideOverlay != null) _buildGuideOverlay(),
-        ],
-      ),
-    );
+    return Scaffold(body: content);
   }
 }
 
-class _PlannerGuideOverlayData {
-  final String presetName;
-  final String habitCategory;
-  final int totalSteps;
-  final PresetTemplateConfig config;
-  final List<PresetPreviewSection> previewSections;
-  final double bottomInset;
-
-  const _PlannerGuideOverlayData({
-    required this.presetName,
-    required this.habitCategory,
-    required this.totalSteps,
-    required this.config,
-    required this.previewSections,
-    required this.bottomInset,
-  });
-}
 
 class _GuideCard extends StatelessWidget {
   final String title;
@@ -2502,7 +2455,7 @@ class _GuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return _CloudSection(
       child: Padding(
         padding: const EdgeInsets.all(2),
         child: Row(
@@ -2527,444 +2480,362 @@ class _GuideCard extends StatelessWidget {
   }
 }
 
-class _CategoryDeck extends StatelessWidget {
-  final List<String> categories;
-  final double cardHeight;
-  final double peekHeight;
-  final double scrollOffset;
-  final String? expandedCategory;
-  final IconData Function(String) iconForCategory;
-  final String Function(String) subtitleForCategory;
-  final int Function(String) guideCountForCategory;
-  final ActionStepTemplate? Function(String) guideForCategory;
-  final Future<void> Function(String category) onTapCategory;
-  final Future<void> Function(String category) onTapGuide;
-  final String Function(String category, ActionStepTemplate? guide)
-  guideTitleForCard;
-  final String Function(String category, ActionStepTemplate? guide)
-  guideSummaryTextForCard;
-
-  const _CategoryDeck({
-    required this.categories,
-    required this.cardHeight,
-    required this.peekHeight,
-    required this.scrollOffset,
-    required this.expandedCategory,
-    required this.iconForCategory,
-    required this.subtitleForCategory,
-    required this.guideCountForCategory,
-    required this.guideForCategory,
-    required this.onTapCategory,
-    required this.onTapGuide,
-    required this.guideTitleForCard,
-    required this.guideSummaryTextForCard,
+/// Subtle entrance when the filtered list changes (search / order).
+class _StaggeredPresetRow extends StatelessWidget {
+  const _StaggeredPresetRow({
+    required this.listIndex,
+    required this.animationSignature,
+    required this.child,
   });
+
+  final int listIndex;
+  final String animationSignature;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox.shrink();
-    const expandedPanelHeight = 86.0;
-    final expandedIndex = expandedCategory == null
-        ? -1
-        : categories.indexOf(expandedCategory!);
-    final totalHeight =
-        cardHeight +
-        ((categories.length - 1) * peekHeight) +
-        (expandedIndex >= 0 ? expandedPanelHeight : 0);
-    return SizedBox(
-      height: totalHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (int i = 0; i < categories.length; i++)
-            Positioned(
-              left: 0,
-              right: 0,
-              top:
-                  (i * peekHeight) +
-                  (expandedIndex >= 0 && i > expandedIndex
-                      ? expandedPanelHeight
-                      : 0),
-              child: _CategoryGuideCard(
-                index: i,
-                title: categories[i],
-                subtitle: subtitleForCategory(categories[i]),
-                icon: iconForCategory(categories[i]),
-                guideCount: guideCountForCategory(categories[i]),
-                scrollOffset: scrollOffset,
-                cardHeight: cardHeight,
-                expandedPanelHeight: expandedPanelHeight,
-                isExpanded: categories[i] == expandedCategory,
-                guide: guideForCategory(categories[i]),
-                guideTitle: guideTitleForCard(
-                  categories[i],
-                  guideForCategory(categories[i]),
-                ),
-                zDepth: (i + 1).toDouble(),
-                onTap: () => onTapCategory(categories[i]),
-                onTapGuide: () => onTapGuide(categories[i]),
-                guideSummaryText: guideSummaryTextForCard(
-                  categories[i],
-                  guideForCategory(categories[i]),
-                ),
-              ),
-            ),
-        ],
-      ),
+    final capped = listIndex.clamp(0, 12);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('preset_stagger_${animationSignature}_$listIndex'),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 200 + capped * 24),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 6),
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
 
-class _CategoryGuideCard extends StatefulWidget {
-  final int index;
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final int guideCount;
-  final double scrollOffset;
-  final double cardHeight;
-  final double expandedPanelHeight;
-  final bool isExpanded;
+class _PresetRichCard extends StatelessWidget {
+  final String category;
+  final IconData categoryIcon;
   final ActionStepTemplate? guide;
   final String guideTitle;
-  final double zDepth;
-  final VoidCallback onTap;
-  final VoidCallback onTapGuide;
-  final String guideSummaryText;
+  final VoidCallback? onTap;
 
-  const _CategoryGuideCard({
-    required this.index,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.guideCount,
-    required this.scrollOffset,
-    required this.cardHeight,
-    required this.expandedPanelHeight,
-    required this.isExpanded,
+  const _PresetRichCard({
+    required this.category,
+    required this.categoryIcon,
     required this.guide,
     required this.guideTitle,
-    required this.zDepth,
     required this.onTap,
-    required this.onTapGuide,
-    required this.guideSummaryText,
-  });
-
-  @override
-  State<_CategoryGuideCard> createState() => _CategoryGuideCardState();
-}
-
-class _CategoryGuideCardState extends State<_CategoryGuideCard> {
-  bool _pressed = false;
-  bool _pulse = false;
-
-  @override
-  void didUpdateWidget(covariant _CategoryGuideCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isExpanded == widget.isExpanded) return;
-    setState(() => _pulse = true);
-    Future<void>.delayed(const Duration(milliseconds: 140), () {
-      if (!mounted) return;
-      setState(() => _pulse = false);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final scrollDrift =
-        math.sin((widget.scrollOffset / 68) + (widget.index * 0.48)) * 2.4;
-    final guide = widget.guide;
-    final expanded = widget.isExpanded;
-    return SizedBox(
-      height: widget.cardHeight + (expanded ? widget.expandedPanelHeight : 0),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()
-          ..translate(0.0, scrollDrift + (_pressed ? -3.0 : 0.0))
-          ..scale(_pressed ? 0.992 : (_pulse ? 1.012 : 1.0)),
-        child: _GlassSection(
-          zDepth: widget.zDepth,
-          radius: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            children: [
-              InkWell(
-                onTap: widget.onTap,
-                onHighlightChanged: (highlighted) {
-                  if (_pressed == highlighted) return;
-                  setState(() {
-                    _pressed = highlighted;
-                  });
-                },
-                borderRadius: BorderRadius.circular(28),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.primary.withValues(alpha: 0.14),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.86,
-                            ),
-                          ),
-                        ),
-                        child: Icon(
-                          widget.icon,
-                          size: 21,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    widget.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: colorScheme.onSurface,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                        ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(999),
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.12,
-                                    ),
-                                    border: Border.all(
-                                      color: colorScheme.outlineVariant
-                                          .withValues(alpha: 0.75),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${widget.guideCount} preset${widget.guideCount == 1 ? '' : 's'}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 130),
-                        curve: Curves.easeOut,
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.primary.withValues(
-                            alpha: _pressed ? 0.26 : 0.18,
-                          ),
-                        ),
-                        child: AnimatedRotation(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutBack,
-                          turns: expanded ? 0.25 : 0,
-                          child: Icon(
-                            Icons.keyboard_arrow_right_rounded,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: expanded
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Column(
-                          children: [
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              widget.guideTitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                          ),
-                                          if (guide?.isOfficial == true)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                left: 8,
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: colorScheme
-                                                    .primaryContainer,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                'Default',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelSmall
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: colorScheme
-                                                          .onPrimaryContainer,
-                                                      fontSize: 12,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        widget.guideSummaryText,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                FilledButton.tonal(
-                                  onPressed: guide == null
-                                      ? null
-                                      : widget.onTapGuide,
-                                  child: const Text('View'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassSection extends StatelessWidget {
-  final Widget child;
-  final double zDepth;
-  final double radius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSection({
-    super.key,
-    required this.child,
-    this.zDepth = 0,
-    this.radius = 18,
-    this.padding = const EdgeInsets.all(12),
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surface.withValues(alpha: 0.30)
-                : Colors.white.withValues(alpha: 0.42),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.14)
-                  : Colors.white.withValues(alpha: 0.60),
-              width: 1.1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: isDark
-                      ? (0.20 + (zDepth * 0.008)).clamp(0.20, 0.30)
-                      : (0.08 + (zDepth * 0.006)).clamp(0.08, 0.16),
-                ),
-                blurRadius: 16 + (zDepth * 1.8),
-                offset: Offset(0, 6 + (zDepth * 0.6)),
-              ),
-            ],
-          ),
-          child: child,
+    final headerColor = AppColors.categoryBgColor(category, isDark);
+    final iconColor = AppColors.categoryIconColor(category, isDark);
+    final hasGuide = guide != null;
+    final heroTag = hasGuide ? 'preset_header_${guide!.id}' : null;
+    // isActive: card has real content — either a loaded preset OR a special
+    // category route (e.g. Challenges → "75 Hard") with its own handler.
+    final isActive = hasGuide ||
+        (guideTitle.isNotEmpty && guideTitle != 'No preset available');
+
+    final allSteps = guide?.steps ?? const <HabitActionStep>[];
+    final previewSteps = allSteps.take(2).toList();
+    final extraCount = allSteps.length - previewSteps.length;
+
+    final headerContent = Container(
+      height: 62,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            headerColor.withValues(alpha: 0.55),
+            headerColor,
+          ],
         ),
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          Icon(categoryIcon, color: iconColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.toUpperCase(),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  guideTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isActive
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: isActive
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+            size: 18,
+          ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isActive ? onTap : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pureBlack.withValues(alpha: 0.06),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (heroTag != null)
+                    Hero(
+                      tag: heroTag,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: headerContent,
+                      ),
+                    )
+                  else
+                    headerContent,
+                  if (previewSteps.isNotEmpty || extraCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final step in previewSteps)
+                            _StepChip(label: _stepLabel(step)),
+                          if (extraCount > 0)
+                            _StepChip(
+                              label: '+$extraCount',
+                              isMore: true,
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _stepLabel(HabitActionStep step) {
+    final t = step.title.trim();
+    if (t.isNotEmpty) {
+      final words = t.split(' ');
+      return words.take(2).join(' ');
+    }
+    final d = step.displayTitle.trim();
+    if (d.isNotEmpty) {
+      final words = d.split(' ');
+      return words.take(2).join(' ');
+    }
+    return 'Step';
+  }
+}
+
+class _StepChip extends StatelessWidget {
+  final String label;
+  final bool isMore;
+
+  const _StepChip({required this.label, this.isMore = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final borderColor = isMore
+        ? cs.primary.withValues(alpha: 0.35)
+        : cs.outlineVariant.withValues(alpha: 0.85);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isMore
+            ? cs.primary.withValues(alpha: 0.08)
+            : cs.primaryContainer.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption(context).copyWith(
+          color: isMore ? cs.primary : cs.onPrimaryContainer,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Flat outlined surface for Presets — minimal chrome (no cloud shadow).
+class _MinimalOutlinePanel extends StatelessWidget {
+  const _MinimalOutlinePanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Search field with outer + inner borders (Morning Garden accent ring).
+class _DoubleBorderSearchField extends StatefulWidget {
+  const _DoubleBorderSearchField({
+    required this.onChanged,
+    required this.onOpenShop,
+  });
+
+  final ValueChanged<String> onChanged;
+  final VoidCallback onOpenShop;
+
+  @override
+  State<_DoubleBorderSearchField> createState() =>
+      _DoubleBorderSearchFieldState();
+}
+
+class _DoubleBorderSearchFieldState extends State<_DoubleBorderSearchField> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          Icon(
+            Icons.search_rounded,
+            color: colorScheme.onSurfaceVariant,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onChanged: widget.onChanged,
+              cursorColor: colorScheme.primary,
+              style: AppTypography.body(context).copyWith(
+                color: colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search categories or presets',
+                hintStyle: AppTypography.secondary(context),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                isDense: true,
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 0,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.storefront_outlined,
+              color: colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            tooltip: 'Preset shop',
+            onPressed: widget.onOpenShop,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Solid Morning Garden card surface (replaces frosted glass on Presets).
+class _CloudSection extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const _CloudSection({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: padding,
+      decoration: AppColors.cloudDecoration(isDark: isDark),
+      child: child,
     );
   }
 }

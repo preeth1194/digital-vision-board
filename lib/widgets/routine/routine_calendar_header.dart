@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/routine.dart';
 import '../../utils/app_typography.dart';
+import '../../utils/app_colors.dart';
 
 /// Calendar header widget for the routine screen.
 /// Displays:
@@ -94,13 +95,13 @@ class _RoutineCalendarHeaderState extends State<RoutineCalendarHeader> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.white.withValues(alpha: 0.55),
+                        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                        : AppColors.cloudWhite.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isDark
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.7),
+                          ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                          : AppColors.cloudWhite.withValues(alpha: 0.7),
                       width: 1,
                     ),
                   ),

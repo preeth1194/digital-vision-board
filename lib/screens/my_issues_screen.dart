@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/support_service.dart';
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 
 class MyIssuesScreen extends StatefulWidget {
   const MyIssuesScreen({super.key});
@@ -65,18 +65,14 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dcs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
+    return MorningGardenScaffold(
+      appBar: AppBar(
+        title: const Text('My Issues'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('My Issues'),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: RefreshIndicator(
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -168,7 +164,6 @@ class _MyIssuesScreenState extends State<MyIssuesScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

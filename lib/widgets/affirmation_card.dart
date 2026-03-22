@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 import '../models/affirmation.dart';
+import '../utils/app_colors.dart';
 
 /// A flippable card widget that displays affirmations
 class AffirmationCard extends StatefulWidget {
@@ -139,19 +140,19 @@ class _AffirmationCardState extends State<AffirmationCard>
     final decoration = glassMode
         ? BoxDecoration(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : Colors.white.withValues(alpha: 0.55),
+                ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                : AppColors.cloudWhite.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.12)
-                  : Colors.white.withValues(alpha: 0.7),
+                  ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                  : AppColors.cloudWhite.withValues(alpha: 0.7),
             ),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.25)
-                    : Colors.black.withValues(alpha: 0.06),
+                    ? AppColors.pureBlack.withValues(alpha: 0.25)
+                    : AppColors.pureBlack.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),

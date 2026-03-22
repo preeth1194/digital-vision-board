@@ -601,7 +601,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                 children: [
                   Icon(
                     Icons.restaurant_outlined,
-                    color: const Color(0xFFFF7043),
+                    color: AppColors.calorieLogIconTint,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -819,7 +819,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                       child: _MacroField(
                         controller: _proteinCtrl,
                         label: 'Protein',
-                        color: const Color(0xFF42A5F5),
+                        color: AppColors.calorieMacroProtein,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -827,7 +827,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                       child: _MacroField(
                         controller: _carbsCtrl,
                         label: 'Carbs',
-                        color: const Color(0xFFFF7043),
+                        color: AppColors.calorieMacroCarbs,
                       ),
                     ),
                   ],
@@ -839,7 +839,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                       child: _MacroField(
                         controller: _fatCtrl,
                         label: 'Fat',
-                        color: const Color(0xFFEF5350),
+                        color: AppColors.calorieMacroFat,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -847,7 +847,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                       child: _MacroField(
                         controller: _fiberCtrl,
                         label: 'Fiber',
-                        color: const Color(0xFF66BB6A),
+                        color: AppColors.calorieMacroFiber,
                       ),
                     ),
                   ],

@@ -29,7 +29,6 @@ class MealPrepWeekScreen extends StatefulWidget {
 }
 
 class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
-  static const double _previewActionButtonHeight = 52.0;
   static const String _mealPrepTemplateId = 'meal_prep_auto_plan_v1';
   static const List<String> _days = <String>[
     'monday',
@@ -98,6 +97,7 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
   final TextEditingController _guestAgeCtrl = TextEditingController();
   final TextEditingController _guestAllergiesCtrl = TextEditingController();
 
+  int _selectedDayIndex = 0;
   bool _loading = true;
   bool _busy = false;
   bool _isEditingPlan = true;
@@ -935,6 +935,444 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
     );
   }
 
+  int _dayTotalCalories(MealPrepWeek week, String day) {
+    int total = 0;
+    for (final slot in _slots) {
+      final recipeId = week.recipeIdByDayAndSlot[day]?[slot];
+      if (recipeId == null || recipeId.isEmpty) continue;
+      final recipe = _recipeById(recipeId);
+      if (recipe == null) continue;
+      final cal = recipe.macros?.calories ?? 0;
+      if (cal > 0) total += cal.round();
+    }
+    return total;
+  }
+
+  IconData _slotIcon(String slot) {
+    switch (slot) {
+      case 'breakfast':
+        return Icons.wb_sunny_outlined;
+      case 'lunch':
+        return Icons.cloud_outlined;
+      case 'dinner':
+        return Icons.nights_stay_outlined;
+      case 'snack':
+        return Icons.local_cafe_outlined;
+      default:
+        return Icons.restaurant_outlined;
+    }
+  }
+
+  Widget _dayTabStrip(
+    BuildContext context,
+    ColorScheme cs,
+    TextTheme textTheme,
+  ) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          for (int i = 0; i < _days.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => setState(() => _selectedDayIndex = i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _selectedDayIndex == i
+                      ? cs.primary
+                      : cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _dayLabels[_days[i]] ?? _days[i],
+                  style: textTheme.labelMedium?.copyWith(
+                    color: _selectedDayIndex == i
+                        ? cs.onPrimary
+                        : cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _daySlotPanel(
+    BuildContext context,
+    MealPrepWeek week, {
+    required bool isDark,
+    required bool editable,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final day = _days[_selectedDayIndex];
+    final dayLabel = _dayLabels[day] ?? day;
+    final totalKcal = _dayTotalCalories(week, day);
+    final targetKcal = week.targetCalories ?? 0;
+    final hasTotal = totalKcal > 0;
+    final isOver = targetKcal > 0 && totalKcal > targetKcal;
+    final progressValue = targetKcal > 0
+        ? (totalKcal / targetKcal).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      decoration: AppColors.cloudDecoration(isDark: isDark),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+            child: Row(
+              children: [
+                Text(
+                  dayLabel,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (hasTotal)
+                  Text(
+                    '$totalKcal kcal',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: isOver ? cs.error : cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                const Spacer(),
+                if (editable)
+                  IconButton(
+                    tooltip: 'Regenerate day',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _busy ? null : () => _regenerateDay(day),
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      size: 18,
+                      color: cs.primary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (hasTotal && targetKcal > 0)
+            LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 3,
+              backgroundColor: cs.outlineVariant.withValues(alpha: 0.2),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOver
+                    ? cs.error
+                    : progressValue > 0.9
+                        ? cs.tertiary
+                        : cs.primary,
+              ),
+            ),
+          for (int si = 0; si < _slots.length; si++) ...[
+            if (si == 0)
+              const SizedBox(height: 4),
+            if (si > 0)
+              Divider(
+                height: 1,
+                thickness: 0.5,
+                indent: 16,
+                endIndent: 16,
+                color: cs.outlineVariant.withValues(alpha: 0.4),
+              ),
+            _buildSlotRow(
+              context,
+              week,
+              day: day,
+              slot: _slots[si],
+              editable: editable,
+              cs: cs,
+              textTheme: textTheme,
+            ),
+          ],
+          if (hasTotal) ...[
+            Divider(
+              height: 1,
+              thickness: 0.5,
+              indent: 16,
+              endIndent: 16,
+              color: cs.outlineVariant.withValues(alpha: 0.4),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Row(
+                children: [
+                  Text(
+                    'Daily Total',
+                    style: textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$totalKcal kcal',
+                    style: textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isOver ? cs.error : cs.primary,
+                    ),
+                  ),
+                  if (targetKcal > 0)
+                    Text(
+                      '  /  $targetKcal target',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ] else
+            const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSlotRow(
+    BuildContext context,
+    MealPrepWeek week, {
+    required String day,
+    required String slot,
+    required bool editable,
+    required ColorScheme cs,
+    required TextTheme textTheme,
+  }) {
+    final recipeId = week.recipeIdByDayAndSlot[day]?[slot];
+    final recipe = recipeId == null ? null : _recipeById(recipeId);
+    final hasRecipe = recipe != null;
+    final calories = hasRecipe && (recipe.macros?.calories ?? 0) > 0
+        ? '${recipe.macros!.calories.round()} kcal'
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              _slotIcon(slot),
+              size: 15,
+              color: cs.primary.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 66,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                _slotLabels[slot] ?? slot,
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: (editable && !_busy)
+                  ? () => _showRecipePicker(context, day, slot)
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasRecipe ? recipe.title : 'Tap to select',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: hasRecipe
+                          ? cs.onSurface
+                          : cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (calories != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      calories,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (editable) ...[
+            if (hasRecipe)
+              GestureDetector(
+                onTap:
+                    _busy ? null : () => _assignRecipeForSlot(day, slot, null),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8, top: 2),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 15,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
+            GestureDetector(
+              onTap: _busy ? null : () => _regenerateSlot(day, slot),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8, top: 2),
+                child: Icon(
+                  Icons.shuffle_rounded,
+                  size: 15,
+                  color: cs.primary.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showRecipePicker(BuildContext context, String day, String slot) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final slotLabel = _slotLabels[slot] ?? slot;
+    final dayLabel = _dayLabels[day] ?? day;
+    final currentId = _selectedWeek?.recipeIdByDayAndSlot[day]?[slot];
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.65,
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$slotLabel — $dayLabel',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (currentId != null)
+                      TextButton(
+                        onPressed: () {
+                          _assignRecipeForSlot(day, slot, null);
+                          Navigator.of(ctx).pop();
+                        },
+                        child: const Text('Clear'),
+                      ),
+                  ],
+                ),
+              ),
+              Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.4),
+              ),
+              Expanded(
+                child: _recipes.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'No recipes yet. Add recipes first.',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _recipes.length,
+                        separatorBuilder: (context, i) => Divider(
+                          height: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: cs.outlineVariant.withValues(alpha: 0.3),
+                        ),
+                        itemBuilder: (_, index) {
+                          final recipe = _recipes[index];
+                          final isSelected = recipe.id == currentId;
+                          final cal = (recipe.macros?.calories ?? 0) > 0
+                              ? '${recipe.macros!.calories.round()} kcal'
+                              : '';
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              recipe.title,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: isSelected
+                                    ? cs.primary
+                                    : cs.onSurface,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            subtitle: cal.isNotEmpty
+                                ? Text(
+                                    cal,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  )
+                                : null,
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_rounded,
+                                    color: cs.primary,
+                                    size: 18,
+                                  )
+                                : null,
+                            onTap: () {
+                              _assignRecipeForSlot(day, slot, recipe.id);
+                              Navigator.of(ctx).pop();
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _summaryCard(
     BuildContext context, {
     required _NutritionMetrics? metrics,
@@ -1253,272 +1691,12 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
     }
   }
 
-  Widget _weeklyGrid(
-    BuildContext context,
-    MealPrepWeek week, {
-    required bool isDark,
-    required bool editable,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    const dayWidth = 180.0;
-    const firstColWidth = 108.0;
-    return Container(
-      decoration: AppColors.cloudDecoration(isDark: isDark),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Weekly Plan', style: AppTypography.heading3(context)),
-              ),
-              IconButton(
-                tooltip: 'Regenerate all',
-                onPressed: (!editable || _busy) ? null : _autoGenerateMealPlan,
-                icon: const Icon(Icons.auto_fix_high_outlined),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: firstColWidth + (dayWidth * _days.length),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: firstColWidth,
-                        child: Text(
-                          'Meal',
-                          style: AppTypography.caption(context).copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      for (final day in _days)
-                        SizedBox(
-                          width: dayWidth,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _dayLabels[day] ?? day,
-                                  style: AppTypography.caption(context).copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Regenerate day',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: (!editable || _busy)
-                                    ? null
-                                    : () => _regenerateDay(day),
-                                icon: const Icon(Icons.refresh, size: 18),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  for (final slot in _slots)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: firstColWidth,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text(
-                                _slotLabels[slot] ?? slot,
-                                style: AppTypography.bodySmall(context).copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          for (final day in _days)
-                            SizedBox(
-                              width: dayWidth,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      DropdownButtonFormField<String>(
-                                        key: ValueKey<String>(
-                                          '$day-$slot-${week.recipeIdByDayAndSlot[day]?[slot] ?? ''}',
-                                        ),
-                                        isExpanded: true,
-                                        initialValue: week.recipeIdByDayAndSlot[day]?[slot],
-                                        hint: const Text('Select recipe'),
-                                        items: _recipes
-                                            .map(
-                                              (r) => DropdownMenuItem<String>(
-                                                value: r.id,
-                                                child: Text(
-                                                  r.title,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                        onChanged: (_busy || !editable)
-                                            ? null
-                                            : (value) => _assignRecipeForSlot(day, slot, value),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: TextButton(
-                                              onPressed: (_busy || !editable)
-                                                  ? null
-                                                  : () => _assignRecipeForSlot(day, slot, null),
-                                              child: const Text('Clear'),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Regenerate slot',
-                                            visualDensity: VisualDensity.compact,
-                                            onPressed: (_busy || !editable)
-                                                ? null
-                                                : () => _regenerateSlot(day, slot),
-                                            icon: const Icon(Icons.shuffle, size: 18),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dayWisePreview(
-    BuildContext context,
-    MealPrepWeek week, {
-    required bool isDark,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: AppColors.cloudDecoration(isDark: isDark),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Meal Plan Preview', style: AppTypography.heading3(context)),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _busy
-                    ? null
-                    : () {
-                        setState(() => _isEditingPlan = true);
-                      },
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Edit'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final day in _days)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _dayLabels[day] ?? day,
-                      style: AppTypography.body(context).copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    for (final slot in _slots)
-                      Builder(
-                        builder: (_) {
-                          final recipeId = week.recipeIdByDayAndSlot[day]?[slot];
-                          final recipe =
-                              recipeId == null ? null : _recipeById(recipeId);
-                          final calories = (recipe?.macros?.calories ?? 0) > 0
-                              ? '${recipe!.macros!.calories.round()} kcal'
-                              : '--';
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 80,
-                                  child: Text(
-                                    _slotLabels[slot] ?? slot,
-                                    style: AppTypography.caption(context).copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    recipe?.title ?? 'Not planned',
-                                    style: AppTypography.bodySmall(context),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  calories,
-                                  style: AppTypography.caption(context).copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final week = _selectedWeek;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final input = _activeInput();
     final metrics = _metricsFromInput(input);
 
@@ -1534,66 +1712,70 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
               onPressed: _busy ? null : _savePlanAndOpenPreview,
               icon: const Icon(Icons.save_outlined),
               label: const Text('Save'),
+            )
+          else
+            TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => _isEditingPlan = true),
+              child: const Text('Edit'),
             ),
         ],
       ),
+      floatingActionButton: _isEditingPlan
+          ? FloatingActionButton.extended(
+              onPressed: _busy ? null : _autoGenerateMealPlan,
+              backgroundColor: cs.primary,
+              foregroundColor: cs.onPrimary,
+              icon: const Icon(Icons.auto_awesome),
+              label: Text(
+                _busy ? 'Generating…' : 'Auto Generate',
+                style: AppTypography.button(context),
+              ),
+            )
+          : FloatingActionButton.extended(
+              onPressed: _busy ? null : _createHabitsFromPreview,
+              backgroundColor: cs.primary,
+              foregroundColor: cs.onPrimary,
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text(
+                'Create Habits',
+                style: AppTypography.button(context),
+              ),
+            ),
       body: _loading || week == null
           ? const Center(child: CircularProgressIndicator())
           : Container(
               decoration: AppColors.skyDecoration(isDark: isDark),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  Text(
-                    'Week of ${week.weekStartDateIso}',
-                    style: AppTypography.heading2(context),
+                  const SizedBox(height: 12),
+                  _dayTabStrip(context, cs, textTheme),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      padding:
+                          const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                      children: [
+                        _daySlotPanel(
+                          context,
+                          week,
+                          isDark: isDark,
+                          editable: _isEditingPlan,
+                        ),
+                        const SizedBox(height: 12),
+                        _summaryCard(
+                          context,
+                          metrics: metrics,
+                          isDark: isDark,
+                        ),
+                        if (_showInlineGuestForm) ...[
+                          const SizedBox(height: 12),
+                          _guestMiniForm(context, isDark: isDark),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  _summaryCard(context, metrics: metrics, isDark: isDark),
-                  const SizedBox(height: 12),
-                  if (_showInlineGuestForm) ...[
-                    _guestMiniForm(context, isDark: isDark),
-                    const SizedBox(height: 12),
-                  ],
-                  if (_isEditingPlan) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : _autoGenerateMealPlan,
-                        icon: const Icon(Icons.auto_awesome),
-                        label: Text(
-                          _busy ? 'Generating...' : 'Auto Generate Meal Plan',
-                          style: AppTypography.button(context),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _busy ? null : _savePlanAndOpenPreview,
-                        child: Text('Save Plan', style: AppTypography.button(context)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _weeklyGrid(context, week, isDark: isDark, editable: true),
-                  ] else ...[
-                    _dayWisePreview(context, week, isDark: isDark),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _busy ? null : _createHabitsFromPreview,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(_previewActionButtonHeight),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: Text('Create Habits', style: AppTypography.button(context)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _weeklyGrid(context, week, isDark: isDark, editable: false),
-                  ],
                 ],
               ),
             ),

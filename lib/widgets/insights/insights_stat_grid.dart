@@ -113,7 +113,7 @@ class _StatTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(tile.icon, color: tile.iconColor, size: 20),
           const SizedBox(height: AppSpacing.xs),
@@ -128,6 +128,7 @@ class _StatTile extends StatelessWidget {
             style: AppTypography.caption(context),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),

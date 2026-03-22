@@ -71,6 +71,10 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
   late PageController _pageController;
   String? _customImagePath;
   final ImagePicker _imagePicker = ImagePicker();
+  late TextEditingController _nameController;
+  // Track whether user has manually edited the name so we don't overwrite it
+  bool _nameEdited = false;
+  bool _programmaticNameUpdate = false;
 
   @override
   void initState() {
@@ -79,10 +83,15 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
       initialPage: _selectedIndex,
       viewportFraction: 0.65,
     );
+    _nameController = TextEditingController(text: _coverStyles[_selectedIndex].name);
+    _nameController.addListener(() {
+      if (!_programmaticNameUpdate) _nameEdited = true;
+    });
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -108,18 +117,12 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
   }
 
   void _onNext() {
+    final name = _nameController.text.trim();
     Navigator.of(context).pop((
       color: _selectedStyle.primaryColor,
-      name: _selectedStyle.isCustom && _customImagePath != null ? 'Journal' : _selectedStyle.name,
+      name: name.isEmpty ? _selectedStyle.name : name,
       imagePath: _selectedStyle.isCustom ? _customImagePath : null,
     ));
-  }
-
-  String get _displayName {
-    if (_selectedStyle.isCustom && _customImagePath != null) {
-      return 'Custom Image';
-    }
-    return _selectedStyle.name;
   }
 
   @override
@@ -161,14 +164,34 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
               'Choose a cover.',
               style: AppTypography.heading1(context),
             ),
-            const SizedBox(height: 40),
-            // Cover name
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Text(
-                _displayName,
-                key: ValueKey(_displayName),
+            const SizedBox(height: 32),
+            // Book name input
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: TextField(
+                controller: _nameController,
+                textAlign: TextAlign.center,
+                textCapitalization: TextCapitalization.words,
+                maxLength: 30,
                 style: AppTypography.secondary(context),
+                decoration: InputDecoration(
+                  hintText: 'Book name',
+                  counterText: '',
+                  border: InputBorder.none,
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: colorScheme.outlineVariant,
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -179,6 +202,12 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                 itemCount: _coverStyles.length,
                 onPageChanged: (index) async {
                   setState(() => _selectedIndex = index);
+                  // Auto-update name field if user hasn't manually edited it
+                  if (!_nameEdited) {
+                    _programmaticNameUpdate = true;
+                    _nameController.text = _coverStyles[index].isCustom ? '' : _coverStyles[index].name;
+                    _programmaticNameUpdate = false;
+                  }
                   // Auto-open image picker when custom is selected and no image yet
                   if (_coverStyles[index].isCustom && _customImagePath == null) {
                     await _pickImage();
@@ -252,7 +281,7 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Color(style.primaryColor).withOpacity(0.4),
+                            color: Color(style.primaryColor).withValues(alpha: 0.4),
                             blurRadius: isSelected ? 12 : 6,
                             spreadRadius: isSelected ? 2 : 0,
                           ),
@@ -262,13 +291,13 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                           ? Icon(
                               Icons.add_photo_alternate_outlined,
                               size: isSelected ? 18 : 14,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             )
                           : style.hasPattern && isSelected
                               ? Icon(
                                   Icons.auto_awesome,
                                   size: 16,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 )
                               : null,
                     ),
@@ -289,7 +318,7 @@ class _ChooseCoverScreenState extends State<ChooseCoverScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
-                    disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
+                    disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -343,13 +372,13 @@ class _BookCoverPreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.4),
+            color: primaryColor.withValues(alpha: 0.4),
             offset: const Offset(0, 8),
             blurRadius: 24,
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.2),
+            color: colorScheme.shadow.withValues(alpha: 0.2),
             offset: const Offset(4, 4),
             blurRadius: 12,
           ),
@@ -380,7 +409,7 @@ class _BookCoverPreview extends StatelessWidget {
                       Icon(
                         Icons.add_photo_alternate_outlined,
                         size: 48,
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 12),
                       Text(

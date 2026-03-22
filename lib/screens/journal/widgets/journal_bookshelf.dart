@@ -169,7 +169,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
         _buildSectionLabel(context, 'DEFAULT BOOKS', colorScheme),
         _buildDefaultRow(context),
         _buildShelfLine(),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.lg),
         _buildSectionLabel(context, 'MY BOOKS', colorScheme),
         _buildUserSpinesRow(context),
         _buildShelfLine(),
@@ -297,7 +297,7 @@ class _JournalBookshelfState extends State<JournalBookshelf>
           children: [
             ...userBooks.map((book) {
               final entryCount = _displayCountForBook(book);
-              final spineHeight = (entryCount * 5.0).clamp(52.0, 130.0);
+              final spineHeight = (120.0 + entryCount * 5.0).clamp(120.0, 220.0);
               return _UserBookSpine(
                 book: book,
                 height: spineHeight,

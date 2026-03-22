@@ -13,9 +13,9 @@ import '../utils/app_typography.dart';
 import '../utils/insights_period_bounds.dart';
 import '../models/vision_components.dart';
 import '../widgets/insights/insights_period_selector.dart';
-import '../widgets/insights/share/insight_share_templates.dart';
 import '../widgets/insights/insights_habit_chips.dart';
 import '../widgets/insights/habit_heatmap_card.dart';
+import '../widgets/insights/insights_aggregate_chart.dart';
 import '../widgets/insights/insights_stat_grid.dart';
 
 class GlobalInsightsScreen extends StatefulWidget {
@@ -34,6 +34,7 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
   int _month = 0;
   String? _focusHabitId;
   bool _loadedMeta = false;
+  final GlobalKey _chartKey = GlobalKey();
 
   @override
   void initState() {
@@ -106,19 +107,6 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
   }
 
   Future<void> _onShare() async {
-    final habit = _focusHabit;
-    if (habit == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Choose a habit to share an insight card.',
-            style: AppTypography.body(context),
-          ),
-        ),
-      );
-      return;
-    }
     if (kIsWeb) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,20 +117,14 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
       return;
     }
 
-    final kind = await showInsightShareTemplatePicker(context);
-    if (!mounted || kind == null) return;
+    final habit = _focusHabit;
+    final fileName = habit != null
+        ? 'insight_${habit.id}_$_year$_month'
+        : 'insight_all_$_year$_month';
 
-    final summary = InsightsMonthSummary.forMonth(_year, _month);
-    final payload = InsightSharePayload.fromHabit(
-      habit: habit,
-      summary: summary,
-      logicalToday: LogicalDateService.today(),
-    );
-    final card = InsightShareTemplateCard(kind: kind, payload: payload);
-    final ok = await InsightShareService.shareInsightCard(
-      context: context,
-      card: card,
-      fileName: 'insight_${habit.id}_$_year$_month',
+    final ok = await InsightShareService.shareWidgetBoundary(
+      key: _chartKey,
+      fileName: fileName,
     );
     if (!mounted) return;
     if (!ok) {
@@ -211,11 +193,20 @@ class _GlobalInsightsScreenState extends State<GlobalInsightsScreen> {
           onChanged: (id) => setState(() => _focusHabitId = id),
         ),
         const SizedBox(height: AppSpacing.lg),
-        HabitHeatmapCard(
-          habit: focus,
-          habits: allHabits,
-          year: _year,
-          month: _month,
+        RepaintBoundary(
+          key: _chartKey,
+          child: focus == null
+              ? InsightsAggregateChart(
+                  habits: allHabits,
+                  year: _year,
+                  month: _month,
+                )
+              : HabitHeatmapCard(
+                  habit: focus,
+                  habits: allHabits,
+                  year: _year,
+                  month: _month,
+                ),
         ),
         const SizedBox(height: AppSpacing.lg),
         if (focus != null) InsightsStatGrid(habit: focus, summary: summary),

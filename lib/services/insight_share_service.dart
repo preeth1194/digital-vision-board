@@ -47,6 +47,41 @@ final class InsightShareService {
     }
   }
 
+  /// Captures a [RepaintBoundary] identified by [key] as a PNG.
+  /// Use this to share a widget already on screen (no off-screen rendering).
+  static Future<bool> shareWidgetBoundary({
+    required GlobalKey key,
+    String fileName = 'insight',
+  }) async {
+    if (kIsWeb) return false;
+    try {
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return false;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return false;
+      final bytes = byteData.buffer.asUint8List();
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/$fileName.png';
+      await File(path).writeAsBytes(bytes);
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path, mimeType: 'image/png')]),
+      );
+      return true;
+    } on MissingPluginException catch (e, st) {
+      debugPrint(
+        'InsightShareService: share_plus not linked ($e). '
+        'Stop the app and run `flutter run` again (not hot restart). $st',
+      );
+      return false;
+    } catch (e, st) {
+      debugPrint('InsightShareService: shareWidgetBoundary failed: $e $st');
+      return false;
+    }
+  }
+
   static Future<Uint8List?> rasterizeCard({
     required BuildContext context,
     required Widget card,

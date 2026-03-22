@@ -144,8 +144,7 @@ final class WizardBoardBuilderService {
     SharedPreferences? prefs,
   }) async {
     final p = prefs ?? await SharedPreferences.getInstance();
-    final existing = await BoardsStorageService.loadBoards(prefs: p);
-    await BoardsStorageService.saveBoards([result.board, ...existing], prefs: p);
+    await BoardsStorageService.saveBoards([result.board], prefs: p);
     await BoardsStorageService.setActiveBoardId(result.board.id, prefs: p);
     await GridTilesStorageService.saveTiles(result.board.id, result.tiles, prefs: p);
   }

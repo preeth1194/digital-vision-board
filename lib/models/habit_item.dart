@@ -616,8 +616,10 @@ class HabitItem {
     return filtered;
   }
 
-  /// Get the current streak count (consecutive days from today backwards)
-  int get currentStreak {
+  /// Get the current streak count (consecutive days from [referenceDay] backwards).
+  ///
+  /// Use [LogicalDateService.today] for app-consistent "logical" streaks on insights.
+  int currentStreakAsOf(DateTime referenceDay) {
     if (completedDates.isEmpty) return 0;
 
     // Legacy weekly behavior (once per week)
@@ -627,8 +629,8 @@ class HabitItem {
         ..sort((a, b) => b.compareTo(a));
       if (uniqueWeeks.isEmpty) return 0;
 
-      final today = DateTime.now();
-      final thisWeek = _weekStartMonday(today);
+      final ref = _dateOnly(referenceDay);
+      final thisWeek = _weekStartMonday(ref);
       final prevWeek = thisWeek.subtract(const Duration(days: 7));
 
       int streak = 0;
@@ -671,9 +673,9 @@ class HabitItem {
       return d;
     }
 
-    DateTime curr = _dateOnly(DateTime.now());
+    DateTime curr = _dateOnly(referenceDay);
     if (hasWeeklySchedule && !isScheduledOnDate(curr)) {
-      // If today isn't scheduled, move to the most recent scheduled day.
+      // If reference day isn't scheduled, move to the most recent scheduled day.
       while (!isScheduledOnDate(curr)) {
         curr = curr.subtract(const Duration(days: 1));
       }
@@ -696,6 +698,9 @@ class HabitItem {
     }
     return streak;
   }
+
+  /// Get the current streak count (consecutive days from today backwards)
+  int get currentStreak => currentStreakAsOf(DateTime.now());
 
   /// Check if the habit was completed on a specific date (date-only comparison)
   bool isCompletedOnDate(DateTime date) {

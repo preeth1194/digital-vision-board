@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/habit_item.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import '../../models/vision_components.dart';
 import '../../screens/global_insights_screen.dart';
@@ -70,95 +71,60 @@ class _InsightsSummaryCardState extends State<InsightsSummaryCard>
     final now = LogicalDateService.now();
     final today = DateTime(now.year, now.month, now.day);
     final todaysHabits = _habits.where((h) => h.isScheduledOnDate(today)).toList();
-    final completedToday =
-        todaysHabits.where((h) => h.isCompletedOnDate(today)).length;
+    final completed = todaysHabits.where((h) => h.isCompletedOnDate(today)).length;
     final total = todaysHabits.length;
-    final rate = total > 0 ? completedToday / total : 0.0;
+    final rate = total > 0 ? completed / total : 0.0;
+    final pct = (rate * 100).toStringAsFixed(0);
 
     return GlassCard(
       onTap: _openInsights,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.insights_rounded,
-                  color: colorScheme.onPrimaryContainer,
-                  size: 16,
+            if (!_loaded) ...[
+              SizedBox(
+                height: AppSpacing.xs,
+                child: LinearProgressIndicator(
+                  backgroundColor:
+                      colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Insights',
-                    style: AppTypography.heading3(context).copyWith(
-                      color: colorScheme.onPrimaryContainer,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 15,
-                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
-                ),
-              ],
-            ),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (!_loaded)
-                    SizedBox(
-                      height: 4,
-                      child: LinearProgressIndicator(
-                        backgroundColor:
-                            colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                      ),
-                    )
-                  else if (total == 0)
-                    Text(
-                      _habits.isEmpty ? 'No habits tracked yet' : 'No habits today',
-                      style: AppTypography.bodySmall(context).copyWith(
-                        color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
-                      ),
-                    )
-                  else ...[
-                    Text(
-                      '${(rate * 100).toStringAsFixed(0)}%',
-                      style: AppTypography.heading1(context).copyWith(
-                        fontSize: 38,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      '$completedToday of $total done',
-                      style: AppTypography.caption(context).copyWith(
-                        color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.end,
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: rate,
-                        minHeight: 5,
-                        backgroundColor:
-                            colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                        valueColor: AlwaysStoppedAnimation(
-                          colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
               ),
-            ),
+            ] else if (total == 0) ...[
+              Text(
+                _habits.isEmpty ? 'No habits tracked yet' : 'No habits today',
+                style: AppTypography.bodySmall(context)
+                    .copyWith(color: colorScheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+            ] else ...[
+              Icon(Icons.insights_rounded, size: 22, color: colorScheme.primary),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$pct%',
+                style: AppTypography.heading2(context)
+                    .copyWith(color: colorScheme.primary),
+              ),
+              Text(
+                '$completed of $total done',
+                style: AppTypography.caption(context),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              LinearProgressIndicator(
+                value: rate,
+                borderRadius: BorderRadius.circular(AppSpacing.xs),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Insights ›',
+                style: AppTypography.caption(context).copyWith(
+                  color: colorScheme.primary.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/water_intake_entry.dart';
 import '../../services/water_intake_storage_service.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 import 'glass_card.dart';
 
@@ -139,11 +140,11 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
     final isDone = glasses >= goal;
 
     final accentColor = isDarkTheme
-        ? const Color(0xFF29B6F6)
-        : const Color(0xFF039BE5);
+        ? AppColors.waterAccentDark
+        : AppColors.waterAccentLight;
     final accentDark = isDarkTheme
-        ? const Color(0xFF0288D1)
-        : const Color(0xFF01579B);
+        ? AppColors.waterDeepDark
+        : AppColors.waterDeepLight;
 
     return GlassCard(
       child: ClipRRect(
@@ -253,7 +254,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // ── Count display ────────────────────────────────────────────
             Center(
@@ -294,7 +295,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // ── +/- controls ─────────────────────────────────────────────
             Row(
@@ -314,7 +315,7 @@ class _WaterIntakeCardState extends State<WaterIntakeCard>
                 Expanded(
                   child: _ControlButton(
                     icon: Icons.add_rounded,
-                    color: Colors.white,
+                    color: AppColors.cloudWhite,
                     bgColor: isDone ? accentDark : accentColor,
                     enabled: !_saving && glasses < goal,
                     onTap: () => _add(1),
@@ -414,7 +415,7 @@ class _ControlButton extends StatelessWidget {
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(12),
           child: SizedBox(
-            height: 52,
+            height: 36,
             child: Center(
               child: Icon(icon, size: 20, color: color),
             ),

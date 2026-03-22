@@ -6,12 +6,13 @@ import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/grid_template.dart';
-import '../../models/grid_tile_model.dart';
 import '../../models/goal_metadata.dart';
+import '../../services/boards_storage_service.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/image_persistence.dart';
 import '../../services/stock_images_service.dart';
 import '../../services/wizard_board_builder.dart';
+import '../../widgets/dialogs/confirm_dialog.dart';
 import '../grid_editor.dart';
 
 /// Creates a board with one large "Vision Board" tile pre-loaded with a Pexels
@@ -43,26 +44,62 @@ class _CreateBoardWizardScreenState extends State<CreateBoardWizardScreen> {
     ],
   );
 
+  static Future<bool> _boardHasGoals(
+    String boardId,
+    SharedPreferences prefs,
+  ) async {
+    final tiles = await GridTilesStorageService.loadTiles(
+      boardId,
+      prefs: prefs,
+    );
+    for (final t in tiles) {
+      if (t.isPlaceholder) continue;
+      final c = (t.content ?? '').trim();
+      if (c.isEmpty) continue;
+      if (t.type == 'image' || t.type == 'text') return true;
+    }
+    return false;
+  }
+
   Future<void> _createAndOpen() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final createdId = 'board_${DateTime.now().millisecondsSinceEpoch}';
+      final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
+
+      if (await _boardHasGoals(sole.id, prefs)) {
+        if (!mounted) return;
+        final ok = await showConfirmDialog(
+          context,
+          title: 'Replace vision board?',
+          message:
+              'Your current board will be replaced with a fresh layout. This cannot be undone.',
+          confirmText: 'Replace',
+        );
+        if (!mounted) return;
+        if (!ok) {
+          Navigator.of(context).pop(false);
+          return;
+        }
+      }
+
+      await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
 
       final result = WizardBoardBuilderService.buildEmpty(
-        boardId: createdId,
+        boardId: sole.id,
+        boardName: sole.title.trim().isNotEmpty ? sole.title : 'My vision',
         template: _singleTileTemplate,
       );
       await WizardBoardBuilderService.persist(result: result, prefs: prefs);
 
       // Fire-and-forget: fetch a Pexels image in the background so the
       // editor opens instantly instead of blocking on a slow backend.
-      _preloadHeroImage(createdId, prefs);
+      _preloadHeroImage(sole.id, prefs);
 
       if (!mounted) return;
       final done = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => GridEditorScreen(
-            boardId: createdId,
+            boardId: sole.id,
             title: result.board.title,
             initialIsEditing: true,
             template: _singleTileTemplate,

@@ -47,6 +47,7 @@ import '../services/routine_storage_service.dart';
 import '../models/challenge_template.dart';
 import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
+import '../services/notifications_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/rituals/add_habit_modal.dart';
@@ -62,6 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static const String _addWidgetPromptShownKey =
       'dv_add_widget_prompt_shown_v1';
+  /// One-shot hook so we do not re-prompt every cold start (Android exact-alarm flow, etc.).
+  static const String _postDashboardNotifPermissionKey =
+      'dv_post_dashboard_notif_permission_v1';
   int _tabIndex = 1;
   bool _loading = true;
   bool _showHabitsCalendarMode = false;
@@ -210,6 +214,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Auto-sync: check if 24h backup is due
     unawaited(AutoSyncService.maybeSyncIfDue(prefs: _prefs));
 
+    final prefs = _prefs!;
+    if (prefs.getBool(_postDashboardNotifPermissionKey) != true) {
+      await prefs.setBool(_postDashboardNotifPermissionKey, true);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(NotificationsService.requestPermissionsIfNeeded());
+      });
+    }
+
     _syncAuthListener ??= () {
       if (!mounted) return;
       if (SyncService.authExpired.value) {
@@ -275,6 +289,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _reload() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    await BoardsStorageService.ensureSingleBoard(prefs: prefs);
     final boards = await BoardsStorageService.loadBoards(prefs: prefs);
     final activeId = await BoardsStorageService.loadActiveBoardId(prefs: prefs);
     if (!mounted) return;
@@ -351,76 +367,89 @@ class _DashboardScreenState extends State<DashboardScreen>
         return GestureDetector(
           onTap: _openPresetShop,
           behavior: HitTestBehavior.opaque,
-          child: Row(
+          child: Container(
             key: _coinTargetKey,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Coin count first
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position:
-                          Tween<Offset>(
-                            begin: const Offset(0, 0.4),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutCubic,
-                            ),
-                          ),
-                      child: child,
-                    ),
-                  );
-                },
-                child: Text(
-                  '$coins',
-                  key: ValueKey(coins),
-                  style: AppTypography.body(context).copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isDark
+                  ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.55)
+                  : colorScheme.surface.withValues(alpha: 0.94),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 1,
               ),
-              const SizedBox(width: 8),
-              Container(
-                width: AppSpacing.coinAppBarSize,
-                height: AppSpacing.coinAppBarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppColors.goldLight, AppColors.goldDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: isDark
-                        ? colorScheme.outline.withValues(alpha: 0.45)
-                        : colorScheme.surface.withValues(alpha: 0.95),
-                    width: 1.25,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pureBlack.withValues(alpha: isDark ? 0.32 : 0.07),
+                  offset: const Offset(0, 1),
+                  blurRadius: 3,
+                  spreadRadius: 0,
+                  blurStyle: BlurStyle.inner,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 8),
+                Container(
+                  width: AppSpacing.coinAppBarSize,
+                  height: AppSpacing.coinAppBarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [AppColors.goldLight, AppColors.goldDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
                       color: isDark
-                          ? Colors.black.withValues(alpha: 0.28)
-                          : AppColors.forestDeep.withValues(alpha: 0.14),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
+                          ? colorScheme.outline.withValues(alpha: 0.45)
+                          : colorScheme.surface.withValues(alpha: 0.95),
+                      width: 1.25,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.monetization_on_rounded,
-                    size: AppSpacing.coinAppBarIcon,
-                    color: Colors.white,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.monetization_on_rounded,
+                      size: AppSpacing.coinAppBarIcon,
+                      color: AppColors.cloudWhite,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position:
+                            Tween<Offset>(
+                              begin: const Offset(0, 0.4),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              ),
+                            ),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    '$coins',
+                    key: ValueKey(coins),
+                    style: AppTypography.body(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                
+              ],
+            ),
           ),
         );
       },
@@ -735,30 +764,26 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _openChallengeSetup() async {
-    final shouldShowAds = await AdFreeService.shouldShowAds(prefs: _prefs);
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
 
-    if (shouldShowAds) {
-      final existingSession = await AdService.getChallengeSession(
-        prefs: _prefs,
+    final totalCoins = await CoinsService.getTotalCoins(prefs: prefs);
+    final cost = CoinsService.presetHabitCreationCoins;
+    if (totalCoins < cost) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Need $cost coins to start this challenge.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      if (existingSession != null) {
-        final complete = await AdService.isChallengeSessionComplete(
-          existingSession,
-          prefs: _prefs,
-        );
-        if (!complete) {
-          _boardDataVersion.value++;
-          return;
-        }
-      } else {
-        final sessionKey =
-            'challenge_75hard_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setChallengeSession(sessionKey, prefs: _prefs);
-        _boardDataVersion.value++;
-        return;
-      }
+      return;
     }
 
+    await _pushChallengeSetupScreen();
+  }
+
+  Future<void> _pushChallengeSetupScreen() async {
     if (!mounted) return;
     final res = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
@@ -815,6 +840,28 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (_) => PuzzleGameScreen(imagePath: resolvedPath, prefs: prefs),
       ),
     );
+  }
+
+  Future<bool> _boardHasNonEmptyContent(
+    VisionBoardInfo board, {
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? _prefs ?? await SharedPreferences.getInstance();
+    if (board.layoutType == VisionBoardInfo.layoutGrid) {
+      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: p);
+      for (final t in tiles) {
+        if (t.isPlaceholder) continue;
+        final c = (t.content ?? '').trim();
+        if (c.isEmpty) continue;
+        if (t.type == 'image' || t.type == 'text') return true;
+      }
+      return false;
+    }
+    final comps = await VisionBoardComponentsStorageService.loadComponents(
+      board.id,
+      prefs: p,
+    );
+    return comps.isNotEmpty;
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
@@ -1000,10 +1047,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
     if (config == null || config.title.isEmpty) return;
 
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
+    if (!mounted) return;
+    if (await _boardHasNonEmptyContent(sole, prefs: prefs)) {
+      final ok = await showConfirmDialog(
+        context,
+        title: 'Replace vision board?',
+        message:
+            'Your current vision board will be replaced. This cannot be undone.',
+        confirmText: 'Replace',
+      );
+      if (!mounted || !ok) return;
+    }
+
+    await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
+
     final core = CoreValues.byId(config.coreValueId);
-    final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
     final board = VisionBoardInfo(
-      id: id,
+      id: sole.id,
       title: config.title,
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
       coreValueId: core.id,
@@ -1013,16 +1076,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       templateId: null,
     );
 
-    final next = [board, ..._boards];
+    final next = <VisionBoardInfo>[board];
     await _saveBoards(next);
-    await _setActiveBoard(id);
+    await _setActiveBoard(sole.id);
     if (!mounted) return;
     setState(() => _boards = next);
 
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GoalCanvasEditorScreen(boardId: id, title: board.title),
+        builder: (_) =>
+            GoalCanvasEditorScreen(boardId: sole.id, title: board.title),
       ),
     );
     await _clearActiveBoard();
@@ -1151,7 +1215,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       onViewHabits: () => setState(() => _tabIndex = 7),
     );
 
-    final colorScheme = Theme.of(context).colorScheme;
     final scaffold = Scaffold(
       backgroundColor: Colors.transparent,
       // Hide app bar only for habits timeline calendar mode.
@@ -1160,7 +1223,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           : AppBar(
               toolbarHeight: 72,
               automaticallyImplyLeading: false,
-              backgroundColor: colorScheme.surface,
+              backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               titleSpacing: 0,
@@ -1251,7 +1314,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
+      decoration: AppColors.pageBackgroundDecoration(
+        isDark: isDark,
+        minimal: true,
+      ),
       child: Stack(
         children: [
           scaffold,
@@ -1286,7 +1352,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _hideCreatePanel,
-                child: Container(color: Colors.black.withOpacity(0.35 * t)),
+                child: Container(color: AppColors.pureBlack.withOpacity(0.35 * t)),
               ),
             ),
             // Panel sliding up from behind the nav bar
@@ -1311,8 +1377,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                         child: Material(
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.white.withValues(alpha: 0.6),
+                              ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                              : AppColors.cloudWhite.withValues(alpha: 0.6),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(20),
                           ),
@@ -1322,8 +1388,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               border: Border(
                                 top: BorderSide(
                                   color: isDark
-                                      ? Colors.white.withValues(alpha: 0.12)
-                                      : Colors.white.withValues(alpha: 0.8),
+                                      ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                                      : AppColors.cloudWhite.withValues(alpha: 0.8),
                                 ),
                               ),
                             ),
@@ -1398,13 +1464,13 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Ink(
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.white.withValues(alpha: 0.45),
+                  ? AppColors.cloudWhite.withValues(alpha: 0.06)
+                  : AppColors.cloudWhite.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.white.withValues(alpha: 0.6),
+                    ? AppColors.cloudWhite.withValues(alpha: 0.1)
+                    : AppColors.cloudWhite.withValues(alpha: 0.6),
                 width: 1,
               ),
             ),

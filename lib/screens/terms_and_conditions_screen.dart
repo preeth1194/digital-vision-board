@@ -1,25 +1,20 @@
 import 'package:flutter/material.dart';
 
-import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
+import '../widgets/layout/morning_garden_scaffold.dart';
 
 class TermsAndConditionsScreen extends StatelessWidget {
   const TermsAndConditionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: AppColors.skyDecoration(isDark: isDark),
-      child: Scaffold(
+    return MorningGardenScaffold(
+      appBar: AppBar(
+        title: const Text('Terms & Conditions'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('Terms & Conditions'),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: ListView(
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             Text('Terms & Conditions', style: AppTypography.heading1(context)),
@@ -96,7 +91,6 @@ class TermsAndConditionsScreen extends StatelessWidget {
             const SizedBox(height: 32),
           ],
         ),
-      ),
     );
   }
 

@@ -16,6 +16,10 @@ import MediaPlayer
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Do not call `GeneratedPluginRegistrant.register(with: self)` here. This app uses
+    // `FlutterImplicitEngineDelegate` + storyboard; with UIScene lifecycle the engine shell is not
+    // ready during this callback, and early registration aborts (FlutterEngine assertion).
+    // All plugins are registered in `didInitializeImplicitFlutterEngine` instead.
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

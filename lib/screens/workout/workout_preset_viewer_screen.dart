@@ -7,6 +7,7 @@ import '../../screens/subscription_screen.dart';
 import '../../services/personal_record_service.dart';
 import '../../services/subscription_service.dart';
 import 'personal_records_screen.dart';
+import '../../utils/app_colors.dart';
 
 /// Full-screen workout plan viewer with personal-record tracking.
 ///
@@ -875,7 +876,7 @@ class _LogPRSheetState extends State<_LogPRSheet> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.emoji_events_rounded, color: Colors.amber),
+              const Icon(Icons.emoji_events_rounded, color: AppColors.iconTrophyAmber),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

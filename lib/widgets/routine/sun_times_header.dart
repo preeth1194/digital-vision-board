@@ -289,7 +289,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
                         sunPulseValue: _sunPulseController.value,
                         rayValue: _rayController.value,
                         starValue: _starController.value,
-                        starColor: Colors.white,
+                        starColor: AppColors.cloudWhite,
                       ),
                     );
                   },
@@ -316,7 +316,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             text,
             style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: AppColors.cloudWhite,
               shadows: [
                 Shadow(
                   color: colorScheme.shadow.withValues(alpha: 0.5),
@@ -331,7 +331,7 @@ class _SunTimesHeaderState extends State<SunTimesHeader>
             Icon(
               Icons.refresh,
               size: 12,
-              color: Colors.white.withValues(alpha: 0.8),
+              color: AppColors.cloudWhite.withValues(alpha: 0.8),
               shadows: [
                 Shadow(
                   color: colorScheme.shadow.withValues(alpha: 0.5),

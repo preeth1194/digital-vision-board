@@ -28,11 +28,11 @@ class DailyProgressHeader extends StatelessWidget {
         : 0.0;
 
     final glassFill = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
+        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+        : AppColors.cloudWhite.withValues(alpha: 0.55);
     final glassBorder = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.7);
+        ? AppColors.cloudWhite.withValues(alpha: 0.12)
+        : AppColors.cloudWhite.withValues(alpha: 0.7);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -49,8 +49,8 @@ class DailyProgressHeader extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   color: isDark
-                      ? Colors.black.withValues(alpha: 0.25)
-                      : Colors.black.withValues(alpha: 0.06),
+                      ? AppColors.pureBlack.withValues(alpha: 0.25)
+                      : AppColors.pureBlack.withValues(alpha: 0.06),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),

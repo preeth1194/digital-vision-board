@@ -351,43 +351,6 @@ class _VisionBoardHomeBackState extends State<VisionBoardHomeBack> {
   }
 }
 
-Future<VisionBoardInfo?> showBoardPickerSheet(
-  BuildContext context, {
-  required List<VisionBoardInfo> boards,
-  required String? activeBoardId,
-}) {
-  return showModalBottomSheet<VisionBoardInfo>(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          ListTile(
-            title: Text(
-              'Set default board',
-              style: AppTypography.body(
-                ctx,
-              ).copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          for (final b in boards)
-            ListTile(
-              leading: Icon(Icons.dashboard_outlined),
-              title: Text(b.title),
-              subtitle: (b.id == activeBoardId) ? const Text('Default') : null,
-              trailing: (b.id == activeBoardId)
-                  ? const Icon(Icons.check)
-                  : null,
-              onTap: () => Navigator.of(ctx).pop(b),
-            ),
-          const SizedBox(height: 12),
-        ],
-      ),
-    ),
-  );
-}
-
 class _GridBoardPreview extends StatefulWidget {
   final String boardId;
   const _GridBoardPreview({required this.boardId});

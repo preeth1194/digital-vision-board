@@ -27,7 +27,8 @@ class TodayProgressCard extends StatelessWidget {
             Text(
               'Today\'s Progress',
               style: AppTypography.body(context).copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                color: Theme.of(context).colorScheme.onPrimaryContainer
+                    .withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 8),

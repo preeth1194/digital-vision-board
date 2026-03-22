@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/action_step_template.dart';
 import '../../models/habit_action_step.dart';
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 
 /// Workout-specific preset editor.
@@ -36,6 +37,7 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
   late Map<int, _DaypartSelection> _daypartByWeekday;
   late Map<int, Set<String>> _musclesByWeekday;
   int _selectedDayFilter = _allDaysFilter;
+  int? _expandedDaySelector;
   static const List<String> _muscleGroups = <String>[
     'Chest',
     'Back',
@@ -94,77 +96,6 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     });
   }
 
-  void _showMuscleSelector(int weekday) {
-    final selected = {...(_musclesByWeekday[weekday] ?? <String>{})};
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: StatefulBuilder(
-            builder: (context, setSheetState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Text(
-                      'Select Muscle Groups - ${_weekdayLabel(weekday)}',
-                      style: AppTypography.heading3(context),
-                    ),
-                  ),
-                  Flexible(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final option in _muscleGroups)
-                          CheckboxListTile(
-                            value: selected.contains(option),
-                            title: Text(option),
-                            onChanged: (checked) {
-                              setSheetState(() {
-                                if (checked == true) {
-                                  if (option == 'Rest day') {
-                                    selected
-                                      ..clear()
-                                      ..add(option);
-                                  } else {
-                                    selected
-                                      ..remove('Rest day')
-                                      ..add(option);
-                                  }
-                                } else {
-                                  selected.remove(option);
-                                }
-                              });
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {
-                          _applyMuscleSelectionForDay(
-                            weekday: weekday,
-                            selectedMuscles: selected,
-                          );
-                          Navigator.of(ctx).pop();
-                        },
-                        child: const Text('Done'),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
 
   List<String> _muscleOptionsForDay(int weekday) {
     final selected = (_musclesByWeekday[weekday] ?? <String>{})
@@ -178,6 +109,27 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     setState(() {
       _exercises[index] = _exercises[index].copyWith(selectedMuscle: value);
     });
+  }
+
+  void _toggleMuscleForDay(int weekday, String option) {
+    final current = {...(_musclesByWeekday[weekday] ?? <String>{})};
+    if (option == 'Rest day') {
+      if (current.contains('Rest day')) {
+        current.remove('Rest day');
+      } else {
+        current
+          ..clear()
+          ..add('Rest day');
+      }
+    } else {
+      current.remove('Rest day');
+      if (current.contains(option)) {
+        current.remove(option);
+      } else {
+        current.add(option);
+      }
+    }
+    _applyMuscleSelectionForDay(weekday: weekday, selectedMuscles: current);
   }
 
   void _applyMuscleSelectionForDay({
@@ -589,10 +541,241 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
     );
   }
 
+  Widget _buildDayRow(
+    BuildContext context,
+    int weekday,
+    ColorScheme cs,
+    TextTheme textTheme,
+  ) {
+    final isRestDay =
+        _musclesByWeekday[weekday]?.contains('Rest day') == true;
+    final hasSelection = (_musclesByWeekday[weekday] ?? {}).isNotEmpty;
+    final amOn = _daypartByWeekday[weekday]?.morning ?? false;
+    final pmOn = _daypartByWeekday[weekday]?.evening ?? false;
+    final shortLabel =
+        _weekdayLabel(weekday).substring(0, 3).toUpperCase();
+    final muscleText = _muscleLabelForDay(weekday);
+    final textMuted = !hasSelection || isRestDay;
+    final isExpanded = _expandedDaySelector == weekday;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 36,
+                child: Text(
+                  shortLabel,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: textMuted
+                        ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                        : cs.onSurface,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(
+                    () => _expandedDaySelector =
+                        isExpanded ? null : weekday,
+                  ),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isRestDay
+                              ? 'Rest'
+                              : (hasSelection
+                                  ? muscleText
+                                  : 'Tap to select'),
+                          style: textTheme.bodySmall?.copyWith(
+                            color:
+                                isRestDay || !hasSelection
+                                    ? cs.onSurfaceVariant.withValues(
+                                        alpha: 0.5,
+                                      )
+                                    : cs.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: isExpanded
+                              ? cs.primary
+                              : cs.onSurfaceVariant.withValues(
+                                  alpha: 0.4,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: isRestDay
+                    ? null
+                    : () {
+                        setState(() {
+                          final cur =
+                              _daypartByWeekday[weekday] ??
+                              const _DaypartSelection();
+                          _daypartByWeekday[weekday] =
+                              cur.copyWith(morning: !cur.morning);
+                        });
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (amOn && !isRestDay)
+                        ? cs.primary
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'AM',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: (amOn && !isRestDay)
+                          ? cs.onPrimary
+                          : cs.onSurfaceVariant.withValues(
+                              alpha: isRestDay ? 0.3 : 0.7,
+                            ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: isRestDay
+                    ? null
+                    : () {
+                        setState(() {
+                          final cur =
+                              _daypartByWeekday[weekday] ??
+                              const _DaypartSelection();
+                          _daypartByWeekday[weekday] =
+                              cur.copyWith(evening: !cur.evening);
+                        });
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (pmOn && !isRestDay)
+                        ? cs.primary
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'PM',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: (pmOn && !isRestDay)
+                          ? cs.onPrimary
+                          : cs.onSurfaceVariant.withValues(
+                              alpha: isRestDay ? 0.3 : 0.7,
+                            ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Inline muscle chip picker — no modal
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          child: isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in _muscleGroups)
+                        _buildMuscleChip(
+                          context,
+                          weekday,
+                          option,
+                          cs,
+                          textTheme,
+                        ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMuscleChip(
+    BuildContext context,
+    int weekday,
+    String option,
+    ColorScheme cs,
+    TextTheme textTheme,
+  ) {
+    final selected =
+        _musclesByWeekday[weekday]?.contains(option) == true;
+    final isRest = option == 'Rest day';
+    return GestureDetector(
+      onTap: () => _toggleMuscleForDay(weekday, option),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? (isRest ? cs.errorContainer : cs.primaryContainer)
+              : cs.surfaceContainerHighest.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? (isRest
+                    ? cs.error.withValues(alpha: 0.3)
+                    : cs.primary.withValues(alpha: 0.3))
+                : cs.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Text(
+          option,
+          style: textTheme.labelSmall?.copyWith(
+            color: selected
+                ? (isRest ? cs.onErrorContainer : cs.onPrimaryContainer)
+                : cs.onSurfaceVariant,
+            fontWeight:
+                selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -629,155 +812,42 @@ class _WorkoutPresetEditorScreenState extends State<WorkoutPresetEditorScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Card(
+          Container(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: AppColors.cloudDecoration(isDark: isDark),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Weekly Daypart Plan', style: textTheme.titleMedium),
-                  const SizedBox(height: 4),
                   Text(
-                    'Enable Morning and/or Evening for each muscle-group day.',
+                    'Weekly Plan',
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Tap day to set muscle groups · toggle AM / PM to schedule',
                     style: textTheme.bodySmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        const Expanded(child: SizedBox()),
-                        SizedBox(
-                          width: 56,
-                          child: Text(
-                            'AM',
-                            textAlign: TextAlign.center,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 56,
-                          child: Text(
-                            'PM',
-                            textAlign: TextAlign.center,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  for (final weekday in _weekdayOrder)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _weekdayLabel(weekday),
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: double.infinity,
-                            constraints: const BoxConstraints(minHeight: 52),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: cs.outline),
-                              borderRadius: BorderRadius.circular(10),
-                              color: cs.surface,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => _showMuscleSelector(weekday),
-                                    borderRadius: const BorderRadius.horizontal(
-                                      left: Radius.circular(10),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              _muscleLabelForDay(weekday),
-                                              style: textTheme.bodySmall
-                                                  ?.copyWith(color: cs.onSurface),
-                                            ),
-                                          ),
-                                          Icon(
-                                            Icons.checklist_rounded,
-                                            size: 18,
-                                            color: cs.primary,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  width: 1,
-                                  height: 52,
-                                  color: cs.outlineVariant,
-                                ),
-                                SizedBox(
-                                  width: 56,
-                                  child: Center(
-                                    child: Switch(
-                                      value:
-                                          _daypartByWeekday[weekday]?.morning ??
-                                          false,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          final current =
-                                              _daypartByWeekday[weekday] ??
-                                              const _DaypartSelection();
-                                          _daypartByWeekday[weekday] = current
-                                              .copyWith(morning: value);
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 56,
-                                  child: Center(
-                                    child: Switch(
-                                      value:
-                                          _daypartByWeekday[weekday]?.evening ??
-                                          false,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          final current =
-                                              _daypartByWeekday[weekday] ??
-                                              const _DaypartSelection();
-                                          _daypartByWeekday[weekday] = current
-                                              .copyWith(evening: value);
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                  const SizedBox(height: 12),
+                  for (int wi = 0; wi < _weekdayOrder.length; wi++) ...[
+                    if (wi > 0)
+                      Divider(
+                        height: 1,
+                        thickness: 0.5,
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
                       ),
+                    _buildDayRow(
+                      context,
+                      _weekdayOrder[wi],
+                      cs,
+                      textTheme,
                     ),
+                  ],
                 ],
               ),
             ),
@@ -1049,9 +1119,10 @@ class _ExerciseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: AppColors.cloudDecoration(isDark: isDark),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
         child: Column(
@@ -1059,13 +1130,17 @@ class _ExerciseCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 13,
-                  backgroundColor: cs.primaryContainer,
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
                   child: Text(
                     '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: cs.onPrimaryContainer,
                     ),
@@ -1177,7 +1252,7 @@ class _ExerciseCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Day: ${_formatPlannerDayLabel(entry.step.plannerDay ?? '')}',
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ),
           ],

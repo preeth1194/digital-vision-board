@@ -7,6 +7,7 @@ import '../../../utils/app_typography.dart';
 import '../../../models/journal_book.dart';
 import '../../../models/journal_entry.dart';
 import '../../../services/journal_book_storage_service.dart';
+import '../../../utils/app_colors.dart';
 
 /// An interactive 3D journal book that opens on tap to reveal entries.
 class InteractiveJournalBook extends StatefulWidget {
@@ -410,7 +411,7 @@ class _BookCover extends StatelessWidget {
                                     textAlign: TextAlign.center,
                                     style: AppTypography.heading3(
                                       context,
-                                    ).copyWith(color: Colors.white),
+                                    ).copyWith(color: AppColors.cloudWhite),
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       isDense: true,
@@ -427,7 +428,7 @@ class _BookCover extends StatelessWidget {
                                       textAlign: TextAlign.center,
                                       style: AppTypography.heading3(context)
                                           .copyWith(
-                                            color: Colors.white,
+                                            color: AppColors.cloudWhite,
                                             shadows: [
                                               Shadow(
                                                 color: colorScheme.shadow
@@ -446,7 +447,7 @@ class _BookCover extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: AppTypography.caption(context).copyWith(
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.6),
+                              color: AppColors.cloudWhite.withOpacity(0.6),
                               letterSpacing: 1.2,
                             ),
                           ),
@@ -458,13 +459,13 @@ class _BookCover extends StatelessWidget {
                               Icon(
                                 Icons.edit_note_rounded,
                                 size: 16,
-                                color: Colors.white.withOpacity(0.8),
+                                color: AppColors.cloudWhite.withOpacity(0.8),
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '$entryCount ${entryCount == 1 ? (isRecipeBook ? 'Recipe' : 'Page') : (isRecipeBook ? 'Recipes' : 'Pages')}',
                                 style: AppTypography.caption(context).copyWith(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: AppColors.cloudWhite.withOpacity(0.8),
                                   shadows: coverImagePath != null
                                       ? [
                                           Shadow(

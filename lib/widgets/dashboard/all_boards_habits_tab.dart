@@ -982,15 +982,24 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   DateTime? _inferHabitCreatedAt(HabitItem habit) {
+    DateTime? raw;
     final direct = int.tryParse(habit.id);
     if (direct != null && direct > 0) {
-      return DateTime.fromMillisecondsSinceEpoch(direct);
+      raw = DateTime.fromMillisecondsSinceEpoch(direct);
+    } else {
+      final match = RegExp(r'(\d{13})').firstMatch(habit.id);
+      if (match == null) return null;
+      final parsed = int.tryParse(match.group(1)!);
+      if (parsed == null || parsed <= 0) return null;
+      raw = DateTime.fromMillisecondsSinceEpoch(parsed);
     }
-    final match = RegExp(r'(\d{13})').firstMatch(habit.id);
-    if (match == null) return null;
-    final parsed = int.tryParse(match.group(1)!);
-    if (parsed == null || parsed <= 0) return null;
-    return DateTime.fromMillisecondsSinceEpoch(parsed);
+    // Non-timestamp ids or clock skew can yield a "future" day and wrongly
+    // hide habits on the calendar. Treat as unknown creation date.
+    final logical = LogicalDateService.now();
+    final logicalDay = DateTime(logical.year, logical.month, logical.day);
+    final createdDay = DateTime(raw.year, raw.month, raw.day);
+    if (createdDay.isAfter(logicalDay)) return null;
+    return raw;
   }
 
   String _filterLabel(_HabitQuickFilter filter) {
@@ -1046,9 +1055,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: AppColors.cloudWhite.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+              border: Border.all(color: AppColors.cloudWhite.withValues(alpha: 0.35)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1249,12 +1258,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.white.withValues(alpha: 0.55),
+                            ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                            : AppColors.cloudWhite.withValues(alpha: 0.55),
                         border: Border.all(
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.14)
-                              : Colors.white.withValues(alpha: 0.7),
+                              ? AppColors.cloudWhite.withValues(alpha: 0.14)
+                              : AppColors.cloudWhite.withValues(alpha: 0.7),
                         ),
                       ),
                       child: Row(
@@ -1316,10 +1325,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  bool _isTimedHabit(HabitItem habit) {
-    if (habit.startTimeMinutes == null) return false;
-    final tb = habit.timeBound;
-    return tb != null && tb.enabled && tb.durationMinutes > 0;
+  /// Whether this habit is pinned to a start time on the day timeline (minutes
+  /// since midnight). This is independent of the session timer ([timeBound]):
+  /// a habit can show "15 min" on the list card but still have no timeline
+  /// slot until the user drops it on the schedule (belongs in Flexible Habits).
+  bool _hasTimelineStart(HabitItem habit) {
+    return habit.startTimeMinutes != null;
   }
 
   int _habitDurationMinutes(HabitItem habit) {
@@ -1381,13 +1392,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.white.withValues(alpha: 0.46),
+                        ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                        : AppColors.cloudWhite.withValues(alpha: 0.46),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
                       color: isDark
-                          ? Colors.white.withValues(alpha: 0.16)
-                          : Colors.white.withValues(alpha: 0.62),
+                          ? AppColors.cloudWhite.withValues(alpha: 0.16)
+                          : AppColors.cloudWhite.withValues(alpha: 0.62),
                     ),
                   ),
                   child: Column(
@@ -1426,8 +1437,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           isDense: true,
                           filled: true,
                           fillColor: isDark
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : Colors.white.withValues(alpha: 0.26),
+                              ? AppColors.cloudWhite.withValues(alpha: 0.06)
+                              : AppColors.cloudWhite.withValues(alpha: 0.26),
                         ),
                         items: startOptions
                             .map(
@@ -1468,8 +1479,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           isDense: true,
                           filled: true,
                           fillColor: isDark
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : Colors.white.withValues(alpha: 0.26),
+                              ? AppColors.cloudWhite.withValues(alpha: 0.06)
+                              : AppColors.cloudWhite.withValues(alpha: 0.26),
                         ),
                         items: durationOptions
                             .map(
@@ -1530,9 +1541,10 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     for (final h in _habits) {
       if (h.id == movingHabit.id) continue;
       if (!h.isScheduledOnDate(selectedDate)) continue;
-      if (!_isTimedHabit(h)) continue;
+      if (!_hasTimelineStart(h)) continue;
       final otherStart = h.startTimeMinutes ?? 0;
-      final otherEnd = otherStart + _habitDurationMinutes(h);
+      final otherEnd =
+          otherStart + _habitDurationMinutes(h).clamp(15, 180);
       if (startMinutes < otherEnd && endMinutes > otherStart) {
         return true;
       }
@@ -1601,7 +1613,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   Widget _buildTimelineHabitChip(_HabitEntry entry) {
     final habit = entry.habit;
     final colorScheme = Theme.of(context).colorScheme;
-    final duration = _habitDurationMinutes(habit);
+    final duration = _habitDurationMinutes(habit).clamp(15, 180);
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.primary.withValues(alpha: 0.12),
@@ -1676,13 +1688,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.white.withValues(alpha: 0.92),
+                    ? AppColors.cloudWhite.withValues(alpha: 0.1)
+                    : AppColors.cloudWhite.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.14)
-                      : Colors.white.withValues(alpha: 0.96),
+                      ? AppColors.cloudWhite.withValues(alpha: 0.14)
+                      : AppColors.cloudWhite.withValues(alpha: 0.96),
                 ),
               ),
               child: Row(
@@ -1737,9 +1749,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
 
   Widget _buildFlexibleHabitsStickyCarousel({
     required List<_HabitEntry> flexibleHabits,
+    required List<_HabitEntry> scheduledForSelectedDate,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasDayHabits = scheduledForSelectedDate.isNotEmpty;
+    final hasFlexible = flexibleHabits.isNotEmpty;
     final visibleIndex = flexibleHabits.isEmpty
         ? 0
         : _flexibleHabitPageIndex.clamp(0, flexibleHabits.length - 1).toInt();
@@ -1748,13 +1763,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       child: Container(
         decoration: BoxDecoration(
           color: isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.9),
+              ? AppColors.cloudWhite.withValues(alpha: 0.12)
+              : AppColors.cloudWhite.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.16)
-                : Colors.white.withValues(alpha: 0.95),
+                ? AppColors.cloudWhite.withValues(alpha: 0.16)
+                : AppColors.cloudWhite.withValues(alpha: 0.95),
           ),
         ),
         child: Column(
@@ -1771,49 +1786,76 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const Spacer(),
-                  _buildViewModeAction(
-                    label: 'List',
-                    icon: Icons.view_list_rounded,
-                  ),
                 ],
               ),
             ),
             Expanded(
-              child: PageView.builder(
-                controller: _flexibleHabitsPageController,
-                itemCount: flexibleHabits.length,
-                onPageChanged: (index) {
-                  if (!mounted) return;
-                  setState(() => _flexibleHabitPageIndex = index);
-                },
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                    child: _buildFlexibleHabitCard(flexibleHabits[index]),
-                  );
-                },
-              ),
+              child: !hasDayHabits
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'No habits for this date. Choose another day or add habits from the list.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodySmall(context).copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    )
+                  : !hasFlexible
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'These habits already have a start time — they show as blocks on the timeline. Scroll down to see them, or tap a slot to schedule something new.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodySmall(context).copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    )
+                  : PageView.builder(
+                      controller: _flexibleHabitsPageController,
+                      itemCount: flexibleHabits.length,
+                      onPageChanged: (index) {
+                        if (!mounted) return;
+                        setState(() => _flexibleHabitPageIndex = index);
+                      },
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                          child: _buildFlexibleHabitCard(flexibleHabits[index]),
+                        );
+                      },
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.chevron_left_rounded,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
+                  if (hasFlexible) ...[
+                    Icon(
+                      Icons.chevron_left_rounded,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   Expanded(
                     child: Text(
-                      'Swipe to scroll, drag and drop in timeline',
-                      maxLines: 1,
+                      hasFlexible
+                          ? 'Swipe to scroll, drag and drop in timeline'
+                          : hasDayHabits
+                          ? 'Tap a time slot to place or move a habit'
+                          : 'Use list view to manage habits',
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.caption(
                         context,
@@ -2154,7 +2196,13 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionLabel('Timeline Habits'),
+        _buildSectionLabel(
+          'Timeline Habits',
+          trailing: _buildViewModeAction(
+            label: 'List',
+            icon: Icons.view_list_rounded,
+          ),
+        ),
         _buildCalendarTimeline(timedHabits: timedHabits),
         if (timedHabits.isEmpty)
           Padding(
@@ -2285,11 +2333,19 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
     }).toList();
     final filterDate = widget.showCalendarMode ? _selectedCalendarDate : now;
-    final visibleHabits = allHabits
+    // List mode must match the home habit card: do not drop habits based on
+    // _inferHabitCreatedAt(id), which can wrongly hide habits (e.g. ID shapes
+    // that decode to a future day). Calendar/timeline mode still hides habits
+    // on days before their inferred creation date.
+    Iterable<_HabitEntry> afterSearchAndFilter = allHabits
         .where(_matchesQuery)
-        .where((e) => _matchesFilter(e, filterDate))
-        .where((e) => _isHabitVisibleOnDate(e.habit, filterDate))
-        .toList();
+        .where((e) => _matchesFilter(e, filterDate));
+    if (widget.showCalendarMode) {
+      afterSearchAndFilter = afterSearchAndFilter.where(
+        (e) => _isHabitVisibleOnDate(e.habit, filterDate),
+      );
+    }
+    final visibleHabits = afterSearchAndFilter.toList();
     final hasActiveSearchOrFilter =
         _searchQuery.trim().isNotEmpty ||
         _activeFilter != _HabitQuickFilter.all;
@@ -2303,13 +2359,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         .where((e) => e.habit.isScheduledOnDate(_selectedCalendarDate))
         .toList();
     final timedHabits =
-        selectedDateHabits.where((e) => _isTimedHabit(e.habit)).toList()..sort(
-          (a, b) => (a.habit.startTimeMinutes ?? 0).compareTo(
-            b.habit.startTimeMinutes ?? 0,
-          ),
-        );
+        selectedDateHabits.where((e) => _hasTimelineStart(e.habit)).toList()
+          ..sort(
+            (a, b) => (a.habit.startTimeMinutes ?? 0).compareTo(
+              b.habit.startTimeMinutes ?? 0,
+            ),
+          );
     final flexibleHabits = selectedDateHabits
-        .where((e) => !_isTimedHabit(e.habit))
+        .where((e) => !_hasTimelineStart(e.habit))
         .toList();
 
     return Stack(
@@ -2376,9 +2433,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   ),
                 ),
               ),
-            if (allHabits.isNotEmpty &&
-                widget.showCalendarMode &&
-                flexibleHabits.isNotEmpty)
+            if (allHabits.isNotEmpty && widget.showCalendarMode)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _PinnedBoxHeaderDelegate(
@@ -2386,6 +2441,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   maxExtentValue: 156,
                   child: _buildFlexibleHabitsStickyCarousel(
                     flexibleHabits: flexibleHabits,
+                    scheduledForSelectedDate: selectedDateHabits,
                   ),
                 ),
               ),
@@ -2926,7 +2982,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                             boxShadow: [
                               BoxShadow(
                                 color: isDark
-                                    ? Colors.black.withValues(alpha: 0.24)
+                                    ? AppColors.pureBlack.withValues(alpha: 0.24)
                                     : AppColors.forestDeep.withValues(
                                         alpha: 0.12,
                                       ),
@@ -2939,7 +2995,7 @@ class _TimelineCompletionDetailsSheet extends StatelessWidget {
                             child: Icon(
                               Icons.monetization_on_rounded,
                               size: AppSpacing.coinChipIcon,
-                              color: Colors.white,
+                              color: AppColors.cloudWhite,
                             ),
                           ),
                         ),
@@ -3598,20 +3654,20 @@ class _CopingPlanFace extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.55),
+                  ? AppColors.cloudWhite.withValues(alpha: 0.08)
+                  : AppColors.cloudWhite.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : Colors.white.withValues(alpha: 0.7),
+                    ? AppColors.cloudWhite.withValues(alpha: 0.12)
+                    : AppColors.cloudWhite.withValues(alpha: 0.7),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isDark
-                      ? Colors.black.withValues(alpha: 0.25)
-                      : Colors.black.withValues(alpha: 0.06),
+                      ? AppColors.pureBlack.withValues(alpha: 0.25)
+                      : AppColors.pureBlack.withValues(alpha: 0.06),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),

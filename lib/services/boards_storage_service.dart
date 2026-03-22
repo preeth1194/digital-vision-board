@@ -2,7 +2,11 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/core_value.dart';
+import '../models/grid_template.dart';
+import '../models/grid_tile_model.dart';
 import '../models/vision_board_info.dart';
+import 'grid_tiles_storage_service.dart';
 
 class BoardsStorageService {
   BoardsStorageService._();
@@ -78,6 +82,82 @@ class BoardsStorageService {
   static Future<void> clearActiveBoardId({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     await p.remove(activeBoardIdKey);
+  }
+
+  /// Ensures at most one vision board exists, creates a default grid board if none.
+  ///
+  /// If multiple boards are stored (legacy), keeps the active board when valid,
+  /// otherwise the first; deletes prefs data for all others.
+  static Future<VisionBoardInfo> ensureSingleBoard({
+    SharedPreferences? prefs,
+  }) async {
+    final p = prefs ?? await SharedPreferences.getInstance();
+    var boards = await loadBoards(prefs: p);
+    final activeRaw = (await loadActiveBoardId(prefs: p) ?? '').trim();
+
+    if (boards.length > 1) {
+      VisionBoardInfo? keep;
+      if (activeRaw.isNotEmpty) {
+        for (final b in boards) {
+          if (b.id == activeRaw) {
+            keep = b;
+            break;
+          }
+        }
+      }
+      final kept = keep ?? boards.first;
+      for (final b in boards) {
+        if (b.id != kept.id) {
+          await deleteBoardData(b.id, prefs: p);
+        }
+      }
+      boards = [kept];
+      await saveBoards(boards, prefs: p);
+      await setActiveBoardId(kept.id, prefs: p);
+    }
+
+    if (boards.isEmpty) {
+      final id = 'board_${DateTime.now().millisecondsSinceEpoch}';
+      final tpl = GridTemplates.hero;
+      final core = CoreValues.byId(CoreValues.growthMindset);
+      final board = VisionBoardInfo(
+        id: id,
+        title: 'My vision',
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        coreValueId: core.id,
+        iconCodePoint: core.icon.codePoint,
+        tileColorValue: core.tileColor.toARGB32(),
+        layoutType: VisionBoardInfo.layoutGrid,
+        templateId: tpl.id,
+      );
+      final tiles = <GridTileModel>[
+        for (int i = 0; i < tpl.tiles.length; i++)
+          GridTileModel(
+            id: 'tile_$i',
+            type: 'empty',
+            content: null,
+            isPlaceholder: true,
+            crossAxisCellCount: tpl.tiles[i].crossAxisCount,
+            mainAxisCellCount: tpl.tiles[i].mainAxisCount,
+            index: i,
+          ),
+      ];
+      await saveBoards([board], prefs: p);
+      await setActiveBoardId(id, prefs: p);
+      await GridTilesStorageService.saveTiles(id, tiles, prefs: p);
+      return board;
+    }
+
+    final activeId = activeRaw.isNotEmpty ? activeRaw : boards.first.id;
+    final match = boards.cast<VisionBoardInfo?>().firstWhere(
+          (b) => b?.id == activeId,
+          orElse: () => null,
+        );
+    final board = match ?? boards.first;
+    if (board.id != activeId || activeRaw.isEmpty) {
+      await setActiveBoardId(board.id, prefs: p);
+    }
+    return board;
   }
 
   static Future<void> deleteBoardData(

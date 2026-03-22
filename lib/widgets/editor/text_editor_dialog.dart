@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../utils/app_colors.dart';
 import '../../utils/app_typography.dart';
 
 class TextEditorResult {
@@ -65,7 +66,7 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
     super.initState();
     _textController = TextEditingController(text: widget.initialText);
     _fontSize = widget.initialStyle.fontSize ?? 28;
-    _textColor = widget.initialStyle.color ?? Colors.black;
+    _textColor = widget.initialStyle.color ?? AppColors.pureBlack;
     _fontWeight = widget.initialStyle.fontWeight ?? FontWeight.w600;
     _textAlign = widget.initialTextAlign;
 
@@ -302,16 +303,16 @@ class _TextEditorDialogState extends State<_TextEditorDialog> {
   }
 
   static const List<Color> _colorOptions = [
-    Colors.black,
-    Colors.white,
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.pink,
-    Colors.teal,
-    Colors.amber,
+    AppColors.pureBlack,
+    AppColors.cloudWhite,
+    AppColors.editorSwatchRed,
+    AppColors.editorSwatchBlue,
+    AppColors.editorSwatchGreen,
+    AppColors.editorSwatchOrange,
+    AppColors.editorSwatchPurple,
+    AppColors.editorSwatchPink,
+    AppColors.editorSwatchTeal,
+    AppColors.iconTrophyAmber,
   ];
 }
 

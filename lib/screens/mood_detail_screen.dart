@@ -222,6 +222,8 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         title: const Text('Mood'),
       ),
       body: ListView(
@@ -654,7 +656,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen> {
                   radius: 6,
                   color: colorForMood(moodVal),
                   strokeWidth: 2.5,
-                  strokeColor: Colors.white,
+                  strokeColor: AppColors.cloudWhite,
                 );
               },
             ),

@@ -6,6 +6,7 @@ import '../../services/ad_free_service.dart';
 import '../../services/ad_service.dart';
 import '../../services/coins_service.dart';
 import '../../services/subscription_service.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import 'glass_card.dart';
 
@@ -121,82 +122,92 @@ class _RewardAdsCoinCardState extends State<RewardAdsCoinCard> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    // Segment bar
+    final segmentBar = Row(
+      children: List.generate(_adsPerReward, (i) {
+        final isFilled = i < _watchedInCycle;
+        return Expanded(
+          child: Container(
+            height: AppSpacing.xs,
+            margin: EdgeInsets.only(right: i < _adsPerReward - 1 ? AppSpacing.xs : 0),
+            decoration: BoxDecoration(
+              color: isFilled ? cs.primary : cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppSpacing.xs),
+            ),
+          ),
+        );
+      }),
+    );
+
+    // Watch button — three states
+    Widget watchButton;
+    if (_isLoading) {
+      watchButton = SizedBox(
+        width: 72,
+        height: 36,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+          ),
+        ),
+      );
+    } else if (!_showAds) {
+      watchButton = FilledButton(
+        onPressed: null,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(72, 36),
+          shape: const StadiumBorder(),
+        ),
+        child: const Text('Off'),
+      );
+    } else {
+      watchButton = FilledButton.icon(
+        onPressed: _onWatchAdTap,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(72, 36),
+          shape: const StadiumBorder(),
+        ),
+        icon: const Icon(Icons.play_arrow_rounded, size: 14),
+        label: const Text('Watch'),
+      );
+    }
+
     return GlassCard(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Icon(Icons.ondemand_video_rounded, size: 18, color: cs.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Reward Ads',
-                    style: AppTypography.heading3(context),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.secondaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '+$_coinsPerAd',
-                    style: AppTypography.caption(
-                      context,
-                    ).copyWith(fontWeight: FontWeight.w600, color: cs.onSecondaryContainer),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$_watchedInCycle/$_adsPerReward',
-              style: AppTypography.heading1(context).copyWith(height: 1.0),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: List.generate(_adsPerReward, (index) {
-                final isFilled = index < _watchedInCycle;
-                return Expanded(
-                  child: Container(
-                    height: 6,
-                    margin: EdgeInsets.only(right: index == _adsPerReward - 1 ? 0 : 6),
-                    decoration: BoxDecoration(
-                      color: isFilled ? cs.primary : cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
+            Icon(Icons.ondemand_video_rounded, size: 18, color: cs.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Rewards',
+                    style: AppTypography.caption(context).copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _showAds ? 'Each ad earns $_coinsPerAd coins' : 'Ads disabled',
-              style: AppTypography.caption(context).copyWith(color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _onWatchAdTap,
-                icon: _isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_circle_fill_rounded, size: 18),
-                label: _isLoading
-                    ? const Text('Loading')
-                    : Text(_showAds ? 'Watch ad' : 'Disabled'),
+                  const SizedBox(height: AppSpacing.xs),
+                  segmentBar,
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _showAds
+                        ? '$_watchedInCycle of $_adsPerReward · +$_coinsPerAd coins per ad'
+                        : 'Ads disabled',
+                    style: AppTypography.caption(context),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            watchButton,
           ],
         ),
       ),

@@ -993,8 +993,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onAfterHabitIdChanged: _onAfterHabitIdChanged,
                         onAnchorTextChanged: (v) => setState(() {
                           _anchorHabitText = v;
-                          if (_anchorHabitError != null)
+                          if (_anchorHabitError != null) {
                             _anchorHabitError = null;
+                          }
                         }),
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
@@ -1011,8 +1012,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         actionSteps: _actionSteps,
                         onActionStepsChanged: (steps) => setState(() {
                           _actionSteps = steps;
-                          if (_actionStepsError != null)
+                          if (_actionStepsError != null) {
                             _actionStepsError = null;
+                          }
                         }),
                       ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[

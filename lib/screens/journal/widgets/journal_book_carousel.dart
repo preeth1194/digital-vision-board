@@ -369,7 +369,7 @@ class _JournalOverlayPanelState extends State<_JournalOverlayPanel> {
               Positioned.fill(
                 child: GestureDetector(
                   onTap: widget.onDismiss,
-                  child: ColoredBox(color: AppColors.pureBlack.withOpacity(0.35 * t)),
+                  child: ColoredBox(color: AppColors.pureBlack.withValues(alpha: 0.35 * t)),
                 ),
               ),
               // Panel sliding up from behind the nav bar
@@ -565,11 +565,11 @@ class _AddBookCard extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     final bgColor = isDark
-        ? colorScheme.surfaceContainerHigh.withOpacity(0.5)
-        : colorScheme.surfaceContainerLow.withOpacity(0.7);
+        ? colorScheme.surfaceContainerHigh.withValues(alpha: 0.5)
+        : colorScheme.surfaceContainerLow.withValues(alpha: 0.7);
     final borderColor = isDark
-        ? colorScheme.outlineVariant.withOpacity(0.3)
-        : colorScheme.outlineVariant.withOpacity(0.4);
+        ? colorScheme.outlineVariant.withValues(alpha: 0.3)
+        : colorScheme.outlineVariant.withValues(alpha: 0.4);
 
     return AnimatedScale(
       scale: isActive ? 1.0 : 0.85,
@@ -595,7 +595,7 @@ class _AddBookCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+                    color: colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.08),
                     offset: const Offset(4, 6),
                     blurRadius: 16,
                   ),
@@ -608,7 +608,7 @@ class _AddBookCard extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: colorScheme.primary.withOpacity(0.15),
+                      color: colorScheme.primary.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -622,7 +622,7 @@ class _AddBookCard extends StatelessWidget {
                     'New Book',
                     style: AppTypography.body(context).copyWith(
                       fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

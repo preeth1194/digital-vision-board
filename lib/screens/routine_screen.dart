@@ -48,10 +48,10 @@ class _RoutineScreenState extends State<RoutineScreen>
   List<double> _hourYOffsets = List.generate(25, (i) => i * _baseHourHeight);
   List<double> _hourHeights = List.filled(24, _baseHourHeight);
   List<int> _habitsPerHour = List.filled(24, 0);
-  double _viewportHeight = 0;
+  final double _viewportHeight = 0;
   int _lastCrossedHour = -1;
 
-  // Occupied Y-ranges for empty-slot detection (populated by _buildPositionedHabitCards)
+  // Occupied Y-ranges for empty-slot detection
   List<(double top, double bottom)> _occupiedRanges = [];
 
   // Ad gating state
@@ -689,7 +689,7 @@ class _TimelineHabitCard extends StatelessWidget {
         ? colorScheme.primary
         : _categoryColor(habit.category, isDark);
     final textColor = _getContrastColor(colorScheme, tileColor);
-    final subtitleColor = textColor.withOpacity(0.65);
+    final subtitleColor = textColor.withValues(alpha: 0.65);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -709,7 +709,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   vertical: _compact ? 8 : 8,
                 ),
                 decoration: BoxDecoration(
-                  color: tileColor.withOpacity(isDark ? 0.7 : 0.75),
+                  color: tileColor.withValues(alpha: isDark ? 0.7 : 0.75),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isDark
@@ -719,7 +719,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: tileColor.withOpacity(0.2),
+                      color: tileColor.withValues(alpha: 0.2),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -770,7 +770,7 @@ class _TimelineHabitCard extends StatelessWidget {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.12),
+            color: textColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(iconData, size: 16, color: textColor),
@@ -802,7 +802,7 @@ class _TimelineHabitCard extends StatelessWidget {
         ),
         if (isCompleted) ...[
           const SizedBox(width: 8),
-          Icon(Icons.check_circle, size: 20, color: textColor.withOpacity(0.7)),
+          Icon(Icons.check_circle, size: 20, color: textColor.withValues(alpha: 0.7)),
         ],
       ],
     );
@@ -824,7 +824,7 @@ class _TimelineHabitCard extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.12),
+            color: textColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(iconData, size: 18, color: textColor),
@@ -870,7 +870,7 @@ class _TimelineHabitCard extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: textColor.withOpacity(0.08),
+                      color: textColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -898,7 +898,7 @@ class _TimelineHabitCard extends StatelessWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: textColor.withOpacity(0.08),
+                        color: textColor.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -922,7 +922,7 @@ class _TimelineHabitCard extends StatelessWidget {
             height: 26,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: textColor.withOpacity(0.12),
+              color: textColor.withValues(alpha: 0.12),
             ),
             child: Icon(Icons.check, size: 15, color: textColor),
           ),

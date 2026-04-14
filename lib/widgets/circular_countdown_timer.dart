@@ -87,7 +87,7 @@ class CircularCountdownTimer extends StatelessWidget {
                 Text(
                   elapsedText!,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: effectiveTextColor.withOpacity(0.7),
+                    color: effectiveTextColor.withValues(alpha: 0.7),
                     fontSize: size * 0.06,
                   ),
                   textAlign: TextAlign.center,
@@ -98,7 +98,7 @@ class CircularCountdownTimer extends StatelessWidget {
                 Text(
                   targetText!,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: effectiveTextColor.withOpacity(0.5),
+                    color: effectiveTextColor.withValues(alpha: 0.5),
                     fontSize: size * 0.05,
                   ),
                   textAlign: TextAlign.center,

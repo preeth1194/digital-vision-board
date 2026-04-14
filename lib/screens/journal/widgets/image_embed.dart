@@ -141,7 +141,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                   boxShadow: [
                     BoxShadow(
                       color: _isSelected
-                          ? colorScheme.primary.withOpacity(0.2)
+                          ? colorScheme.primary.withValues(alpha: 0.2)
                           : colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.1),
                       offset: const Offset(0, 4),
                       blurRadius: _isSelected ? 12 : 8,
@@ -155,7 +155,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                   ],
                   border: _isSelected
                       ? Border.all(
-                          color: colorScheme.primary.withOpacity(0.4),
+                          color: colorScheme.primary.withValues(alpha: 0.4),
                           width: 1.5,
                         )
                       : null,
@@ -362,7 +362,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                 height: 4,
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

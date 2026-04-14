@@ -423,9 +423,9 @@ class _PreviewTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
         ),
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.05),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.05),
       ),
       padding: const EdgeInsets.all(8),
       child: Column(
@@ -450,7 +450,7 @@ class _PreviewTile extends StatelessWidget {
                   : Container(
                       color: Theme.of(
                         context,
-                      ).colorScheme.outline.withOpacity(0.08),
+                      ).colorScheme.outline.withValues(alpha: 0.08),
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.image_outlined,
@@ -894,7 +894,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                     ? Theme.of(context)
                                           .colorScheme
                                           .tertiaryContainer
-                                          .withOpacity(0.2)
+                                          .withValues(alpha: 0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -937,7 +937,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                     ? Theme.of(context)
                                           .colorScheme
                                           .tertiaryContainer
-                                          .withOpacity(0.2)
+                                          .withValues(alpha: 0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),

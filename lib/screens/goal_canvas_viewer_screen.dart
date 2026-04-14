@@ -220,7 +220,7 @@ class _GoalCanvasViewerScreenState extends State<GoalCanvasViewerScreen> {
             : _tabIndex == 2
                 ? 'Todo'
                 : 'Insights';
-    final effectiveBgColor = _backgroundColor.value == 0xFFF8F9F4 ? colorScheme.surfaceContainerLowest : _backgroundColor;
+    final effectiveBgColor = _backgroundColor.toARGB32() == 0xFFF8F9F4 ? colorScheme.surfaceContainerLowest : _backgroundColor;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

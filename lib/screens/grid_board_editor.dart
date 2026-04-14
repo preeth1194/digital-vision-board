@@ -152,7 +152,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       fontWeight: weight,
       fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       letterSpacing: letter,
-      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.9),
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
     );
   }
 
@@ -774,7 +774,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? Theme.of(context).colorScheme.primary 
-                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -782,7 +782,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
                 alignment: Alignment.center,
                 child: Icon(
                   Icons.broken_image_outlined,
@@ -817,7 +817,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? Theme.of(context).colorScheme.primary 
-                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -861,7 +861,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? colorScheme.primary 
-                : colorScheme.outline.withOpacity(0.12),
+                : colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -922,7 +922,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -1201,7 +1201,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           top: 8,
                                           right: 8,
                                           child: Material(
-                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                             shape: const CircleBorder(),
                                             elevation: 4,
                                             child: InkWell(

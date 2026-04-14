@@ -100,7 +100,7 @@ class FontPickerSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(isDark ? 0.4 : 0.1),
+            color: colorScheme.shadow.withValues(alpha: isDark ? 0.4 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -120,7 +120,7 @@ class FontPickerSheet extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -213,20 +213,20 @@ class _FontOptionTileState extends State<_FontOptionTile> {
           border: Border.all(
             color: widget.isSelected
                 ? colorScheme.primary
-                : colorScheme.outlineVariant.withOpacity(0.3),
+                : colorScheme.outlineVariant.withValues(alpha: 0.3),
             width: widget.isSelected ? 2 : 1,
           ),
           boxShadow: _isPressed
               ? []
               : [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+                    color: colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.08),
                     offset: const Offset(2, 2),
                     blurRadius: 6,
                   ),
                   if (!isDark)
                     BoxShadow(
-                      color: colorScheme.surface.withOpacity(0.8),
+                      color: colorScheme.surface.withValues(alpha: 0.8),
                       offset: const Offset(-2, -2),
                       blurRadius: 6,
                     ),
@@ -258,7 +258,7 @@ class _FontOptionTileState extends State<_FontOptionTile> {
                     style: widget.font.getTextStyle(
                       fontSize: 14,
                       color: widget.isSelected
-                          ? colorScheme.onPrimaryContainer.withOpacity(0.8)
+                          ? colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
                           : colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),

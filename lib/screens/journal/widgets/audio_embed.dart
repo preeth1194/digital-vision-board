@@ -140,17 +140,17 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
                 : colorScheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(0.3),
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
             boxShadow: [
               BoxShadow(
-                color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+                color: colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.08),
                 offset: const Offset(0, 2),
                 blurRadius: 8,
               ),
               if (!isDark)
                 BoxShadow(
-                  color: colorScheme.surface.withOpacity(0.8),
+                  color: colorScheme.surface.withValues(alpha: 0.8),
                   offset: const Offset(-1, -1),
                   blurRadius: 4,
                 ),
@@ -176,7 +176,7 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
                         color: (isPlaying
                                 ? colorScheme.primary
                                 : colorScheme.primaryContainer)
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -210,7 +210,7 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
                             progress: progress,
                             activeColor: colorScheme.primary,
                             inactiveColor:
-                                colorScheme.outlineVariant.withOpacity(0.4),
+                                colorScheme.outlineVariant.withValues(alpha: 0.4),
                             barCount: 30,
                           ),
                           size: Size.infinite,
@@ -240,7 +240,7 @@ class _InlineAudioPlayerState extends State<_InlineAudioPlayer> {
               Icon(
                 Icons.mic_rounded,
                 size: 16,
-                color: colorScheme.primary.withOpacity(0.6),
+                color: colorScheme.primary.withValues(alpha: 0.6),
               ),
               // Delete button (edit mode only)
               if (!widget.isReadOnly && widget.onDelete != null) ...[
@@ -463,7 +463,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(isDark ? 0.4 : 0.1),
+            color: colorScheme.shadow.withValues(alpha: isDark ? 0.4 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -481,7 +481,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -505,7 +505,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _isRecording
-                          ? colorScheme.errorContainer.withOpacity(
+                          ? colorScheme.errorContainer.withValues(alpha:
                               0.3 + _pulseController.value * 0.3)
                           : _hasRecording
                               ? colorScheme.primaryContainer
@@ -514,14 +514,14 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet>
                                   : colorScheme.surfaceContainerLowest,
                       border: Border.all(
                         color: _isRecording
-                            ? colorScheme.error.withOpacity(0.5)
-                            : colorScheme.outlineVariant.withOpacity(0.3),
+                            ? colorScheme.error.withValues(alpha: 0.5)
+                            : colorScheme.outlineVariant.withValues(alpha: 0.3),
                         width: 2,
                       ),
                       boxShadow: [
                         if (_isRecording)
                           BoxShadow(
-                            color: colorScheme.error.withOpacity(
+                            color: colorScheme.error.withValues(alpha:
                                 0.1 + _pulseController.value * 0.15),
                             blurRadius: 20 + _pulseController.value * 10,
                             spreadRadius: _pulseController.value * 5,

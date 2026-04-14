@@ -18,7 +18,7 @@ class EditorTagChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(left: 12, right: 4, top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withOpacity(0.5),
+        color: colorScheme.primaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -37,7 +37,7 @@ class EditorTagChip extends StatelessWidget {
             child: Icon(
               Icons.close_rounded,
               size: 16,
-              color: colorScheme.onPrimaryContainer.withOpacity(0.6),
+              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.6),
             ),
           ),
         ],

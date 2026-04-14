@@ -190,7 +190,7 @@ class _InteractiveJournalBookState extends State<InteractiveJournalBook>
                         borderRadius: BorderRadius.circular(currentWidth / 2),
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.shadow.withOpacity(0.25),
+                            color: colorScheme.shadow.withValues(alpha: 0.25),
                             blurRadius: 25,
                             spreadRadius: 3,
                           ),
@@ -329,7 +329,7 @@ class _BookCover extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.3),
+                    color: colorScheme.shadow.withValues(alpha: 0.3),
                     offset: const Offset(2, 0),
                     blurRadius: 4,
                   ),
@@ -352,14 +352,14 @@ class _BookCover extends StatelessWidget {
                   bottomRight: Radius.circular(8),
                 ),
                 border: Border.all(
-                  color: darkerColor.withOpacity(0.5),
+                  color: darkerColor.withValues(alpha: 0.5),
                   width: 1,
                 ),
                 boxShadow: isOpen
                     ? []
                     : [
                         BoxShadow(
-                          color: colorScheme.shadow.withOpacity(0.2),
+                          color: colorScheme.shadow.withValues(alpha: 0.2),
                           offset: const Offset(4, 4),
                           blurRadius: 8,
                         ),
@@ -389,8 +389,8 @@ class _BookCover extends StatelessWidget {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                colorScheme.shadow.withOpacity(0.1),
-                                colorScheme.shadow.withOpacity(0.5),
+                                colorScheme.shadow.withValues(alpha: 0.1),
+                                colorScheme.shadow.withValues(alpha: 0.5),
                               ],
                             ),
                           ),
@@ -432,7 +432,7 @@ class _BookCover extends StatelessWidget {
                                             shadows: [
                                               Shadow(
                                                 color: colorScheme.shadow
-                                                    .withOpacity(0.5),
+                                                    .withValues(alpha: 0.5),
                                                 offset: const Offset(1, 1),
                                                 blurRadius: 3,
                                               ),
@@ -447,7 +447,7 @@ class _BookCover extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: AppTypography.caption(context).copyWith(
                               fontSize: 12,
-                              color: AppColors.cloudWhite.withOpacity(0.6),
+                              color: AppColors.cloudWhite.withValues(alpha: 0.6),
                               letterSpacing: 1.2,
                             ),
                           ),
@@ -459,18 +459,18 @@ class _BookCover extends StatelessWidget {
                               Icon(
                                 Icons.edit_note_rounded,
                                 size: 16,
-                                color: AppColors.cloudWhite.withOpacity(0.8),
+                                color: AppColors.cloudWhite.withValues(alpha: 0.8),
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '$entryCount ${entryCount == 1 ? (isRecipeBook ? 'Recipe' : 'Page') : (isRecipeBook ? 'Recipes' : 'Pages')}',
                                 style: AppTypography.caption(context).copyWith(
-                                  color: AppColors.cloudWhite.withOpacity(0.8),
+                                  color: AppColors.cloudWhite.withValues(alpha: 0.8),
                                   shadows: coverImagePath != null
                                       ? [
                                           Shadow(
                                             color: colorScheme.shadow
-                                                .withOpacity(0.5),
+                                                .withValues(alpha: 0.5),
                                             offset: const Offset(1, 1),
                                             blurRadius: 2,
                                           ),
@@ -624,7 +624,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
               : colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: widget.coverColor.withOpacity(0.3),
+            color: widget.coverColor.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),
@@ -634,7 +634,7 @@ class _ExpandedEntriesListState extends State<_ExpandedEntriesList>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: widget.coverColor.withOpacity(isDark ? 0.25 : 0.12),
+                color: widget.coverColor.withValues(alpha: isDark ? 0.25 : 0.12),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(15),
                   topRight: Radius.circular(15),
@@ -836,7 +836,7 @@ class _EntryRowState extends State<_EntryRow> {
         ? widget.colorScheme.surfaceContainerHighest
         : widget.colorScheme.surface;
     final borderColor = widget.isDark
-        ? widget.colorScheme.outlineVariant.withOpacity(0.3)
+        ? widget.colorScheme.outlineVariant.withValues(alpha: 0.3)
         : widget.colorScheme.outlineVariant;
 
     return GestureDetector(
@@ -850,7 +850,7 @@ class _EntryRowState extends State<_EntryRow> {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-              color: widget.colorScheme.shadow.withOpacity(
+              color: widget.colorScheme.shadow.withValues(alpha:
                 widget.isDark ? 0.15 : 0.04,
               ),
               offset: const Offset(0, 1),
@@ -865,7 +865,7 @@ class _EntryRowState extends State<_EntryRow> {
               width: 3,
               height: 36,
               decoration: BoxDecoration(
-                color: widget.coverColor.withOpacity(0.6),
+                color: widget.coverColor.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -988,7 +988,7 @@ class _HeaderActionBtnState extends State<_HeaderActionBtn> {
             height: 30,
             decoration: BoxDecoration(
               color: _pressed
-                  ? colorScheme.onSurface.withOpacity(0.08)
+                  ? colorScheme.onSurface.withValues(alpha: 0.08)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),

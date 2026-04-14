@@ -86,8 +86,8 @@ class VisionBoardPreviewCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    AppColors.pureBlack.withOpacity(0.7),
-                    AppColors.pureBlack.withOpacity(0.85),
+                    AppColors.pureBlack.withValues(alpha: 0.7),
+                    AppColors.pureBlack.withValues(alpha: 0.85),
                   ],
                 ),
               ),
@@ -114,7 +114,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                             child: Text(
                               'Selected',
                               style: AppTypography.caption(context).copyWith(
-                                color: AppColors.cloudWhite.withOpacity(0.9),
+                                color: AppColors.cloudWhite.withValues(alpha: 0.9),
                               ),
                             ),
                           ),
@@ -203,9 +203,9 @@ class VisionBoardPreviewCard extends StatelessWidget {
             mainAxisCellCount: 1,
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                   width: 0.5,
                 ),
               ),
@@ -282,7 +282,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
         child: Icon(
           iconData,
           size: 48,
-          color: iconColor.withOpacity(0.6),
+          color: iconColor.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -291,7 +291,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
   Widget _buildLoadingPlaceholder(BuildContext context, Color tileColor) {
     return Container(
       height: 150,
-      color: tileColor.withOpacity(0.3),
+      color: tileColor.withValues(alpha: 0.3),
       child: Center(
         child: CircularProgressIndicator(
           color: Theme.of(context).colorScheme.primary,
@@ -302,10 +302,10 @@ class VisionBoardPreviewCard extends StatelessWidget {
 
   Widget _buildEmptyTile(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
       child: Icon(
         Icons.image_outlined,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
         size: 24,
       ),
     );

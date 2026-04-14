@@ -492,7 +492,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   decoration: BoxDecoration(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primaryContainer.withOpacity(0.3),
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
@@ -581,7 +581,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                       color: isCompleted
                                                           ? Theme.of(context)
                                                                 .colorScheme
-                                                                .surfaceVariant
+                                                                .surfaceContainerHighest
                                                           : null,
                                                     ),
                                                 overflow: TextOverflow.ellipsis,

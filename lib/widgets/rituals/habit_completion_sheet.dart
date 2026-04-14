@@ -52,7 +52,7 @@ Future<HabitCompletionResult?> showHabitCompletionSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: AppColors.pureBlack.withOpacity(0.35),
+    barrierColor: AppColors.pureBlack.withValues(alpha: 0.35),
     builder: (ctx) => _HabitCompletionSheetContent(
       habit: habit,
       baseCoins: baseCoins,

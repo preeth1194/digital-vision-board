@@ -843,7 +843,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
 
     return PopScope(
       canPop: !_hasUnsavedChanges,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         if (_hasUnsavedChanges) {
           _autoSaveTimer?.cancel();
@@ -899,7 +899,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.onSurface.withOpacity(isDark ? 0.25 : 0.04),
+                          color: colorScheme.onSurface.withValues(alpha: isDark ? 0.25 : 0.04),
                           offset: const Offset(0, 2),
                           blurRadius: 6,
                         ),
@@ -928,7 +928,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                   _formatEntryDate(),
                                   style: AppTypography.caption(context).copyWith(
                                     fontWeight: FontWeight.w500,
-                                    color: colorScheme.primary.withOpacity(0.7),
+                                    color: colorScheme.primary.withValues(alpha: 0.7),
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -945,7 +945,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                 decoration: InputDecoration(
                                   hintText: 'Title',
                                   hintStyle: _selectedFont.getTitleStyle(
-                                    color: colorScheme.onSurface.withOpacity(0.25),
+                                    color: colorScheme.onSurface.withValues(alpha: 0.25),
                                   ),
                                   // Override app-wide filled + outlined inputs so the title
                                   // sits flush on the paper card (no nested box).
@@ -999,7 +999,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                   Expanded(
                                     child: Container(
                                       height: 1,
-                                      color: colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   Padding(
@@ -1007,13 +1007,13 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                     child: Icon(
                                       Icons.auto_stories_outlined,
                                       size: 16,
-                                      color: colorScheme.outlineVariant.withOpacity(0.5),
+                                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                                     ),
                                   ),
                                   Expanded(
                                     child: Container(
                                       height: 1,
-                                      color: colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                                     ),
                                   ),
                                 ],
@@ -1060,7 +1060,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                     paragraph: quill.DefaultTextBlockStyle(
                                       _selectedFont.getTextStyle(
                                         fontSize: EditorSpacing.bodyFontSize,
-                                        color: colorScheme.onSurface.withOpacity(0.9),
+                                        color: colorScheme.onSurface.withValues(alpha: 0.9),
                                         height: EditorSpacing.textHeight,
                                       ),
                                       const quill.HorizontalSpacing(0, 0),
@@ -1072,7 +1072,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                                       _selectedFont.getTextStyle(
                                         fontSize: EditorSpacing.bodyFontSize,
                                         fontStyle: FontStyle.italic,
-                                        color: colorScheme.onSurface.withOpacity(0.3),
+                                        color: colorScheme.onSurface.withValues(alpha: 0.3),
                                         height: EditorSpacing.textHeight,
                                       ),
                                       const quill.HorizontalSpacing(0, 0),
@@ -1119,7 +1119,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                             color: Colors.transparent,
                             border: Border(
                               top: BorderSide(
-                                color: colorScheme.outlineVariant.withOpacity(0.2),
+                                color: colorScheme.outlineVariant.withValues(alpha: 0.2),
                               ),
                             ),
                           ),
@@ -1233,7 +1233,7 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                   color: isDark ? cs.surfaceContainerHigh : cs.surface,
                   borderRadius: BorderRadius.circular(16),
                   elevation: 8,
-                  shadowColor: cs.onSurface.withOpacity(0.3),
+                  shadowColor: cs.onSurface.withValues(alpha: 0.3),
                   child: Container(
                     width: 100,
                     constraints: const BoxConstraints(maxHeight: 220),

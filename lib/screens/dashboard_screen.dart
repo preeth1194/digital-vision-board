@@ -1066,7 +1066,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _hideCreatePanel,
-                child: Container(color: AppColors.pureBlack.withOpacity(0.35 * t)),
+                child: Container(color: AppColors.pureBlack.withValues(alpha: 0.35 * t)),
               ),
             ),
             // Panel sliding up from behind the nav bar

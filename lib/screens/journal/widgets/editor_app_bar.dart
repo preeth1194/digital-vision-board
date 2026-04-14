@@ -84,13 +84,13 @@ class EditorAppBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(EditorSpacing.cardRadius),
               boxShadow: [
                 BoxShadow(
-                  color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.05),
+                  color: colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
                 if (!isDark)
                   BoxShadow(
-                    color: colorScheme.surface.withOpacity(0.8),
+                    color: colorScheme.surface.withValues(alpha: 0.8),
                     blurRadius: 4,
                     offset: const Offset(-1, -1),
                   ),
@@ -121,7 +121,7 @@ class EditorAppBar extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: currentFontSize != null
-                              ? colorScheme.primary.withOpacity(0.12)
+                              ? colorScheme.primary.withValues(alpha: 0.12)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(EditorSpacing.smallRadius),
                         ),
@@ -136,7 +136,7 @@ class EditorAppBar extends StatelessWidget {
                                 fontWeight: currentFontSize != null ? FontWeight.w600 : FontWeight.w500,
                                 color: currentFontSize != null
                                     ? colorScheme.primary
-                                    : colorScheme.onSurface.withOpacity(0.7),
+                                    : colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                             ),
                             Icon(
@@ -144,7 +144,7 @@ class EditorAppBar extends StatelessWidget {
                               size: 16,
                               color: currentFontSize != null
                                   ? colorScheme.primary
-                                  : colorScheme.onSurface.withOpacity(0.5),
+                                  : colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ],
                         ),
@@ -278,9 +278,9 @@ class _AppBarIconButtonState extends State<AppBarIconButton> {
             padding: EdgeInsets.all(EditorSpacing.smallGap),
             decoration: BoxDecoration(
               color: _isPressed
-                  ? colorScheme.primary.withOpacity(0.15)
+                  ? colorScheme.primary.withValues(alpha: 0.15)
                   : (_isHovered
-                      ? colorScheme.primary.withOpacity(0.08)
+                      ? colorScheme.primary.withValues(alpha: 0.08)
                       : Colors.transparent),
               borderRadius: BorderRadius.circular(EditorSpacing.smallRadius),
             ),
@@ -293,7 +293,7 @@ class _AppBarIconButtonState extends State<AppBarIconButton> {
               size: 20,
               color: _isHovered || _isPressed
                   ? colorScheme.primary
-                  : colorScheme.onSurface.withOpacity(0.7),
+                  : colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ),

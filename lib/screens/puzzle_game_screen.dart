@@ -644,7 +644,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return DragTarget<int>(
-      onAccept: (draggedPieceIndex) => _movePiece(draggedPieceIndex, position),
+      onAcceptWithDetails: (details) => _movePiece(details.data, position),
       builder: (context, candidateData, rejectedData) {
         final isTargeted = candidateData.isNotEmpty;
         return Container(

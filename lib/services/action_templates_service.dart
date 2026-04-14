@@ -11,20 +11,6 @@ class ActionTemplatesService {
   static Uri _url(String path) =>
       Uri.parse('${DvAuthService.backendBaseUrl()}$path');
 
-  static Future<Map<String, dynamic>> _getJson({
-    required String path,
-    required String dvToken,
-  }) async {
-    final res = await http.get(
-      _url(path),
-      headers: {'Authorization': 'Bearer $dvToken'},
-    );
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Request failed (${res.statusCode}): ${res.body}');
-    }
-    return jsonDecode(res.body) as Map<String, dynamic>;
-  }
-
   static Future<http.Response> _getRaw({
     required String path,
     required String dvToken,

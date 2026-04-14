@@ -105,9 +105,6 @@ final class OverallStreakStorageService {
     final today = LogicalDateService.today();
     final todayIso = LogicalDateService.toIsoDate(today);
     
-    // Sort dates descending
-    final sortedDates = completedDates.toList()..sort((a, b) => b.compareTo(a));
-    
     // Check if today or yesterday is completed
     final yesterday = today.subtract(const Duration(days: 1));
     final yesterdayIso = LogicalDateService.toIsoDate(yesterday);

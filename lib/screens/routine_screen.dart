@@ -134,22 +134,10 @@ class _RoutineScreenState extends State<RoutineScreen>
             1.0,
           )
         : 0.0;
-    final minute = (fraction * 60).toInt().clamp(0, 59);
-
-    final previewTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      hour,
-      minute,
-    );
-
     if (hour != _lastCrossedHour && _lastCrossedHour != -1) {
       HapticFeedback.selectionClick();
     }
     _lastCrossedHour = hour;
-
-    setState(() => _timelinePreviewTime = previewTime);
   }
 
   Future<void> _init() async {
@@ -563,7 +551,6 @@ class _RoutineScreenState extends State<RoutineScreen>
 
   Widget _buildPlannerList() {
     final habitsForDate = _timedHabitsForDate;
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
@@ -594,78 +581,6 @@ class _RoutineScreenState extends State<RoutineScreen>
                 );
               },
             ),
-    );
-  }
-
-  Widget _build24HourTimeline() {
-    final habitsForDate = _timedHabitsForDate;
-    _computeHourLayout(habitsForDate);
-    final totalHeight = _hourYOffsets[24];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-    final habitCards = _buildPositionedHabitCards(habitsForDate, isDark);
-    final effectiveHeight = _timelineMaxY > totalHeight
-        ? _timelineMaxY + 20
-        : totalHeight;
-
-    final now = DateTime.now();
-    final isToday =
-        _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    return RefreshIndicator(
-      onRefresh: _loadHabits,
-      child: SingleChildScrollView(
-        controller: _timelineScrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        child: Container(
-          height: effectiveHeight,
-          color: isDark
-              ? colorScheme.onSurface.withValues(alpha: 0.03)
-              : colorScheme.shadow.withValues(alpha: 0.02),
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTapUp: _onTimelineTap,
-            child: Stack(
-              children: [
-                ..._buildHourLines(isDark, colorScheme),
-                if (isToday)
-                  _buildCurrentTimeIndicator(isDark, colorScheme)
-                else
-                  _buildDateAnchorLine(colorScheme),
-                ...habitCards,
-                if (_tapHighlightY != null)
-                  Positioned(
-                    top: _tapHighlightY! - 1,
-                    left: 56,
-                    right: 24,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 300),
-                      opacity: _tapHighlightY != null ? 1.0 : 0.0,
-                      child: Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (habitsForDate.isEmpty)
-                  Positioned(
-                    top: _hourYOffsets[7],
-                    left: 56,
-                    right: 16,
-                    child: _buildEmptyTimelineHint(),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

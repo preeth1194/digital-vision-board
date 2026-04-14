@@ -110,7 +110,7 @@ class PuzzleService {
         );
         for (final component in components) {
           if (component is ImageComponent) {
-            final path = (component.imagePath ?? '').trim();
+            final path = component.imagePath.trim();
             if (path.isNotEmpty && !images.contains(path)) {
               images.add(path);
             }

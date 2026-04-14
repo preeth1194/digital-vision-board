@@ -848,9 +848,10 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
         if (didPop) return;
         if (_hasUnsavedChanges) {
           _autoSaveTimer?.cancel();
+          final navigator = Navigator.of(context);
           final saved = await save();
           if (saved && mounted) {
-            Navigator.of(context).pop();
+            navigator.pop();
           }
         } else {
           if (mounted) {
@@ -870,8 +871,9 @@ class _JournalEntryEditorScreenState extends State<JournalEntryEditorScreen> wit
                 onBack: () async {
                   if (_hasUnsavedChanges) {
                     _autoSaveTimer?.cancel();
+                    final navigator = Navigator.of(context);
                     final saved = await save();
-                    if (saved && mounted) Navigator.of(context).pop();
+                    if (saved && mounted) navigator.pop();
                   } else {
                     Navigator.of(context).pop();
                   }

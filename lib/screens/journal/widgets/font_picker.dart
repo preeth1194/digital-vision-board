@@ -84,6 +84,7 @@ class FontPickerSheet extends StatelessWidget {
   final void Function(EditorFont) onFontSelected;
 
   const FontPickerSheet({
+    super.key,
     required this.selectedFont,
     required this.onFontSelected,
   });

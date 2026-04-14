@@ -8,6 +8,7 @@ class EditorTagChip extends StatelessWidget {
   final VoidCallback onDelete;
 
   const EditorTagChip({
+    super.key,
     required this.label,
     required this.onDelete,
   });

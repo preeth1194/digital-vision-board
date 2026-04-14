@@ -417,7 +417,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
 class FullScreenImageViewer extends StatelessWidget {
   final String imagePath;
 
-  const FullScreenImageViewer({required this.imagePath});
+  const FullScreenImageViewer({super.key, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {

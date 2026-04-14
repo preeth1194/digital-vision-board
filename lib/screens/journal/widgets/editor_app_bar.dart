@@ -21,6 +21,7 @@ class EditorAppBar extends StatelessWidget {
   final LayerLink fontSizeLayerLink;
 
   const EditorAppBar({
+    super.key,
     required this.isEditing,
     required this.saveStatus,
     required this.onBack,
@@ -243,6 +244,7 @@ class AppBarIconButton extends StatefulWidget {
   final VoidCallback onTap;
 
   const AppBarIconButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,

@@ -6,7 +6,6 @@ import '../utils/app_typography.dart';
 import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
-import '../models/image_component.dart';
 import '../models/goal_metadata.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';

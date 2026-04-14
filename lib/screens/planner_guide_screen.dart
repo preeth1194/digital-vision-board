@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -16,8 +15,6 @@ import '../presets/preset_route_registry.dart';
 import '../presets/services/skincare_preset_compiler.dart';
 import '../presets/widgets/preset_template_screen.dart';
 import '../screens/presets/preset_shop_screen.dart';
-import '../services/action_templates_service.dart';
-import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/planner_guide_data_service.dart';
 import '../services/meal_prep_storage_service.dart';
@@ -25,7 +22,6 @@ import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
 import '../utils/app_colors.dart';
-import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 

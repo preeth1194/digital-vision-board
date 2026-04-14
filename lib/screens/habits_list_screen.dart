@@ -5,7 +5,6 @@ import '../models/habit_item.dart';
 import '../utils/app_typography.dart';
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
-import '../models/image_component.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';

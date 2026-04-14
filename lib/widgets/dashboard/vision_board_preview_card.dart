@@ -3,7 +3,6 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/vision_board_info.dart';
-import '../../models/grid_tile_model.dart';
 import '../../models/vision_components.dart';
 import '../../services/grid_tiles_storage_service.dart';
 import '../../services/vision_board_components_storage_service.dart';

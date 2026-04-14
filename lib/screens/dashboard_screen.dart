@@ -49,7 +49,6 @@ import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
 import '../services/notifications_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
-import '../widgets/profile_avatar.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
 class DashboardScreen extends StatefulWidget {

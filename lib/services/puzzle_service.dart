@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
-import '../models/grid_tile_model.dart';
 import '../models/goal_metadata.dart';
 import 'boards_storage_service.dart';
 import 'vision_board_components_storage_service.dart';

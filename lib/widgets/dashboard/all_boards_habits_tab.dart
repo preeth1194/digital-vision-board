@@ -30,7 +30,6 @@ import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
 import '../habits/off_schedule_completion_dialog.dart';
-import 'cards/coping_plan_face.dart';
 import 'cards/swipeable_habit_card.dart';
 import 'habits_tab_models.dart';
 import 'timeline/month_week_scroller.dart';

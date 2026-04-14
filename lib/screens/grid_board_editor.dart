@@ -14,8 +14,6 @@ import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/image_service.dart';
-import '../services/stock_images_service.dart';
-import '../services/templates_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';

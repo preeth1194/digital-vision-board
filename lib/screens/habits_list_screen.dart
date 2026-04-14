@@ -57,14 +57,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     }
   }
 
-  /// Helper to get goal from a component
-  GoalMetadata? _getGoalFromComponent(VisionComponent component) {
-    if (component is ImageComponent) {
-      return component.goal;
-    }
-    return null;
-  }
-
   static String _toIsoDate(DateTime d) {
     return LogicalDateService.toIsoDate(d);
   }

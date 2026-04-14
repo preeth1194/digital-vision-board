@@ -401,18 +401,21 @@ class _TodosListScreenState extends State<TodosListScreen> {
                 trailing: widget.allowManageTodos
                     ? PopupMenuButton<String>(
                         onSelected: (v) async {
-                          if (v == 'edit')
+                          if (v == 'edit') {
                             await _editTodoText(context, component, meta, todo);
+                          }
                           if (v == 'delete') _deleteTodo(component, meta, todo);
-                          if (v == 'convert')
+                          if (v == 'convert') {
                             await _convertToHabit(
                               context,
                               component,
                               meta,
                               todo,
                             );
-                          if (v == 'unlink')
+                          }
+                          if (v == 'unlink') {
                             _unlinkHabit(component, meta, todo);
+                          }
                         },
                         itemBuilder: (context) => [
                           const PopupMenuItem(

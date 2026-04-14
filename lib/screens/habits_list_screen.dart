@@ -654,8 +654,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                                 orElse: () =>
                                                                     null,
                                                               );
-                                                          if (cNow == null)
+                                                          if (cNow == null) {
                                                             return;
+                                                          }
                                                           final hNow = cNow
                                                               .habits
                                                               .where(

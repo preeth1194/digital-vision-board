@@ -825,8 +825,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       final next = _boards.where((b) => b.id != board.id).toList();
       await _saveBoards(next);
-      if (_activeBoardId == board.id)
+      if (_activeBoardId == board.id) {
         await BoardsStorageService.clearActiveBoardId(prefs: prefs);
+      }
       if (!mounted) return;
       setState(() {
         _boards = next;
@@ -890,8 +891,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     const visibleTabIndices = <int>[
       1,

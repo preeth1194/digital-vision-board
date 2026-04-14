@@ -265,35 +265,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
     );
   }
 
-  Widget _buildAddStepRow(ColorScheme colorScheme) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _addStep,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                size: 20,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Add a step',
-                style: AppTypography.body(context).copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildStepOptionsRow(ColorScheme colorScheme) {
     final style = OutlinedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

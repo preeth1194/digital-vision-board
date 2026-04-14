@@ -109,53 +109,8 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     });
   }
 
-  Future<void> _toggleMicroHabitCompletionForHabit(
-    String componentId,
-    String habitId,
-    String microhabitText,
-  ) async {
-    final now = LogicalDateService.now();
-    final todayIso = _toIsoDate(now);
-    final key = '${componentId}_${habitId}_$microhabitText';
-    final isCompleted = _microhabitCompletions[key] ?? false;
-
-    if (isCompleted) {
-      await MicroHabitStorageService.unmarkMicroHabitCompletedForHabit(
-        todayIso,
-        componentId,
-        habitId,
-        microhabitText,
-        prefs: _prefs,
-      );
-    } else {
-      await MicroHabitStorageService.markMicroHabitCompletedForHabit(
-        todayIso,
-        componentId,
-        habitId,
-        microhabitText,
-        prefs: _prefs,
-      );
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _microhabitCompletions[key] = !isCompleted;
-    });
-  }
-
   static String _toIsoDate(DateTime d) {
     return LogicalDateService.toIsoDate(d);
-  }
-
-  /// Helper function to get the appropriate icon for a habit type
-  static Widget _getHabitTypeIcon(HabitItem habit) {
-    if (habit.timeBound?.enabled == true) {
-      return const Icon(Icons.timer_outlined, size: 24);
-    }
-    if (habit.locationBound?.enabled == true) {
-      return const Icon(Icons.location_on_outlined, size: 24);
-    }
-    return const SizedBox.shrink(); // No icon for regular habits
   }
 
   Future<void> _addHabit() async {
@@ -585,10 +540,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                     final microhabitKey = hasMicrohabit
                         ? '${component.id}_${habit.id}_$microhabit'
                         : null;
-                    final microhabitCompleted = microhabitKey != null
-                        ? (_microhabitCompletions[microhabitKey] ?? false)
-                        : false;
-
                     return Container(
                       color: (habit.locationBound?.enabled == true)
                           ? Theme.of(context).colorScheme.tertiaryContainer

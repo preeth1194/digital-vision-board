@@ -129,7 +129,7 @@ void main() {
   });
 
   group('Recipe macros integration', () {
-    Recipe _baseRecipe() => Recipe(
+    Recipe baseRecipe() => Recipe(
           id: 'test_1',
           title: 'Test Recipe',
           updatedAtMs: 0,
@@ -159,7 +159,7 @@ void main() {
     });
 
     test('toJson includes macros when macros != null', () {
-      final recipe = _baseRecipe().copyWith(
+      final recipe = baseRecipe().copyWith(
         macros: const RecipeMacros(calories: 300, proteinG: 20),
       );
       final json = recipe.toJson();
@@ -168,7 +168,7 @@ void main() {
     });
 
     test('toJson has macros key as null when macros == null', () {
-      final recipe = _baseRecipe();
+      final recipe = baseRecipe();
       final json = recipe.toJson();
       // key exists but value is null
       expect(json.containsKey('macros'), isTrue);
@@ -176,7 +176,7 @@ void main() {
     });
 
     test('copyWith(macros:…) replaces macros', () {
-      final recipe = _baseRecipe().copyWith(
+      final recipe = baseRecipe().copyWith(
         macros: const RecipeMacros(calories: 100),
       );
       final updated = recipe.copyWith(macros: const RecipeMacros(calories: 999));
@@ -184,7 +184,7 @@ void main() {
     });
 
     test('copyWith(clearMacros: true) nullifies macros', () {
-      final recipe = _baseRecipe().copyWith(
+      final recipe = baseRecipe().copyWith(
         macros: const RecipeMacros(calories: 100),
       );
       final cleared = recipe.copyWith(clearMacros: true);

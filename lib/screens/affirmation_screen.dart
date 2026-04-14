@@ -150,62 +150,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
     return _affirmations[nextIndex];
   }
 
-  void _showFilterMenu() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Filter by Category',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = _selectedCategory == category;
-                  
-                  return ListTile(
-                    leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.circle_outlined,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                    title: Text(category),
-                    selected: isSelected,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      setState(() {
-                        _selectedCategory = category;
-                        _currentIndex = 0;
-                      });
-                      await _reload();
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _openSettings() async {
     await Navigator.of(context).push(
       MaterialPageRoute(

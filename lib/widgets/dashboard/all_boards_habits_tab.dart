@@ -185,51 +185,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         '';
   }
 
-  Future<void> _addHabitGlobal() async {
-    if (_isPastSelectedCalendarDate()) {
-      _showPastDateCreationBlockedMessage();
-      return;
-    }
-    // Gate: non-subscribed users with 3+ habits must watch ads first
-    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      // Session already complete — let user proceed to add the habit
-      if (_activeAdSession != null &&
-          _adWatchedCount >= AdService.requiredAdsPerHabit) {
-        // Fall through to _proceedToAddHabit()
-      } else if (_activeAdSession != null) {
-        // Session in progress — tell user to watch the ads on the card above
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      } else {
-        // No session yet — create one so the ad card appears
-        final sessionKey =
-            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setActiveSession(sessionKey);
-        if (!mounted) return;
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-
-    await _proceedToAddHabit();
-  }
-
   Future<void> _proceedToAddHabit() async {
     if (_isPastSelectedCalendarDate()) {
       _showPastDateCreationBlockedMessage();
@@ -1225,11 +1180,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
     if (picked == null || !mounted) return;
     _setSelectedCalendarDate(picked);
-  }
-
-  DateTime _weekStart(DateTime date) {
-    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
-    return DateTime(date.year, date.month, date.day - weekday);
   }
 
   Widget _buildTimelineDateHeader() {
@@ -2931,10 +2881,6 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   late AnimationController _controller;
   double _lastScrollOffset = 0;
   bool _isScrollingDown = false;
-
-  // Estimated item height for calculating visibility
-  static const double _itemHeight = 80.0;
-  static const double _headerHeight = 120.0;
 
   @override
   void initState() {

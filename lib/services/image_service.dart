@@ -46,6 +46,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: maxWidth,
@@ -60,10 +61,9 @@ class ImageService {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop',
-            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarColor: primaryColor,
             toolbarWidgetColor: AppColors.cloudWhite,
-            statusBarColor: Theme.of(context).colorScheme.primary,
-            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: primaryColor,
             initAspectRatio: CropAspectRatioPreset.original,
             lockAspectRatio: false,
           ),
@@ -107,6 +107,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: 1024,
@@ -122,10 +123,9 @@ class ImageService {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop',
-            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarColor: primaryColor,
             toolbarWidgetColor: AppColors.cloudWhite,
-            statusBarColor: Theme.of(context).colorScheme.primary,
-            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: primaryColor,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
           ),
@@ -203,6 +203,7 @@ class ImageService {
     BuildContext context,
     String sourcePath,
   ) async {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: sourcePath,
       compressQuality: 90,
@@ -210,10 +211,9 @@ class ImageService {
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop for Puzzle',
-          toolbarColor: Theme.of(context).colorScheme.primary,
+          toolbarColor: primaryColor,
           toolbarWidgetColor: AppColors.cloudWhite,
-          statusBarColor: Theme.of(context).colorScheme.primary,
-          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          activeControlsWidgetColor: primaryColor,
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: true,
         ),

@@ -34,8 +34,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
   SharedPreferences? _prefs;
   List<HabitItem> _habits = const [];
   Challenge? _activeChallenge;
-  List<HabitItem> _challengeHabits = const [];
-
   @override
   void initState() {
     super.initState();
@@ -82,7 +80,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
     setState(() {
       _habits = habits;
       _activeChallenge = (challenge?.isActive ?? false) ? challenge : null;
-      _challengeHabits = challengeHabits;
       _loaded = true;
     });
   }

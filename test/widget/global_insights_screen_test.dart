@@ -1,4 +1,3 @@
-import 'package:digital_vision_board/models/vision_components.dart';
 import 'package:digital_vision_board/screens/global_insights_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

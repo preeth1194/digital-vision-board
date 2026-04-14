@@ -41,7 +41,6 @@ class _RoutineScreenState extends State<RoutineScreen>
   late DateTime _selectedDate;
 
   late ScrollController _timelineScrollController;
-  DateTime? _timelinePreviewTime;
   static const double _baseHourHeight = 80.0;
   static const double _minCardHeight = 54.0;
   static const double _cardGap = 6.0;

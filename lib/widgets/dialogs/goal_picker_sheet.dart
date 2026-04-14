@@ -51,7 +51,6 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     final q = _query.trim().toLowerCase();
 

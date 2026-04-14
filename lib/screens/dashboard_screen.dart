@@ -786,6 +786,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
     await _clearActiveBoard();
     await _reload();
+    // Increment version so AllBoardsHabitsTab refreshes its habit list after
+    // returning from a board (habits may have been added/edited in the viewer).
+    _boardDataVersion.value++;
     await _refreshReminders();
   }
 

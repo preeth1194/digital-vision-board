@@ -19,6 +19,7 @@ import '../screens/presets/preset_shop_screen.dart';
 import '../services/action_templates_service.dart';
 import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/planner_guide_data_service.dart';
 import '../services/meal_prep_storage_service.dart';
 import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
@@ -63,71 +64,19 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _load() async {
-    final habits = await HabitStorageService.loadAll();
-    final planner = await SkincarePlannerStorageService.loadOrDefault();
-    final liveWeeklyPlan =
-        SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(planner);
-    final liveMorning = SkincarePresetCompiler.buildHabitPartsFromPlanner(
-      planner: planner,
-      weeklyPlan: liveWeeklyPlan,
-      morning: true,
+    final result = await PlannerGuideDataService.load(
+      fallbackTemplates: _fallbackTemplates,
+      habitCategoryForTemplate: _habitCategoryForTemplate,
     );
-    final liveEvening = SkincarePresetCompiler.buildHabitPartsFromPlanner(
-      planner: planner,
-      weeklyPlan: liveWeeklyPlan,
-      morning: false,
-    );
-    final liveSkincareStepCount =
-        liveMorning.steps.length + liveEvening.steps.length;
-    final liveSkincarePresetTitle = planner.title.trim().isEmpty
-        ? null
-        : planner.title.trim();
-    try {
-      final token = await DvAuthService.getDvToken();
-      List<ActionStepTemplate> templates;
-      String source;
-      if (token == null) {
-        templates = _fallbackTemplates();
-        source = 'fallback_no_token';
-      } else {
-        templates = await ActionTemplatesService.listApproved(dvToken: token);
-        source = 'cloud';
-        if (templates.isEmpty) {
-          templates = _fallbackTemplates();
-          source = 'fallback_empty_cloud';
-        } else {
-          // Fill in fallback templates for any UI category not covered by cloud
-          final fallbacks = _fallbackTemplates();
-          final cloudCategories =
-              templates.map(_habitCategoryForTemplate).toSet();
-          for (final fb in fallbacks) {
-            if (!cloudCategories.contains(_habitCategoryForTemplate(fb))) {
-              templates = [...templates, fb];
-            }
-          }
-          source = 'cloud_with_fallback_fill';
-        }
-      }
-      if (!mounted) return;
-      setState(() {
-        _existingHabits = habits;
-        _templates = templates;
-        _liveSkincareGuideStepCount = liveSkincareStepCount;
-        _liveSkincarePresetTitle = liveSkincarePresetTitle;
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _existingHabits = habits;
-        _templates = _fallbackTemplates();
-        _liveSkincareGuideStepCount = liveSkincareStepCount;
-        _liveSkincarePresetTitle = liveSkincarePresetTitle;
-        _loading = false;
-        _error = 'Could not load cloud templates. Showing defaults.';
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _existingHabits = result.habits;
+      _templates = result.templates;
+      _liveSkincareGuideStepCount = result.liveSkincareStepCount;
+      _liveSkincarePresetTitle = result.liveSkincarePresetTitle;
+      _loading = false;
+      _error = result.error;
+    });
   }
 
   String _guideSummaryTextForCategory(

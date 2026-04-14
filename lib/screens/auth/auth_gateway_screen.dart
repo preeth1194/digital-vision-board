@@ -7,6 +7,7 @@ import '../../services/app_settings_service.dart';
 import '../../services/dv_auth_service.dart';
 import '../../services/google_sign_in_config.dart';
 import '../../services/image_service.dart';
+import '../../utils/app_spacing.dart';
 import '../../utils/app_typography.dart';
 import '../../widgets/layout/morning_garden_scaffold.dart';
 import '../../utils/measurement_utils.dart';
@@ -54,8 +55,12 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       await initializeGoogleSignIn();
       final googleUser = await googleSignIn.authenticate();
       final auth = googleUser.authentication;
+      final googleIdToken = auth.idToken;
+      if (googleIdToken == null || googleIdToken.isEmpty) {
+        throw Exception('Google Sign-In did not return an ID token. Please try again.');
+      }
       final credential = GoogleAuthProvider.credential(
-        idToken: auth.idToken,
+        idToken: googleIdToken,
       );
       final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
       final email = userCred.user?.email;

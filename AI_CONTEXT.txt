@@ -1,6 +1,6 @@
 AI_CONTEXT — Digital Vision Board (Flutter)
-Last updated: 2026-02-20
-Updated: Rewrote to only include features that are actually visible/reachable in the current UI. Removed references to unreachable screens (VisionBoardHomeScreen flip-card landing, Reminders sheet, Affirmation tab, Todos tab, old wizard steps). Added new visible features: 75 Hard Challenge, Subscription, Backup/Restore, Onboarding, Mood tracking, Earn Badges, Ads system.
+Last updated: 2026-04-14
+Updated: Added newly documented screens (Recipes, Meal Prep, Skincare, Workout, Templates, Preset Shop, Todos, Planner Guide, Settings, Contact, Issues). Updated file counts (~277 Dart files, ~85,200 LOC, 56 services, 36 models, 115+ widgets, 70+ routes). Added Water Intake and Calorie Tracker dashboard cards. Extended quick entry points and glossary.
 
 This document is optimized for AI + human onboarding. It describes only features that are visible and reachable in the current build.
 
@@ -78,6 +78,8 @@ Layout: scrollable column of cards:
 | VisionBoardSummaryCard | `vision_board_summary_card.dart` | → `VisionBoardsScreen` (board carousel) |
 | PuzzleSummaryCard | `puzzle_summary_card.dart` | → `PuzzleGameScreen` (picks image if none) |
 | AffirmationSummaryCard | `affirmation_summary_card.dart` | → `AffirmationManagementScreen`; flips between affirmations when they exist |
+| WaterIntakeCard | `water_intake_card.dart` | → water intake logging; tracks daily hydration |
+| CalorieTrackerCard | `calorie_tracker_card.dart` | → calorie entry logging; tracks daily intake |
 
 All card files are in `lib/widgets/dashboard/`.
 
@@ -471,6 +473,109 @@ Use `lib/utils/file_image_provider.dart` helpers instead of `dart:io` File direc
 - Backup: `lib/screens/backup_restore_screen.dart`
 - Onboarding: `lib/screens/onboarding/onboarding_screen.dart`
 - Create board wizard: `lib/screens/wizard/create_board_wizard_screen.dart`
+- Recipes: `lib/screens/recipes/recipe_book_screen.dart`
+- Meal prep: `lib/screens/meal_prep/meal_prep_week_screen.dart`
+- Skincare: `lib/screens/skincare/skincare_planner_screen.dart`
+- Workout editor: `lib/screens/workout/workout_preset_editor_screen.dart`
+- Workout viewer: `lib/screens/workout/workout_preset_viewer_screen.dart`
+- Personal records: `lib/screens/workout/personal_records_screen.dart`
+- Templates: `lib/screens/templates/template_gallery_screen.dart`
+- Preset shop: `lib/screens/presets/preset_shop_screen.dart`
+- Todos: `lib/screens/todos_list_screen.dart`
+- Planner guide: `lib/screens/planner_guide_screen.dart`
+- Settings: `lib/screens/settings_menu_screen.dart`
+- Contact us: `lib/screens/contact_us_screen.dart`
+- Report issue: `lib/screens/report_issue_screen.dart`
+- My issues: `lib/screens/my_issues_screen.dart`
+
+---
+
+## 28) Recipes
+
+### RecipeBookScreen
+- **File**: `lib/screens/recipes/recipe_book_screen.dart`
+- Recipe CRUD: create, view, edit, delete recipes
+- Models: `lib/models/recipe.dart`, `lib/models/recipe_book.dart`
+- Storage: `lib/services/recipe_storage_service.dart`
+
+---
+
+## 29) Meal Prep Planner
+
+### MealPrepWeekScreen
+- **File**: `lib/screens/meal_prep/meal_prep_week_screen.dart` (1,818 lines)
+- Week-view planner for preparing meals per day
+- Models: `lib/models/meal_prep_week.dart`
+- Storage: `lib/services/meal_prep_storage_service.dart` (if present) or SharedPreferences
+
+---
+
+## 30) Skincare Planner
+
+### SkincarePlannerScreen
+- **File**: `lib/screens/skincare/skincare_planner_screen.dart` (1,791 lines)
+- AM/PM skincare routine tracking with product steps
+- Models: `lib/models/skincare_planner.dart`
+- Storage: `lib/services/skincare_planner_storage_service.dart`
+
+---
+
+## 31) Workout & Personal Records
+
+### WorkoutPresetEditorScreen / WorkoutPresetViewerScreen
+- **Files**: `lib/screens/workout/workout_preset_editor_screen.dart`, `lib/screens/workout/workout_preset_viewer_screen.dart`
+- Create and view workout presets (exercises, sets, reps, duration)
+
+### PersonalRecordsScreen
+- **File**: `lib/screens/workout/personal_records_screen.dart`
+- Track personal bests per exercise
+
+---
+
+## 32) Templates & Preset Shop
+
+### TemplateGalleryScreen
+- **File**: `lib/screens/templates/template_gallery_screen.dart`
+- Browse and apply community-submitted board templates
+- Backend: `GET /templates`, `GET /templates/:id` (require dvAuth)
+- Admin approval workflow managed on backend
+
+### PresetShopScreen
+- **File**: `lib/screens/presets/preset_shop_screen.dart`
+- Marketplace for pre-made habit/board presets (skincare, workout, etc.)
+
+---
+
+## 33) Todos & Tasks
+
+### TodosListScreen
+- **File**: `lib/screens/todos_list_screen.dart`
+- Standalone cross-board task list (tasks not attached to any specific board goal)
+- Uses same `TaskItem` / `ChecklistItem` models as board-attached tasks
+
+---
+
+## 34) Planner Guide
+
+### PlannerGuideScreen
+- **File**: `lib/screens/planner_guide_screen.dart` (2,841 lines)
+- Comprehensive in-app guide covering all major features
+- Tutorial/reference system for new and returning users
+
+---
+
+## 35) Settings, Support & Legal
+
+| Screen | File | Access |
+|--------|------|--------|
+| `SettingsMenuScreen` | `lib/screens/settings_menu_screen.dart` | Drawer or profile |
+| `ContactUsScreen` | `lib/screens/contact_us_screen.dart` | Support flow |
+| `ReportIssueScreen` | `lib/screens/report_issue_screen.dart` | Bug reporting |
+| `MyIssuesScreen` | `lib/screens/my_issues_screen.dart` | View submitted issues |
+| `FaqScreen` | `lib/screens/faq_screen.dart` | Help documentation |
+| `PrivacyPolicyScreen` | `lib/screens/privacy_policy_screen.dart` | Legal |
+| `TermsAndConditionsScreen` | `lib/screens/terms_and_conditions_screen.dart` | Legal |
+| `LegalConsentScreen` | `lib/screens/legal_consent_screen.dart` | First-run consent |
 
 ---
 
@@ -481,6 +586,13 @@ Use `lib/utils/file_image_provider.dart` helpers instead of `dart:io` File direc
 - **Habit**: `HabitItem` — daily/weekly trackable; stored standalone or on goals
 - **Task**: `TaskItem` with `ChecklistItem` children
 - **Routine**: `Routine` with `RoutineTodoItem` steps — timed workflows
+- **Routine step**: `RoutineTodoItem` — one timed step within a Routine
 - **Challenge**: 75 Hard program — creates habits with specific schedule
 - **Coins**: Gamification currency earned from habit completions
 - **Tracker**: `HabitTrackerSheet` — per-goal habit/task/insights UI
+- **Recipe**: `Recipe` within a `RecipeBook` — meal/food record
+- **Preset**: Pre-made board/habit template from the community shop
+- **Water entry**: `WaterIntakeEntry` — daily hydration log
+- **Calorie entry**: `CalorieEntry` — daily caloric intake log
+- **Personal record**: Best performance for a given exercise (workout feature)
+- **dvToken**: Guest or Firebase-exchanged auth token used for all protected backend API calls

@@ -11,33 +11,41 @@ class AdService {
   static bool _initialized = false;
 
   // ------------------------------------------------------------------
-  // Test ad unit IDs (replace with real IDs for production builds)
+  // Ad unit IDs — test IDs used in debug; replace _prod* values before release.
   // ------------------------------------------------------------------
+  static const String _prodAndroidBannerAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+  static const String _prodIosBannerAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+  static const String _prodAndroidInterstitialAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+  static const String _prodIosInterstitialAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+  static const String _prodAndroidRewardedAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+  static const String _prodIosRewardedAdUnitId = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
+
   static String get bannerAdUnitId {
-    if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/6300978111';
-    } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/2934735716';
+    if (kReleaseMode) {
+      return Platform.isAndroid ? _prodAndroidBannerAdUnitId : _prodIosBannerAdUnitId;
     }
-    return '';
+    // Test IDs for debug/profile builds
+    return Platform.isAndroid
+        ? 'ca-app-pub-3940256099942544/6300978111'
+        : 'ca-app-pub-3940256099942544/2934735716';
   }
 
   static String get interstitialAdUnitId {
-    if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/1033173712';
-    } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/4411468910';
+    if (kReleaseMode) {
+      return Platform.isAndroid ? _prodAndroidInterstitialAdUnitId : _prodIosInterstitialAdUnitId;
     }
-    return '';
+    return Platform.isAndroid
+        ? 'ca-app-pub-3940256099942544/1033173712'
+        : 'ca-app-pub-3940256099942544/4411468910';
   }
 
   static String get rewardedAdUnitId {
-    if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917';
-    } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/1712485313';
+    if (kReleaseMode) {
+      return Platform.isAndroid ? _prodAndroidRewardedAdUnitId : _prodIosRewardedAdUnitId;
     }
-    return '';
+    return Platform.isAndroid
+        ? 'ca-app-pub-3940256099942544/5224354917'
+        : 'ca-app-pub-3940256099942544/1712485313';
   }
 
   // ------------------------------------------------------------------

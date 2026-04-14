@@ -280,8 +280,8 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final planner = _planner;
     if (planner == null || planner.monthlyTracker.length < 3) return;
     final gate = await PresetHabitCreationService.checkGate();
+    if (!mounted) return;
     if (!gate.canCreate) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

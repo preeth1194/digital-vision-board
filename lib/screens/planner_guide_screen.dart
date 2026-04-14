@@ -1470,8 +1470,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   Future<void> _createHabitFromTemplate(ActionStepTemplate template) async {
     final gate = await PresetHabitCreationService.checkGate();
+    if (!mounted) return;
     if (!gate.canCreate) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

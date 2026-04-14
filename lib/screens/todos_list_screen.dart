@@ -403,17 +403,16 @@ class _TodosListScreenState extends State<TodosListScreen> {
                         onSelected: (v) async {
                           if (v == 'edit') {
                             await _editTodoText(context, component, meta, todo);
-                          }
-                          if (v == 'delete') _deleteTodo(component, meta, todo);
-                          if (v == 'convert') {
+                          } else if (v == 'delete') {
+                            _deleteTodo(component, meta, todo);
+                          } else if (v == 'convert') {
                             await _convertToHabit(
                               context,
                               component,
                               meta,
                               todo,
                             );
-                          }
-                          if (v == 'unlink') {
+                          } else if (v == 'unlink') {
                             _unlinkHabit(component, meta, todo);
                           }
                         },

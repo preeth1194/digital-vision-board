@@ -489,8 +489,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   Widget buildHabitRow(HabitItem habit) {
                     final scheduledToday = habit.isScheduledOnDate(now);
                     final isCompleted = habit.isCompletedForCurrentPeriod(now);
-                    final goal = _getGoalFromComponent(component);
-                    final microhabit = goal?.actionPlan?.microHabit?.trim();
                     return Container(
                       color: (habit.locationBound?.enabled == true)
                           ? Theme.of(context).colorScheme.tertiaryContainer

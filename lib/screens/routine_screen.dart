@@ -15,7 +15,6 @@ import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/ads/reward_ad_card.dart';
-import '../widgets/rituals/add_habit_modal.dart';
 import '../widgets/rituals/habit_completion_sheet.dart';
 import '../widgets/routine/routine_calendar_header.dart';
 import '../widgets/rituals/habit_form_constants.dart';

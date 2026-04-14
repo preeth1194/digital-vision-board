@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/water_intake_entry.dart';
@@ -21,7 +22,8 @@ class WaterIntakeStorageService {
           .whereType<Map<String, dynamic>>()
           .map(WaterIntakeEntry.fromJson)
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[WaterIntakeStorage] Failed to decode water intake data — returning empty. Error: $e\n$st');
       return [];
     }
   }

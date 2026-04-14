@@ -7,6 +7,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
+import 'screens/auth/auth_gateway_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/legal_consent_screen.dart';
 import 'screens/onboarding/install_welcome_screen.dart';
@@ -69,10 +70,16 @@ Future<void> main() async {
     await DvAuthService.markOnboardingCompleted(prefs: prefs);
   }
 
+  // Check if guest session has expired before showing dashboard.
+  // Done at cold start so users are never briefly shown the dashboard
+  // only to be kicked out when the async expiry check runs later.
+  final guestExpired = await DvAuthService.isGuestExpired(prefs: prefs);
+
   runApp(
     DigitalVisionBoardApp(
       showOnboarding: showOnboarding,
       legalConsentAccepted: legalConsentAccepted,
+      guestExpired: guestExpired,
     ),
   );
 }
@@ -82,10 +89,12 @@ class DigitalVisionBoardApp extends StatelessWidget {
     super.key,
     this.showOnboarding = false,
     this.legalConsentAccepted = false,
+    this.guestExpired = false,
   });
 
   final bool showOnboarding;
   final bool legalConsentAccepted;
+  final bool guestExpired;
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -207,7 +216,9 @@ class DigitalVisionBoardApp extends StatelessWidget {
               ? const InstallWelcomeScreen()
               : (!legalConsentAccepted
                     ? const LegalConsentScreen()
-                    : const DashboardScreen()),
+                    : (guestExpired
+                          ? const AuthGatewayScreen(forced: true)
+                          : const DashboardScreen())),
         );
       },
     );

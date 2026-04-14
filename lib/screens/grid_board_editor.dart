@@ -1123,9 +1123,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               ),
         leading: BackButton(
           onPressed: () async {
+            final navigator = Navigator.of(context);
             await _saveBoardName();
             if (!mounted) return;
-            Navigator.of(context).pop(widget.isNewBoard ? true : null);
+            navigator.pop(widget.isNewBoard ? true : null);
           },
         ),
         actions: [

@@ -169,6 +169,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: 2048,
@@ -177,7 +178,7 @@ class ImageService {
       );
       if (picked == null) return null;
 
-      return _cropToSquareAndPersist(context, picked.path);
+      return _cropToSquareAndPersist(primaryColor, picked.path);
     } finally {
       _busy = false;
     }
@@ -193,17 +194,17 @@ class ImageService {
     _busy = true;
     try {
       if (kIsWeb) return null;
-      return _cropToSquareAndPersist(context, sourcePath);
+      final primaryColor = Theme.of(context).colorScheme.primary;
+      return _cropToSquareAndPersist(primaryColor, sourcePath);
     } finally {
       _busy = false;
     }
   }
 
   static Future<String?> _cropToSquareAndPersist(
-    BuildContext context,
+    Color primaryColor,
     String sourcePath,
   ) async {
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: sourcePath,
       compressQuality: 90,

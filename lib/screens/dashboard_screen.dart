@@ -622,6 +622,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Mark as shown up-front so it remains one-time even if user background-kills mid-sheet.
     await prefs.setBool(_addWidgetPromptShownKey, true);
+    if (!mounted) return;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -796,6 +797,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final started = res == true || (res is Map && res['started'] == true);
     if (mounted && started) {
       await _loadCoins();
+      if (!mounted) return;
       _boardDataVersion.value++;
       setState(() => _tabIndex = 7);
       if (res is Map) {
@@ -832,7 +834,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       imagePath = cropped;
     }
 
-    if (!mounted || imagePath == null) return;
+    if (!mounted) return;
     final resolvedPath = imagePath;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -956,6 +958,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     }
 
+    if (!mounted) return;
     final req = await showAddHabitModal(
       context,
       existingHabits: habits,
@@ -1051,6 +1054,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
     if (!mounted) return;
     if (await _boardHasNonEmptyContent(sole, prefs: prefs)) {
+      if (!mounted) return;
       final ok = await showConfirmDialog(
         context,
         title: 'Replace vision board?',

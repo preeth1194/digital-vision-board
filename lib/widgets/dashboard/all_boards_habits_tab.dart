@@ -1,4 +1,3 @@
-import 'dart:math' show pi;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -77,11 +76,11 @@ class AllBoardsHabitsTab extends StatefulWidget {
 }
 
 class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
-  final List<_PendingCoinAnimation> _pendingAnimations = [];
+  final List<PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
   List<HabitItem> _habits = [];
   bool _isSaving = false;
-  final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
+  final Map<String, GlobalKey<SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final PageController _flexibleHabitsPageController = PageController();
@@ -313,7 +312,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       if (choice == OffScheduleCompletionChoice.cancel) return;
       if (choice == OffScheduleCompletionChoice.changeSchedule) {
         await _editHabit(
-          _HabitEntry(
+          HabitEntry(
             boardId: habit.boardId ?? '',
             boardTitle: _boardTitle(habit.boardId),
             habit: habit,
@@ -386,7 +385,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       // Queue flying coin animation
       if (cardPosition != null && targetPosition != null) {
         _pendingAnimations.add(
-          _PendingCoinAnimation(
+          PendingCoinAnimation(
             source: cardPosition,
             target: targetPosition,
             coins: earnedCoins,
@@ -616,7 +615,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     }
   }
 
-  void _openTimerForHabit(_HabitEntry entry) {
+  void _openTimerForHabit(HabitEntry entry) {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true &&
         habit.locationBound?.enabled != true)
@@ -793,7 +792,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Future<void> _editHabit(_HabitEntry entry) async {
+  Future<void> _editHabit(HabitEntry entry) async {
     final req = await showAddHabitModal(
       context,
       existingHabits: _habits,
@@ -837,7 +836,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _deleteHabit(_HabitEntry entry) async {
+  Future<void> _deleteHabit(HabitEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -948,7 +947,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  bool _matchesQuery(_HabitEntry entry) {
+  bool _matchesQuery(HabitEntry entry) {
     final q = _searchQuery.trim().toLowerCase();
     if (q.isEmpty) return true;
     final habit = entry.habit;
@@ -958,7 +957,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return name.contains(q) || category.contains(q) || board.contains(q);
   }
 
-  bool _matchesFilter(_HabitEntry entry, DateTime now) {
+  bool _matchesFilter(HabitEntry entry, DateTime now) {
     final habit = entry.habit;
     switch (_activeFilter) {
       case _HabitQuickFilter.all:
@@ -1318,7 +1317,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             const SizedBox(height: 12),
             SizedBox(
               height: 50,
-              child: _MonthWeekScroller(
+              child: MonthWeekScroller(
                 selectedDate: _selectedCalendarDate,
                 onDateSelected: _setSelectedCalendarDate,
                 today: today,
@@ -1359,7 +1358,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return '$hour12 $period';
   }
 
-  Future<_TimelineScheduleSelection?> _showTimelineScheduleDialog({
+  Future<TimelineScheduleSelection?> _showTimelineScheduleDialog({
     required int initialStartMinutes,
     required HabitItem habit,
   }) {
@@ -1373,7 +1372,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final normalizedInitialDuration = durationOptions.contains(initialDuration)
         ? initialDuration
         : 30;
-    return showDialog<_TimelineScheduleSelection>(
+    return showDialog<TimelineScheduleSelection>(
       context: context,
       builder: (ctx) {
         final colorScheme = Theme.of(ctx).colorScheme;
@@ -1515,7 +1514,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           FilledButton(
                             onPressed: () {
                               Navigator.of(ctx).pop(
-                                _TimelineScheduleSelection(
+                                TimelineScheduleSelection(
                                   startMinutes: selectedStart,
                                   durationMinutes: selectedDuration,
                                 ),
@@ -1558,7 +1557,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _handleFlexibleDrop(
-    _FlexibleHabitDragData data,
+    FlexibleHabitDragData data,
     int startMinutes,
   ) async {
     final selection = await _showTimelineScheduleDialog(
@@ -1615,7 +1614,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildTimelineHabitChip(_HabitEntry entry) {
+  Widget _buildTimelineHabitChip(HabitEntry entry) {
     final habit = entry.habit;
     final colorScheme = Theme.of(context).colorScheme;
     final duration = _habitDurationMinutes(habit).clamp(15, 180);
@@ -1662,7 +1661,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildFlexibleHabitCard(_HabitEntry entry) {
+  Widget _buildFlexibleHabitCard(HabitEntry entry) {
     final habit = entry.habit;
     final now = LogicalDateService.now();
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
@@ -1676,7 +1675,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       return Row(
         key: attachAnchorKey ? cardKey : null,
         children: [
-          _TimelineCheckpoint(
+          TimelineCheckpoint(
             isCompleted: isCompleted,
             onTap: interactive
                 ? () => _handleHabitTap(
@@ -1735,8 +1734,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
     }
 
-    return Draggable<_FlexibleHabitDragData>(
-      data: _FlexibleHabitDragData(habit),
+    return Draggable<FlexibleHabitDragData>(
+      data: FlexibleHabitDragData(habit),
       feedback: Material(
         color: Colors.transparent,
         child: ConstrainedBox(
@@ -1753,8 +1752,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildFlexibleHabitsStickyCarousel({
-    required List<_HabitEntry> flexibleHabits,
-    required List<_HabitEntry> scheduledForSelectedDate,
+    required List<HabitEntry> flexibleHabits,
+    required List<HabitEntry> scheduledForSelectedDate,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1896,7 +1895,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildCalendarTimeline({required List<_HabitEntry> timedHabits}) {
+  Widget _buildCalendarTimeline({required List<HabitEntry> timedHabits}) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const leftLabelWidth = 52.0;
@@ -1913,7 +1912,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           b.habit.startTimeMinutes ?? 0,
         ),
       );
-    final positionedCards = <_TimelineCardLayout>[];
+    final positionedCards = <TimelineCardLayout>[];
     double nextMinTop = 0;
     for (final entry in sortedHabits) {
       final start = (entry.habit.startTimeMinutes ?? 0).clamp(0, 23 * 60 + 59);
@@ -1926,7 +1925,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
       nextMinTop = top + height + cardGap;
       positionedCards.add(
-        _TimelineCardLayout(entry: entry, top: top, height: height),
+        TimelineCardLayout(entry: entry, top: top, height: height),
       );
     }
 
@@ -2032,7 +2031,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   left: contentLeft,
                   right: rightPad,
                   height: hourHeight,
-                  child: DragTarget<_FlexibleHabitDragData>(
+                  child: DragTarget<FlexibleHabitDragData>(
                     onWillAcceptWithDetails: (_) => true,
                     onAcceptWithDetails: (details) {
                       _handleFlexibleDrop(details.data, slotStart);
@@ -2117,7 +2116,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildHabitTimelineRow({
-    required _HabitEntry entry,
+    required HabitEntry entry,
     required int index,
     required bool isFirst,
     required bool isLast,
@@ -2127,7 +2126,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isCompleted = entry.habit.isCompletedForCurrentPeriod(now);
     final swipeKey = _swipeKeys.putIfAbsent(
       entry.habit.id,
-      () => GlobalKey<_SwipeableHabitCardState>(),
+      () => GlobalKey<SwipeableHabitCardState>(),
     );
     return _ScrollAnimatedItem(
       index: index,
@@ -2143,9 +2142,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                 child: Column(
                   children: [
                     Expanded(
-                      child: isFirst ? const SizedBox() : const _TimelineDash(),
+                      child: isFirst ? const SizedBox() : const TimelineDash(),
                     ),
-                    _TimelineCheckpoint(
+                    TimelineCheckpoint(
                       isCompleted: isCompleted,
                       onTap: () => _handleHabitTap(
                         habit: entry.habit,
@@ -2154,14 +2153,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                     ),
                     Expanded(
-                      child: isLast ? const SizedBox() : const _TimelineDash(),
+                      child: isLast ? const SizedBox() : const TimelineDash(),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
               Expanded(
-                child: _SwipeableHabitCard(
+                child: SwipeableHabitCard(
                   key: swipeKey,
                   entry: entry,
                   onEdit: () => _editHabit(entry),
@@ -2191,8 +2190,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildCalendarModeContent({
-    required List<_HabitEntry> dayHabits,
-    required List<_HabitEntry> timedHabits,
+    required List<HabitEntry> dayHabits,
+    required List<HabitEntry> timedHabits,
     required ColorScheme colorScheme,
   }) {
     final selectedDateLabel = DateFormat(
@@ -2250,9 +2249,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildDefaultModeContent({
-    required List<_HabitEntry> todayHabits,
-    required List<_HabitEntry> upcomingHabits,
-    required List<_HabitEntry> visibleHabits,
+    required List<HabitEntry> todayHabits,
+    required List<HabitEntry> upcomingHabits,
+    required List<HabitEntry> visibleHabits,
     required bool hasActiveSearchOrFilter,
   }) {
     return Column(
@@ -2330,8 +2329,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final now = LogicalDateService.now();
 
     // Gather all habits from standalone storage
-    final List<_HabitEntry> allHabits = _habits.map((habit) {
-      return _HabitEntry(
+    final List<HabitEntry> allHabits = _habits.map((habit) {
+      return HabitEntry(
         boardId: habit.boardId ?? '',
         boardTitle: _boardTitle(habit.boardId),
         habit: habit,
@@ -2342,7 +2341,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     // _inferHabitCreatedAt(id), which can wrongly hide habits (e.g. ID shapes
     // that decode to a future day). Calendar/timeline mode still hides habits
     // on days before their inferred creation date.
-    Iterable<_HabitEntry> afterSearchAndFilter = allHabits
+    Iterable<HabitEntry> afterSearchAndFilter = allHabits
         .where(_matchesQuery)
         .where((e) => _matchesFilter(e, filterDate));
     if (widget.showCalendarMode) {
@@ -2386,7 +2385,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             if (widget.showCalendarMode)
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedBoxHeaderDelegate(
+                delegate: PinnedBoxHeaderDelegate(
                   minExtentValue: MediaQuery.of(context).viewPadding.top,
                   maxExtentValue: MediaQuery.of(context).viewPadding.top,
                   child: Container(
@@ -2441,7 +2440,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             if (allHabits.isNotEmpty && widget.showCalendarMode)
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedBoxHeaderDelegate(
+                delegate: PinnedBoxHeaderDelegate(
                   minExtentValue: 156,
                   maxExtentValue: 156,
                   child: _buildFlexibleHabitsStickyCarousel(

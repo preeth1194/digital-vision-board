@@ -58,16 +58,17 @@ class DefaultFirebaseOptions {
     storageBucket: 'habitseeding-prod.firebasestorage.app',
   );
 
-  // Must match the Runner bundle id (com.habitseeding.app), not the widget extension.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCJDkBjmtM5LvFcQ8KlQmXONINz0eeldDk',
-    appId: '1:612736301895:ios:6b3b1bfa77af7250ac2a62',
+    appId: '1:612736301895:ios:ef28158e9632575bac2a62',
     messagingSenderId: '612736301895',
     projectId: 'habitseeding-prod',
     storageBucket: 'habitseeding-prod.firebasestorage.app',
-    iosClientId: '612736301895-0qoorq8r0i3o6f8j0i42dsdqdb1eq14k.apps.googleusercontent.com',
-    iosBundleId: 'com.habitseeding.app',
+    iosClientId: '612736301895-ha468a1nmkh3m4uno4fii6s9uu56a9t7.apps.googleusercontent.com',
+    iosBundleId: 'com.habitseeding.app.HabitProgressWidget',
   );
+
+  // Must match the Runner bundle id (com.habitseeding.app), not the widget extension.
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCJDkBjmtM5LvFcQ8KlQmXONINz0eeldDk',

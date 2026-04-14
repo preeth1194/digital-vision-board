@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/habit_item.dart';
@@ -21,8 +21,11 @@ class NotificationsService {
     if (_initialized) return;
     if (kIsWeb) return;
 
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation(tz.local.name));
+    tzdata.initializeTimeZones();
+    // Without an IANA timezone provider on-device, default to UTC to avoid
+    // crashing on platforms where `tz.local.name` is "UTC" (not always present
+    // in the bundled tz database as a location key).
+    tz.setLocalLocation(tz.getLocation('Etc/UTC'));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     // Do not request notification permission during initialize — that runs from

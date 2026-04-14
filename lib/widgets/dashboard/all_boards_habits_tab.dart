@@ -2074,8 +2074,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final now = LogicalDateService.now();
     final scheduledToday = entry.habit.isScheduledOnDate(now);
     final isCompleted = entry.habit.isCompletedForCurrentPeriod(now);
+    // Keys must be unique per rendered card. The same habit id can appear in
+    // multiple boards/views at the same time (e.g. aggregated dashboard), so
+    // include the boardId to avoid GlobalKey collisions.
+    final swipeKeyId = '${entry.boardId}:${entry.habit.id}';
     final swipeKey = _swipeKeys.putIfAbsent(
-      entry.habit.id,
+      swipeKeyId,
       () => GlobalKey<SwipeableHabitCardState>(),
     );
     return _ScrollAnimatedItem(
@@ -2116,7 +2120,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   onEdit: () => _editHabit(entry),
                   onDelete: () => _deleteHabit(entry),
                   child: AnimatedHabitCard(
-                    key: ValueKey(entry.habit.id),
+                    key: ValueKey(swipeKeyId),
                     habit: entry.habit,
                     boardTitle: entry.boardTitle,
                     isCompleted: isCompleted,

@@ -75,21 +75,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     });
   }
 
-  String _guideSummaryTextForCategory(
-    String category,
-    ActionStepTemplate? guide,
-  ) {
-    if (category == _challengeGuideCategory) {
-      return 'Unlock this challenge with 20 coins.';
-    }
-    if (guide == null) return 'Try again after refresh.';
-    if (guide.category == ActionTemplateCategory.skincare &&
-        _liveSkincareGuideStepCount != null) {
-      return '${_liveSkincareGuideStepCount!} action steps';
-    }
-    return '${guide.steps.length} action steps';
-  }
-
   String _guideTitleTextForCategory(
     String category,
     ActionStepTemplate? guide,
@@ -1399,14 +1384,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       case ActionTemplateCategory.health:
       case ActionTemplateCategory.mealPrep:
       case ActionTemplateCategory.recipe:
-      case ActionTemplateCategory.health:
-      case ActionTemplateCategory.weeklyMealPrep:
-      case ActionTemplateCategory.productivity:
-      case ActionTemplateCategory.mindfulness:
-      case ActionTemplateCategory.learning:
-      case ActionTemplateCategory.relationships:
-      case ActionTemplateCategory.finance:
-      case ActionTemplateCategory.creativity:
         return 'Health';
       case ActionTemplateCategory.workout:
       case ActionTemplateCategory.fitness:
@@ -2259,40 +2236,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return filtered;
   }
 
-  String _categoryDescription(String category) {
-    switch (category) {
-      case 'Health':
-        return 'Build routines for energy, sleep, and wellness.';
-      case 'Fitness':
-        return 'Plan workouts and progressive training sessions.';
-      case 'Productivity':
-        return 'Structure focus blocks and output systems.';
-      case 'Mindfulness':
-        return 'Create calm rituals and emotional resets.';
-      case 'Learning':
-        return 'Break study goals into practical sessions.';
-      case 'Relationships':
-        return 'Nurture connection habits and communication.';
-      case 'Finance':
-        return 'Track spending, saving, and money habits.';
-      case 'Creativity':
-        return 'Turn ideas into repeatable creative flow.';
-      case _challengeGuideCategory:
-        return 'Commit to signature challenge presets.';
-      case _mealPrepGuideCategory:
-        return 'Plan weekly meal prep and connect recipes to habits.';
-      default:
-        return 'Explore category-specific action-step presets.';
-    }
-  }
-
   int _guideCountForPlannerCategory(String category) {
     if (category == _challengeGuideCategory) return 1;
     return _primaryGuideForPlannerCategory(category) == null ? 0 : 1;
-  }
-
-  Future<void> _onPlannerCategoryTap(String category) async {
-    await _onPlannerGuideTap(category);
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
@@ -2386,44 +2332,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 }
 
-
-class _GuideCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const _GuideCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _CloudSection(
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 4),
-                  Text(subtitle),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Subtle entrance when the filtered list changes (search / order).
 class _StaggeredPresetRow extends StatelessWidget {

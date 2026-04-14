@@ -604,39 +604,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
   }
 
-  Future<void> _ensureGoalTitle(int index, {String? suggestedTitle}) async {
-    final t = _tileAt(index);
-    final hasTitle = (t.goal?.title ?? '').trim().isNotEmpty;
-    if (hasTitle) return;
-
-    final categorySuggestions = _tiles
-        .map((e) => e.goal?.category)
-        .whereType<String>()
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toSet()
-        .toList();
-
-    final res = await showAddGoalDialog(
-      context,
-      initialName: suggestedTitle,
-      categorySuggestions: categorySuggestions,
-      showWhyImportant: true,
-      showDeadline: true,
-    );
-    if (!mounted) return;
-    if (res == null || res.name.trim().isEmpty) return;
-
-    final meta = GoalMetadata(
-      title: res.name.trim(),
-      category: res.category,
-      deadline: res.deadline,
-      // Note: whyImportant is not stored in GoalMetadata, but we collect it for consistency
-      // It could be stored in cbt.visualization if needed in the future
-    );
-    await _setTile(index, _tileAt(index).copyWith(goal: meta));
-  }
-
   void _promptSelectTile() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tap a tile first to select it'), duration: Duration(seconds: 2)),

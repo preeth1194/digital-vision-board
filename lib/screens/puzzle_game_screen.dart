@@ -435,39 +435,6 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     setState(() => _showingCompletionTile = true);
   }
 
-  Future<void> _selectNewImage() async {
-    if (_actionsLocked) return;
-
-    _boards ??= await BoardsStorageService.loadBoards(
-      prefs: widget.prefs ?? await SharedPreferences.getInstance(),
-    );
-
-    final selected = await showPuzzleImageSelectorSheet(
-      context,
-      boards: _boards ?? [],
-      prefs: widget.prefs,
-    );
-
-    if (selected != null && selected != widget.imagePath) {
-      final prefs = widget.prefs ?? await SharedPreferences.getInstance();
-      await PuzzleStateService.clearPuzzleState(
-        imagePath: widget.imagePath,
-        prefs: prefs,
-      );
-      await PuzzleService.setPuzzleImage(selected, prefs: widget.prefs);
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PuzzleGameScreen(
-              imagePath: selected,
-              prefs: widget.prefs,
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   // ── Build ──────────────────────────────────────────────────────────
 
   @override

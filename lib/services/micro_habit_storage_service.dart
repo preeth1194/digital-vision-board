@@ -142,7 +142,7 @@ final class MicroHabitStorageService {
         set = {};
       }
     }
-    final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+    final key = '${isoDate}_${componentId}_${habitId}_$microhabitText';
     set.add(key);
     await p.setString(completionKey, jsonEncode(set.toList()));
   }

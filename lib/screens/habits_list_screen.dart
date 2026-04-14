@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
 import '../utils/app_typography.dart';
@@ -492,8 +491,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                     final isCompleted = habit.isCompletedForCurrentPeriod(now);
                     final goal = _getGoalFromComponent(component);
                     final microhabit = goal?.actionPlan?.microHabit?.trim();
-                    final hasMicrohabit =
-                        microhabit != null && microhabit.isNotEmpty;
                     return Container(
                       color: (habit.locationBound?.enabled == true)
                           ? Theme.of(context).colorScheme.tertiaryContainer

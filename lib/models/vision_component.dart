@@ -63,7 +63,7 @@ abstract class VisionComponent {
   static Map<String, dynamic> textStyleToJson(TextStyle style) => {
         'color': style.color?.toARGB32(),
         'fontSize': style.fontSize,
-        'fontWeight': style.fontWeight?.index,
+        'fontWeight': style.fontWeight == null ? null : FontWeight.values.indexOf(style.fontWeight!),
         'fontStyle': style.fontStyle?.index,
         'fontFamily': style.fontFamily,
       };

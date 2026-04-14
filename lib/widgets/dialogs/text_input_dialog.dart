@@ -121,10 +121,10 @@ class _TextInputDialogState extends State<_TextInputDialog> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        final navigator = Navigator.of(context);
         final ok = await _maybeConfirmDiscard();
-        if (!ok) return;
-        if (!mounted) return;
-        Navigator.of(context).pop();
+        if (!ok || !mounted) return;
+        navigator.pop();
       },
       child: AlertDialog(
         // Keep the dialog above the keyboard without injecting large blank

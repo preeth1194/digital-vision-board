@@ -2952,8 +2952,8 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001) // Perspective
             ..rotateX(rotation)
-            ..scaleByDouble(scale)
-            ..translateByDouble(horizontalOffset, 0, 0),
+            ..scaleByDouble(scale, scale, scale, 1.0)
+            ..translateByDouble(horizontalOffset, 0.0, 0.0, 0.0),
           child: child,
         );
       },

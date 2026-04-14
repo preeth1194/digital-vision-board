@@ -165,7 +165,7 @@ class DashboardBody extends StatelessWidget {
     // Force reload of board components across tabs whenever board data changes.
     return ValueListenableBuilder<int>(
       valueListenable: boardDataVersion,
-      builder: (context, version, __) {
+      builder: (context, version, _) {
         final child = KeyedSubtree(
           key: ValueKey<int>(tabIndex),
           child: switch (tabIndex) {

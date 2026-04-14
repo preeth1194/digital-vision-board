@@ -49,8 +49,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  static const String _addWidgetPromptShownKey =
-      'dv_add_widget_prompt_shown_v1';
   /// One-shot hook so we do not re-prompt every cold start (Android exact-alarm flow, etc.).
   static const String _postDashboardNotifPermissionKey =
       'dv_post_dashboard_notif_permission_v1';

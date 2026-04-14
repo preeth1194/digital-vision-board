@@ -154,17 +154,21 @@ class _GoalTodoTabState extends State<GoalTodoTab> {
         .where((h) => h.id != existing?.id)
         .toList();
 
-    final HabitCreateRequest? req = (existing == null)
-        ? await showAddHabitDialog(
-            context,
-            existingHabits: otherHabits,
-            initialName: item.text.trim().isEmpty ? null : item.text.trim(),
-          )
-        : await showEditHabitDialog(
-            context,
-            habit: existing,
-            existingHabits: otherHabits,
-          );
+    if (!context.mounted) return;
+    HabitCreateRequest? req;
+    if (existing == null) {
+      req = await showAddHabitDialog(
+        context,
+        existingHabits: otherHabits,
+        initialName: item.text.trim().isEmpty ? null : item.text.trim(),
+      );
+    } else {
+      req = await showEditHabitDialog(
+        context,
+        habit: existing,
+        existingHabits: otherHabits,
+      );
+    }
     if (req == null) return;
 
     final HabitItem nextHabit = _applyHabitRequest(

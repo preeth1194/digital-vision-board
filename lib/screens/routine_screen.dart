@@ -47,11 +47,7 @@ class _RoutineScreenState extends State<RoutineScreen>
   final double _viewportHeight = 0;
   int _lastCrossedHour = -1;
 
-  // Occupied Y-ranges for empty-slot detection
-  final List<(double top, double bottom)> _occupiedRanges = [];
-
   // Ad gating state
-  static const int _freeHabitLimit = 3;
   bool _shouldShowAds = true;
   String? _activeAdSession;
   int _adWatchedCount = 0;
@@ -328,55 +324,6 @@ class _RoutineScreenState extends State<RoutineScreen>
       builder: (ctx) =>
           _CompletionDetailsSheet(habit: habit, feedback: feedback),
     );
-  }
-
-  Future<void> _openAddHabitAtTime(TimeOfDay time) async {
-    final req = await showAddHabitModal(
-      context,
-      existingHabits: _habits,
-      initialStartTime: time,
-      initialDurationMinutes: 30,
-    );
-    if (req == null || !mounted) return;
-
-    final newHabit = HabitItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: req.name,
-      category: req.category,
-      frequency: req.frequency,
-      weeklyDays: req.weeklyDays,
-      deadline: req.deadline,
-      afterHabitId: req.afterHabitId,
-      timeOfDay: req.timeOfDay,
-      reminderMinutes: req.reminderMinutes,
-      reminderEnabled: req.reminderEnabled,
-      chaining: req.chaining,
-      cbtEnhancements: req.cbtEnhancements,
-      timeBound: req.timeBound,
-      locationBound: req.locationBound,
-      trackingSpec: req.trackingSpec,
-      iconIndex: req.iconIndex,
-      completedDates: const [],
-      actionSteps: req.actionSteps,
-      startTimeMinutes: req.startTimeMinutes,
-      templateId: req.templateId,
-      templateVersion: req.templateVersion,
-    );
-
-    await HabitStorageService.addHabit(newHabit);
-
-    if (_activeAdSession != null) {
-      await AdService.clearSession(_activeAdSession!);
-      await AdService.setActiveSession(null, prefs: _prefs);
-      setState(() {
-        _activeAdSession = null;
-        _adWatchedCount = 0;
-      });
-    }
-
-    await _loadHabits();
-    await _loadAdState();
-    await _refreshWidgetSnapshotBestEffort();
   }
 
   Future<void> _onRewardAdWatched() async {

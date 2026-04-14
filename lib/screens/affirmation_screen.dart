@@ -88,9 +88,7 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
         setState(() {
           _affirmations = affirmations;
           _loading = false;
-          if (_selectedCategory == null) {
-            _selectedCategory = 'All';
-          }
+          _selectedCategory ??= 'All';
           // Ensure current index is valid
           if (_currentIndex >= _affirmations.length) {
             _currentIndex = 0;

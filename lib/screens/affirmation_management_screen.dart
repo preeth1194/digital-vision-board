@@ -48,9 +48,7 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
           _categories = categories;
           _affirmations = allAffirmations;
           _loading = false;
-          if (_selectedCategory == null) {
-            _selectedCategory = 'All';
-          }
+          _selectedCategory ??= 'All';
         });
       }
     } catch (e) {

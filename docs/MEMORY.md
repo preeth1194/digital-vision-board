@@ -49,24 +49,47 @@ Never edit existing SQL migration files in `backend/src/migrations/`. Always add
 
 ## Known Issues (Audit: 2026-04-14)
 
-### Auth / Login (CRITICAL)
-- **Google Sign-In may fail silently** — if SHA-1 fingerprint is not registered in Firebase Console or `google-services.json`/`GoogleService-Info.plist` is outdated, login produces no error message to the user
-- **Guest token expiry not enforced on client** — `dv_auth_service.dart` stores a 10-day token but likely does not proactively check expiry on cold start; users may hit 401s from the backend with no recovery UI
-- **Hardcoded backend URL fallback** — `DvAuthService.backendBaseUrl()` falls back to `https://digital-vision-board.onrender.com`; if this server is down, all authenticated features silently fail
-- **No refresh token flow** — when a dvToken expires, the user is not automatically re-authenticated; they may see blank screens instead of a login prompt
+### CRITICAL — Must Fix Before Release
+
+| # | Issue | File | Impact |
+|---|---|---|---|
+| 1 | **Test AdMob IDs in production** | `lib/services/ad_service.dart:14-42` | Zero ad revenue; app uses Google test IDs |
+| 2 | **CORS wildcard on backend** | `backend/src/server.js:54` | Any website can call your API |
+| 3 | **Firebase keys in source code** | `lib/firebase_options.dart` | Production project ID/keys exposed |
+| 4 | **15+ silent empty catch blocks** | Multiple services | Impossible to debug production crashes |
+| 5 | **Guest token expiry not checked on cold start** | `dv_auth_service.dart` | Users hit 401s with no recovery UI |
+| 6 | **No refresh/re-auth flow** | Auth service | Expired token = blank screens, not login prompt |
+
+### Auth / Login — Specific Bugs with File+Line
+- **NULL CRASH** `auth_gateway_screen.dart:55-56` — `googleUser` not null-checked; cancelling Google Sign-In throws NoSuchMethodError
+- **NULL CRASH** `auth_gateway_screen.dart:57-59` — `auth.idToken` may be null, passed directly to credential constructor
+- **RUNTIME ERROR** `step_signin.dart:122` — accesses `widget.replayMode` which is NOT in the StepSignIn constructor; throws NoSuchMethodError
+- **BROKEN LOGIC** `dv_auth_service.dart:240-245` — `isProfileComplete()` always returns `true` regardless of state; profile check is dead code
+- **RACE CONDITION** `main.dart:28-77` — guest token expiry checked async in dashboard init, not at startup; user briefly sees dashboard before expiry check runs
+- **UNHANDLED EXCEPTION** `dv_auth_service.dart:567` — `DateTime.parse(expiresAt)` throws uncaught FormatException if server returns bad date format
+- **SILENT FAILURE** Firebase init swallows all errors — impossible to debug misconfiguration
+- **BACKEND URL HARDCODED** `dv_auth_service.dart:33-39` — falls back to `https://digital-vision-board.onrender.com`; dev builds hit production
+
+### Data Safety
+- **Habit storage** — `habit_storage_service.dart:52` swallows JSON decode errors with `catch (_) { return []; }` — user loses all habits silently on SharedPreferences corruption
+- **Backup** — creates unencrypted tar first then encrypts; no atomic write; no checksum; incomplete backup on crash not detected
+- **Encryption key** — if backend is down on first launch, a new key is generated; later backend key becomes orphaned; restore may fail
+- **Auto-sync** — error stored only in volatile memory; lost on app crash; no user notification on sync failure
 
 ### Design Violations (85+ files)
-- **Typography**: 85+ `TextStyle()` instances bypass `AppTypography` — worst offenders: `recipe_book_screen.dart` (7), `challenge_setup_screen.dart` (11), `calorie_tracker_card.dart` (8), `main.dart` (8)
+- **Typography**: 85+ `TextStyle()` instances bypass `AppTypography` — worst: `challenge_setup_screen.dart` (11), `calorie_tracker_card.dart` (8), `main.dart` (8), `recipe_book_screen.dart` (7)
 - **Spacing**: ~20 hardcoded pixel values instead of `AppSpacing.*` — worst: `auth_gateway_screen.dart` (10 violations)
-- **Loading states**: `CircularProgressIndicator()` uses default Material blue — clashes with Morning Garden warm palette; should use `colorScheme.primary` (sproutGreen)
-- **Legacy backgrounds**: ~5 screens use old `skyGradientTopDark` instead of `AppColors.skyDecoration(isDark: isDark)`
+- **Loading states**: `CircularProgressIndicator()` uses default Material blue — clashes with Morning Garden palette; should use `colorScheme.primary`
+- **Legacy backgrounds**: ~5 screens use `skyGradientTopDark` instead of `AppColors.skyDecoration(isDark: isDark)`
 
 ### Technical Debt
-- `lib/screens/planner_guide_screen.dart` is 2,841 lines — should be split into sub-widgets
-- `lib/widgets/dashboard/all_boards_habits_tab.dart` is 3,956 lines — largest file, high complexity
-- `lib/screens/add_habit_modal.dart` is 2,024 lines — multi-step wizard should be broken into steps
-- `print()` / `debugPrint()` statements likely left in service files (not stripped for production)
-- Test coverage is effectively 0% in CI — threshold not raised after initial setup
+- `lib/widgets/dashboard/all_boards_habits_tab.dart` — 3,956 lines (largest file)
+- `lib/screens/planner_guide_screen.dart` — 2,841 lines
+- `lib/widgets/rituals/add_habit_modal.dart` — 2,024 lines
+- 15+ `debugPrint()` in service files (ad_service, subscription_service, sun_times_service, etc.)
+- `avoid_print` lint rule commented out in `analysis_options.yaml`
+- Test coverage effectively 0% in CI — no data integrity, auth, or backup tests
+- `dependency_overrides: record_linux: ^1.2.1` — Linux build workaround, cause unclear
 
 ---
 

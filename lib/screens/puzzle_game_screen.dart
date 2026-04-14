@@ -15,7 +15,6 @@ import '../services/puzzle_service.dart';
 import '../services/puzzle_state_service.dart';
 import '../services/coins_service.dart';
 import '../services/subscription_service.dart';
-import '../widgets/dialogs/puzzle_image_selector_sheet.dart';
 import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
 

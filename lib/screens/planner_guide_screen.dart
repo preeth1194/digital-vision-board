@@ -45,7 +45,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   List<ActionStepTemplate> _templates = const [];
   List<HabitItem> _existingHabits = const [];
   String _categorySearchQuery = '';
-  int? _liveSkincareGuideStepCount;
   String? _liveSkincarePresetTitle;
 
   @override
@@ -68,7 +67,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     setState(() {
       _existingHabits = result.habits;
       _templates = result.templates;
-      _liveSkincareGuideStepCount = result.liveSkincareStepCount;
       _liveSkincarePresetTitle = result.liveSkincarePresetTitle;
       _loading = false;
       _error = result.error;
@@ -2672,23 +2670,3 @@ class _DoubleBorderSearchFieldState extends State<_DoubleBorderSearchField> {
   }
 }
 
-/// Solid Morning Garden card surface (replaces frosted glass on Presets).
-class _CloudSection extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _CloudSection({
-    required this.child,
-    this.padding = const EdgeInsets.all(12),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: padding,
-      decoration: AppColors.cloudDecoration(isDark: isDark),
-      child: child,
-    );
-  }
-}

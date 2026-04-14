@@ -17,7 +17,6 @@ class AffirmationScreen extends StatefulWidget {
 
 class _AffirmationScreenState extends State<AffirmationScreen> {
   List<Affirmation> _affirmations = [];
-  List<String> _categories = [];
   String? _selectedCategory;
   int _currentIndex = 0;
   bool _loading = true;
@@ -61,10 +60,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
       final prefs = _prefs ?? await SharedPreferences.getInstance();
       _prefs ??= prefs;
       
-      final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
-      categories.insert(0, 'General');
-      categories.insert(0, 'All');
-      
       List<Affirmation> affirmations;
       if (_selectedCategory == null || _selectedCategory == 'All') {
         affirmations = await AffirmationService.getAllAffirmations(prefs: prefs);
@@ -91,7 +86,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
       
       if (mounted) {
         setState(() {
-          _categories = categories;
           _affirmations = affirmations;
           _loading = false;
           if (_selectedCategory == null) {

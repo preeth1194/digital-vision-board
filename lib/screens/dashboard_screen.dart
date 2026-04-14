@@ -330,25 +330,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  static String _monthDayLabel(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final m = months[(d.month - 1).clamp(0, 11)];
-    return '$m ${d.day}';
-  }
-
   static String _timeLabel(int minutes) {
     final h = minutes ~/ 60;
     final m = minutes % 60;
@@ -455,67 +436,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildCircularIconButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback onTap,
-    int badgeCount = 0,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        ),
-        child: badgeCount > 0
-            ? Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Icon(
-                      icon,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 22,
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        badgeCount > 99 ? '99+' : '$badgeCount',
-                        style: AppTypography.caption(context).copyWith(
-                          color: Theme.of(context).colorScheme.onError,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Center(
-                child: Icon(
-                  icon,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  size: 22,
-                ),
-              ),
-      ),
-    );
-  }
-
   Future<void> _openSettingsMenu() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -525,87 +445,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           onSignOut: _signOut,
         ),
       ),
-    );
-  }
-
-  Future<void> _openLandingScreen() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()));
-    // Refresh data when returning from landing screen
-    await _refreshReminders();
-  }
-
-  Future<void> _openRemindersSheet() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final summary =
-        _reminderSummary ??
-        await ReminderSummaryService.build(boards: _boards, prefs: prefs);
-    if (!mounted) return;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todayIso = ReminderSummaryService.toIsoDate(today);
-    final todayItems =
-        summary.itemsByIsoDate[todayIso] ?? const <ReminderItem>[];
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final paddingBottom = MediaQuery.paddingOf(ctx).bottom;
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(ctx).height * 0.85,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Text(
-                    'Reminders',
-                    style: AppTypography.heading3(context),
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + paddingBottom),
-                    children: [
-                      if (todayItems.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 24),
-                          child: Center(child: Text('No reminders today.')),
-                        ),
-                      ...todayItems.map((it) {
-                        final leading = it.kind == ReminderKind.habit
-                            ? const Icon(Icons.notifications_active_outlined)
-                            : const Icon(Icons.event_outlined);
-                        final time = it.minutesSinceMidnight == null
-                            ? null
-                            : _timeLabel(it.minutesSinceMidnight!);
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: leading,
-                            title: Text(it.label),
-                            subtitle: Text(
-                              time == null
-                                  ? it.boardTitle
-                                  : '${it.boardTitle} • $time',
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -694,20 +533,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     await SyncService.pruneLocalFeedback(prefs: _prefs);
     await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _reload();
-  }
-
-  Future<void> _openEarnBadges() async {
-    final allHabits = await _gatherAllHabits();
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EarnBadgesScreen(
-          allHabits: allHabits,
-          totalCoins: _coinNotifier.value,
-          coinNotifier: _coinNotifier,
-        ),
-      ),
-    );
   }
 
   Future<List<HabitItem>> _gatherAllHabits() async {
@@ -812,35 +637,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
       }
     }
-  }
-
-  Future<void> _openPuzzleGame() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-
-    var imagePath = await PuzzleService.getCurrentPuzzleImage(
-      boards: _boards,
-      prefs: prefs,
-    );
-
-    if (imagePath == null || imagePath.isEmpty) {
-      if (!mounted) return;
-      final cropped = await ImageService.pickAndCropPuzzleImage(
-        context,
-        source: ImageSource.gallery,
-      );
-      if (cropped == null || !mounted) return;
-      await PuzzleService.setPuzzleImage(cropped, prefs: prefs);
-      imagePath = cropped;
-    }
-
-    if (!mounted) return;
-    final resolvedPath = imagePath;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PuzzleGameScreen(imagePath: resolvedPath, prefs: prefs),
-      ),
-    );
   }
 
   Future<bool> _boardHasNonEmptyContent(
@@ -1011,91 +807,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         behavior: SnackBarBehavior.floating,
       ),
     );
-  }
-
-  Future<void> _onTemplatePicked(String layoutType) async {
-    _hideCreatePanel();
-    final boardsBefore = _boards.length;
-
-    if (layoutType == 'browse_templates') {
-      final res = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const TemplateGalleryScreen()),
-      );
-      if (mounted && res == true) {
-        await _reload();
-        await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(
-          boardsBefore: boardsBefore,
-        );
-      }
-      return;
-    }
-
-    if (layoutType == 'create_wizard') {
-      final res = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const CreateBoardWizardScreen()),
-      );
-      if (mounted && res == true) {
-        await _reload();
-        await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(
-          boardsBefore: boardsBefore,
-        );
-      }
-      return;
-    }
-
-    final config = await showNewBoardDialog(context);
-    if (!mounted) return;
-    if (config == null || config.title.isEmpty) return;
-
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
-    if (!mounted) return;
-    if (await _boardHasNonEmptyContent(sole, prefs: prefs)) {
-      if (!mounted) return;
-      final ok = await showConfirmDialog(
-        context,
-        title: 'Replace vision board?',
-        message:
-            'Your current vision board will be replaced. This cannot be undone.',
-        confirmText: 'Replace',
-      );
-      if (!mounted || !ok) return;
-    }
-
-    await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
-
-    final core = CoreValues.byId(config.coreValueId);
-    final board = VisionBoardInfo(
-      id: sole.id,
-      title: config.title,
-      createdAtMs: DateTime.now().millisecondsSinceEpoch,
-      coreValueId: core.id,
-      iconCodePoint: core.icon.codePoint,
-      tileColorValue: core.tileColor.toARGB32(),
-      layoutType: layoutType,
-      templateId: null,
-    );
-
-    final next = <VisionBoardInfo>[board];
-    await _saveBoards(next);
-    await _setActiveBoard(sole.id);
-    if (!mounted) return;
-    setState(() => _boards = next);
-
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            GoalCanvasEditorScreen(boardId: sole.id, title: board.title),
-      ),
-    );
-    await _clearActiveBoard();
-    await _reload();
-    await _refreshReminders();
-    await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
   }
 
   Future<void> _deleteBoard(VisionBoardInfo board) async {

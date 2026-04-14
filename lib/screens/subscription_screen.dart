@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
-import '../services/dv_auth_service.dart';
 import '../services/subscription_service.dart';
 import '../utils/app_typography.dart';
 import '../widgets/layout/morning_garden_scaffold.dart';
-import 'auth/auth_gateway_screen.dart';
-import '../utils/app_colors.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -331,70 +327,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
       ],
     );
-  }
-
-  Future<void> _handleRedeemCode(
-    String code,
-    void Function(void Function()) setDialogState,
-    BuildContext dialogCtx,
-    void Function(bool) setLoading,
-    bool Function() getLoading,
-    void Function(String?) setError,
-  ) async {
-    setDialogState(() {
-      setLoading(true);
-      setError(null);
-    });
-
-    final validation = await SubscriptionService.validateGiftCode(code);
-    if (!validation.valid) {
-      setDialogState(() {
-        setLoading(false);
-        setError(_friendlyError(validation.error));
-      });
-      return;
-    }
-
-    final result = await SubscriptionService.redeemGiftCode(code);
-    if (!result.ok) {
-      setDialogState(() {
-        setLoading(false);
-        setError(_friendlyError(result.error));
-      });
-      return;
-    }
-
-    if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Premium activated! Enjoy all features.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-        ),
-      );
-    }
-  }
-
-  static String _friendlyError(String? error) {
-    switch (error) {
-      case 'invalid_code':
-        return 'This code is not valid';
-      case 'code_inactive':
-        return 'This code has been deactivated';
-      case 'code_exhausted':
-        return 'This code has been fully used';
-      case 'already_redeemed':
-        return 'You have already redeemed this code';
-      case 'not_authenticated':
-        return 'Please sign in to redeem a code';
-      case 'network_error':
-        return 'Network error — check your connection';
-      case 'server_error':
-        return 'Server error — please try again later';
-      default:
-        return error ?? 'Something went wrong';
-    }
   }
 
 }

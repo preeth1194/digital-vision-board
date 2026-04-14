@@ -44,9 +44,6 @@ class HabitsListScreen extends StatefulWidget {
 
 class _HabitsListScreenState extends State<HabitsListScreen> {
   late List<VisionComponent> _components;
-  SharedPreferences? _prefs;
-  // Cache for microhabit completion states: key = '${componentId}_${habitId}_${microhabitText}'
-  Map<String, bool> _microhabitCompletions = {};
 
   @override
   void initState() {

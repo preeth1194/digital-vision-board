@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
-import '../models/goal_metadata.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_storage_service.dart';
@@ -18,7 +17,6 @@ import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
-import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/grid/image_source_sheet.dart';
 

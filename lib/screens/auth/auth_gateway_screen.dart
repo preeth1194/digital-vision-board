@@ -54,8 +54,12 @@ class _AuthGatewayScreenState extends State<AuthGatewayScreen> {
       await initializeGoogleSignIn();
       final googleUser = await googleSignIn.authenticate();
       final auth = googleUser.authentication;
+      final googleIdToken = auth.idToken;
+      if (googleIdToken == null || googleIdToken.isEmpty) {
+        throw Exception('Google Sign-In did not return an ID token. Please try again.');
+      }
       final credential = GoogleAuthProvider.credential(
-        idToken: auth.idToken,
+        idToken: googleIdToken,
       );
       final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
       final email = userCred.user?.email;

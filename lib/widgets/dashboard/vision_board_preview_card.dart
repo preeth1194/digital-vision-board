@@ -60,7 +60,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
                   return _buildLoadingPlaceholder(context, tileColor);
                 }
                 if (snapshot.hasError || !snapshot.hasData) {
-                  return _buildPlaceholder(context, tileColor, iconData);
+                  return _buildPlaceholder(tileColor, iconData);
                 }
                 return snapshot.data!;
               },
@@ -162,15 +162,20 @@ class VisionBoardPreviewCard extends StatelessWidget {
   }
 
   Future<Widget> _buildGridPreview(BuildContext context) async {
+    // Capture theme values before the async gap.
+    final colorScheme = Theme.of(context).colorScheme;
+    final outlineColor = colorScheme.outline;
+    final onSurfaceVariantColor = colorScheme.onSurfaceVariant;
+    final tileColor = Color(board.tileColorValue);
+    final iconData = boardIconFromCodePoint(board.iconCodePoint);
+
     final tiles = await GridTilesStorageService.loadTiles(
       board.id,
       prefs: prefs,
     );
 
     if (tiles.isEmpty) {
-      final tileColor = Color(board.tileColorValue);
-      final iconData = boardIconFromCodePoint(board.iconCodePoint);
-      return _buildPlaceholder(context, tileColor, iconData);
+      return _buildPlaceholder(tileColor, iconData);
     }
 
     final imageTiles = tiles
@@ -179,9 +184,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
         .toList();
 
     if (imageTiles.isEmpty) {
-      final tileColor = Color(board.tileColorValue);
-      final iconData = boardIconFromCodePoint(board.iconCodePoint);
-      return _buildPlaceholder(context, tileColor, iconData);
+      return _buildPlaceholder(tileColor, iconData);
     }
 
     const crossAxisCount = 3;
@@ -203,9 +206,9 @@ class VisionBoardPreviewCard extends StatelessWidget {
             mainAxisCellCount: 1,
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                color: outlineColor.withValues(alpha: 0.1),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  color: outlineColor.withValues(alpha: 0.2),
                   width: 0.5,
                 ),
               ),
@@ -213,11 +216,23 @@ class VisionBoardPreviewCard extends StatelessWidget {
                   ? Image(
                       image: provider,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildEmptyTile(context);
-                      },
+                      errorBuilder: (ctx, error, stackTrace) => Container(
+                        color: outlineColor.withValues(alpha: 0.1),
+                        child: Icon(
+                          Icons.image_outlined,
+                          color: onSurfaceVariantColor.withValues(alpha: 0.3),
+                          size: 24,
+                        ),
+                      ),
                     )
-                  : _buildEmptyTile(context),
+                  : Container(
+                      color: outlineColor.withValues(alpha: 0.1),
+                      child: Icon(
+                        Icons.image_outlined,
+                        color: onSurfaceVariantColor.withValues(alpha: 0.3),
+                        size: 24,
+                      ),
+                    ),
             ),
           );
         }).toList(),
@@ -226,6 +241,10 @@ class VisionBoardPreviewCard extends StatelessWidget {
   }
 
   Future<Widget> _buildComponentPreview(BuildContext context) async {
+    // Capture board-derived values before the async gap (no context needed after await).
+    final tileColor = Color(board.tileColorValue);
+    final iconData = boardIconFromCodePoint(board.iconCodePoint);
+
     final components = await VisionBoardComponentsStorageService.loadComponents(
       board.id,
       prefs: prefs,
@@ -238,9 +257,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
     final imageComponent = imageComponents.isNotEmpty ? imageComponents.first : null;
 
     if (imageComponent == null) {
-      final tileColor = Color(board.tileColorValue);
-      final iconData = boardIconFromCodePoint(board.iconCodePoint);
-      return _buildPlaceholder(context, tileColor, iconData);
+      return _buildPlaceholder(tileColor, iconData);
     }
 
     final imagePath = (imageComponent.imagePath ?? '').trim();
@@ -252,25 +269,14 @@ class VisionBoardPreviewCard extends StatelessWidget {
           ? Image(
               image: provider,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                final tileColor = Color(board.tileColorValue);
-                final iconData = boardIconFromCodePoint(board.iconCodePoint);
-                return _buildPlaceholder(context, tileColor, iconData);
-              },
+              errorBuilder: (ctx, error, stackTrace) =>
+                  _buildPlaceholder(tileColor, iconData),
             )
-          : _buildPlaceholder(
-              context,
-              Color(board.tileColorValue),
-              boardIconFromCodePoint(board.iconCodePoint),
-            ),
+          : _buildPlaceholder(tileColor, iconData),
     );
   }
 
-  Widget _buildPlaceholder(
-    BuildContext context,
-    Color tileColor,
-    IconData iconData,
-  ) {
+  Widget _buildPlaceholder(Color tileColor, IconData iconData) {
     final iconColor = tileColor.computeLuminance() < 0.45
         ? AppColors.cloudWhite
         : AppColors.black87;
@@ -300,14 +306,4 @@ class VisionBoardPreviewCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyTile(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
-      child: Icon(
-        Icons.image_outlined,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-        size: 24,
-      ),
-    );
-  }
 }

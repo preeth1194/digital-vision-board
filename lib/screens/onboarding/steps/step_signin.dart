@@ -13,11 +13,13 @@ import '_step_header.dart';
 class StepSignIn extends StatefulWidget {
   final VoidCallback onComplete;
   final VoidCallback? onBack;
+  final bool replayMode;
 
   const StepSignIn({
     super.key,
     required this.onComplete,
     this.onBack,
+    this.replayMode = false,
   });
 
   @override

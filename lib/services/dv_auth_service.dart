@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -240,7 +241,7 @@ final class DvAuthService {
   static Future<bool> isProfileComplete({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     final identifier = await getUserDisplayIdentifier(prefs: p);
-    if (identifier == null || identifier.isEmpty) return true;
+    if (identifier == null || identifier.isEmpty) return false;
     return true;
   }
 
@@ -564,7 +565,14 @@ final class DvAuthService {
     if (dvToken == null || dvToken.isEmpty || expiresAt == null || expiresAt.isEmpty) {
       throw Exception('Guest auth response missing dvToken/expiresAt');
     }
-    final expiresAtMs = DateTime.parse(expiresAt).millisecondsSinceEpoch;
+    int expiresAtMs;
+    try {
+      expiresAtMs = DateTime.parse(expiresAt).millisecondsSinceEpoch;
+    } on FormatException catch (e) {
+      debugPrint('[DvAuth] Invalid expiresAt format from server: $expiresAt — $e');
+      // Fall back to 10 days from now
+      expiresAtMs = DateTime.now().add(const Duration(days: 10)).millisecondsSinceEpoch;
+    }
 
     await p.setString(_dvTokenKey, dvToken);
     await p.setInt(_expiresAtMsKey, expiresAtMs);

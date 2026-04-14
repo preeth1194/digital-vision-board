@@ -282,7 +282,9 @@ final class JournalStorageService {
     List<String>? imagePaths,
   ) {
     if ((audioPaths == null || audioPaths.isEmpty) &&
-        (imagePaths == null || imagePaths.isEmpty)) return;
+        (imagePaths == null || imagePaths.isEmpty)) {
+      return;
+    }
 
     // Spacer line before media
     ops.add(<String, dynamic>{'insert': '\n'});

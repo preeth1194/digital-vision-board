@@ -507,7 +507,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: pickedSuggestion,
+                      initialValue: pickedSuggestion,
                       decoration: const InputDecoration(
                         labelText: 'Choose from products',
                       ),
@@ -1099,7 +1099,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value:
+                              initialValue:
                                   planner.weeklyPlans.any(
                                     (p) =>
                                         p.id ==

@@ -42,17 +42,13 @@ class _RoutineScreenState extends State<RoutineScreen>
 
   late ScrollController _timelineScrollController;
   static const double _baseHourHeight = 80.0;
-  static const double _minCardHeight = 54.0;
-  static const double _cardGap = 6.0;
-  static const double _hourLabelPad = 18.0;
-  List<double> _hourYOffsets = List.generate(25, (i) => i * _baseHourHeight);
-  List<double> _hourHeights = List.filled(24, _baseHourHeight);
-  List<int> _habitsPerHour = List.filled(24, 0);
+  final List<double> _hourYOffsets = List.generate(25, (i) => i * _baseHourHeight);
+  final List<double> _hourHeights = List.filled(24, _baseHourHeight);
   final double _viewportHeight = 0;
   int _lastCrossedHour = -1;
 
   // Occupied Y-ranges for empty-slot detection
-  List<(double top, double bottom)> _occupiedRanges = [];
+  final List<(double top, double bottom)> _occupiedRanges = [];
 
   // Ad gating state
   static const int _freeHabitLimit = 3;
@@ -334,62 +330,6 @@ class _RoutineScreenState extends State<RoutineScreen>
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Time-slot tap handling
-  // -----------------------------------------------------------------------
-
-  TimeOfDay? _timeFromYOffset(double y) {
-    int hour = _hourFromOffset(y);
-    final fraction = _hourHeights[hour] > 0
-        ? ((y - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(0.0, 1.0)
-        : 0.0;
-    final rawMinute = (fraction * 60).toInt();
-    final snappedMinute = (rawMinute / 15).round() * 15;
-    final totalMinutes = hour * 60 + snappedMinute;
-    final h = (totalMinutes ~/ 60).clamp(0, 23);
-    final m = totalMinutes % 60;
-    return TimeOfDay(hour: h, minute: m);
-  }
-
-  bool _isSlotOccupied(double y) {
-    for (final range in _occupiedRanges) {
-      if (y >= range.$1 && y <= range.$2) return true;
-    }
-    return false;
-  }
-
-  void _handleSlotTap(TimeOfDay time) {
-    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      if (_activeAdSession == null) {
-        final sessionKey =
-            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        AdService.setActiveSession(sessionKey, prefs: _prefs);
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
-        final remaining = AdService.requiredAdsPerHabit - _adWatchedCount;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Watch $remaining more ad(s) to unlock a new habit.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-    _openAddHabitAtTime(time);
-  }
-
   Future<void> _openAddHabitAtTime(TimeOfDay time) async {
     final req = await showAddHabitModal(
       context,
@@ -507,7 +447,7 @@ class _RoutineScreenState extends State<RoutineScreen>
               ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
               itemCount: habitsForDate.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final habit = habitsForDate[index];
                 return _TimelineHabitCard(
@@ -583,19 +523,6 @@ class _RoutineScreenState extends State<RoutineScreen>
     );
   }
 
-  String _formatHourLabel(int hour) {
-    if (hour == 0) return '12 am';
-    if (hour == 12) return '12 pm';
-    if (hour < 12) return '$hour am';
-    return '${hour - 12} pm';
-  }
-
-  String _formatHalfHourLabel(int hour) {
-    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final suffix = hour < 12 ? 'am' : 'pm';
-    return '$h12:30 $suffix';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.standalone) {
@@ -608,34 +535,6 @@ class _RoutineScreenState extends State<RoutineScreen>
 // ---------------------------------------------------------------------------
 // Helper widgets
 // ---------------------------------------------------------------------------
-
-class _DottedLinePainter extends CustomPainter {
-  final Color color;
-  _DottedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1
-      ..strokeCap = StrokeCap.round;
-    const dashWidth = 4.0;
-    const dashSpace = 4.0;
-    double startX = 0;
-    while (startX < size.width) {
-      canvas.drawLine(
-        Offset(startX, size.height / 2),
-        Offset(startX + dashWidth, size.height / 2),
-        paint,
-      );
-      startX += dashWidth + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DottedLinePainter oldDelegate) =>
-      oldDelegate.color != color;
-}
 
 class _TimelineHabitCard extends StatelessWidget {
   final HabitItem habit;

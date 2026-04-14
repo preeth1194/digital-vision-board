@@ -1347,7 +1347,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                       if (!mounted) return;
                                       setState(() => _draggingIndex = null);
                                     },
-                                    onDraggableCanceled: (_, __) {
+                                    onDraggableCanceled: (_, _) {
                                       if (!mounted) return;
                                       setState(() => _draggingIndex = null);
                                     },

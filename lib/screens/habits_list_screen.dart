@@ -9,7 +9,6 @@ import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import '../services/habit_geofence_tracking_service.dart';
-import '../services/micro_habit_storage_service.dart';
 import 'habit_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
@@ -49,7 +48,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
   void initState() {
     super.initState();
     _components = widget.components;
-    _loadMicrohabitCompletions();
   }
 
   @override
@@ -57,7 +55,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.components != widget.components) {
       _components = widget.components;
-      _loadMicrohabitCompletions();
     }
   }
 
@@ -67,43 +64,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
       return component.goal;
     }
     return null;
-  }
-
-  Future<void> _loadMicrohabitCompletions() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    _prefs = prefs;
-
-    final now = LogicalDateService.now();
-    final todayIso = _toIsoDate(now);
-
-    // Load all microhabit completions for today
-    final completions = <String, bool>{};
-    for (final c in _components) {
-      final goal = _getGoalFromComponent(c);
-      final microhabit = goal?.actionPlan?.microHabit?.trim();
-      if (microhabit != null && microhabit.isNotEmpty) {
-        for (final h in c.habits) {
-          if (h.isScheduledOnDate(now)) {
-            final key = '${c.id}_${h.id}_$microhabit';
-            final isCompleted =
-                await MicroHabitStorageService.isMicroHabitCompletedForHabit(
-                  todayIso,
-                  c.id,
-                  h.id,
-                  microhabit,
-                  prefs: prefs,
-                );
-            completions[key] = isCompleted;
-          }
-        }
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _microhabitCompletions = completions;
-    });
   }
 
   static String _toIsoDate(DateTime d) {
@@ -534,9 +494,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                     final microhabit = goal?.actionPlan?.microHabit?.trim();
                     final hasMicrohabit =
                         microhabit != null && microhabit.isNotEmpty;
-                    final microhabitKey = hasMicrohabit
-                        ? '${component.id}_${habit.id}_$microhabit'
-                        : null;
                     return Container(
                       color: (habit.locationBound?.enabled == true)
                           ? Theme.of(context).colorScheme.tertiaryContainer
@@ -672,15 +629,17 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                                 orElse: () =>
                                                                     null,
                                                               );
-                                                          if (hNow == null)
+                                                          if (hNow == null) {
                                                             return;
+                                                          }
                                                           final now =
                                                               LogicalDateService.now();
                                                           if (hNow
                                                               .isCompletedForCurrentPeriod(
                                                                 now,
-                                                              ))
+                                                              )) {
                                                             return;
+                                                          }
                                                           await _toggleHabit(
                                                             cNow,
                                                             hNow,

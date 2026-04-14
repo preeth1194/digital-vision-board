@@ -163,7 +163,7 @@ class _BestsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final pr = sorted[i].value;
         return _PRCard(pr: pr, onDelete: () => onDelete(pr.exerciseKey));

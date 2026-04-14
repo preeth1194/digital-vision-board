@@ -911,7 +911,7 @@ class _MediaPreviews extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: imagePaths.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 return Stack(
                   clipBehavior: Clip.none,
@@ -923,7 +923,7 @@ class _MediaPreviews extends StatelessWidget {
                         width: 64,
                         height: 64,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           width: 64,
                           height: 64,
                           color: colorScheme.surfaceContainerHighest,

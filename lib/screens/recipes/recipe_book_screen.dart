@@ -822,12 +822,12 @@ class _RecipeImage extends StatelessWidget {
       height: height,
       width: double.infinity,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         height: height,
         color: cs.surfaceContainerHighest,
         child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      errorWidget: (_, __, ___) => Container(
+      errorWidget: (_, _, _) => Container(
         height: height,
         color: cs.surfaceContainerHighest,
         child: Icon(
@@ -946,7 +946,7 @@ class _RecipeDetailScreen extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: recipe.imageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (_, _, _) => Container(
                         color: cs.surfaceContainerHighest,
                       ),
                     )

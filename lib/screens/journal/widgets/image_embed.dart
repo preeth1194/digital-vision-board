@@ -166,7 +166,7 @@ class _ResizableInlineImageState extends State<_ResizableInlineImage>
                     File(widget.imagePath),
                     width: clampedWidth,
                     fit: BoxFit.fitWidth,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: clampedWidth,
                       height: 120,
                       decoration: BoxDecoration(

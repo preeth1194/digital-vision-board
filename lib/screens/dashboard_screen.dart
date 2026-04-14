@@ -2,14 +2,11 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../services/image_service.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/core_value.dart';
 import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
@@ -17,7 +14,6 @@ import '../services/habit_storage_service.dart';
 import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
-import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
 import '../services/dv_auth_service.dart';
@@ -27,17 +23,10 @@ import '../services/logical_date_service.dart';
 import '../services/widget_action_refresh_notifier.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
-import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
-import 'templates/template_gallery_screen.dart';
-import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'challenge_setup_screen.dart';
-import 'vision_board_home_screen.dart';
-import 'puzzle_game_screen.dart';
-import '../services/puzzle_service.dart';
 import 'settings_menu_screen.dart';
-import 'earn_badges_screen.dart';
 import 'presets/preset_shop_screen.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
@@ -82,7 +71,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _activeRoutineId;
 
   bool _loadingReminders = false;
-  ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
   VoidCallback? _syncAuthListener;
   VoidCallback? _widgetActionRefreshListener;
@@ -319,23 +307,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     _prefs ??= prefs;
     setState(() => _loadingReminders = true);
     try {
-      final summary = await ReminderSummaryService.build(
+      await ReminderSummaryService.build(
         boards: _boards,
         prefs: prefs,
       );
       if (!mounted) return;
-      setState(() => _reminderSummary = summary);
     } finally {
       if (mounted) setState(() => _loadingReminders = false);
     }
-  }
-
-  static String _timeLabel(int minutes) {
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    final hh = ((h % 12) == 0) ? 12 : (h % 12);
-    final ampm = h >= 12 ? 'PM' : 'AM';
-    return '$hh:${m.toString().padLeft(2, '0')} $ampm';
   }
 
   Widget _buildCoinBadge(BuildContext context) {
@@ -445,61 +424,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           onSignOut: _signOut,
         ),
       ),
-    );
-  }
-
-  Future<void> _maybePromptAddWidgetIfFirstBoardCreated({
-    required int boardsBefore,
-  }) async {
-    if (boardsBefore != 0) return;
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final already = prefs.getBool(_addWidgetPromptShownKey) ?? false;
-    if (already) return;
-    if (_boards.isEmpty) return;
-    if (!mounted) return;
-
-    // Mark as shown up-front so it remains one-time even if user background-kills mid-sheet.
-    await prefs.setBool(_addWidgetPromptShownKey, true);
-    if (!mounted) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Add home-screen widget?',
-                  style: AppTypography.heading3(context),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Get a quick view of today’s habits and mark them complete from your home screen.',
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    showHomeScreenWidgetInstructionsSheet(context);
-                  },
-                  child: const Text('Yes'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Not now'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -637,28 +561,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
       }
     }
-  }
-
-  Future<bool> _boardHasNonEmptyContent(
-    VisionBoardInfo board, {
-    SharedPreferences? prefs,
-  }) async {
-    final p = prefs ?? _prefs ?? await SharedPreferences.getInstance();
-    if (board.layoutType == VisionBoardInfo.layoutGrid) {
-      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: p);
-      for (final t in tiles) {
-        if (t.isPlaceholder) continue;
-        final c = (t.content ?? '').trim();
-        if (c.isEmpty) continue;
-        if (t.type == 'image' || t.type == 'text') return true;
-      }
-      return false;
-    }
-    final comps = await VisionBoardComponentsStorageService.loadComponents(
-      board.id,
-      prefs: p,
-    );
-    return comps.isNotEmpty;
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {

@@ -397,7 +397,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: unit == MeasurementUnit.metric ? 'kg' : 'lb',
+                              initialValue: unit == MeasurementUnit.metric ? 'kg' : 'lb',
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: colorScheme.surfaceContainerHighest,

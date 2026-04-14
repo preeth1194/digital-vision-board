@@ -297,7 +297,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
         children: [
           Expanded(
             child: DropdownButtonFormField<int>(
-              value: _selectedPlannerWeek,
+              initialValue: _selectedPlannerWeek,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Tracker Week',
@@ -319,7 +319,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<int>(
-              value: _selectedPlannerDay,
+              initialValue: _selectedPlannerDay,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Weekday',
@@ -1008,7 +1008,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: selectedWeek,
+                    initialValue: selectedWeek,
                     decoration: const InputDecoration(
                       isDense: true,
                       labelText: 'Week',
@@ -1030,7 +1030,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: selectedDay,
+                    initialValue: selectedDay,
                     decoration: const InputDecoration(
                       isDense: true,
                       labelText: 'Day',

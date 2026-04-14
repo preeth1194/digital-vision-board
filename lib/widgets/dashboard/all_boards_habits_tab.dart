@@ -572,8 +572,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   void _openTimerForHabit(HabitEntry entry) {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true &&
-        habit.locationBound?.enabled != true)
+        habit.locationBound?.enabled != true) {
       return;
+    }
 
     final referenceDate = widget.showCalendarMode
         ? _selectedCalendarDate
@@ -1373,7 +1374,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedStart,
+                        initialValue: selectedStart,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -1415,7 +1416,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedDuration,
+                        initialValue: selectedDuration,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(

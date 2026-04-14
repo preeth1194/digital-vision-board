@@ -578,18 +578,8 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
 
-    // Load selected micro habit
-    final selected = await MicroHabitStorageService.loadSelectedMicroHabit(
-      todayIso,
-      prefs: prefs,
-    );
     final completed = await MicroHabitStorageService.isMicroHabitCompleted(
       todayIso,
-      prefs: prefs,
-    );
-
-    // Load overall streak
-    final streakData = await OverallStreakStorageService.loadStreak(
       prefs: prefs,
     );
 
@@ -751,8 +741,6 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
 
     await _updateStreak();
   }
-
-  static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
 
   @override
   Widget build(BuildContext context) {

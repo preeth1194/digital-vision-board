@@ -114,7 +114,7 @@ final class MicroHabitStorageService {
     if (raw == null || raw.isEmpty) return false;
     try {
       final set = Set<String>.from(jsonDecode(raw) as List);
-      final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+      final key = '${isoDate}_${componentId}_${habitId}_$microhabitText';
       return set.contains(key);
     } catch (_) {
       return false;
@@ -161,7 +161,7 @@ final class MicroHabitStorageService {
     if (raw == null || raw.isEmpty) return;
     try {
       final set = Set<String>.from(jsonDecode(raw) as List);
-      final key = '${isoDate}_${componentId}_${habitId}_${microhabitText}';
+      final key = '${isoDate}_${componentId}_${habitId}_$microhabitText';
       set.remove(key);
       await p.setString(completionKey, jsonEncode(set.toList()));
     } catch (_) {

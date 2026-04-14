@@ -252,7 +252,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
 
     final imageComponents = components
         .whereType<ImageComponent>()
-        .where((c) => (c.imagePath ?? '').trim().isNotEmpty)
+        .where((c) => c.imagePath.trim().isNotEmpty)
         .toList();
     final imageComponent = imageComponents.isNotEmpty ? imageComponents.first : null;
 
@@ -260,7 +260,7 @@ class VisionBoardPreviewCard extends StatelessWidget {
       return _buildPlaceholder(tileColor, iconData);
     }
 
-    final imagePath = (imageComponent.imagePath ?? '').trim();
+    final imagePath = imageComponent.imagePath.trim();
     final provider = fileImageProviderFromPath(imagePath);
 
     return SizedBox(

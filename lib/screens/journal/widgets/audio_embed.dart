@@ -320,6 +320,7 @@ class VoiceRecorderSheet extends StatefulWidget {
   final void Function(String audioPath) onRecordingComplete;
 
   const VoiceRecorderSheet({
+    super.key,
     required this.entryId,
     required this.onRecordingComplete,
   });

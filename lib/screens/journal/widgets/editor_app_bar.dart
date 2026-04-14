@@ -287,7 +287,7 @@ class _AppBarIconButtonState extends State<AppBarIconButton> {
               borderRadius: BorderRadius.circular(EditorSpacing.smallRadius),
             ),
             transform: _isPressed
-                ? (Matrix4.identity()..scale(0.92))
+                ? Matrix4.diagonal3Values(0.92, 0.92, 1.0)
                 : Matrix4.identity(),
             transformAlignment: Alignment.center,
             child: Icon(

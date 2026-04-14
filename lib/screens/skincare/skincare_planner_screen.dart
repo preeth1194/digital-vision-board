@@ -1717,19 +1717,15 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
 
 class _GlassSection extends StatelessWidget {
   final Widget child;
-  final EdgeInsetsGeometry padding;
 
-  const _GlassSection({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
+  const _GlassSection({required this.child});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: AppColors.cloudDecoration(isDark: isDark),
-      child: Padding(padding: padding, child: child),
+      child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
   }
 }

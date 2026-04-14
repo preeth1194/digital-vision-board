@@ -280,9 +280,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _timerAddonAdded = true;
     }
     // Default start time when creating new habit
-    if (_timeBoundStartTime == null) {
-      _timeBoundStartTime = TimeOfDay.now();
-    }
+    _timeBoundStartTime ??= TimeOfDay.now();
 
     _habitNameController.addListener(_clearNameError);
     _triggerController.addListener(_clearTriggerError);

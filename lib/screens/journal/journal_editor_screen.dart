@@ -34,6 +34,7 @@ final class JournalEntryEditorScreen extends StatefulWidget {
   final String? bookId;
 
   const JournalEntryEditorScreen({
+    super.key,
     required this.goalTitles,
     required this.existingTags,
     this.existingEntry,

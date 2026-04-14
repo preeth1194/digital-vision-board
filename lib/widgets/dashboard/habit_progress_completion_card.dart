@@ -72,9 +72,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
 
     final habits = await HabitStorageService.loadAll(prefs: prefs);
     final challenge = await ChallengeStorageService.getActiveChallenge(prefs: prefs);
-    final challengeHabits = (challenge != null && challenge.isActive)
-        ? await HabitStorageService.getHabitsByIds(challenge.habitIds, prefs: prefs)
-        : const <HabitItem>[];
 
     if (!mounted) return;
     setState(() {

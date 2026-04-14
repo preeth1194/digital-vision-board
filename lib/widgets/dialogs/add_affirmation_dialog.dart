@@ -114,8 +114,6 @@ class _AddAffirmationDialogState extends State<_AddAffirmationDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isEditing = widget.initialAffirmation != null;
 
     return AlertDialog(
@@ -152,7 +150,7 @@ class _AddAffirmationDialogState extends State<_AddAffirmationDialog> {
                 const LinearProgressIndicator()
               else
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Category',
                     border: OutlineInputBorder(),

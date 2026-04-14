@@ -74,7 +74,7 @@ class VisionBoardInfo {
         iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
             Icons.dashboard_outlined.codePoint,
         tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
-            AppColors.pastelIndigo.value,
+            AppColors.pastelIndigo.toARGB32(),
         layoutType: json['layoutType'] as String? ?? VisionBoardInfo.layoutFreeform,
         templateId: json['templateId'] as String?,
       );

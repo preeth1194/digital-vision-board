@@ -107,11 +107,11 @@ class _NeumorphicFilterChipState extends State<NeumorphicFilterChip>
         ? colorScheme.onPrimary
         : colorScheme.onSurface;
     final shadowDark = isDark
-        ? colorScheme.shadow.withOpacity(0.3)
-        : colorScheme.onSurface.withOpacity(0.08);
+        ? colorScheme.shadow.withValues(alpha: 0.3)
+        : colorScheme.onSurface.withValues(alpha: 0.08);
     final shadowLight = isDark
-        ? colorScheme.surface.withOpacity(0.05)
-        : colorScheme.surface.withOpacity(0.9);
+        ? colorScheme.surface.withValues(alpha: 0.05)
+        : colorScheme.surface.withValues(alpha: 0.9);
 
     return GestureDetector(
       onTapDown: (_) {

@@ -225,7 +225,6 @@ class _AddonToggleRow extends StatelessWidget {
   final bool isActive;
   final Color accentColor;
   final ValueChanged<bool> onChanged;
-  final VoidCallback? onRowTap;
   /// Show a lock badge for non-subscribers.
   final bool locked;
   /// Whether the toggle is enabled (greyed out when icon has no tracking units).
@@ -239,7 +238,6 @@ class _AddonToggleRow extends StatelessWidget {
     required this.isActive,
     required this.accentColor,
     required this.onChanged,
-    this.onRowTap,
     this.locked = false,
     this.enabled = true,
   });
@@ -323,21 +321,7 @@ class _AddonToggleRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
-          Expanded(
-            child: onRowTap != null
-                ? Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: onRowTap,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: labelPart,
-                      ),
-                    ),
-                  )
-                : labelPart,
-          ),
+          Expanded(child: labelPart),
           if (locked)
             GestureDetector(
               onTap: () => onChanged(true),

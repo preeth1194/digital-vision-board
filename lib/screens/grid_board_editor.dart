@@ -9,18 +9,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/grid_template.dart';
 import '../models/grid_tile_model.dart';
-import '../models/goal_metadata.dart';
 import '../services/boards_storage_service.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/habit_storage_service.dart';
 import '../services/image_service.dart';
-import '../services/stock_images_service.dart';
-import '../services/templates_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_typography.dart';
 import '../utils/file_image_provider.dart';
 import '../widgets/grid/pexels_search_sheet.dart';
-import '../widgets/dialogs/add_goal_dialog.dart';
 import '../widgets/manipulable/resize_handle.dart';
 import '../widgets/grid/image_source_sheet.dart';
 
@@ -156,7 +152,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       fontWeight: weight,
       fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       letterSpacing: letter,
-      color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.9),
+      color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
     );
   }
 
@@ -606,39 +602,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
   }
 
-  Future<void> _ensureGoalTitle(int index, {String? suggestedTitle}) async {
-    final t = _tileAt(index);
-    final hasTitle = (t.goal?.title ?? '').trim().isNotEmpty;
-    if (hasTitle) return;
-
-    final categorySuggestions = _tiles
-        .map((e) => e.goal?.category)
-        .whereType<String>()
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toSet()
-        .toList();
-
-    final res = await showAddGoalDialog(
-      context,
-      initialName: suggestedTitle,
-      categorySuggestions: categorySuggestions,
-      showWhyImportant: true,
-      showDeadline: true,
-    );
-    if (!mounted) return;
-    if (res == null || res.name.trim().isEmpty) return;
-
-    final meta = GoalMetadata(
-      title: res.name.trim(),
-      category: res.category,
-      deadline: res.deadline,
-      // Note: whyImportant is not stored in GoalMetadata, but we collect it for consistency
-      // It could be stored in cbt.visualization if needed in the future
-    );
-    await _setTile(index, _tileAt(index).copyWith(goal: meta));
-  }
-
   void _promptSelectTile() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tap a tile first to select it'), duration: Duration(seconds: 2)),
@@ -811,7 +774,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? Theme.of(context).colorScheme.primary 
-                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -819,7 +782,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         child: provider != null
             ? Image(image: provider, fit: BoxFit.cover)
             : Container(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
                 alignment: Alignment.center,
                 child: Icon(
                   Icons.broken_image_outlined,
@@ -854,7 +817,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? Theme.of(context).colorScheme.primary 
-                : Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -898,7 +861,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           border: Border.all(
             color: isSelected 
                 ? colorScheme.primary 
-                : colorScheme.outline.withOpacity(0.12),
+                : colorScheme.outline.withValues(alpha: 0.12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -959,7 +922,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -1125,9 +1088,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
               ),
         leading: BackButton(
           onPressed: () async {
+            final navigator = Navigator.of(context);
             await _saveBoardName();
             if (!mounted) return;
-            Navigator.of(context).pop(widget.isNewBoard ? true : null);
+            navigator.pop(widget.isNewBoard ? true : null);
           },
         ),
         actions: [
@@ -1237,7 +1201,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                           top: 8,
                                           right: 8,
                                           child: Material(
-                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                             shape: const CircleBorder(),
                                             elevation: 4,
                                             child: InkWell(
@@ -1383,7 +1347,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                       if (!mounted) return;
                                       setState(() => _draggingIndex = null);
                                     },
-                                    onDraggableCanceled: (_, __) {
+                                    onDraggableCanceled: (_, _) {
                                       if (!mounted) return;
                                       setState(() => _draggingIndex = null);
                                     },

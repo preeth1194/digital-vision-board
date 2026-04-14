@@ -30,7 +30,6 @@ import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
 import '../habits/off_schedule_completion_dialog.dart';
-import 'cards/coping_plan_face.dart';
 import 'cards/swipeable_habit_card.dart';
 import 'habits_tab_models.dart';
 import 'timeline/month_week_scroller.dart';
@@ -184,51 +183,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             .firstWhere((b) => b?.id == boardId, orElse: () => null)
             ?.title ??
         '';
-  }
-
-  Future<void> _addHabitGlobal() async {
-    if (_isPastSelectedCalendarDate()) {
-      _showPastDateCreationBlockedMessage();
-      return;
-    }
-    // Gate: non-subscribed users with 3+ habits must watch ads first
-    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      // Session already complete — let user proceed to add the habit
-      if (_activeAdSession != null &&
-          _adWatchedCount >= AdService.requiredAdsPerHabit) {
-        // Fall through to _proceedToAddHabit()
-      } else if (_activeAdSession != null) {
-        // Session in progress — tell user to watch the ads on the card above
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      } else {
-        // No session yet — create one so the ad card appears
-        final sessionKey =
-            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setActiveSession(sessionKey);
-        if (!mounted) return;
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-
-    await _proceedToAddHabit();
   }
 
   Future<void> _proceedToAddHabit() async {
@@ -618,8 +572,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   void _openTimerForHabit(HabitEntry entry) {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true &&
-        habit.locationBound?.enabled != true)
+        habit.locationBound?.enabled != true) {
       return;
+    }
 
     final referenceDate = widget.showCalendarMode
         ? _selectedCalendarDate
@@ -1228,11 +1183,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     _setSelectedCalendarDate(picked);
   }
 
-  DateTime _weekStart(DateTime date) {
-    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
-    return DateTime(date.year, date.month, date.day - weekday);
-  }
-
   Widget _buildTimelineDateHeader() {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1424,7 +1374,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedStart,
+                        initialValue: selectedStart,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -1466,7 +1416,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedDuration,
+                        initialValue: selectedDuration,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -2933,10 +2883,6 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   double _lastScrollOffset = 0;
   bool _isScrollingDown = false;
 
-  // Estimated item height for calculating visibility
-  static const double _itemHeight = 80.0;
-  static const double _headerHeight = 120.0;
-
   @override
   void initState() {
     super.initState();
@@ -3006,8 +2952,8 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001) // Perspective
             ..rotateX(rotation)
-            ..scale(scale)
-            ..translate(horizontalOffset, 0),
+            ..scaleByDouble(scale, scale, scale, 1.0)
+            ..translateByDouble(horizontalOffset, 0.0, 0.0, 0.0),
           child: child,
         );
       },

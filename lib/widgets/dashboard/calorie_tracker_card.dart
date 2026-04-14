@@ -43,10 +43,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (_saving) return;
     setState(() => _saving = true);
     final updated = await CalorieStorageService.addCalories(amount);
-    if (mounted) setState(() {
-      _entry = updated;
-      _saving = false;
-    });
+    if (mounted) {
+      setState(() {
+        _entry = updated;
+        _saving = false;
+      });
+    }
   }
 
   Future<void> _reset() async {
@@ -724,7 +726,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                   Expanded(
                     flex: 3,
                     child: DropdownButtonFormField<String>(
-                      value: _qtyUnit,
+                      initialValue: _qtyUnit,
                       decoration: InputDecoration(
                         labelText: 'Unit',
                         border: OutlineInputBorder(

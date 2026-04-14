@@ -6,7 +6,6 @@ import '../utils/app_typography.dart';
 import '../models/habit_item.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
-import '../models/image_component.dart';
 import '../models/goal_metadata.dart';
 import '../services/grid_tiles_storage_service.dart';
 import '../services/vision_board_components_storage_service.dart';
@@ -424,9 +423,9 @@ class _PreviewTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
         ),
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.05),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.05),
       ),
       padding: const EdgeInsets.all(8),
       child: Column(
@@ -451,7 +450,7 @@ class _PreviewTile extends StatelessWidget {
                   : Container(
                       color: Theme.of(
                         context,
-                      ).colorScheme.outline.withOpacity(0.08),
+                      ).colorScheme.outline.withValues(alpha: 0.08),
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.image_outlined,
@@ -543,9 +542,7 @@ class _PendingHabitsToday extends StatefulWidget {
 
 class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
   SharedPreferences? _prefs;
-  String? _selectedMicroHabit;
   bool _microHabitCompleted = false;
-  int _overallStreak = 0;
   // Cache for microhabit completion states: key = '${componentId}_${habitId}_${microhabitText}'
   Map<String, bool> _microhabitCompletions = {};
   bool _showMicroHabits = false; // Toggle between habits and micro habits view
@@ -581,18 +578,8 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     final now = LogicalDateService.now();
     final todayIso = LogicalDateService.toIsoDate(now);
 
-    // Load selected micro habit
-    final selected = await MicroHabitStorageService.loadSelectedMicroHabit(
-      todayIso,
-      prefs: prefs,
-    );
     final completed = await MicroHabitStorageService.isMicroHabitCompleted(
       todayIso,
-      prefs: prefs,
-    );
-
-    // Load overall streak
-    final streakData = await OverallStreakStorageService.loadStreak(
       prefs: prefs,
     );
 
@@ -631,9 +618,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
 
     if (!mounted) return;
     setState(() {
-      _selectedMicroHabit = selected;
       _microHabitCompleted = completed;
-      _overallStreak = streakData.count;
       _microhabitCompletions = completions;
     });
 
@@ -692,148 +677,10 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     }
 
     final prefs = _prefs ?? await SharedPreferences.getInstance();
-    final newStreak = await OverallStreakStorageService.updateStreak(
+    await OverallStreakStorageService.updateStreak(
       hasCompletion,
       prefs: prefs,
     );
-
-    if (!mounted) return;
-    setState(() {
-      _overallStreak = newStreak;
-    });
-  }
-
-  Future<void> _selectMicroHabit() async {
-    // Collect all available micro habits from components
-    final microHabits = <({String text, String? goalTitle})>[];
-    for (final c in widget.components) {
-      GoalMetadata? goal;
-      if (c is ImageComponent) {
-        goal = c.goal;
-      }
-      final microHabit = goal?.actionPlan?.microHabit?.trim();
-      if (microHabit != null && microHabit.isNotEmpty) {
-        final goalTitle = (goal?.title ?? '').trim();
-        microHabits.add((
-          text: microHabit,
-          goalTitle: goalTitle.isEmpty ? null : goalTitle,
-        ));
-      }
-    }
-
-    if (microHabits.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No micro habits defined. Add them in goal details.'),
-        ),
-      );
-      return;
-    }
-
-    // Show bottom sheet to select micro habit
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Select micro habit',
-                style: AppTypography.heading3(
-                  context,
-                ).copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: microHabits.length + 1,
-                itemBuilder: (ctx, i) {
-                  if (i == 0) {
-                    return ListTile(
-                      leading: const Icon(Icons.clear),
-                      title: const Text('Clear selection'),
-                      onTap: () => Navigator.of(ctx).pop(''),
-                    );
-                  }
-                  final mh = microHabits[i - 1];
-                  return ListTile(
-                    title: Text(mh.text),
-                    subtitle: mh.goalTitle != null
-                        ? Text('From: ${mh.goalTitle}')
-                        : null,
-                    onTap: () => Navigator.of(ctx).pop(mh.text),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (selected == null) return;
-
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    final now = LogicalDateService.now();
-    final todayIso = LogicalDateService.toIsoDate(now);
-
-    if (selected.isEmpty) {
-      await MicroHabitStorageService.clearSelectedMicroHabit(
-        todayIso,
-        prefs: prefs,
-      );
-      await MicroHabitStorageService.unmarkMicroHabitCompleted(
-        todayIso,
-        prefs: prefs,
-      );
-    } else {
-      await MicroHabitStorageService.saveSelectedMicroHabit(
-        todayIso,
-        selected,
-        prefs: prefs,
-      );
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _selectedMicroHabit = selected.isEmpty ? null : selected;
-      if (selected.isEmpty) {
-        _microHabitCompleted = false;
-      }
-    });
-
-    await _updateStreak();
-  }
-
-  Future<void> _toggleMicroHabitCompletion() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    final now = LogicalDateService.now();
-    final todayIso = LogicalDateService.toIsoDate(now);
-
-    if (_microHabitCompleted) {
-      await MicroHabitStorageService.unmarkMicroHabitCompleted(
-        todayIso,
-        prefs: prefs,
-      );
-    } else {
-      await MicroHabitStorageService.markMicroHabitCompleted(
-        todayIso,
-        prefs: prefs,
-      );
-      // Auto-save rating as 5 (already handled by the feedback sheet behavior)
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _microHabitCompleted = !_microHabitCompleted;
-    });
-
-    await _updateStreak();
   }
 
   /// Helper method to find habit item from componentId and habitId
@@ -895,14 +742,9 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
     await _updateStreak();
   }
 
-  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
-
-  static String _toIsoDate(DateTime d) => LogicalDateService.toIsoDate(d);
-
   @override
   Widget build(BuildContext context) {
     final now = LogicalDateService.now();
-    final todayIso = _toIsoDate(now);
 
     // Build items with microhabit information
     final items =
@@ -1040,7 +882,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                     ? Theme.of(context)
                                           .colorScheme
                                           .tertiaryContainer
-                                          .withOpacity(0.2)
+                                          .withValues(alpha: 0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -1083,7 +925,7 @@ class _PendingHabitsTodayState extends State<_PendingHabitsToday> {
                                     ? Theme.of(context)
                                           .colorScheme
                                           .tertiaryContainer
-                                          .withOpacity(0.2)
+                                          .withValues(alpha: 0.2)
                                     : null,
                                 borderRadius: BorderRadius.circular(8),
                               ),

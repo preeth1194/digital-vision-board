@@ -51,7 +51,6 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     final q = _query.trim().toLowerCase();
 
@@ -91,7 +90,7 @@ class _GoalPickerSheetState extends State<_GoalPickerSheet> {
                 : ListView.separated(
                     shrinkWrap: true,
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (ctx, i) {
                       final c = filtered[i];
                       final label = _labelFor(c);

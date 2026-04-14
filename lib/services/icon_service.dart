@@ -56,7 +56,6 @@ class IconService {
     'email': Icons.email_outlined,
     'meeting': Icons.groups_outlined,
     'call': Icons.phone_outlined,
-    'phone': Icons.phone_outlined,
     'code': Icons.code_outlined,
     'coding': Icons.code_outlined,
     'write': Icons.edit_outlined,
@@ -79,7 +78,6 @@ class IconService {
     'shopping': Icons.shopping_cart_outlined,
 
     // Social/Communication
-    'call': Icons.phone_outlined,
     'message': Icons.message_outlined,
     'text': Icons.sms_outlined,
     'chat': Icons.chat_bubble_outline,

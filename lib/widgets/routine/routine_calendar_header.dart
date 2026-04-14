@@ -320,7 +320,7 @@ class _DateItem extends StatelessWidget {
         : colorScheme.onSurface;
 
     final weekdayColor = isSelected
-        ? colorScheme.onPrimary.withOpacity(0.8)
+        ? colorScheme.onPrimary.withValues(alpha: 0.8)
         : colorScheme.onSurfaceVariant;
 
     return GestureDetector(

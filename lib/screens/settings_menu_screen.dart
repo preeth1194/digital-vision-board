@@ -224,69 +224,6 @@ class _SettingsMenuScreenState extends State<SettingsMenuScreen> {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({
-    required this.profile,
-    required this.busy,
-    required this.onTap,
-  });
-
-  final _MenuProfile profile;
-  final bool busy;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dcs = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: busy ? null : onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: dcs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: dcs.outline.withValues(alpha: 0.18)),
-        ),
-        child: Row(
-          children: [
-            ProfileAvatar(
-              initial: profile.initial,
-              imagePath: profile.picPath,
-              radius: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profile.displayName,
-                    style: AppTypography.body(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: dcs.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    profile.isGuest ? 'Sign In / Sign Up' : 'View Profile',
-                    style: AppTypography.caption(
-                      context,
-                    ).copyWith(color: dcs.primary, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: dcs.onSurfaceVariant),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ProfileListItem extends StatelessWidget {
   const _ProfileListItem({
     required this.profile,

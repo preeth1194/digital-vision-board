@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../models/goal_metadata.dart';
 import '../../utils/app_typography.dart';
 
 /// Result returned from the add goal dialog

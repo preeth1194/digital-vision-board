@@ -55,7 +55,6 @@ class RoutineStorageService {
     String routineId, {
     SharedPreferences? prefs,
   }) async {
-    final p = prefs ?? await SharedPreferences.getInstance();
     // For now, routines only store the main data in the list
     // If we add additional data keys later, remove them here
   }

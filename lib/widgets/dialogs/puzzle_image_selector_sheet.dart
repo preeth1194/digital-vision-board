@@ -137,7 +137,7 @@ class _PuzzleImageSelectorContentState
                           color: Theme.of(context)
                               .colorScheme
                               .outline
-                              .withOpacity(0.2),
+                              .withValues(alpha: 0.2),
                         ),
                         color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       ),
@@ -179,7 +179,7 @@ class _PuzzleImageSelectorContentState
                                 : Theme.of(context)
                                     .colorScheme
                                     .outline
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                             width: isSelected ? 3 : 1,
                           ),
                         ),
@@ -205,7 +205,7 @@ class _PuzzleImageSelectorContentState
                             : Container(
                                 color: Theme.of(context)
                                     .colorScheme
-                                    .surfaceVariant,
+                                    .surfaceContainerHighest,
                                 child: Icon(
                                   Icons.image_outlined,
                                   color: Theme.of(context)

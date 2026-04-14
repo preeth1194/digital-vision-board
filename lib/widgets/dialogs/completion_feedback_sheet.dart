@@ -86,7 +86,6 @@ class _CompletionFeedbackSheetState extends State<_CompletionFeedbackSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + inset),

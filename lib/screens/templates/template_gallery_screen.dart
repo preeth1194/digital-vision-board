@@ -89,6 +89,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
       return;
     }
 
+    if (!mounted) return;
     final config = await showNewBoardDialog(context);
     if (!mounted) return;
     if (config == null || config.title.isEmpty) return;
@@ -105,6 +106,7 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
 
       if (!mounted) return;
       if (await _boardHasUserContent(sole, prefs)) {
+        if (!mounted) return;
         final ok = await showConfirmDialog(
           context,
           title: 'Replace vision board?',

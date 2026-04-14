@@ -494,10 +494,6 @@ class _HabitTrackerSheetState extends State<HabitTrackerSheet> {
     }
   }
 
-  static String _toIsoDate(DateTime d) {
-    return LogicalDateService.toIsoDate(d);
-  }
-
   @override
   Widget build(BuildContext context) {
     final insetBottom = MediaQuery.viewInsetsOf(context).bottom;

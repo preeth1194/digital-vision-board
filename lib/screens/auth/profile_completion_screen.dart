@@ -397,7 +397,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: unit == MeasurementUnit.metric ? 'kg' : 'lb',
+                              initialValue: unit == MeasurementUnit.metric ? 'kg' : 'lb',
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: colorScheme.surfaceContainerHighest,
@@ -572,15 +572,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                     title: Text(_genderLabel(_gender), style: AppTypography.body(context)),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
-                      for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
-                        RadioListTile<String>(
-                          value: v,
-                          groupValue: _gender,
-                          title: Text(_genderLabel(v), style: AppTypography.body(context)),
-                          onChanged: (x) {
-                            if (x != null) setState(() => _gender = x);
-                          },
+                      RadioGroup<String>(
+                        groupValue: _gender,
+                        onChanged: (x) {
+                          if (x != null) setState(() => _gender = x);
+                        },
+                        child: Column(
+                          children: [
+                            for (final v in const ['prefer_not_to_say', 'male', 'female', 'non_binary'])
+                              RadioListTile<String>(
+                                value: v,
+                                title: Text(_genderLabel(v), style: AppTypography.body(context)),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                   ExpansionTile(
@@ -614,15 +620,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                     title: Text(_activityLabel(_activityLevel), style: AppTypography.body(context)),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
-                      for (final v in const ['sedentary', 'light', 'moderate', 'very_active'])
-                        RadioListTile<String>(
-                          value: v,
-                          groupValue: _activityLevel,
-                          title: Text(_activityLabel(v), style: AppTypography.body(context)),
-                          onChanged: (x) {
-                            if (x != null) setState(() => _activityLevel = x);
-                          },
+                      RadioGroup<String>(
+                        groupValue: _activityLevel,
+                        onChanged: (x) {
+                          if (x != null) setState(() => _activityLevel = x);
+                        },
+                        child: Column(
+                          children: [
+                            for (final v in const ['sedentary', 'light', 'moderate', 'very_active'])
+                              RadioListTile<String>(
+                                value: v,
+                                title: Text(_activityLabel(v), style: AppTypography.body(context)),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                   ExpansionTile(
@@ -630,15 +642,21 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                     title: Text(_dietLabel(_dietPreference), style: AppTypography.body(context)),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
-                      for (final v in const ['balanced', 'vegetarian', 'vegan', 'pescatarian'])
-                        RadioListTile<String>(
-                          value: v,
-                          groupValue: _dietPreference,
-                          title: Text(_dietLabel(v), style: AppTypography.body(context)),
-                          onChanged: (x) {
-                            if (x != null) setState(() => _dietPreference = x);
-                          },
+                      RadioGroup<String>(
+                        groupValue: _dietPreference,
+                        onChanged: (x) {
+                          if (x != null) setState(() => _dietPreference = x);
+                        },
+                        child: Column(
+                          children: [
+                            for (final v in const ['balanced', 'vegetarian', 'vegan', 'pescatarian'])
+                              RadioListTile<String>(
+                                value: v,
+                                title: Text(_dietLabel(v), style: AppTypography.body(context)),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                   ExpansionTile(

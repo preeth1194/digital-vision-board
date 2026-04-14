@@ -117,8 +117,15 @@ class _TextInputDialogState extends State<_TextInputDialog> {
     final colorScheme = Theme.of(context).colorScheme;
     final insetBottom = MediaQuery.viewInsetsOf(context).bottom;
 
-    return WillPopScope(
-      onWillPop: () async => await _maybeConfirmDiscard(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        final ok = await _maybeConfirmDiscard();
+        if (!ok || !mounted) return;
+        navigator.pop();
+      },
       child: AlertDialog(
         // Keep the dialog above the keyboard without injecting large blank
         // padding into the content (which can look like an empty sheet).

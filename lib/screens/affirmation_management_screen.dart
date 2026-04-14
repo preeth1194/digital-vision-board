@@ -48,9 +48,7 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
           _categories = categories;
           _affirmations = allAffirmations;
           _loading = false;
-          if (_selectedCategory == null) {
-            _selectedCategory = 'All';
-          }
+          _selectedCategory ??= 'All';
         });
       }
     } catch (e) {
@@ -74,28 +72,30 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
   }
 
   Future<void> _addAffirmation() async {
+    final messenger = ScaffoldMessenger.of(context);
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
     categories.insert(0, 'General');
-    
+
+    if (!mounted) return;
     final affirmation = await showAddAffirmationDialog(
       context,
       availableCategories: categories,
     );
-    
+
     if (affirmation == null) return;
-    
+
     try {
       await AffirmationService.addAffirmation(affirmation, prefs: prefs);
       if (mounted) {
         await _reload();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Affirmation added')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Failed to add affirmation: ${e.toString()}')),
         );
       }
@@ -103,29 +103,31 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
   }
 
   Future<void> _editAffirmation(Affirmation affirmation) async {
+    final messenger = ScaffoldMessenger.of(context);
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
     categories.insert(0, 'General');
-    
+
+    if (!mounted) return;
     final updated = await showAddAffirmationDialog(
       context,
       initialAffirmation: affirmation,
       availableCategories: categories,
     );
-    
+
     if (updated == null) return;
-    
+
     try {
       await AffirmationService.updateAffirmation(updated, prefs: prefs);
       if (mounted) {
         await _reload();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Affirmation updated')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Failed to update affirmation: ${e.toString()}')),
         );
       }
@@ -133,6 +135,7 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
   }
 
   Future<void> _deleteAffirmation(Affirmation affirmation) async {
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -161,13 +164,13 @@ class _AffirmationManagementScreenState extends State<AffirmationManagementScree
       await AffirmationService.deleteAffirmation(affirmation.id, prefs: prefs);
       if (mounted) {
         await _reload();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Affirmation deleted')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Failed to delete affirmation: ${e.toString()}')),
         );
       }

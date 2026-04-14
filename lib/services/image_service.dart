@@ -46,6 +46,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: maxWidth,
@@ -60,10 +61,9 @@ class ImageService {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop',
-            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarColor: primaryColor,
             toolbarWidgetColor: AppColors.cloudWhite,
-            statusBarColor: Theme.of(context).colorScheme.primary,
-            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: primaryColor,
             initAspectRatio: CropAspectRatioPreset.original,
             lockAspectRatio: false,
           ),
@@ -107,6 +107,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: 1024,
@@ -122,10 +123,9 @@ class ImageService {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop',
-            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarColor: primaryColor,
             toolbarWidgetColor: AppColors.cloudWhite,
-            statusBarColor: Theme.of(context).colorScheme.primary,
-            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+            activeControlsWidgetColor: primaryColor,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
           ),
@@ -169,6 +169,7 @@ class ImageService {
         return null;
       }
 
+      final primaryColor = Theme.of(context).colorScheme.primary;
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: 2048,
@@ -177,7 +178,7 @@ class ImageService {
       );
       if (picked == null) return null;
 
-      return _cropToSquareAndPersist(context, picked.path);
+      return _cropToSquareAndPersist(primaryColor, picked.path);
     } finally {
       _busy = false;
     }
@@ -193,14 +194,15 @@ class ImageService {
     _busy = true;
     try {
       if (kIsWeb) return null;
-      return _cropToSquareAndPersist(context, sourcePath);
+      final primaryColor = Theme.of(context).colorScheme.primary;
+      return _cropToSquareAndPersist(primaryColor, sourcePath);
     } finally {
       _busy = false;
     }
   }
 
   static Future<String?> _cropToSquareAndPersist(
-    BuildContext context,
+    Color primaryColor,
     String sourcePath,
   ) async {
     final CroppedFile? cropped = await ImageCropper().cropImage(
@@ -210,10 +212,9 @@ class ImageService {
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop for Puzzle',
-          toolbarColor: Theme.of(context).colorScheme.primary,
+          toolbarColor: primaryColor,
           toolbarWidgetColor: AppColors.cloudWhite,
-          statusBarColor: Theme.of(context).colorScheme.primary,
-          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          activeControlsWidgetColor: primaryColor,
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: true,
         ),

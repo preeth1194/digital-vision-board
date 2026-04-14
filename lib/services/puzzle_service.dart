@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/vision_board_info.dart';
 import '../models/vision_components.dart';
 import '../models/image_component.dart';
-import '../models/grid_tile_model.dart';
 import '../models/goal_metadata.dart';
 import 'boards_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
@@ -111,7 +110,7 @@ class PuzzleService {
         );
         for (final component in components) {
           if (component is ImageComponent) {
-            final path = (component.imagePath ?? '').trim();
+            final path = component.imagePath.trim();
             if (path.isNotEmpty && !images.contains(path)) {
               images.add(path);
             }

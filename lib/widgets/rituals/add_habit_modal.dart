@@ -4,11 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/cbt_enhancements.dart';
-import '../../models/action_step_template.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
-import '../../services/action_templates_service.dart';
-import '../../services/dv_auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../utils/app_typography.dart';
 import 'addon_tools_section.dart';
@@ -211,9 +208,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   List<HabitActionStep> _actionSteps = [];
   String? _selectedTemplateId;
   int? _selectedTemplateVersion;
-  bool _templatesLoading = false;
-  List<ActionStepTemplate> _availableTemplates = const [];
-
   // Strategy (Stacking & CBT)
   bool _habitStackingEnabled = false;
   String? _afterHabitId;
@@ -286,9 +280,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _timerAddonAdded = true;
     }
     // Default start time when creating new habit
-    if (_timeBoundStartTime == null) {
-      _timeBoundStartTime = TimeOfDay.now();
-    }
+    _timeBoundStartTime ??= TimeOfDay.now();
 
     _habitNameController.addListener(_clearNameError);
     _triggerController.addListener(_clearTriggerError);
@@ -347,263 +339,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
   void _clearActionError() {
     if (_actionError != null) setState(() => _actionError = null);
-  }
-
-  ActionTemplateCategory? _categoryToTemplateCategory(String? category) {
-    final normalized = (category ?? '').trim().toLowerCase();
-    if (normalized.contains('skin')) return ActionTemplateCategory.skincare;
-    if (normalized.contains('workout') ||
-        normalized.contains('fitness') ||
-        normalized.contains('exercise') ||
-        normalized == 'health') {
-      return ActionTemplateCategory.workout;
-    }
-    if (normalized.contains('meal') ||
-        normalized.contains('diet') ||
-        normalized.contains('nutrition')) {
-      return ActionTemplateCategory.mealPrep;
-    }
-    return null;
-  }
-
-  List<ActionStepTemplate> _localTemplatesForHabitCategory(String? category) {
-    final cat = (category ?? '').trim();
-    final normalized = cat.toLowerCase();
-
-    List<String> stepsFor(String key) {
-      switch (key) {
-        case 'health':
-          return [
-            'Hydrate',
-            'Take supplements/medicine',
-            'Healthy meal',
-            'Sleep wind-down',
-          ];
-        case 'fitness':
-          return [
-            'Warm-up',
-            'Main workout set',
-            'Cooldown stretch',
-            'Log progress',
-          ];
-        case 'productivity':
-          return [
-            'Top 3 priorities',
-            'Focused work block',
-            'Inbox/task cleanup',
-            'Plan tomorrow',
-          ];
-        case 'mindfulness':
-          return [
-            'Breathing reset',
-            'Meditation',
-            'Gratitude note',
-            'Reflect on mood',
-          ];
-        case 'learning':
-          return [
-            'Pick topic',
-            'Study session',
-            'Practice/review',
-            'Capture notes',
-          ];
-        case 'relationships':
-          return [
-            'Reach out',
-            'Quality conversation',
-            'Follow-up',
-            'Appreciation message',
-          ];
-        case 'finance':
-          return [
-            'Check spending',
-            'Budget review',
-            'Savings transfer',
-            'Track progress',
-          ];
-        case 'creativity':
-          return [
-            'Collect inspiration',
-            'Create draft',
-            'Refine one piece',
-            'Share/publish',
-          ];
-        case 'other':
-        default:
-          return [
-            'Define small action',
-            'Do it now',
-            'Track completion',
-            'Reflect and improve',
-          ];
-      }
-    }
-
-    final steps = stepsFor(normalized);
-    final prefix = normalized.isEmpty
-        ? 'other'
-        : normalized.replaceAll(' ', '_');
-
-    ActionTemplateCategory templateCategory = ActionTemplateCategory.workout;
-    if (normalized == 'mindfulness')
-      templateCategory = ActionTemplateCategory.skincare;
-    if (normalized == 'other') templateCategory = ActionTemplateCategory.recipe;
-    if (normalized == 'finance' || normalized == 'productivity') {
-      templateCategory = ActionTemplateCategory.mealPrep;
-    }
-
-    ActionStepTemplate template({
-      required String id,
-      required String name,
-      required List<String> stepTitles,
-      required String setKey,
-    }) {
-      return ActionStepTemplate(
-        id: id,
-        name: name,
-        category: templateCategory,
-        schemaVersion: 1,
-        templateVersion: 1,
-        setKey: setKey,
-        isOfficial: true,
-        status: ActionTemplateStatus.approved,
-        createdByUserId: 'system',
-        steps: [
-          for (int i = 0; i < stepTitles.length; i++)
-            HabitActionStep(
-              id: '$id-$i',
-              title: stepTitles[i],
-              iconCodePoint: Icons.check_circle_outline.codePoint,
-              order: i,
-            ),
-        ],
-      );
-    }
-
-    final display = cat.isEmpty ? 'Other' : cat;
-    return [
-      template(
-        id: 'local_${prefix}_starter',
-        name: '$display Starter Guide',
-        stepTitles: steps,
-        setKey: 'local_all_categories',
-      ),
-      template(
-        id: 'local_${prefix}_focused',
-        name: '$display Focus Guide',
-        stepTitles: [
-          'Set intention',
-          'Do one high-impact action',
-          'Record outcome',
-          'Adjust next step',
-        ],
-        setKey: 'local_all_categories',
-      ),
-    ];
-  }
-
-  Future<void> _openTemplatePicker() async {
-    if (_templatesLoading) return;
-    setState(() => _templatesLoading = true);
-    try {
-      final token = await DvAuthService.getDvToken();
-      if (token == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in to load cloud templates.')),
-        );
-        return;
-      }
-      final category = _categoryToTemplateCategory(_category);
-      List<ActionStepTemplate> templates;
-      try {
-        templates = await ActionTemplatesService.listApproved(
-          dvToken: token,
-          category: category,
-        );
-      } catch (e) {
-        templates = const <ActionStepTemplate>[];
-      }
-      final localTemplates = _localTemplatesForHabitCategory(_category);
-      final merged = <ActionStepTemplate>[...templates];
-      final existingNames = merged.map((t) => t.name.toLowerCase()).toSet();
-      for (final local in localTemplates) {
-        if (!existingNames.contains(local.name.toLowerCase())) {
-          merged.add(local);
-        }
-      }
-      if (!mounted) return;
-      setState(() => _availableTemplates = merged);
-      if (_availableTemplates.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No approved templates found for this category.'),
-          ),
-        );
-        return;
-      }
-      final selected = await showModalBottomSheet<ActionStepTemplate>(
-        context: context,
-        showDragHandle: true,
-        builder: (context) {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            children: [
-              Text(
-                'Apply template',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              for (final tpl in _availableTemplates)
-                ListTile(
-                  leading: const Icon(Icons.auto_awesome_outlined),
-                  title: Row(
-                    children: [
-                      Expanded(child: Text(tpl.name)),
-                      if (tpl.isOfficial)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'Default',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  subtitle: Text('${tpl.steps.length} steps'),
-                  onTap: () => Navigator.of(context).pop(tpl),
-                ),
-            ],
-          );
-        },
-      );
-      if (selected == null) return;
-      setState(() {
-        _actionStepsEnabled = true;
-        _actionSteps = List<HabitActionStep>.from(selected.steps)
-          ..sort((a, b) => a.order.compareTo(b.order));
-        _selectedTemplateId = selected.id;
-        _selectedTemplateVersion = selected.templateVersion;
-      });
-    } finally {
-      if (mounted) setState(() => _templatesLoading = false);
-    }
   }
 
   void _initializeFromHabit() {
@@ -1256,8 +991,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onAfterHabitIdChanged: _onAfterHabitIdChanged,
                         onAnchorTextChanged: (v) => setState(() {
                           _anchorHabitText = v;
-                          if (_anchorHabitError != null)
+                          if (_anchorHabitError != null) {
                             _anchorHabitError = null;
+                          }
                         }),
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
@@ -1274,8 +1010,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         actionSteps: _actionSteps,
                         onActionStepsChanged: (steps) => setState(() {
                           _actionSteps = steps;
-                          if (_actionStepsError != null)
+                          if (_actionStepsError != null) {
                             _actionStepsError = null;
+                          }
                         }),
                       ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[

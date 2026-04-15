@@ -116,20 +116,28 @@ class _InstallWelcomeScreenState extends State<InstallWelcomeScreen> {
             ),
             sliver: SliverToBoxAdapter(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: AppSpacing.xl),
                   _BrandHero(colorScheme: colorScheme, isDark: isDark),
                   const SizedBox(height: AppSpacing.xl),
                   Text(
-                    'Habit Seeding',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.heading1(context),
+                    'Hi there,',
+                    textAlign: TextAlign.left,
+                    style: AppTypography.welcomeGreeting(context).copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Welcome to\nHabit Seeding',
+                    textAlign: TextAlign.left,
+                    style: AppTypography.welcomeTitle(context),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Plant small habits and watch your vision grow — a little each day.',
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                     style: AppTypography.bodySmall(context).copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -283,7 +291,7 @@ class _BrandHero extends StatelessWidget {
             child: Icon(
               Icons.star_rounded,
               size: 28,
-              color: AppColors.seedGold.withValues(alpha: 0.85),
+              color: AppColors.honeyText.withValues(alpha: 0.85),
             ),
           ),
           Positioned(

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
 import '../utils/app_typography.dart';
 import '../models/vision_components.dart';
 import '../models/goal_metadata.dart';
-import '../models/image_component.dart';
 import '../services/notifications_service.dart';
 import '../services/logical_date_service.dart';
 import '../services/sync_service.dart';
 import '../services/habit_geofence_tracking_service.dart';
-import '../services/micro_habit_storage_service.dart';
 import 'habit_timer_screen.dart';
 import '../utils/component_label_utils.dart';
 import '../widgets/dialogs/add_habit_dialog.dart';
@@ -45,15 +42,11 @@ class HabitsListScreen extends StatefulWidget {
 
 class _HabitsListScreenState extends State<HabitsListScreen> {
   late List<VisionComponent> _components;
-  SharedPreferences? _prefs;
-  // Cache for microhabit completion states: key = '${componentId}_${habitId}_${microhabitText}'
-  Map<String, bool> _microhabitCompletions = {};
 
   @override
   void initState() {
     super.initState();
     _components = widget.components;
-    _loadMicrohabitCompletions();
   }
 
   @override
@@ -61,102 +54,11 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.components != widget.components) {
       _components = widget.components;
-      _loadMicrohabitCompletions();
     }
-  }
-
-  /// Helper to get goal from a component
-  GoalMetadata? _getGoalFromComponent(VisionComponent component) {
-    if (component is ImageComponent) {
-      return component.goal;
-    }
-    return null;
-  }
-
-  Future<void> _loadMicrohabitCompletions() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    _prefs = prefs;
-
-    final now = LogicalDateService.now();
-    final todayIso = _toIsoDate(now);
-
-    // Load all microhabit completions for today
-    final completions = <String, bool>{};
-    for (final c in _components) {
-      final goal = _getGoalFromComponent(c);
-      final microhabit = goal?.actionPlan?.microHabit?.trim();
-      if (microhabit != null && microhabit.isNotEmpty) {
-        for (final h in c.habits) {
-          if (h.isScheduledOnDate(now)) {
-            final key = '${c.id}_${h.id}_$microhabit';
-            final isCompleted =
-                await MicroHabitStorageService.isMicroHabitCompletedForHabit(
-                  todayIso,
-                  c.id,
-                  h.id,
-                  microhabit,
-                  prefs: prefs,
-                );
-            completions[key] = isCompleted;
-          }
-        }
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _microhabitCompletions = completions;
-    });
-  }
-
-  Future<void> _toggleMicroHabitCompletionForHabit(
-    String componentId,
-    String habitId,
-    String microhabitText,
-  ) async {
-    final now = LogicalDateService.now();
-    final todayIso = _toIsoDate(now);
-    final key = '${componentId}_${habitId}_$microhabitText';
-    final isCompleted = _microhabitCompletions[key] ?? false;
-
-    if (isCompleted) {
-      await MicroHabitStorageService.unmarkMicroHabitCompletedForHabit(
-        todayIso,
-        componentId,
-        habitId,
-        microhabitText,
-        prefs: _prefs,
-      );
-    } else {
-      await MicroHabitStorageService.markMicroHabitCompletedForHabit(
-        todayIso,
-        componentId,
-        habitId,
-        microhabitText,
-        prefs: _prefs,
-      );
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _microhabitCompletions[key] = !isCompleted;
-    });
   }
 
   static String _toIsoDate(DateTime d) {
     return LogicalDateService.toIsoDate(d);
-  }
-
-  /// Helper function to get the appropriate icon for a habit type
-  static Widget _getHabitTypeIcon(HabitItem habit) {
-    if (habit.timeBound?.enabled == true) {
-      return const Icon(Icons.timer_outlined, size: 24);
-    }
-    if (habit.locationBound?.enabled == true) {
-      return const Icon(Icons.location_on_outlined, size: 24);
-    }
-    return const SizedBox.shrink(); // No icon for regular habits
   }
 
   Future<void> _addHabit() async {
@@ -541,7 +443,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   decoration: BoxDecoration(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primaryContainer.withOpacity(0.3),
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
@@ -579,17 +481,6 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                   Widget buildHabitRow(HabitItem habit) {
                     final scheduledToday = habit.isScheduledOnDate(now);
                     final isCompleted = habit.isCompletedForCurrentPeriod(now);
-                    final goal = _getGoalFromComponent(component);
-                    final microhabit = goal?.actionPlan?.microHabit?.trim();
-                    final hasMicrohabit =
-                        microhabit != null && microhabit.isNotEmpty;
-                    final microhabitKey = hasMicrohabit
-                        ? '${component.id}_${habit.id}_$microhabit'
-                        : null;
-                    final microhabitCompleted = microhabitKey != null
-                        ? (_microhabitCompletions[microhabitKey] ?? false)
-                        : false;
-
                     return Container(
                       color: (habit.locationBound?.enabled == true)
                           ? Theme.of(context).colorScheme.tertiaryContainer
@@ -634,7 +525,7 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                       color: isCompleted
                                                           ? Theme.of(context)
                                                                 .colorScheme
-                                                                .surfaceVariant
+                                                                .surfaceContainerHighest
                                                           : null,
                                                     ),
                                                 overflow: TextOverflow.ellipsis,
@@ -707,8 +598,9 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                                 orElse: () =>
                                                                     null,
                                                               );
-                                                          if (cNow == null)
+                                                          if (cNow == null) {
                                                             return;
+                                                          }
                                                           final hNow = cNow
                                                               .habits
                                                               .where(
@@ -724,15 +616,17 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
                                                                 orElse: () =>
                                                                     null,
                                                               );
-                                                          if (hNow == null)
+                                                          if (hNow == null) {
                                                             return;
+                                                          }
                                                           final now =
                                                               LogicalDateService.now();
                                                           if (hNow
                                                               .isCompletedForCurrentPeriod(
                                                                 now,
-                                                              ))
+                                                              )) {
                                                             return;
+                                                          }
                                                           await _toggleHabit(
                                                             cNow,
                                                             hNow,

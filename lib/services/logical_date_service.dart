@@ -12,14 +12,12 @@ import 'dv_auth_service.dart';
 final class LogicalDateService {
   LogicalDateService._();
 
-  static bool _initialized = false;
   static tz.Location _homeLocation = tz.local;
 
   static Future<void> ensureInitialized({SharedPreferences? prefs}) async {
     tz_data.initializeTimeZones();
     final p = prefs ?? await SharedPreferences.getInstance();
     await reloadHomeTimezone(prefs: p);
-    _initialized = true;
   }
 
   static Future<void> reloadHomeTimezone({SharedPreferences? prefs}) async {

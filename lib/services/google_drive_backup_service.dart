@@ -254,19 +254,13 @@ class GoogleDriveBackupService {
     await initializeGoogleSignIn();
     GoogleSignInAccount? account =
         await _googleSignIn.attemptLightweightAuthentication();
-    if (account == null) {
-      account = await _googleSignIn.authenticate(scopeHint: _scopes);
-    }
-    if (account == null) throw Exception('Google sign-in cancelled.');
+    account ??= await _googleSignIn.authenticate(scopeHint: _scopes);
 
     final authorization =
         await account.authorizationClient.authorizeScopes(_scopes);
-    if (authorization.accessToken == null) {
-      throw Exception('Failed to get Drive authorization.');
-    }
 
     return _GoogleAuthClient(<String, String>{
-      'Authorization': 'Bearer ${authorization.accessToken!}',
+      'Authorization': 'Bearer ${authorization.accessToken}',
     });
   }
 

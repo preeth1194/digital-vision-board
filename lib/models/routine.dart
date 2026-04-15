@@ -134,7 +134,7 @@ class Routine {
       iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ??
           Icons.list.codePoint,
       tileColorValue: (json['tileColorValue'] as num?)?.toInt() ??
-          AppColors.pastelBlue.value,
+          AppColors.pastelBlue.toARGB32(),
       todos: todos,
       timeMode: (json['timeMode'] as String?) ?? 'overall',
       overallDurationMinutes: (json['overallDurationMinutes'] as num?)?.toInt(),

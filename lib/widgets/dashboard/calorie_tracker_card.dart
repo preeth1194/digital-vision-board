@@ -43,10 +43,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (_saving) return;
     setState(() => _saving = true);
     final updated = await CalorieStorageService.addCalories(amount);
-    if (mounted) setState(() {
-      _entry = updated;
-      _saving = false;
-    });
+    if (mounted) {
+      setState(() {
+        _entry = updated;
+        _saving = false;
+      });
+    }
   }
 
   Future<void> _reset() async {
@@ -358,7 +360,7 @@ class _MacroSummaryRow extends StatelessWidget {
         const Spacer(),
         Text(
           '${entry.foodItems.length} item${entry.foodItems.length == 1 ? '' : 's'}',
-          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          style: AppTypography.caption(context).copyWith(color: cs.onSurfaceVariant),
         ),
       ],
     );
@@ -390,8 +392,7 @@ class _MacroChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w700,
               color: color,
             ),
@@ -399,8 +400,7 @@ class _MacroChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w600,
               color: color,
             ),
@@ -670,8 +670,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                                     !recipe.macros!.isEmpty)
                                   Text(
                                     '${recipe.macros!.calories.toInt()} kcal',
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                    style: AppTypography.caption(context).copyWith(
                                       color: cs.onSurfaceVariant,
                                     ),
                                   ),
@@ -686,8 +685,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                                     ),
                                     child: Text(
                                       'Default',
-                                      style: TextStyle(
-                                        fontSize: 12,
+                                      style: AppTypography.caption(context).copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: cs.onPrimaryContainer,
                                       ),
@@ -728,7 +726,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                   Expanded(
                     flex: 3,
                     child: DropdownButtonFormField<String>(
-                      value: _qtyUnit,
+                      initialValue: _qtyUnit,
                       decoration: InputDecoration(
                         labelText: 'Unit',
                         border: OutlineInputBorder(
@@ -799,8 +797,7 @@ class _FoodEntrySheetState extends State<_FoodEntrySheet> {
                         _showMacros
                             ? 'Hide macro breakdown'
                             : 'Add macro breakdown (optional)',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: AppTypography.bodySmall(context).copyWith(
                           color: cs.primary,
                           fontWeight: FontWeight.w500,
                         ),
@@ -899,7 +896,7 @@ class _MacroField extends StatelessWidget {
           const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: color, fontSize: 12),
+        labelStyle: AppTypography.caption(context).copyWith(color: color),
         suffixText: 'g',
         isDense: true,
         border: OutlineInputBorder(

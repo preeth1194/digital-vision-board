@@ -165,7 +165,7 @@ class DashboardBody extends StatelessWidget {
     // Force reload of board components across tabs whenever board data changes.
     return ValueListenableBuilder<int>(
       valueListenable: boardDataVersion,
-      builder: (context, version, __) {
+      builder: (context, version, _) {
         final child = KeyedSubtree(
           key: ValueKey<int>(tabIndex),
           child: switch (tabIndex) {
@@ -191,8 +191,9 @@ class DashboardBody extends StatelessWidget {
             7 => FutureBuilder<Map<String, List<VisionComponent>>>(
               future: _loadAllBoardsComponents(),
               builder: (context, snap) {
-                if (!snap.hasData)
+                if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
                 return AllBoardsHabitsTab(
                   boards: boards,
                   componentsByBoardId: Map<String, List<VisionComponent>>.from(
@@ -218,8 +219,9 @@ class DashboardBody extends StatelessWidget {
               FutureBuilder<List<VisionComponent>>(
                 future: _loadBoardComponents(activeBoard),
                 builder: (context, snap) {
-                  if (!snap.hasData)
+                  if (!snap.hasData) {
                     return const Center(child: CircularProgressIndicator());
+                  }
                   return TodosListScreen(
                     components: snap.data ?? const <VisionComponent>[],
                     onComponentsUpdated: (updated) =>
@@ -232,8 +234,9 @@ class DashboardBody extends StatelessWidget {
             5 => FutureBuilder<Map<String, List<VisionComponent>>>(
               future: _loadAllBoardsComponents(),
               builder: (context, snap) {
-                if (!snap.hasData)
+                if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
                 return AllBoardsTodosTab(
                   boards: boards,
                   componentsByBoardId: Map<String, List<VisionComponent>>.from(

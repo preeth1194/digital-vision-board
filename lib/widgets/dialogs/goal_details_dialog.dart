@@ -379,7 +379,7 @@ class _GoalDetailsDialogState extends State<_GoalDetailsDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                value: _frequency,
+                initialValue: _frequency,
                 items: const [
                   DropdownMenuItem(value: null, child: Text('Frequency (optional)')),
                   DropdownMenuItem(value: 'Daily', child: Text('Daily')),

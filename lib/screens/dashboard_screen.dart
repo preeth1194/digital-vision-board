@@ -2,14 +2,11 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../services/image_service.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/core_value.dart';
 import '../models/vision_board_info.dart';
 import '../models/grid_template.dart';
 import '../services/boards_storage_service.dart';
@@ -17,7 +14,6 @@ import '../services/habit_storage_service.dart';
 import '../services/coins_service.dart';
 import '../widgets/dashboard/dashboard_body.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
-import '../widgets/dialogs/new_board_dialog.dart';
 import '../services/vision_board_components_storage_service.dart';
 import '../services/reminder_summary_service.dart';
 import '../services/dv_auth_service.dart';
@@ -27,17 +23,10 @@ import '../services/logical_date_service.dart';
 import '../services/widget_action_refresh_notifier.dart';
 import 'auth/auth_gateway_screen.dart';
 import 'grid_editor.dart';
-import 'wizard/create_board_wizard_screen.dart';
 import 'goal_canvas_editor_screen.dart';
 import 'goal_canvas_viewer_screen.dart';
-import 'templates/template_gallery_screen.dart';
-import '../widgets/dialogs/home_screen_widget_instructions_sheet.dart';
 import 'challenge_setup_screen.dart';
-import 'vision_board_home_screen.dart';
-import 'puzzle_game_screen.dart';
-import '../services/puzzle_service.dart';
 import 'settings_menu_screen.dart';
-import 'earn_badges_screen.dart';
 import 'presets/preset_shop_screen.dart';
 import '../models/habit_item.dart';
 import '../models/routine.dart';
@@ -49,7 +38,6 @@ import '../services/ad_service.dart';
 import '../services/ad_free_service.dart';
 import '../services/notifications_service.dart';
 import '../widgets/navigation/animated_bottom_nav_bar.dart';
-import '../widgets/profile_avatar.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -61,8 +49,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  static const String _addWidgetPromptShownKey =
-      'dv_add_widget_prompt_shown_v1';
   /// One-shot hook so we do not re-prompt every cold start (Android exact-alarm flow, etc.).
   static const String _postDashboardNotifPermissionKey =
       'dv_post_dashboard_notif_permission_v1';
@@ -83,7 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _activeRoutineId;
 
   bool _loadingReminders = false;
-  ReminderSummary? _reminderSummary;
   Timer? _remindersAutoRefreshTimer;
   VoidCallback? _syncAuthListener;
   VoidCallback? _widgetActionRefreshListener;
@@ -320,42 +305,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     _prefs ??= prefs;
     setState(() => _loadingReminders = true);
     try {
-      final summary = await ReminderSummaryService.build(
+      await ReminderSummaryService.build(
         boards: _boards,
         prefs: prefs,
       );
       if (!mounted) return;
-      setState(() => _reminderSummary = summary);
     } finally {
       if (mounted) setState(() => _loadingReminders = false);
     }
-  }
-
-  static String _monthDayLabel(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final m = months[(d.month - 1).clamp(0, 11)];
-    return '$m ${d.day}';
-  }
-
-  static String _timeLabel(int minutes) {
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    final hh = ((h % 12) == 0) ? 12 : (h % 12);
-    final ampm = h >= 12 ? 'PM' : 'AM';
-    return '$hh:${m.toString().padLeft(2, '0')} $ampm';
   }
 
   Widget _buildCoinBadge(BuildContext context) {
@@ -456,67 +413,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildCircularIconButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback onTap,
-    int badgeCount = 0,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        ),
-        child: badgeCount > 0
-            ? Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Icon(
-                      icon,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 22,
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        badgeCount > 99 ? '99+' : '$badgeCount',
-                        style: AppTypography.caption(context).copyWith(
-                          color: Theme.of(context).colorScheme.onError,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Center(
-                child: Icon(
-                  icon,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  size: 22,
-                ),
-              ),
-      ),
-    );
-  }
-
   Future<void> _openSettingsMenu() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -526,141 +422,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           onSignOut: _signOut,
         ),
       ),
-    );
-  }
-
-  Future<void> _openLandingScreen() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const VisionBoardHomeScreen()));
-    // Refresh data when returning from landing screen
-    await _refreshReminders();
-  }
-
-  Future<void> _openRemindersSheet() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final summary =
-        _reminderSummary ??
-        await ReminderSummaryService.build(boards: _boards, prefs: prefs);
-    if (!mounted) return;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todayIso = ReminderSummaryService.toIsoDate(today);
-    final todayItems =
-        summary.itemsByIsoDate[todayIso] ?? const <ReminderItem>[];
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final paddingBottom = MediaQuery.paddingOf(ctx).bottom;
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(ctx).height * 0.85,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Text(
-                    'Reminders',
-                    style: AppTypography.heading3(context),
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + paddingBottom),
-                    children: [
-                      if (todayItems.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 24),
-                          child: Center(child: Text('No reminders today.')),
-                        ),
-                      ...todayItems.map((it) {
-                        final leading = it.kind == ReminderKind.habit
-                            ? const Icon(Icons.notifications_active_outlined)
-                            : const Icon(Icons.event_outlined);
-                        final time = it.minutesSinceMidnight == null
-                            ? null
-                            : _timeLabel(it.minutesSinceMidnight!);
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: leading,
-                            title: Text(it.label),
-                            subtitle: Text(
-                              time == null
-                                  ? it.boardTitle
-                                  : '${it.boardTitle} • $time',
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _maybePromptAddWidgetIfFirstBoardCreated({
-    required int boardsBefore,
-  }) async {
-    if (boardsBefore != 0) return;
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final already = prefs.getBool(_addWidgetPromptShownKey) ?? false;
-    if (already) return;
-    if (_boards.isEmpty) return;
-    if (!mounted) return;
-
-    // Mark as shown up-front so it remains one-time even if user background-kills mid-sheet.
-    await prefs.setBool(_addWidgetPromptShownKey, true);
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Add home-screen widget?',
-                  style: AppTypography.heading3(context),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Get a quick view of today’s habits and mark them complete from your home screen.',
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    showHomeScreenWidgetInstructionsSheet(context);
-                  },
-                  child: const Text('Yes'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Not now'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -694,20 +455,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     await SyncService.pruneLocalFeedback(prefs: _prefs);
     await SyncService.pushSnapshotsBestEffort(prefs: _prefs);
     await _reload();
-  }
-
-  Future<void> _openEarnBadges() async {
-    final allHabits = await _gatherAllHabits();
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EarnBadgesScreen(
-          allHabits: allHabits,
-          totalCoins: _coinNotifier.value,
-          coinNotifier: _coinNotifier,
-        ),
-      ),
-    );
   }
 
   Future<List<HabitItem>> _gatherAllHabits() async {
@@ -797,6 +544,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final started = res == true || (res is Map && res['started'] == true);
     if (mounted && started) {
       await _loadCoins();
+      if (!mounted) return;
       _boardDataVersion.value++;
       setState(() => _tabIndex = 7);
       if (res is Map) {
@@ -811,57 +559,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
       }
     }
-  }
-
-  Future<void> _openPuzzleGame() async {
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-
-    var imagePath = await PuzzleService.getCurrentPuzzleImage(
-      boards: _boards,
-      prefs: prefs,
-    );
-
-    if (imagePath == null || imagePath.isEmpty) {
-      if (!mounted) return;
-      final cropped = await ImageService.pickAndCropPuzzleImage(
-        context,
-        source: ImageSource.gallery,
-      );
-      if (cropped == null || !mounted) return;
-      await PuzzleService.setPuzzleImage(cropped, prefs: prefs);
-      imagePath = cropped;
-    }
-
-    if (!mounted || imagePath == null) return;
-    final resolvedPath = imagePath;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PuzzleGameScreen(imagePath: resolvedPath, prefs: prefs),
-      ),
-    );
-  }
-
-  Future<bool> _boardHasNonEmptyContent(
-    VisionBoardInfo board, {
-    SharedPreferences? prefs,
-  }) async {
-    final p = prefs ?? _prefs ?? await SharedPreferences.getInstance();
-    if (board.layoutType == VisionBoardInfo.layoutGrid) {
-      final tiles = await GridTilesStorageService.loadTiles(board.id, prefs: p);
-      for (final t in tiles) {
-        if (t.isPlaceholder) continue;
-        final c = (t.content ?? '').trim();
-        if (c.isEmpty) continue;
-        if (t.type == 'image' || t.type == 'text') return true;
-      }
-      return false;
-    }
-    final comps = await VisionBoardComponentsStorageService.loadComponents(
-      board.id,
-      prefs: p,
-    );
-    return comps.isNotEmpty;
   }
 
   Future<void> _saveBoards(List<VisionBoardInfo> boards) async {
@@ -957,6 +654,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     }
 
+    if (!mounted) return;
     final req = await showAddHabitModal(
       context,
       existingHabits: habits,
@@ -1011,90 +709,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Future<void> _onTemplatePicked(String layoutType) async {
-    _hideCreatePanel();
-    final boardsBefore = _boards.length;
-
-    if (layoutType == 'browse_templates') {
-      final res = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const TemplateGalleryScreen()),
-      );
-      if (mounted && res == true) {
-        await _reload();
-        await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(
-          boardsBefore: boardsBefore,
-        );
-      }
-      return;
-    }
-
-    if (layoutType == 'create_wizard') {
-      final res = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const CreateBoardWizardScreen()),
-      );
-      if (mounted && res == true) {
-        await _reload();
-        await _refreshReminders();
-        await _maybePromptAddWidgetIfFirstBoardCreated(
-          boardsBefore: boardsBefore,
-        );
-      }
-      return;
-    }
-
-    final config = await showNewBoardDialog(context);
-    if (!mounted) return;
-    if (config == null || config.title.isEmpty) return;
-
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    _prefs ??= prefs;
-    final sole = await BoardsStorageService.ensureSingleBoard(prefs: prefs);
-    if (!mounted) return;
-    if (await _boardHasNonEmptyContent(sole, prefs: prefs)) {
-      final ok = await showConfirmDialog(
-        context,
-        title: 'Replace vision board?',
-        message:
-            'Your current vision board will be replaced. This cannot be undone.',
-        confirmText: 'Replace',
-      );
-      if (!mounted || !ok) return;
-    }
-
-    await BoardsStorageService.deleteBoardData(sole.id, prefs: prefs);
-
-    final core = CoreValues.byId(config.coreValueId);
-    final board = VisionBoardInfo(
-      id: sole.id,
-      title: config.title,
-      createdAtMs: DateTime.now().millisecondsSinceEpoch,
-      coreValueId: core.id,
-      iconCodePoint: core.icon.codePoint,
-      tileColorValue: core.tileColor.toARGB32(),
-      layoutType: layoutType,
-      templateId: null,
-    );
-
-    final next = <VisionBoardInfo>[board];
-    await _saveBoards(next);
-    await _setActiveBoard(sole.id);
-    if (!mounted) return;
-    setState(() => _boards = next);
-
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            GoalCanvasEditorScreen(boardId: sole.id, title: board.title),
-      ),
-    );
-    await _clearActiveBoard();
-    await _reload();
-    await _refreshReminders();
-    await _maybePromptAddWidgetIfFirstBoardCreated(boardsBefore: boardsBefore);
-  }
-
   Future<void> _deleteBoard(VisionBoardInfo board) async {
     final ok = await showConfirmDialog(
       context,
@@ -1111,8 +725,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       final next = _boards.where((b) => b.id != board.id).toList();
       await _saveBoards(next);
-      if (_activeBoardId == board.id)
+      if (_activeBoardId == board.id) {
         await BoardsStorageService.clearActiveBoardId(prefs: prefs);
+      }
       if (!mounted) return;
       setState(() {
         _boards = next;
@@ -1176,8 +791,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     const visibleTabIndices = <int>[
       1,
@@ -1352,7 +968,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _hideCreatePanel,
-                child: Container(color: AppColors.pureBlack.withOpacity(0.35 * t)),
+                child: Container(color: AppColors.pureBlack.withValues(alpha: 0.35 * t)),
               ),
             ),
             // Panel sliding up from behind the nav bar

@@ -17,7 +17,6 @@ class AffirmationScreen extends StatefulWidget {
 
 class _AffirmationScreenState extends State<AffirmationScreen> {
   List<Affirmation> _affirmations = [];
-  List<String> _categories = [];
   String? _selectedCategory;
   int _currentIndex = 0;
   bool _loading = true;
@@ -61,10 +60,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
       final prefs = _prefs ?? await SharedPreferences.getInstance();
       _prefs ??= prefs;
       
-      final categories = await AffirmationService.getCategoriesFromBoards(prefs: prefs);
-      categories.insert(0, 'General');
-      categories.insert(0, 'All');
-      
       List<Affirmation> affirmations;
       if (_selectedCategory == null || _selectedCategory == 'All') {
         affirmations = await AffirmationService.getAllAffirmations(prefs: prefs);
@@ -91,12 +86,9 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
       
       if (mounted) {
         setState(() {
-          _categories = categories;
           _affirmations = affirmations;
           _loading = false;
-          if (_selectedCategory == null) {
-            _selectedCategory = 'All';
-          }
+          _selectedCategory ??= 'All';
           // Ensure current index is valid
           if (_currentIndex >= _affirmations.length) {
             _currentIndex = 0;
@@ -148,62 +140,6 @@ class _AffirmationScreenState extends State<AffirmationScreen> {
     // Otherwise show next affirmation
     final nextIndex = (_currentIndex + 1) % _affirmations.length;
     return _affirmations[nextIndex];
-  }
-
-  void _showFilterMenu() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Filter by Category',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = _selectedCategory == category;
-                  
-                  return ListTile(
-                    leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.circle_outlined,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                    title: Text(category),
-                    selected: isSelected,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      setState(() {
-                        _selectedCategory = category;
-                        _currentIndex = 0;
-                      });
-                      await _reload();
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _openSettings() async {

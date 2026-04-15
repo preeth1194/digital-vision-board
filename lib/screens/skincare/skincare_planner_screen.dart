@@ -119,27 +119,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     return planner.weeklyPlans.first;
   }
 
-  Future<void> _addWeeklyPlan() async {
-    final planner = _planner;
-    if (planner == null) return;
-    if (planner.weeklyPlans.length >= 2) {
-      _showError('Only one additional weekly plan is allowed.');
-      return;
-    }
-    final nextIdx = planner.weeklyPlans.length + 1;
-    final newPlan = SkincareWeeklyPlan(
-      id: 'weekly_plan_$nextIdx',
-      name: 'Weekly Plan $nextIdx',
-      weeklyPlanByDay: SkincarePlanner.blankWeeklyDayMap(),
-    );
-    await _updatePlanner(
-      (current) => current.copyWith(
-        weeklyPlans: [...current.weeklyPlans, newPlan],
-        selectedWeeklyPlanId: newPlan.id,
-      ),
-    );
-  }
-
   Future<void> _selectOrCreateWeeklyPlanByName(String rawName) async {
     final planner = _planner;
     if (planner == null) return;
@@ -281,10 +260,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     if (mounted) FocusManager.instance.primaryFocus?.unfocus();
   }
 
-  int _currentMonthlyTrackerIndex() {
-    return SkincarePresetCompiler.currentMonthlyTrackerIndex();
-  }
-
   SkincareWeeklyPlan _weeklyPlanForCurrentTrackerWeek(SkincarePlanner planner) {
     return SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(planner);
   }
@@ -305,8 +280,8 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
     final planner = _planner;
     if (planner == null || planner.monthlyTracker.length < 3) return;
     final gate = await PresetHabitCreationService.checkGate();
+    if (!mounted) return;
     if (!gate.canCreate) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -532,7 +507,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: pickedSuggestion,
+                      initialValue: pickedSuggestion,
                       decoration: const InputDecoration(
                         labelText: 'Choose from products',
                       ),
@@ -726,37 +701,6 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
       }
     }
     return entries;
-  }
-
-  Future<void> _applyPreset(String presetId) async {
-    final planner = _planner;
-    if (planner == null) return;
-    final weekly = {
-      for (final day in SkincarePlanner.weekDays)
-        day: SkincareWeeklyDayPlan(
-          dayKey: day,
-          morningSourceId: planner.morningRoutineEnabled
-              ? planner.selectedMorningSetId
-              : null,
-          eveningSourceId: planner.eveningRoutineEnabled
-              ? planner.selectedEveningSetId
-              : null,
-        ),
-    };
-
-    await _updatePlanner((current) {
-      final nextWeeklyPlans = current.weeklyPlans
-          .map(
-            (plan) => plan.id == current.selectedWeeklyPlanId
-                ? plan.copyWith(weeklyPlanByDay: weekly)
-                : plan,
-          )
-          .toList();
-      return current.copyWith(
-        selectedPresetId: 'default_weekly',
-        weeklyPlans: nextWeeklyPlans,
-      );
-    });
   }
 
   Future<void> _updateProductsToBuy(List<String> next) async {
@@ -1155,7 +1099,7 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value:
+                              initialValue:
                                   planner.weeklyPlans.any(
                                     (p) =>
                                         p.id ==
@@ -1773,19 +1717,15 @@ class _SkincarePlannerScreenState extends State<SkincarePlannerScreen> {
 
 class _GlassSection extends StatelessWidget {
   final Widget child;
-  final EdgeInsetsGeometry padding;
 
-  const _GlassSection({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-  });
+  const _GlassSection({required this.child});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: AppColors.cloudDecoration(isDark: isDark),
-      child: Padding(padding: padding, child: child),
+      child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
   }
 }

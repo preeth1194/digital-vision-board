@@ -407,7 +407,7 @@ class _SunMoonArcPainter extends CustomPainter {
     
     // Sun glow
     final glowPaint = Paint()
-      ..color = AppColors.skyPeach.withOpacity(0.3)
+      ..color = AppColors.skyPeach.withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
     canvas.drawCircle(center, sunRadius + 8, glowPaint);
 
@@ -429,7 +429,7 @@ class _SunMoonArcPainter extends CustomPainter {
       final angle = (i * 45) * math.pi / 180;
       final opacity = 0.5 + (rayValue * 0.5) * ((i % 2 == 0) ? 1 : (1 - rayValue));
       
-      rayPaint.color = AppColors.coinGold.withOpacity(opacity);
+      rayPaint.color = AppColors.coinGold.withValues(alpha: opacity);
       
       final innerRadius = sunRadius + 4;
       final outerRadius = sunRadius + 12;
@@ -448,7 +448,7 @@ class _SunMoonArcPainter extends CustomPainter {
     
     // Moon glow
     final glowPaint = Paint()
-      ..color = AppColors.moonGlow.withOpacity(0.3)
+      ..color = AppColors.moonGlow.withValues(alpha: 0.3)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawCircle(center, moonRadius + 8, glowPaint);
 

@@ -807,6 +807,7 @@ class _MealPrepWeekScreenState extends State<MealPrepWeekScreen> {
     final week = _selectedWeek;
     if (week == null) return;
     final gate = await PresetHabitCreationService.checkGate();
+    if (!mounted) return;
     if (!gate.canCreate) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

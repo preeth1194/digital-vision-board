@@ -61,7 +61,7 @@ class WidgetGuideScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           Card(
-            color: scheme.primaryContainer.withOpacity(0.3),
+            color: scheme.primaryContainer.withValues(alpha: 0.3),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(

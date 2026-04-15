@@ -10,6 +10,7 @@ import '../services/challenge_storage_service.dart';
 import '../services/coins_service.dart';
 import '../services/habit_storage_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/rituals/habit_form_constants.dart';
 
@@ -124,7 +125,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('$val minutes', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text('$val minutes', style: AppTypography.heading1(ctx)),
                   const SizedBox(height: 16),
                   Slider(
                     value: val.toDouble(),
@@ -480,16 +481,13 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                   children: [
                     Text(
                       template.name,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                      style: AppTypography.heading2(context).copyWith(
                         color: colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       template.subtitle,
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppTypography.bodySmall(context).copyWith(
                         color: colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
@@ -501,9 +499,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
           const SizedBox(height: 12),
           Text(
             template.description,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
+            style: AppTypography.bodySmall(context).copyWith(
               color: colorScheme.onSurface.withValues(alpha: 0.8),
             ),
           ),
@@ -534,8 +530,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.caption(context).copyWith(
               fontWeight: FontWeight.w600,
               color: colorScheme.primary,
             ),
@@ -575,8 +570,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               Expanded(
                 child: TextField(
                   controller: habit.nameController,
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppTypography.bodySmall(context).copyWith(
                     fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface,
                   ),
@@ -599,8 +593,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
               padding: const EdgeInsets.only(left: 50, bottom: 8),
               child: Text(
                 habit.description,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppTypography.caption(context).copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
@@ -645,7 +638,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                 Chip(
                   label: Text(
                     habit.category,
-                    style: TextStyle(fontSize: 12, color: iconColor),
+                    style: AppTypography.caption(context).copyWith(color: iconColor),
                   ),
                   backgroundColor: bgColor.withValues(alpha: 0.5),
                   visualDensity: VisualDensity.compact,
@@ -697,8 +690,8 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                   : const Icon(Icons.rocket_launch_rounded),
               label: Text(_saving ? 'Starting...' : 'Start Challenge'),
               style: FilledButton.styleFrom(
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                textStyle: AppTypography.button(context).copyWith(fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusInput)),
               ),
             ),
           ),

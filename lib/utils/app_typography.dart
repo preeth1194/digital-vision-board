@@ -23,6 +23,31 @@ class AppTypography {
     );
   }
 
+  /// Welcome title - 44sp, bold, tight leading.
+  /// Used on landing / welcome hero text for a bold, editorial feel.
+  static TextStyle welcomeTitle(BuildContext context) {
+    return GoogleFonts.inter(
+      fontSize: 44,
+      fontWeight: FontWeight.w800,
+      color: _headingColor(context),
+      letterSpacing: -1.2,
+      height: 1.05,
+    );
+  }
+
+  /// Welcome greeting - 16sp, medium.
+  /// Used for the short greeting line above the welcome title
+  /// (e.g. "Hi there,").
+  static TextStyle welcomeGreeting(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+      color: colorScheme.onSurface,
+      height: 1.3,
+    );
+  }
+
   /// Heading 2 - 20sp, semi-bold
   /// Used for section titles
   static TextStyle heading2(BuildContext context) {

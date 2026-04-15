@@ -15,7 +15,6 @@ import '../services/puzzle_service.dart';
 import '../services/puzzle_state_service.dart';
 import '../services/coins_service.dart';
 import '../services/subscription_service.dart';
-import '../widgets/dialogs/puzzle_image_selector_sheet.dart';
 import '../models/vision_board_info.dart';
 import '../services/boards_storage_service.dart';
 
@@ -435,39 +434,6 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     setState(() => _showingCompletionTile = true);
   }
 
-  Future<void> _selectNewImage() async {
-    if (_actionsLocked) return;
-
-    _boards ??= await BoardsStorageService.loadBoards(
-      prefs: widget.prefs ?? await SharedPreferences.getInstance(),
-    );
-
-    final selected = await showPuzzleImageSelectorSheet(
-      context,
-      boards: _boards ?? [],
-      prefs: widget.prefs,
-    );
-
-    if (selected != null && selected != widget.imagePath) {
-      final prefs = widget.prefs ?? await SharedPreferences.getInstance();
-      await PuzzleStateService.clearPuzzleState(
-        imagePath: widget.imagePath,
-        prefs: prefs,
-      );
-      await PuzzleService.setPuzzleImage(selected, prefs: widget.prefs);
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PuzzleGameScreen(
-              imagePath: selected,
-              prefs: widget.prefs,
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   // ── Build ──────────────────────────────────────────────────────────
 
   @override
@@ -678,7 +644,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return DragTarget<int>(
-      onAccept: (draggedPieceIndex) => _movePiece(draggedPieceIndex, position),
+      onAcceptWithDetails: (details) => _movePiece(details.data, position),
       builder: (context, candidateData, rejectedData) {
         final isTargeted = candidateData.isNotEmpty;
         return Container(

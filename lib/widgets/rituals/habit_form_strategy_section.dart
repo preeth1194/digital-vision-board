@@ -265,35 +265,6 @@ class _Step6StrategyState extends State<Step6Strategy> {
     );
   }
 
-  Widget _buildAddStepRow(ColorScheme colorScheme) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _addStep,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                size: 20,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Add a step',
-                style: AppTypography.body(context).copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildStepOptionsRow(ColorScheme colorScheme) {
     final style = OutlinedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -326,7 +297,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
         children: [
           Expanded(
             child: DropdownButtonFormField<int>(
-              value: _selectedPlannerWeek,
+              initialValue: _selectedPlannerWeek,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Tracker Week',
@@ -348,7 +319,7 @@ class _Step6StrategyState extends State<Step6Strategy> {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<int>(
-              value: _selectedPlannerDay,
+              initialValue: _selectedPlannerDay,
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Weekday',
@@ -1037,7 +1008,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: selectedWeek,
+                    initialValue: selectedWeek,
                     decoration: const InputDecoration(
                       isDense: true,
                       labelText: 'Week',
@@ -1059,7 +1030,7 @@ class _ActionStepTileState extends State<_ActionStepTile> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: selectedDay,
+                    initialValue: selectedDay,
                     decoration: const InputDecoration(
                       isDense: true,
                       labelText: 'Day',

@@ -100,13 +100,13 @@ class _ActionButtonState extends State<_ActionButton> {
                 ? []
                 : [
                     BoxShadow(
-                      color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.1),
+                      color: colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.1),
                       offset: const Offset(0, 2),
                       blurRadius: 8,
                     ),
                     if (!isDark)
                       BoxShadow(
-                        color: colorScheme.surface.withOpacity(0.8),
+                        color: colorScheme.surface.withValues(alpha: 0.8),
                         offset: const Offset(-1, -1),
                         blurRadius: 4,
                       ),
@@ -115,7 +115,7 @@ class _ActionButtonState extends State<_ActionButton> {
           child: Icon(
             widget.icon,
             size: 22,
-            color: colorScheme.onSurface.withOpacity(_isPressed ? 0.5 : 0.7),
+            color: colorScheme.onSurface.withValues(alpha: _isPressed ? 0.5 : 0.7),
           ),
         ),
       ),

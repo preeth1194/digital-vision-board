@@ -1117,7 +1117,7 @@ class _SoundPickerSheetBodyState extends State<_SoundPickerSheetBody> {
                           color: colorScheme.primary, size: 20)
                       : null,
                   onTap: () async {
-                    final result = await FilePicker.platform.pickFiles(
+                    final result = await FilePicker.pickFiles(
                       type: FileType.audio,
                     );
                     if (result != null && result.files.single.path != null) {

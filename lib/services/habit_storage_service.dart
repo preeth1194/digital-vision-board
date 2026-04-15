@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit_item.dart';
@@ -49,7 +50,8 @@ class HabitStorageService {
           .map(HabitItem.fromJson)
           .map(_stripOrphanTimelineStart)
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[HabitStorage] Failed to decode habits — returning empty. Error: $e\n$st');
       return [];
     }
   }

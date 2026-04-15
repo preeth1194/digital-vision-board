@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,8 +96,8 @@ final class WizardDefaultsService {
       await p.setString(_cacheJsonKey, jsonEncode(decoded));
       await p.setString(_cacheUpdatedAtKey, parsed.updatedAt ?? '');
       await p.setInt(_cacheAtMsKey, DateTime.now().millisecondsSinceEpoch);
-    } catch (_) {
-      // non-fatal
+    } catch (e, st) {
+      debugPrint('[WizardDefaults] Failed to prefetch defaults: $e\n$st');
     }
   }
 
@@ -110,7 +111,9 @@ final class WizardDefaultsService {
           final parsed = _parseDefaultsResponse(decoded);
           if (parsed != null) return parsed;
         }
-      } catch (_) {}
+      } catch (e, st) {
+        debugPrint('[WizardDefaults] Failed to decode cached defaults: $e\n$st');
+      }
     }
     return _fallback();
   }

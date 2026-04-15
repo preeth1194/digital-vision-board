@@ -3,20 +3,10 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../models/cbt_enhancements.dart';
-import '../../models/action_step_template.dart';
 import '../../models/habit_action_step.dart';
 import '../../models/habit_item.dart';
-import '../../services/action_templates_service.dart';
-import '../../services/boards_storage_service.dart';
-import '../../services/dv_auth_service.dart';
 import '../../services/subscription_service.dart';
-import '../../services/vision_board_components_storage_service.dart';
-import '../../services/grid_tiles_storage_service.dart';
-import '../../models/vision_board_info.dart';
-import '../../models/vision_components.dart';
 import '../../utils/app_typography.dart';
 import 'addon_tools_section.dart';
 import 'habit_form_constants.dart';
@@ -25,6 +15,9 @@ import 'habit_form_pacing_section.dart';
 import 'habit_form_strategy_section.dart';
 import 'habit_form_triggers_section.dart';
 import '../../utils/app_colors.dart';
+import 'habit_form_coping_plan_section.dart';
+import 'habit_tracking_unit_selector.dart';
+import 'helpers/habit_time_conflict_detector.dart';
 
 // ============================================================================
 // Main Entry Function
@@ -215,9 +208,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   List<HabitActionStep> _actionSteps = [];
   String? _selectedTemplateId;
   int? _selectedTemplateVersion;
-  bool _templatesLoading = false;
-  List<ActionStepTemplate> _availableTemplates = const [];
-
   // Strategy (Stacking & CBT)
   bool _habitStackingEnabled = false;
   String? _afterHabitId;
@@ -290,9 +280,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       _timerAddonAdded = true;
     }
     // Default start time when creating new habit
-    if (_timeBoundStartTime == null) {
-      _timeBoundStartTime = TimeOfDay.now();
-    }
+    _timeBoundStartTime ??= TimeOfDay.now();
 
     _habitNameController.addListener(_clearNameError);
     _triggerController.addListener(_clearTriggerError);
@@ -302,42 +290,7 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
   }
 
   Future<void> _loadAllHabitsForConflict() async {
-    final prefs = await SharedPreferences.getInstance();
-    final boards = await BoardsStorageService.loadBoards(prefs: prefs);
-    final List<HabitItem> habits = [];
-    for (final board in boards) {
-      List<VisionComponent> components;
-      if (board.layoutType == VisionBoardInfo.layoutGrid) {
-        final tiles = await GridTilesStorageService.loadTiles(
-          board.id,
-          prefs: prefs,
-        );
-        components = tiles
-            .where((t) => t.type != 'empty')
-            .map(
-              (t) => ImageComponent(
-                id: t.id,
-                position: Offset.zero,
-                size: const Size(1, 1),
-                rotation: 0,
-                scale: 1,
-                zIndex: t.index,
-                imagePath: (t.type == 'image') ? (t.content ?? '') : '',
-                goal: t.goal,
-                habits: t.habits,
-              ),
-            )
-            .toList();
-      } else {
-        components = await VisionBoardComponentsStorageService.loadComponents(
-          board.id,
-          prefs: prefs,
-        );
-      }
-      for (final comp in components) {
-        habits.addAll(comp.habits);
-      }
-    }
+    final habits = await HabitTimeConflictDetector.loadAll();
     if (mounted) {
       setState(() => _allHabitsForConflict = habits);
       _checkTimeConflict();
@@ -354,99 +307,26 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
       return;
     }
 
-    final startMins =
-        _timeBoundStartTime!.hour * 60 + _timeBoundStartTime!.minute;
-    final duration = _timeBoundDurationMinutes;
-    final newEnd = startMins + duration;
-    final editingId = widget.initialHabit?.id;
+    final result = HabitTimeConflictDetector.check(
+      allHabits: _allHabitsForConflict,
+      startTime: _timeBoundStartTime!,
+      durationMinutes: _timeBoundDurationMinutes,
+      excludeHabitId: widget.initialHabit?.id,
+    );
 
-    final List<(int, int, String)> occupied = [];
-    String? conflictName;
-
-    for (final h in _allHabitsForConflict) {
-      if (h.id == editingId) continue;
-      final hStart = h.startTimeMinutes;
-      if (hStart == null) continue;
-      final tb = h.timeBound;
-      if (tb == null || !tb.enabled || tb.durationMinutes <= 0) continue;
-
-      final hEnd = hStart + tb.durationMinutes;
-      occupied.add((hStart, hEnd, h.name));
-
-      if (startMins < hEnd && hStart < newEnd) {
-        conflictName = h.name;
-      }
-    }
-
-    final endTime = TimeOfDay(hour: (newEnd ~/ 60) % 24, minute: newEnd % 60);
-
-    if (conflictName != null) {
-      occupied.sort((a, b) => a.$1.compareTo(b.$1));
-      final suggested = _findNearestAvailableTime(
-        startMins,
-        duration,
-        occupied,
-      );
+    if (result.hasConflict) {
       setState(() {
-        _timeConflictError = 'Conflicts with "$conflictName"';
-        _suggestedStartTime = suggested;
+        _timeConflictError = 'Conflicts with "${result.conflictingHabitName}"';
+        _suggestedStartTime = result.suggestedTime;
         _slotAvailableInfo = null;
       });
     } else {
-      final startStr = _formatTime(_timeBoundStartTime!);
-      final endStr = _formatTime(endTime);
       setState(() {
         _timeConflictError = null;
         _suggestedStartTime = null;
-        _slotAvailableInfo = '$startStr – $endStr is available';
+        _slotAvailableInfo = result.slotInfo;
       });
     }
-  }
-
-  String _formatTime(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
-
-  TimeOfDay? _findNearestAvailableTime(
-    int preferredStart,
-    int duration,
-    List<(int, int, String)> occupied,
-  ) {
-    const maxMins = 24 * 60;
-    int? bestStart;
-    int bestDist = maxMins;
-
-    bool fits(int cs) {
-      if (cs < 0 || cs + duration > maxMins) return false;
-      final ce = cs + duration;
-      for (final (s, e, _) in occupied) {
-        if (cs < e && s < ce) return false;
-      }
-      return true;
-    }
-
-    void tryCandidate(int c) {
-      if (!fits(c)) return;
-      final dist = (c - preferredStart).abs();
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestStart = c;
-      }
-    }
-
-    tryCandidate(0);
-    for (final (_, e, _) in occupied) {
-      tryCandidate(e);
-    }
-    for (final (s, _, _) in occupied) {
-      tryCandidate(s - duration);
-    }
-
-    if (bestStart == null) return null;
-    return TimeOfDay(hour: bestStart! ~/ 60, minute: bestStart! % 60);
   }
 
   void _clearNameError() {
@@ -459,263 +339,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
 
   void _clearActionError() {
     if (_actionError != null) setState(() => _actionError = null);
-  }
-
-  ActionTemplateCategory? _categoryToTemplateCategory(String? category) {
-    final normalized = (category ?? '').trim().toLowerCase();
-    if (normalized.contains('skin')) return ActionTemplateCategory.skincare;
-    if (normalized.contains('workout') ||
-        normalized.contains('fitness') ||
-        normalized.contains('exercise') ||
-        normalized == 'health') {
-      return ActionTemplateCategory.workout;
-    }
-    if (normalized.contains('meal') ||
-        normalized.contains('diet') ||
-        normalized.contains('nutrition')) {
-      return ActionTemplateCategory.mealPrep;
-    }
-    return null;
-  }
-
-  List<ActionStepTemplate> _localTemplatesForHabitCategory(String? category) {
-    final cat = (category ?? '').trim();
-    final normalized = cat.toLowerCase();
-
-    List<String> stepsFor(String key) {
-      switch (key) {
-        case 'health':
-          return [
-            'Hydrate',
-            'Take supplements/medicine',
-            'Healthy meal',
-            'Sleep wind-down',
-          ];
-        case 'fitness':
-          return [
-            'Warm-up',
-            'Main workout set',
-            'Cooldown stretch',
-            'Log progress',
-          ];
-        case 'productivity':
-          return [
-            'Top 3 priorities',
-            'Focused work block',
-            'Inbox/task cleanup',
-            'Plan tomorrow',
-          ];
-        case 'mindfulness':
-          return [
-            'Breathing reset',
-            'Meditation',
-            'Gratitude note',
-            'Reflect on mood',
-          ];
-        case 'learning':
-          return [
-            'Pick topic',
-            'Study session',
-            'Practice/review',
-            'Capture notes',
-          ];
-        case 'relationships':
-          return [
-            'Reach out',
-            'Quality conversation',
-            'Follow-up',
-            'Appreciation message',
-          ];
-        case 'finance':
-          return [
-            'Check spending',
-            'Budget review',
-            'Savings transfer',
-            'Track progress',
-          ];
-        case 'creativity':
-          return [
-            'Collect inspiration',
-            'Create draft',
-            'Refine one piece',
-            'Share/publish',
-          ];
-        case 'other':
-        default:
-          return [
-            'Define small action',
-            'Do it now',
-            'Track completion',
-            'Reflect and improve',
-          ];
-      }
-    }
-
-    final steps = stepsFor(normalized);
-    final prefix = normalized.isEmpty
-        ? 'other'
-        : normalized.replaceAll(' ', '_');
-
-    ActionTemplateCategory templateCategory = ActionTemplateCategory.workout;
-    if (normalized == 'mindfulness')
-      templateCategory = ActionTemplateCategory.skincare;
-    if (normalized == 'other') templateCategory = ActionTemplateCategory.recipe;
-    if (normalized == 'finance' || normalized == 'productivity') {
-      templateCategory = ActionTemplateCategory.mealPrep;
-    }
-
-    ActionStepTemplate template({
-      required String id,
-      required String name,
-      required List<String> stepTitles,
-      required String setKey,
-    }) {
-      return ActionStepTemplate(
-        id: id,
-        name: name,
-        category: templateCategory,
-        schemaVersion: 1,
-        templateVersion: 1,
-        setKey: setKey,
-        isOfficial: true,
-        status: ActionTemplateStatus.approved,
-        createdByUserId: 'system',
-        steps: [
-          for (int i = 0; i < stepTitles.length; i++)
-            HabitActionStep(
-              id: '$id-$i',
-              title: stepTitles[i],
-              iconCodePoint: Icons.check_circle_outline.codePoint,
-              order: i,
-            ),
-        ],
-      );
-    }
-
-    final display = cat.isEmpty ? 'Other' : cat;
-    return [
-      template(
-        id: 'local_${prefix}_starter',
-        name: '$display Starter Guide',
-        stepTitles: steps,
-        setKey: 'local_all_categories',
-      ),
-      template(
-        id: 'local_${prefix}_focused',
-        name: '$display Focus Guide',
-        stepTitles: [
-          'Set intention',
-          'Do one high-impact action',
-          'Record outcome',
-          'Adjust next step',
-        ],
-        setKey: 'local_all_categories',
-      ),
-    ];
-  }
-
-  Future<void> _openTemplatePicker() async {
-    if (_templatesLoading) return;
-    setState(() => _templatesLoading = true);
-    try {
-      final token = await DvAuthService.getDvToken();
-      if (token == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in to load cloud templates.')),
-        );
-        return;
-      }
-      final category = _categoryToTemplateCategory(_category);
-      List<ActionStepTemplate> templates;
-      try {
-        templates = await ActionTemplatesService.listApproved(
-          dvToken: token,
-          category: category,
-        );
-      } catch (e) {
-        templates = const <ActionStepTemplate>[];
-      }
-      final localTemplates = _localTemplatesForHabitCategory(_category);
-      final merged = <ActionStepTemplate>[...templates];
-      final existingNames = merged.map((t) => t.name.toLowerCase()).toSet();
-      for (final local in localTemplates) {
-        if (!existingNames.contains(local.name.toLowerCase())) {
-          merged.add(local);
-        }
-      }
-      if (!mounted) return;
-      setState(() => _availableTemplates = merged);
-      if (_availableTemplates.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No approved templates found for this category.'),
-          ),
-        );
-        return;
-      }
-      final selected = await showModalBottomSheet<ActionStepTemplate>(
-        context: context,
-        showDragHandle: true,
-        builder: (context) {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            children: [
-              Text(
-                'Apply template',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              for (final tpl in _availableTemplates)
-                ListTile(
-                  leading: const Icon(Icons.auto_awesome_outlined),
-                  title: Row(
-                    children: [
-                      Expanded(child: Text(tpl.name)),
-                      if (tpl.isOfficial)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'Default',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  subtitle: Text('${tpl.steps.length} steps'),
-                  onTap: () => Navigator.of(context).pop(tpl),
-                ),
-            ],
-          );
-        },
-      );
-      if (selected == null) return;
-      setState(() {
-        _actionStepsEnabled = true;
-        _actionSteps = List<HabitActionStep>.from(selected.steps)
-          ..sort((a, b) => a.order.compareTo(b.order));
-        _selectedTemplateId = selected.id;
-        _selectedTemplateVersion = selected.templateVersion;
-      });
-    } finally {
-      if (mounted) setState(() => _templatesLoading = false);
-    }
   }
 
   void _initializeFromHabit() {
@@ -1337,7 +960,14 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       SizedBox(height: kSectionSpacing),
                       _buildScheduleSection(colorScheme, baseColor),
                       SizedBox(height: kSectionSpacing),
-                      _buildCopingPlanSection(colorScheme),
+                      HabitFormCopingPlanSection(
+                        triggerController: _triggerController,
+                        actionController: _actionController,
+                        triggerError: _triggerError,
+                        actionError: _actionError,
+                        onClearTriggerError: _clearTriggerError,
+                        onClearActionError: _clearActionError,
+                      ),
                       SizedBox(height: kSectionSpacing),
                       Step6Strategy(
                         habitColor: baseColor,
@@ -1361,8 +991,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         onAfterHabitIdChanged: _onAfterHabitIdChanged,
                         onAnchorTextChanged: (v) => setState(() {
                           _anchorHabitText = v;
-                          if (_anchorHabitError != null)
+                          if (_anchorHabitError != null) {
                             _anchorHabitError = null;
+                          }
                         }),
                         onRelationshipChanged: (v) =>
                             setState(() => _relationship = v),
@@ -1379,8 +1010,9 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                         actionSteps: _actionSteps,
                         onActionStepsChanged: (steps) => setState(() {
                           _actionSteps = steps;
-                          if (_actionStepsError != null)
+                          if (_actionStepsError != null) {
                             _actionStepsError = null;
+                          }
                         }),
                       ),
                       if (_remindersAddonAdded || _timerAddonAdded) ...[
@@ -1520,7 +1152,21 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
                       ),
                       if (_trackerAddonAdded) ...[
                         SizedBox(height: kSectionSpacing),
-                        _buildTrackingUnitSelector(colorScheme),
+                        HabitTrackingUnitSelector(
+                          selectedIconIndex: _selectedIconIndex,
+                          trackingUnitId: _trackingUnitId,
+                          onUnitChanged: (unitId) {
+                            final units = iconTrackingUnits[_selectedIconIndex];
+                            final label = units?.firstWhere(
+                              (u) => u.$1 == unitId,
+                              orElse: () => (unitId, unitId),
+                            ).$2 ?? unitId;
+                            setState(() {
+                              _trackingUnitId = unitId;
+                              _trackingUnitLabel = label;
+                            });
+                          },
+                        ),
                       ],
                       // Space for fixed bottom bar
                       const SizedBox(height: 24),
@@ -1532,256 +1178,6 @@ class _CreateHabitPageState extends State<_CreateHabitPage>
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTrackingUnitSelector(ColorScheme colorScheme) {
-    final units = iconTrackingUnits[_selectedIconIndex];
-    if (units == null || units.isEmpty) return const SizedBox.shrink();
-
-    final segmentChildren = <int, Widget>{
-      for (int i = 0; i < units.length; i++)
-        i: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            units[i].$2,
-            style: AppTypography.caption(context).copyWith(fontSize: 13),
-          ),
-        ),
-    };
-
-    final selectedIdx = units.indexWhere((u) => u.$1 == _trackingUnitId);
-
-    return CupertinoListSection.insetGrouped(
-      header: Text(
-        'Tracking Unit',
-        style: AppTypography.caption(context).copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
-      ),
-      margin: EdgeInsets.zero,
-      backgroundColor: Colors.transparent,
-      decoration: habitSectionDecoration(colorScheme),
-      separatorColor: habitSectionSeparatorColor(colorScheme),
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.straighten, size: 20, color: colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Log ${habitIcons[_selectedIconIndex].$2.toLowerCase()} in:',
-                      style: AppTypography.body(context),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: CupertinoSlidingSegmentedControl<int>(
-                  groupValue: selectedIdx >= 0 ? selectedIdx : 0,
-                  children: segmentChildren,
-                  onValueChanged: (idx) {
-                    if (idx == null) return;
-                    setState(() {
-                      _trackingUnitId = units[idx].$1;
-                      _trackingUnitLabel = units[idx].$2;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCopingPlanSection(ColorScheme colorScheme) {
-    return CupertinoListSection.insetGrouped(
-      header: Text(
-        'Safety Net',
-        style: AppTypography.caption(context).copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
-      ),
-      margin: EdgeInsets.zero,
-      backgroundColor: Colors.transparent,
-      decoration: habitSectionDecoration(colorScheme),
-      separatorColor: habitSectionSeparatorColor(colorScheme),
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.tertiaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'IF',
-                      style: AppTypography.caption(context).copyWith(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        color: colorScheme.onTertiaryContainer,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _triggerController,
-                      maxLength: 200,
-                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                      style: AppTypography.body(context),
-                      decoration: InputDecoration(
-                        filled: false,
-                        hintText: "I'm feeling too tired...",
-                        hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.4,
-                          ),
-                          fontSize: 14,
-                        ),
-                        errorText: _triggerError,
-                        errorStyle: AppTypography.caption(
-                          context,
-                        ).copyWith(color: colorScheme.error, fontSize: 12),
-                        border: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _triggerError != null
-                                ? colorScheme.error
-                                : colorScheme.outlineVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
-                          ),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _triggerError != null
-                                ? colorScheme.error
-                                : colorScheme.primary,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.only(bottom: 4),
-                        isDense: true,
-                        counterText: '',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 24),
-                child: Container(
-                  height: 16,
-                  width: 2,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'THEN',
-                      style: AppTypography.caption(context).copyWith(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        color: colorScheme.onPrimaryContainer,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _actionController,
-                      maxLength: 200,
-                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                      style: AppTypography.body(context),
-                      decoration: InputDecoration(
-                        filled: false,
-                        hintText: "I will just do 2 minutes.",
-                        hintStyle: AppTypography.body(context).copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.4,
-                          ),
-                          fontSize: 14,
-                        ),
-                        errorText: _actionError,
-                        errorStyle: AppTypography.caption(
-                          context,
-                        ).copyWith(color: colorScheme.error, fontSize: 12),
-                        border: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _actionError != null
-                                ? colorScheme.error
-                                : colorScheme.outlineVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
-                          ),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _actionError != null
-                                ? colorScheme.error
-                                : colorScheme.primary,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.only(bottom: 4),
-                        isDense: true,
-                        counterText: '',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

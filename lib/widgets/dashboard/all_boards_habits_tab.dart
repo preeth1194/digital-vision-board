@@ -1,4 +1,3 @@
-import 'dart:math' show pi;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -31,6 +30,10 @@ import '../rituals/habit_completion_sheet.dart';
 import '../routine/confetti_overlay.dart';
 import '../ads/reward_ad_card.dart';
 import '../habits/off_schedule_completion_dialog.dart';
+import 'cards/swipeable_habit_card.dart';
+import 'habits_tab_models.dart';
+import 'timeline/month_week_scroller.dart';
+import 'timeline/timeline_checkpoint.dart';
 
 enum _HabitQuickFilter {
   all,
@@ -72,11 +75,11 @@ class AllBoardsHabitsTab extends StatefulWidget {
 }
 
 class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
-  final List<_PendingCoinAnimation> _pendingAnimations = [];
+  final List<PendingCoinAnimation> _pendingAnimations = [];
   late Map<String, List<VisionComponent>> _localComponents;
   List<HabitItem> _habits = [];
   bool _isSaving = false;
-  final Map<String, GlobalKey<_SwipeableHabitCardState>> _swipeKeys = {};
+  final Map<String, GlobalKey<SwipeableHabitCardState>> _swipeKeys = {};
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final PageController _flexibleHabitsPageController = PageController();
@@ -182,51 +185,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
         '';
   }
 
-  Future<void> _addHabitGlobal() async {
-    if (_isPastSelectedCalendarDate()) {
-      _showPastDateCreationBlockedMessage();
-      return;
-    }
-    // Gate: non-subscribed users with 3+ habits must watch ads first
-    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      // Session already complete — let user proceed to add the habit
-      if (_activeAdSession != null &&
-          _adWatchedCount >= AdService.requiredAdsPerHabit) {
-        // Fall through to _proceedToAddHabit()
-      } else if (_activeAdSession != null) {
-        // Session in progress — tell user to watch the ads on the card above
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Watch ${AdService.requiredAdsPerHabit - _adWatchedCount} more ad(s) to unlock a new habit.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      } else {
-        // No session yet — create one so the ad card appears
-        final sessionKey =
-            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        await AdService.setActiveSession(sessionKey);
-        if (!mounted) return;
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-
-    await _proceedToAddHabit();
-  }
-
   Future<void> _proceedToAddHabit() async {
     if (_isPastSelectedCalendarDate()) {
       _showPastDateCreationBlockedMessage();
@@ -308,7 +266,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       if (choice == OffScheduleCompletionChoice.cancel) return;
       if (choice == OffScheduleCompletionChoice.changeSchedule) {
         await _editHabit(
-          _HabitEntry(
+          HabitEntry(
             boardId: habit.boardId ?? '',
             boardTitle: _boardTitle(habit.boardId),
             habit: habit,
@@ -381,7 +339,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       // Queue flying coin animation
       if (cardPosition != null && targetPosition != null) {
         _pendingAnimations.add(
-          _PendingCoinAnimation(
+          PendingCoinAnimation(
             source: cardPosition,
             target: targetPosition,
             coins: earnedCoins,
@@ -611,11 +569,12 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     }
   }
 
-  void _openTimerForHabit(_HabitEntry entry) {
+  void _openTimerForHabit(HabitEntry entry) {
     final habit = entry.habit;
     if (habit.timeBound?.enabled != true &&
-        habit.locationBound?.enabled != true)
+        habit.locationBound?.enabled != true) {
       return;
+    }
 
     final referenceDate = widget.showCalendarMode
         ? _selectedCalendarDate
@@ -788,7 +747,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Future<void> _editHabit(_HabitEntry entry) async {
+  Future<void> _editHabit(HabitEntry entry) async {
     final req = await showAddHabitModal(
       context,
       existingHabits: _habits,
@@ -832,7 +791,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _deleteHabit(_HabitEntry entry) async {
+  Future<void> _deleteHabit(HabitEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -943,7 +902,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  bool _matchesQuery(_HabitEntry entry) {
+  bool _matchesQuery(HabitEntry entry) {
     final q = _searchQuery.trim().toLowerCase();
     if (q.isEmpty) return true;
     final habit = entry.habit;
@@ -953,7 +912,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return name.contains(q) || category.contains(q) || board.contains(q);
   }
 
-  bool _matchesFilter(_HabitEntry entry, DateTime now) {
+  bool _matchesFilter(HabitEntry entry, DateTime now) {
     final habit = entry.habit;
     switch (_activeFilter) {
       case _HabitQuickFilter.all:
@@ -1224,11 +1183,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     _setSelectedCalendarDate(picked);
   }
 
-  DateTime _weekStart(DateTime date) {
-    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
-    return DateTime(date.year, date.month, date.day - weekday);
-  }
-
   Widget _buildTimelineDateHeader() {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1313,7 +1267,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             const SizedBox(height: 12),
             SizedBox(
               height: 50,
-              child: _MonthWeekScroller(
+              child: MonthWeekScroller(
                 selectedDate: _selectedCalendarDate,
                 onDateSelected: _setSelectedCalendarDate,
                 today: today,
@@ -1354,7 +1308,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     return '$hour12 $period';
   }
 
-  Future<_TimelineScheduleSelection?> _showTimelineScheduleDialog({
+  Future<TimelineScheduleSelection?> _showTimelineScheduleDialog({
     required int initialStartMinutes,
     required HabitItem habit,
   }) {
@@ -1368,7 +1322,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final normalizedInitialDuration = durationOptions.contains(initialDuration)
         ? initialDuration
         : 30;
-    return showDialog<_TimelineScheduleSelection>(
+    return showDialog<TimelineScheduleSelection>(
       context: context,
       builder: (ctx) {
         final colorScheme = Theme.of(ctx).colorScheme;
@@ -1420,7 +1374,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedStart,
+                        initialValue: selectedStart,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -1462,7 +1416,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: selectedDuration,
+                        initialValue: selectedDuration,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
@@ -1510,7 +1464,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                           FilledButton(
                             onPressed: () {
                               Navigator.of(ctx).pop(
-                                _TimelineScheduleSelection(
+                                TimelineScheduleSelection(
                                   startMinutes: selectedStart,
                                   durationMinutes: selectedDuration,
                                 ),
@@ -1553,7 +1507,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Future<void> _handleFlexibleDrop(
-    _FlexibleHabitDragData data,
+    FlexibleHabitDragData data,
     int startMinutes,
   ) async {
     final selection = await _showTimelineScheduleDialog(
@@ -1610,7 +1564,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildTimelineHabitChip(_HabitEntry entry) {
+  Widget _buildTimelineHabitChip(HabitEntry entry) {
     final habit = entry.habit;
     final colorScheme = Theme.of(context).colorScheme;
     final duration = _habitDurationMinutes(habit).clamp(15, 180);
@@ -1657,7 +1611,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildFlexibleHabitCard(_HabitEntry entry) {
+  Widget _buildFlexibleHabitCard(HabitEntry entry) {
     final habit = entry.habit;
     final now = LogicalDateService.now();
     final isCompleted = habit.isCompletedForCurrentPeriod(now);
@@ -1671,7 +1625,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       return Row(
         key: attachAnchorKey ? cardKey : null,
         children: [
-          _TimelineCheckpoint(
+          TimelineCheckpoint(
             isCompleted: isCompleted,
             onTap: interactive
                 ? () => _handleHabitTap(
@@ -1730,8 +1684,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
     }
 
-    return Draggable<_FlexibleHabitDragData>(
-      data: _FlexibleHabitDragData(habit),
+    return Draggable<FlexibleHabitDragData>(
+      data: FlexibleHabitDragData(habit),
       feedback: Material(
         color: Colors.transparent,
         child: ConstrainedBox(
@@ -1748,8 +1702,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildFlexibleHabitsStickyCarousel({
-    required List<_HabitEntry> flexibleHabits,
-    required List<_HabitEntry> scheduledForSelectedDate,
+    required List<HabitEntry> flexibleHabits,
+    required List<HabitEntry> scheduledForSelectedDate,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1891,7 +1845,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     );
   }
 
-  Widget _buildCalendarTimeline({required List<_HabitEntry> timedHabits}) {
+  Widget _buildCalendarTimeline({required List<HabitEntry> timedHabits}) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const leftLabelWidth = 52.0;
@@ -1908,7 +1862,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
           b.habit.startTimeMinutes ?? 0,
         ),
       );
-    final positionedCards = <_TimelineCardLayout>[];
+    final positionedCards = <TimelineCardLayout>[];
     double nextMinTop = 0;
     for (final entry in sortedHabits) {
       final start = (entry.habit.startTimeMinutes ?? 0).clamp(0, 23 * 60 + 59);
@@ -1921,7 +1875,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
       );
       nextMinTop = top + height + cardGap;
       positionedCards.add(
-        _TimelineCardLayout(entry: entry, top: top, height: height),
+        TimelineCardLayout(entry: entry, top: top, height: height),
       );
     }
 
@@ -2027,7 +1981,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                   left: contentLeft,
                   right: rightPad,
                   height: hourHeight,
-                  child: DragTarget<_FlexibleHabitDragData>(
+                  child: DragTarget<FlexibleHabitDragData>(
                     onWillAcceptWithDetails: (_) => true,
                     onAcceptWithDetails: (details) {
                       _handleFlexibleDrop(details.data, slotStart);
@@ -2112,7 +2066,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildHabitTimelineRow({
-    required _HabitEntry entry,
+    required HabitEntry entry,
     required int index,
     required bool isFirst,
     required bool isLast,
@@ -2122,7 +2076,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final isCompleted = entry.habit.isCompletedForCurrentPeriod(now);
     final swipeKey = _swipeKeys.putIfAbsent(
       entry.habit.id,
-      () => GlobalKey<_SwipeableHabitCardState>(),
+      () => GlobalKey<SwipeableHabitCardState>(),
     );
     return _ScrollAnimatedItem(
       index: index,
@@ -2138,9 +2092,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                 child: Column(
                   children: [
                     Expanded(
-                      child: isFirst ? const SizedBox() : const _TimelineDash(),
+                      child: isFirst ? const SizedBox() : const TimelineDash(),
                     ),
-                    _TimelineCheckpoint(
+                    TimelineCheckpoint(
                       isCompleted: isCompleted,
                       onTap: () => _handleHabitTap(
                         habit: entry.habit,
@@ -2149,14 +2103,14 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
                       ),
                     ),
                     Expanded(
-                      child: isLast ? const SizedBox() : const _TimelineDash(),
+                      child: isLast ? const SizedBox() : const TimelineDash(),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
               Expanded(
-                child: _SwipeableHabitCard(
+                child: SwipeableHabitCard(
                   key: swipeKey,
                   entry: entry,
                   onEdit: () => _editHabit(entry),
@@ -2186,8 +2140,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildCalendarModeContent({
-    required List<_HabitEntry> dayHabits,
-    required List<_HabitEntry> timedHabits,
+    required List<HabitEntry> dayHabits,
+    required List<HabitEntry> timedHabits,
     required ColorScheme colorScheme,
   }) {
     final selectedDateLabel = DateFormat(
@@ -2245,9 +2199,9 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 
   Widget _buildDefaultModeContent({
-    required List<_HabitEntry> todayHabits,
-    required List<_HabitEntry> upcomingHabits,
-    required List<_HabitEntry> visibleHabits,
+    required List<HabitEntry> todayHabits,
+    required List<HabitEntry> upcomingHabits,
+    required List<HabitEntry> visibleHabits,
     required bool hasActiveSearchOrFilter,
   }) {
     return Column(
@@ -2325,8 +2279,8 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     final now = LogicalDateService.now();
 
     // Gather all habits from standalone storage
-    final List<_HabitEntry> allHabits = _habits.map((habit) {
-      return _HabitEntry(
+    final List<HabitEntry> allHabits = _habits.map((habit) {
+      return HabitEntry(
         boardId: habit.boardId ?? '',
         boardTitle: _boardTitle(habit.boardId),
         habit: habit,
@@ -2337,7 +2291,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
     // _inferHabitCreatedAt(id), which can wrongly hide habits (e.g. ID shapes
     // that decode to a future day). Calendar/timeline mode still hides habits
     // on days before their inferred creation date.
-    Iterable<_HabitEntry> afterSearchAndFilter = allHabits
+    Iterable<HabitEntry> afterSearchAndFilter = allHabits
         .where(_matchesQuery)
         .where((e) => _matchesFilter(e, filterDate));
     if (widget.showCalendarMode) {
@@ -2381,7 +2335,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             if (widget.showCalendarMode)
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedBoxHeaderDelegate(
+                delegate: PinnedBoxHeaderDelegate(
                   minExtentValue: MediaQuery.of(context).viewPadding.top,
                   maxExtentValue: MediaQuery.of(context).viewPadding.top,
                   child: Container(
@@ -2436,7 +2390,7 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
             if (allHabits.isNotEmpty && widget.showCalendarMode)
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedBoxHeaderDelegate(
+                delegate: PinnedBoxHeaderDelegate(
                   minExtentValue: 156,
                   maxExtentValue: 156,
                   child: _buildFlexibleHabitsStickyCarousel(
@@ -2552,294 +2506,6 @@ class _AllBoardsHabitsTabState extends State<AllBoardsHabitsTab> {
   }
 }
 
-class _HabitEntry {
-  final String boardId;
-  final String boardTitle;
-  final HabitItem habit;
-
-  _HabitEntry({
-    required this.boardId,
-    required this.boardTitle,
-    required this.habit,
-  });
-}
-
-class _PendingCoinAnimation {
-  final Offset source;
-  final Offset target;
-  final int coins;
-
-  _PendingCoinAnimation({
-    required this.source,
-    required this.target,
-    required this.coins,
-  });
-}
-
-class _FlexibleHabitDragData {
-  final HabitItem habit;
-
-  const _FlexibleHabitDragData(this.habit);
-}
-
-class _TimelineScheduleSelection {
-  final int startMinutes;
-  final int durationMinutes;
-
-  const _TimelineScheduleSelection({
-    required this.startMinutes,
-    required this.durationMinutes,
-  });
-}
-
-class _TimelineCardLayout {
-  final _HabitEntry entry;
-  final double top;
-  final double height;
-
-  const _TimelineCardLayout({
-    required this.entry,
-    required this.top,
-    required this.height,
-  });
-}
-
-class _PinnedBoxHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double minExtentValue;
-  final double maxExtentValue;
-  final Widget child;
-
-  _PinnedBoxHeaderDelegate({
-    required this.minExtentValue,
-    required this.maxExtentValue,
-    required this.child,
-  });
-
-  @override
-  double get minExtent => minExtentValue;
-
-  @override
-  double get maxExtent => maxExtentValue;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant _PinnedBoxHeaderDelegate oldDelegate) {
-    return minExtentValue != oldDelegate.minExtentValue ||
-        maxExtentValue != oldDelegate.maxExtentValue ||
-        child != oldDelegate.child;
-  }
-}
-
-class _MonthWeekScroller extends StatefulWidget {
-  final DateTime selectedDate;
-  final ValueChanged<DateTime> onDateSelected;
-  final DateTime today;
-
-  const _MonthWeekScroller({
-    required this.selectedDate,
-    required this.onDateSelected,
-    required this.today,
-  });
-
-  @override
-  State<_MonthWeekScroller> createState() => _MonthWeekScrollerState();
-}
-
-class _MonthWeekScrollerState extends State<_MonthWeekScroller> {
-  late PageController _pageController;
-
-  DateTime get _monthStart =>
-      DateTime(widget.selectedDate.year, widget.selectedDate.month, 1);
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _selectedWeekIndex());
-  }
-
-  @override
-  void didUpdateWidget(covariant _MonthWeekScroller oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_sameMonth(widget.selectedDate, oldWidget.selectedDate)) {
-      final target = _selectedWeekIndex();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_pageController.hasClients) return;
-        final current = (_pageController.page ?? target.toDouble()).round();
-        if (current != target) {
-          _pageController.animateToPage(
-            target,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-          );
-        }
-      });
-      return;
-    }
-    _pageController.dispose();
-    _pageController = PageController(initialPage: _selectedWeekIndex());
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  DateTime _weekStart(DateTime date) {
-    final weekday = date.weekday % 7; // 0=Sun, 1=Mon, ..., 6=Sat
-    return DateTime(date.year, date.month, date.day - weekday);
-  }
-
-  bool _sameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  bool _sameMonth(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month;
-  }
-
-  List<DateTime> _monthWeekStarts() {
-    final first = _monthStart;
-    final nextMonth = DateTime(first.year, first.month + 1, 1);
-    final last = nextMonth.subtract(const Duration(days: 1));
-    final firstWeekStart = _weekStart(first);
-    final lastWeekStart = _weekStart(last);
-    final totalWeeks =
-        (lastWeekStart.difference(firstWeekStart).inDays ~/ 7) + 1;
-    return List<DateTime>.generate(
-      totalWeeks,
-      (index) => firstWeekStart.add(Duration(days: index * 7)),
-    );
-  }
-
-  int _selectedWeekIndex() {
-    final starts = _monthWeekStarts();
-    for (var i = 0; i < starts.length; i++) {
-      final start = starts[i];
-      final end = start.add(const Duration(days: 6));
-      if (!widget.selectedDate.isBefore(start) &&
-          !widget.selectedDate.isAfter(end)) {
-        return i;
-      }
-    }
-    return 0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final starts = _monthWeekStarts();
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: starts.length,
-      itemBuilder: (context, index) {
-        return _MonthWeekRow(
-          weekStart: starts[index],
-          month: widget.selectedDate.month,
-          selectedDate: widget.selectedDate,
-          today: widget.today,
-          onDateSelected: widget.onDateSelected,
-          sameDay: _sameDay,
-        );
-      },
-    );
-  }
-}
-
-class _MonthWeekRow extends StatelessWidget {
-  final DateTime weekStart;
-  final int month;
-  final DateTime selectedDate;
-  final DateTime today;
-  final ValueChanged<DateTime> onDateSelected;
-  final bool Function(DateTime a, DateTime b) sameDay;
-
-  const _MonthWeekRow({
-    required this.weekStart,
-    required this.month,
-    required this.selectedDate,
-    required this.today,
-    required this.onDateSelected,
-    required this.sameDay,
-  });
-
-  static const _weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final weekDates = List<DateTime>.generate(
-      7,
-      (index) => weekStart.add(Duration(days: index)),
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: weekDates.asMap().entries.map((entry) {
-        final index = entry.key;
-        final date = entry.value;
-        final inMonth = date.month == month;
-        final isSelected = sameDay(date, selectedDate);
-        final isToday = sameDay(date, today);
-        final textColor = inMonth
-            ? colorScheme.onSurface
-            : colorScheme.onSurfaceVariant.withValues(alpha: 0.45);
-
-        return Expanded(
-          child: InkWell(
-            onTap: inMonth ? () => onDateSelected(date) : null,
-            borderRadius: BorderRadius.circular(6),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: EdgeInsets.symmetric(vertical: isSelected ? 8 : 4),
-              constraints: BoxConstraints(minHeight: isSelected ? 40 : 36),
-              decoration: BoxDecoration(
-                color: isSelected ? colorScheme.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-                border: isToday && !isSelected
-                    ? Border.all(color: colorScheme.primary, width: 1.6)
-                    : null,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _weekdays[index],
-                    style: AppTypography.caption(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      color: isSelected
-                          ? colorScheme.onPrimary.withValues(alpha: 0.86)
-                          : colorScheme.onSurfaceVariant.withValues(
-                              alpha: inMonth ? 1 : 0.55,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${date.day}',
-                    style: AppTypography.bodySmall(context).copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      color: isSelected ? colorScheme.onPrimary : textColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
 
 class _TimelineCompletionDetailsSheet extends StatelessWidget {
   final HabitItem habit;
@@ -3217,10 +2883,6 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   double _lastScrollOffset = 0;
   bool _isScrollingDown = false;
 
-  // Estimated item height for calculating visibility
-  static const double _itemHeight = 80.0;
-  static const double _headerHeight = 120.0;
-
   @override
   void initState() {
     super.initState();
@@ -3290,8 +2952,8 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001) // Perspective
             ..rotateX(rotation)
-            ..scale(scale)
-            ..translate(horizontalOffset, 0),
+            ..scaleByDouble(scale, scale, scale, 1.0)
+            ..translateByDouble(horizontalOffset, 0.0, 0.0, 0.0),
           child: child,
         );
       },
@@ -3300,657 +2962,3 @@ class _ScrollAnimatedItemState extends State<_ScrollAnimatedItem>
   }
 }
 
-/// Tracks which gesture the user initiated during a drag.
-enum _DragMode { reveal, flip }
-
-/// Swipeable wrapper for habit cards:
-/// - Swipe left from main face → reveal edit & delete action icons
-/// - Swipe right from main face → 3D card-flip to coping plan
-/// - Swipe left from coping plan face → flip back to main
-class _SwipeableHabitCard extends StatefulWidget {
-  final _HabitEntry entry;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final Widget child;
-
-  const _SwipeableHabitCard({
-    super.key,
-    required this.entry,
-    required this.onEdit,
-    required this.onDelete,
-    required this.child,
-  });
-
-  @override
-  State<_SwipeableHabitCard> createState() => _SwipeableHabitCardState();
-}
-
-class _SwipeableHabitCardState extends State<_SwipeableHabitCard>
-    with TickerProviderStateMixin {
-  // --- Reveal (swipe-left) animation ---
-  late AnimationController _revealController;
-  late Animation<double> _revealAnimation;
-  double _dragExtent = 0;
-  bool _isRevealOpen = false;
-
-  // --- Flip animation ---
-  late AnimationController _flipController;
-  bool _isFlipped = false;
-
-  /// Whether the card is currently showing the coping plan (back) face.
-  bool get isFlipped => _isFlipped;
-
-  /// Toggle the card flip from outside (e.g. icon tap).
-  void toggleFlip() {
-    if (_isFlipped) {
-      _flipToFront();
-    } else {
-      _flipToBack();
-    }
-  }
-
-  // --- Gesture routing ---
-  _DragMode? _dragMode;
-
-  static const double _revealWidth = 120.0;
-  static const double _snapThreshold = 50.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _revealController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _revealAnimation = Tween<double>(begin: 0, end: 0).animate(
-      CurvedAnimation(parent: _revealController, curve: Curves.easeOutCubic),
-    );
-    _flipController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-  }
-
-  @override
-  void dispose() {
-    _revealController.dispose();
-    _flipController.dispose();
-    super.dispose();
-  }
-
-  // ---- Reveal helpers ----
-
-  void _animateRevealTo(double target) {
-    _revealAnimation = Tween<double>(begin: _dragExtent, end: target).animate(
-      CurvedAnimation(parent: _revealController, curve: Curves.easeOutCubic),
-    );
-    _revealController.forward(from: 0).then((_) {
-      if (mounted) {
-        setState(() {
-          _dragExtent = target;
-          _isRevealOpen = target != 0;
-        });
-      }
-    });
-  }
-
-  void _closeReveal() {
-    if (_dragExtent != 0) _animateRevealTo(0);
-  }
-
-  // ---- Flip helpers ----
-
-  void _flipToBack() {
-    HapticFeedback.selectionClick();
-    _flipController.forward().then((_) {
-      if (mounted) setState(() => _isFlipped = true);
-    });
-  }
-
-  void _flipToFront() {
-    HapticFeedback.selectionClick();
-    _flipController.reverse().then((_) {
-      if (mounted) setState(() => _isFlipped = false);
-    });
-  }
-
-  // ---- Unified drag handling ----
-
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    final dx = details.delta.dx;
-
-    if (_dragMode == null) {
-      if (_isFlipped) {
-        if (dx < 0) _dragMode = _DragMode.flip;
-      } else if (_isRevealOpen) {
-        _dragMode = _DragMode.reveal;
-      } else {
-        if (dx > 0) {
-          _dragMode = _DragMode.flip;
-        } else if (dx < 0) {
-          _dragMode = _DragMode.reveal;
-        }
-      }
-    }
-
-    if (_dragMode == _DragMode.reveal && !_isFlipped) {
-      setState(() {
-        _dragExtent += dx;
-        _dragExtent = _dragExtent.clamp(-_revealWidth, 0);
-      });
-    } else if (_dragMode == _DragMode.flip) {
-      final flipDelta = dx / 200.0;
-      final newVal = (_flipController.value + flipDelta).clamp(0.0, 1.0);
-      _flipController.value = newVal;
-    }
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-
-    if (_dragMode == _DragMode.reveal && !_isFlipped) {
-      if (velocity < -300 || _dragExtent.abs() > _snapThreshold) {
-        _animateRevealTo(-_revealWidth);
-      } else {
-        _animateRevealTo(0);
-      }
-    } else if (_dragMode == _DragMode.flip) {
-      if (_isFlipped) {
-        if (velocity < -300 || _flipController.value < 0.5) {
-          _flipToFront();
-        } else {
-          _flipToBack();
-        }
-      } else {
-        if (velocity > 300 || _flipController.value > 0.5) {
-          _flipToBack();
-        } else {
-          _flipToFront();
-        }
-      }
-    }
-
-    _dragMode = null;
-  }
-
-  void _onEditTap() {
-    HapticFeedback.mediumImpact();
-    _closeReveal();
-    widget.onEdit();
-  }
-
-  void _onDeleteTap() {
-    HapticFeedback.mediumImpact();
-    _closeReveal();
-    widget.onDelete();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return AnimatedBuilder(
-      animation: Listenable.merge([_revealController, _flipController]),
-      builder: (context, _) {
-        final revealOffset = _revealController.isAnimating
-            ? _revealAnimation.value
-            : _dragExtent;
-        final revealProgress = (revealOffset.abs() / _revealWidth).clamp(
-          0.0,
-          1.0,
-        );
-        final flipValue = _flipController.value;
-        final showBack = flipValue >= 0.5;
-
-        // 3D Y-axis rotation
-        final angle = flipValue * pi;
-        final flipTransform = Matrix4.identity()
-          ..setEntry(3, 2, 0.001)
-          ..rotateY(angle);
-
-        // Mirror-correct the back face so text isn't reversed
-        if (showBack) {
-          flipTransform.rotateY(pi);
-        }
-
-        return Stack(
-          children: [
-            // Action buttons revealed on the right (only visible on front face)
-            if (!showBack)
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      const Spacer(),
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(24),
-                          bottomRight: Radius.circular(24),
-                        ),
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 100),
-                          opacity: revealProgress.clamp(0.0, 1.0),
-                          child: SizedBox(
-                            width: _revealWidth,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Edit button
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: _onEditTap,
-                                    child: Container(
-                                      color: isDark
-                                          ? colorScheme.onSurfaceVariant
-                                          : colorScheme.primary.withValues(
-                                              alpha: 0.85,
-                                            ),
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        Icons.edit_outlined,
-                                        color: colorScheme.onPrimary,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Delete button
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: _onDeleteTap,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.error,
-                                        borderRadius: const BorderRadius.only(
-                                          topRight: Radius.circular(24),
-                                          bottomRight: Radius.circular(24),
-                                        ),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        Icons.delete_outline_rounded,
-                                        color: colorScheme.onPrimary,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            // Flippable card with optional reveal translate
-            GestureDetector(
-              onHorizontalDragUpdate: _onHorizontalDragUpdate,
-              onHorizontalDragEnd: _onHorizontalDragEnd,
-              onTap: _isRevealOpen
-                  ? _closeReveal
-                  : (_isFlipped ? _flipToFront : null),
-              child: Transform.translate(
-                offset: Offset(showBack ? 0 : revealOffset, 0),
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: flipTransform,
-                  child: showBack
-                      ? _CopingPlanFace(
-                          habit: widget.entry.habit,
-                          isCompleted: widget.entry.habit
-                              .isCompletedForCurrentPeriod(
-                                LogicalDateService.now(),
-                              ),
-                        )
-                      : widget.child,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// =============================================================================
-// Coping plan back face
-// =============================================================================
-
-/// Back face of the flippable habit card showing the IF/THEN coping plan.
-class _CopingPlanFace extends StatelessWidget {
-  final HabitItem habit;
-  final bool isCompleted;
-
-  const _CopingPlanFace({required this.habit, this.isCompleted = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cbt = habit.cbtEnhancements;
-    final hasContent =
-        cbt != null &&
-        ((cbt.predictedObstacle?.isNotEmpty ?? false) ||
-            (cbt.ifThenPlan?.isNotEmpty ?? false));
-
-    final textColor = colorScheme.onSurface;
-    final subtitleColor = isDark
-        ? colorScheme.onSurface.withValues(alpha: 0.6)
-        : colorScheme.onSurfaceVariant;
-    final accentColor = AppColors.completedOrange;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.cloudWhite.withValues(alpha: 0.08)
-                  : AppColors.cloudWhite.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.cloudWhite.withValues(alpha: 0.12)
-                    : AppColors.cloudWhite.withValues(alpha: 0.7),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? AppColors.pureBlack.withValues(alpha: 0.25)
-                      : AppColors.pureBlack.withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: hasContent
-                ? Row(
-                    children: [
-                      // Coping plan icon
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(
-                            alpha: isDark ? 0.25 : 0.12,
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.psychology_rounded,
-                          color: accentColor,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // IF trigger
-                            if (cbt.predictedObstacle?.isNotEmpty ?? false) ...[
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.error.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      'IF',
-                                      style: AppTypography.caption(context)
-                                          .copyWith(
-                                            fontWeight: FontWeight.w800,
-                                            color: colorScheme.error,
-                                            letterSpacing: 0.5,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      cbt.predictedObstacle!,
-                                      style: AppTypography.bodySmall(context)
-                                          .copyWith(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: isCompleted
-                                                ? textColor.withValues(
-                                                    alpha: 0.5,
-                                                  )
-                                                : textColor,
-                                            decoration: isCompleted
-                                                ? TextDecoration.lineThrough
-                                                : null,
-                                            decorationColor: isCompleted
-                                                ? textColor.withValues(
-                                                    alpha: 0.5,
-                                                  )
-                                                : null,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                            ],
-                            // THEN action
-                            if (cbt.ifThenPlan?.isNotEmpty ?? false)
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primary.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      'THEN',
-                                      style: AppTypography.caption(context)
-                                          .copyWith(
-                                            fontWeight: FontWeight.w800,
-                                            color: colorScheme.primary,
-                                            letterSpacing: 0.5,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      cbt.ifThenPlan!,
-                                      style: AppTypography.bodySmall(context)
-                                          .copyWith(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: isCompleted
-                                                ? textColor.withValues(
-                                                    alpha: 0.5,
-                                                  )
-                                                : textColor,
-                                            decoration: isCompleted
-                                                ? TextDecoration.lineThrough
-                                                : null,
-                                            decorationColor: isCompleted
-                                                ? textColor.withValues(
-                                                    alpha: 0.5,
-                                                  )
-                                                : null,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                      // Micro version / reward chips
-                      if (cbt.microVersion?.isNotEmpty ?? false) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Micro',
-                            style: AppTypography.caption(context).copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: accentColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(
-                        Icons.psychology_outlined,
-                        color: subtitleColor,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'No coping plan set',
-                        style: AppTypography.bodySmall(context).copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: subtitleColor,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Timeline widgets
-// =============================================================================
-
-/// Checkpoint circle for the timeline — orange with checkmark when completed,
-/// grey outline when incomplete.
-class _TimelineCheckpoint extends StatelessWidget {
-  final bool isCompleted;
-  final VoidCallback? onTap;
-  const _TimelineCheckpoint({required this.isCompleted, this.onTap});
-
-  static const _completedColor = AppColors.completedOrange;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-        ? colorScheme.onSurface.withValues(alpha: 0.3)
-        : colorScheme.outline;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isCompleted ? _completedColor : Colors.transparent,
-          border: Border.all(
-            color: isCompleted ? _completedColor : borderColor,
-            width: isCompleted ? 0 : 1.5,
-          ),
-        ),
-        child: isCompleted
-            ? Icon(Icons.check_rounded, color: colorScheme.onPrimary, size: 16)
-            : null,
-      ),
-    );
-  }
-}
-
-/// Vertical dashed line segment for the timeline.
-class _TimelineDash extends StatelessWidget {
-  const _TimelineDash();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark
-        ? colorScheme.onSurface.withValues(alpha: 0.15)
-        : colorScheme.outline;
-
-    return SizedBox(
-      width: 2,
-      child: CustomPaint(
-        painter: _DashedLinePainter(color: color),
-        child: const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-/// Paints a vertical dashed line.
-class _DashedLinePainter extends CustomPainter {
-  final Color color;
-  const _DashedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    const dashHeight = 4.0;
-    const gapHeight = 4.0;
-    final centerX = size.width / 2;
-    double y = 0;
-
-    while (y < size.height) {
-      canvas.drawLine(
-        Offset(centerX, y),
-        Offset(centerX, (y + dashHeight).clamp(0, size.height)),
-        paint,
-      );
-      y += dashHeight + gapHeight;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedLinePainter oldDelegate) =>
-      color != oldDelegate.color;
-}

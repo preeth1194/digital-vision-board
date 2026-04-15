@@ -15,7 +15,6 @@ import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/ads/reward_ad_card.dart';
-import '../widgets/rituals/add_habit_modal.dart';
 import '../widgets/rituals/habit_completion_sheet.dart';
 import '../widgets/routine/routine_calendar_header.dart';
 import '../widgets/rituals/habit_form_constants.dart';
@@ -41,26 +40,13 @@ class _RoutineScreenState extends State<RoutineScreen>
   late DateTime _selectedDate;
 
   late ScrollController _timelineScrollController;
-  DateTime? _timelinePreviewTime;
   static const double _baseHourHeight = 80.0;
-  static const double _minCardHeight = 54.0;
-  static const double _cardGap = 6.0;
-  static const double _hourLabelPad = 18.0;
-  List<double> _hourYOffsets = List.generate(25, (i) => i * _baseHourHeight);
-  List<double> _hourHeights = List.filled(24, _baseHourHeight);
-  List<int> _habitsPerHour = List.filled(24, 0);
-  double _viewportHeight = 0;
+  final List<double> _hourYOffsets = List.generate(25, (i) => i * _baseHourHeight);
+  final List<double> _hourHeights = List.filled(24, _baseHourHeight);
+  final double _viewportHeight = 0;
   int _lastCrossedHour = -1;
-  double _timelineMaxY = 0;
-
-  // Occupied Y-ranges for empty-slot detection (populated by _buildPositionedHabitCards)
-  List<(double top, double bottom)> _occupiedRanges = [];
-
-  // Visual feedback for tapped time slot
-  double? _tapHighlightY;
 
   // Ad gating state
-  static const int _freeHabitLimit = 3;
   bool _shouldShowAds = true;
   String? _activeAdSession;
   int _adWatchedCount = 0;
@@ -129,28 +115,10 @@ class _RoutineScreenState extends State<RoutineScreen>
     final scrollOffset = _timelineScrollController.offset;
     final centerOffset = scrollOffset + _viewportHeight / 2;
     final hour = _hourFromOffset(centerOffset);
-    final fraction = _hourHeights[hour] > 0
-        ? ((centerOffset - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(
-            0.0,
-            1.0,
-          )
-        : 0.0;
-    final minute = (fraction * 60).toInt().clamp(0, 59);
-
-    final previewTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      hour,
-      minute,
-    );
-
     if (hour != _lastCrossedHour && _lastCrossedHour != -1) {
       HapticFeedback.selectionClick();
     }
     _lastCrossedHour = hour;
-
-    setState(() => _timelinePreviewTime = previewTime);
   }
 
   Future<void> _init() async {
@@ -272,39 +240,6 @@ class _RoutineScreenState extends State<RoutineScreen>
     }).toList();
   }
 
-  void _computeHourLayout(List<HabitItem> habits) {
-    final perHour = List.filled(24, 0);
-    for (final h in habits) {
-      final hour = ((h.startTimeMinutes ?? 0) ~/ 60).clamp(0, 23);
-      perHour[hour]++;
-    }
-    final heights = List<double>.filled(24, _baseHourHeight);
-    for (int h = 0; h < 24; h++) {
-      final n = perHour[h];
-      if (n > 1) {
-        final needed = _hourLabelPad + n * _minCardHeight + (n - 1) * _cardGap;
-        if (needed > _baseHourHeight) heights[h] = needed;
-      }
-    }
-    // Expand single-habit hours so a card placed proportionally still fits
-    for (final h in habits) {
-      final s = h.startTimeMinutes ?? 0;
-      final hour = (s ~/ 60).clamp(0, 23);
-      if (perHour[hour] == 1) {
-        final proportionalY = ((s % 60) / 60) * _baseHourHeight;
-        final needed = proportionalY + _minCardHeight;
-        if (needed > heights[hour]) heights[hour] = needed;
-      }
-    }
-    final offsets = List<double>.filled(25, 0);
-    for (int h = 0; h < 24; h++) {
-      offsets[h + 1] = offsets[h] + heights[h];
-    }
-    _hourHeights = heights;
-    _hourYOffsets = offsets;
-    _habitsPerHour = perHour;
-  }
-
   void _openHabitTimer(HabitItem habit) {
     final isCompleted = habit.isCompletedForCurrentPeriod(_selectedDate);
     if (isCompleted) {
@@ -390,130 +325,6 @@ class _RoutineScreenState extends State<RoutineScreen>
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Time-slot tap handling
-  // -----------------------------------------------------------------------
-
-  TimeOfDay? _timeFromYOffset(double y) {
-    int hour = _hourFromOffset(y);
-    final fraction = _hourHeights[hour] > 0
-        ? ((y - _hourYOffsets[hour]) / _hourHeights[hour]).clamp(0.0, 1.0)
-        : 0.0;
-    final rawMinute = (fraction * 60).toInt();
-    final snappedMinute = (rawMinute / 15).round() * 15;
-    final totalMinutes = hour * 60 + snappedMinute;
-    final h = (totalMinutes ~/ 60).clamp(0, 23);
-    final m = totalMinutes % 60;
-    return TimeOfDay(hour: h, minute: m);
-  }
-
-  bool _isSlotOccupied(double y) {
-    for (final range in _occupiedRanges) {
-      if (y >= range.$1 && y <= range.$2) return true;
-    }
-    return false;
-  }
-
-  void _onTimelineTap(TapUpDetails details) {
-    final localY = details.localPosition.dy;
-    final localX = details.localPosition.dx;
-    if (localX < 56) return; // tapped on time labels area
-
-    if (_isSlotOccupied(localY)) return;
-
-    final time = _timeFromYOffset(localY);
-    if (time == null) return;
-
-    setState(() => _tapHighlightY = localY);
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _tapHighlightY = null);
-    });
-
-    HapticFeedback.lightImpact();
-    _handleSlotTap(time);
-  }
-
-  void _handleSlotTap(TimeOfDay time) {
-    if (_habits.length >= _freeHabitLimit && _shouldShowAds) {
-      if (_activeAdSession == null) {
-        final sessionKey =
-            'habit_unlock_${DateTime.now().millisecondsSinceEpoch}';
-        AdService.setActiveSession(sessionKey, prefs: _prefs);
-        setState(() {
-          _activeAdSession = sessionKey;
-          _adWatchedCount = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Watch 5 ads to unlock a new habit slot!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-      if (_adWatchedCount < AdService.requiredAdsPerHabit) {
-        final remaining = AdService.requiredAdsPerHabit - _adWatchedCount;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Watch $remaining more ad(s) to unlock a new habit.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-    _openAddHabitAtTime(time);
-  }
-
-  Future<void> _openAddHabitAtTime(TimeOfDay time) async {
-    final req = await showAddHabitModal(
-      context,
-      existingHabits: _habits,
-      initialStartTime: time,
-      initialDurationMinutes: 30,
-    );
-    if (req == null || !mounted) return;
-
-    final newHabit = HabitItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: req.name,
-      category: req.category,
-      frequency: req.frequency,
-      weeklyDays: req.weeklyDays,
-      deadline: req.deadline,
-      afterHabitId: req.afterHabitId,
-      timeOfDay: req.timeOfDay,
-      reminderMinutes: req.reminderMinutes,
-      reminderEnabled: req.reminderEnabled,
-      chaining: req.chaining,
-      cbtEnhancements: req.cbtEnhancements,
-      timeBound: req.timeBound,
-      locationBound: req.locationBound,
-      trackingSpec: req.trackingSpec,
-      iconIndex: req.iconIndex,
-      completedDates: const [],
-      actionSteps: req.actionSteps,
-      startTimeMinutes: req.startTimeMinutes,
-      templateId: req.templateId,
-      templateVersion: req.templateVersion,
-    );
-
-    await HabitStorageService.addHabit(newHabit);
-
-    if (_activeAdSession != null) {
-      await AdService.clearSession(_activeAdSession!);
-      await AdService.setActiveSession(null, prefs: _prefs);
-      setState(() {
-        _activeAdSession = null;
-        _adWatchedCount = 0;
-      });
-    }
-
-    await _loadHabits();
-    await _loadAdState();
-    await _refreshWidgetSnapshotBestEffort();
-  }
-
   Future<void> _onRewardAdWatched() async {
     if (_activeAdSession == null) return;
     final newCount = await AdService.incrementWatchedCount(
@@ -564,7 +375,6 @@ class _RoutineScreenState extends State<RoutineScreen>
 
   Widget _buildPlannerList() {
     final habitsForDate = _timedHabitsForDate;
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
@@ -583,7 +393,7 @@ class _RoutineScreenState extends State<RoutineScreen>
               ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
               itemCount: habitsForDate.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final habit = habitsForDate[index];
                 return _TimelineHabitCard(
@@ -595,78 +405,6 @@ class _RoutineScreenState extends State<RoutineScreen>
                 );
               },
             ),
-    );
-  }
-
-  Widget _build24HourTimeline() {
-    final habitsForDate = _timedHabitsForDate;
-    _computeHourLayout(habitsForDate);
-    final totalHeight = _hourYOffsets[24];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-    final habitCards = _buildPositionedHabitCards(habitsForDate, isDark);
-    final effectiveHeight = _timelineMaxY > totalHeight
-        ? _timelineMaxY + 20
-        : totalHeight;
-
-    final now = DateTime.now();
-    final isToday =
-        _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    return RefreshIndicator(
-      onRefresh: _loadHabits,
-      child: SingleChildScrollView(
-        controller: _timelineScrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        child: Container(
-          height: effectiveHeight,
-          color: isDark
-              ? colorScheme.onSurface.withValues(alpha: 0.03)
-              : colorScheme.shadow.withValues(alpha: 0.02),
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTapUp: _onTimelineTap,
-            child: Stack(
-              children: [
-                ..._buildHourLines(isDark, colorScheme),
-                if (isToday)
-                  _buildCurrentTimeIndicator(isDark, colorScheme)
-                else
-                  _buildDateAnchorLine(colorScheme),
-                ...habitCards,
-                if (_tapHighlightY != null)
-                  Positioned(
-                    top: _tapHighlightY! - 1,
-                    left: 56,
-                    right: 24,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 300),
-                      opacity: _tapHighlightY != null ? 1.0 : 0.0,
-                      child: Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (habitsForDate.isEmpty)
-                  Positioned(
-                    top: _hourYOffsets[7],
-                    left: 56,
-                    right: 16,
-                    child: _buildEmptyTimelineHint(),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -731,334 +469,6 @@ class _RoutineScreenState extends State<RoutineScreen>
     );
   }
 
-  List<Widget> _buildHourLines(bool isDark, ColorScheme colorScheme) {
-    final List<Widget> hourWidgets = [];
-    final totalHeight = _hourYOffsets[24];
-
-    // Vertical timeline rail
-    hourWidgets.add(
-      Positioned(
-        top: 0,
-        bottom: 0,
-        left: 52,
-        width: 2,
-        child: Container(
-          height: totalHeight,
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.onSurface.withValues(alpha: 0.24)
-                : colorScheme.outlineVariant.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(1),
-          ),
-        ),
-      ),
-    );
-
-    for (int hour = 0; hour < 24; hour++) {
-      final yPosition = _hourYOffsets[hour];
-      final hourHeight = _hourHeights[hour];
-      final hourLabel = _formatHourLabel(hour);
-      final now = DateTime.now();
-      final isCurrentHour =
-          now.hour == hour &&
-          _selectedDate.year == now.year &&
-          _selectedDate.month == now.month &&
-          _selectedDate.day == now.day;
-
-      // Full hour line + label
-      hourWidgets.add(
-        Positioned(
-          top: yPosition,
-          left: 0,
-          right: 0,
-          height: hourHeight,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 52,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    hourLabel,
-                    style: AppTypography.bodySmall(context).copyWith(
-                      fontWeight: isCurrentHour
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: isCurrentHour
-                          ? colorScheme.primary
-                          : (isDark
-                                ? colorScheme.onSurface.withValues(alpha: 0.7)
-                                : colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8, right: 16),
-                  child: Container(
-                    height: 1,
-                    color: isDark
-                        ? colorScheme.onSurface.withValues(alpha: 0.24)
-                        : colorScheme.outlineVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      // Half hour line + label
-      final halfY = yPosition + hourHeight / 2;
-      final halfLabel = _formatHalfHourLabel(hour);
-
-      hourWidgets.add(
-        Positioned(
-          top: halfY,
-          left: 0,
-          right: 0,
-          height: 16,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 52,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    halfLabel,
-                    style: AppTypography.caption(context).copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: isDark
-                          ? colorScheme.onSurface.withValues(alpha: 0.38)
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8, right: 16),
-                  child: CustomPaint(
-                    size: const Size(double.infinity, 1),
-                    painter: _DottedLinePainter(
-                      color: isDark
-                          ? colorScheme.onSurface.withValues(alpha: 0.12)
-                          : colorScheme.outlineVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return hourWidgets;
-  }
-
-  /// Visible anchor line at 6 AM for non-today dates so the timeline feels present.
-  Widget _buildDateAnchorLine(ColorScheme colorScheme) {
-    final yPosition = _hourYOffsets[6];
-    return Positioned(
-      top: yPosition - 4,
-      left: 48,
-      right: 16,
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colorScheme.primary.withOpacity(0.6),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withOpacity(0.5),
-                    colorScheme.primary.withOpacity(0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentTimeIndicator(bool isDark, ColorScheme colorScheme) {
-    final now = DateTime.now();
-    final hour = now.hour.clamp(0, 23);
-    final yPosition =
-        _hourYOffsets[hour] + (now.minute / 60) * _hourHeights[hour];
-
-    return Positioned(
-      top: yPosition - 6,
-      left: 48,
-      right: 16,
-      child: AnimatedBuilder(
-        animation: _currentTimeIndicatorController,
-        builder: (context, child) {
-          final pulseValue = _currentTimeIndicatorController.value;
-          return Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colorScheme.error,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.error.withOpacity(
-                        0.3 + pulseValue * 0.3,
-                      ),
-                      blurRadius: 4 + pulseValue * 4,
-                      spreadRadius: pulseValue * 2,
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  height: 2,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.error,
-                        colorScheme.error.withOpacity(0.3),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.error.withOpacity(
-                          0.2 + pulseValue * 0.2,
-                        ),
-                        blurRadius: 2 + pulseValue * 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  List<Widget> _buildPositionedHabitCards(List<HabitItem> habits, bool isDark) {
-    final List<Widget> cards = [];
-    final scrollOffset = _timelineScrollController.hasClients
-        ? _timelineScrollController.offset
-        : 0.0;
-
-    _timelineMaxY = _hourYOffsets[24];
-    if (habits.isEmpty) {
-      _occupiedRanges = [];
-      return cards;
-    }
-
-    final cardData = habits.map((h) {
-      final s = h.startTimeMinutes ?? 0;
-      final startHour = (s ~/ 60).clamp(0, 23);
-      final minuteInHour = s % 60;
-      final hourHeight = _hourHeights[startHour];
-      final duration = h.timeBound?.durationMinutes ?? 0;
-      final double yTop;
-      if (_habitsPerHour[startHour] > 1) {
-        yTop = _hourYOffsets[startHour] + _hourLabelPad;
-      } else {
-        yTop = _hourYOffsets[startHour] + (minuteInHour / 60) * hourHeight;
-      }
-      final cardHeight = ((duration / 60) * _baseHourHeight).clamp(
-        _minCardHeight,
-        200.0,
-      );
-      return (yTop: yTop, cardHeight: cardHeight);
-    }).toList();
-
-    final adjustedY = List<double>.filled(habits.length, 0);
-    adjustedY[0] = cardData[0].yTop;
-    for (int i = 1; i < habits.length; i++) {
-      final prevBottom = adjustedY[i - 1] + cardData[i - 1].cardHeight;
-      final naturalY = cardData[i].yTop;
-      adjustedY[i] = naturalY < prevBottom + _cardGap
-          ? prevBottom + _cardGap
-          : naturalY;
-    }
-
-    final lastIdx = habits.length - 1;
-    _timelineMaxY = adjustedY[lastIdx] + cardData[lastIdx].cardHeight;
-
-    _occupiedRanges = List.generate(habits.length, (i) {
-      return (adjustedY[i], adjustedY[i] + cardData[i].cardHeight);
-    });
-
-    for (int i = 0; i < habits.length; i++) {
-      final habit = habits[i];
-      final yPosition = adjustedY[i];
-      final cardHeight = cardData[i].cardHeight;
-
-      final cardCenter = yPosition + cardHeight / 2;
-      final viewportCenter = scrollOffset + _viewportHeight / 2;
-      final distanceFromCenter = (cardCenter - viewportCenter).abs();
-      final normalizedDistance = (distanceFromCenter / _viewportHeight).clamp(
-        0.0,
-        1.0,
-      );
-      final scale = 1.0 - (normalizedDistance * 0.05);
-      final opacity = 1.0 - (normalizedDistance * 0.3);
-
-      cards.add(
-        Positioned(
-          top: yPosition,
-          left: 56,
-          right: 24,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: opacity.clamp(0.7, 1.0),
-            child: AnimatedScale(
-              duration: const Duration(milliseconds: 200),
-              scale: scale.clamp(0.95, 1.0),
-              child: _TimelineHabitCard(
-                habit: habit,
-                selectedDate: _selectedDate,
-                height: cardHeight,
-                onTap: () => _openHabitTimer(habit),
-                isDark: isDark,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return cards;
-  }
-
-  String _formatHourLabel(int hour) {
-    if (hour == 0) return '12 am';
-    if (hour == 12) return '12 pm';
-    if (hour < 12) return '$hour am';
-    return '${hour - 12} pm';
-  }
-
-  String _formatHalfHourLabel(int hour) {
-    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final suffix = hour < 12 ? 'am' : 'pm';
-    return '$h12:30 $suffix';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.standalone) {
@@ -1071,34 +481,6 @@ class _RoutineScreenState extends State<RoutineScreen>
 // ---------------------------------------------------------------------------
 // Helper widgets
 // ---------------------------------------------------------------------------
-
-class _DottedLinePainter extends CustomPainter {
-  final Color color;
-  _DottedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1
-      ..strokeCap = StrokeCap.round;
-    const dashWidth = 4.0;
-    const dashSpace = 4.0;
-    double startX = 0;
-    while (startX < size.width) {
-      canvas.drawLine(
-        Offset(startX, size.height / 2),
-        Offset(startX + dashWidth, size.height / 2),
-        paint,
-      );
-      startX += dashWidth + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DottedLinePainter oldDelegate) =>
-      oldDelegate.color != color;
-}
 
 class _TimelineHabitCard extends StatelessWidget {
   final HabitItem habit;
@@ -1152,7 +534,7 @@ class _TimelineHabitCard extends StatelessWidget {
         ? colorScheme.primary
         : _categoryColor(habit.category, isDark);
     final textColor = _getContrastColor(colorScheme, tileColor);
-    final subtitleColor = textColor.withOpacity(0.65);
+    final subtitleColor = textColor.withValues(alpha: 0.65);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -1172,7 +554,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   vertical: _compact ? 8 : 8,
                 ),
                 decoration: BoxDecoration(
-                  color: tileColor.withOpacity(isDark ? 0.7 : 0.75),
+                  color: tileColor.withValues(alpha: isDark ? 0.7 : 0.75),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isDark
@@ -1182,7 +564,7 @@ class _TimelineHabitCard extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: tileColor.withOpacity(0.2),
+                      color: tileColor.withValues(alpha: 0.2),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1233,7 +615,7 @@ class _TimelineHabitCard extends StatelessWidget {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.12),
+            color: textColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(iconData, size: 16, color: textColor),
@@ -1265,7 +647,7 @@ class _TimelineHabitCard extends StatelessWidget {
         ),
         if (isCompleted) ...[
           const SizedBox(width: 8),
-          Icon(Icons.check_circle, size: 20, color: textColor.withOpacity(0.7)),
+          Icon(Icons.check_circle, size: 20, color: textColor.withValues(alpha: 0.7)),
         ],
       ],
     );
@@ -1287,7 +669,7 @@ class _TimelineHabitCard extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.12),
+            color: textColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(iconData, size: 18, color: textColor),
@@ -1333,7 +715,7 @@ class _TimelineHabitCard extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: textColor.withOpacity(0.08),
+                      color: textColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -1361,7 +743,7 @@ class _TimelineHabitCard extends StatelessWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: textColor.withOpacity(0.08),
+                        color: textColor.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1385,7 +767,7 @@ class _TimelineHabitCard extends StatelessWidget {
             height: 26,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: textColor.withOpacity(0.12),
+              color: textColor.withValues(alpha: 0.12),
             ),
             child: Icon(Icons.check, size: 15, color: textColor),
           ),

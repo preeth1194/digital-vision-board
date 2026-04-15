@@ -240,7 +240,7 @@ class _RoutineTimerScreenState extends State<RoutineTimerScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                    color: scheme.shadow.withOpacity(0.04),
+                    color: scheme.shadow.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2)),
               ],

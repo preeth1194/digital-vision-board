@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -16,15 +15,13 @@ import '../presets/preset_route_registry.dart';
 import '../presets/services/skincare_preset_compiler.dart';
 import '../presets/widgets/preset_template_screen.dart';
 import '../screens/presets/preset_shop_screen.dart';
-import '../services/action_templates_service.dart';
-import '../services/dv_auth_service.dart';
 import '../services/habit_storage_service.dart';
+import '../services/planner_guide_data_service.dart';
 import '../services/meal_prep_storage_service.dart';
 import '../services/preset_habit_creation_service.dart';
 import '../services/recipe_storage_service.dart';
 import '../services/skincare_planner_storage_service.dart';
 import '../utils/app_colors.dart';
-import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../widgets/rituals/add_habit_modal.dart';
 
@@ -48,7 +45,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   List<ActionStepTemplate> _templates = const [];
   List<HabitItem> _existingHabits = const [];
   String _categorySearchQuery = '';
-  int? _liveSkincareGuideStepCount;
   String? _liveSkincarePresetTitle;
 
   @override
@@ -63,86 +59,18 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 
   Future<void> _load() async {
-    final habits = await HabitStorageService.loadAll();
-    final planner = await SkincarePlannerStorageService.loadOrDefault();
-    final liveWeeklyPlan =
-        SkincarePresetCompiler.weeklyPlanForCurrentTrackerWeek(planner);
-    final liveMorning = SkincarePresetCompiler.buildHabitPartsFromPlanner(
-      planner: planner,
-      weeklyPlan: liveWeeklyPlan,
-      morning: true,
+    final result = await PlannerGuideDataService.load(
+      fallbackTemplates: _fallbackTemplates,
+      habitCategoryForTemplate: _habitCategoryForTemplate,
     );
-    final liveEvening = SkincarePresetCompiler.buildHabitPartsFromPlanner(
-      planner: planner,
-      weeklyPlan: liveWeeklyPlan,
-      morning: false,
-    );
-    final liveSkincareStepCount =
-        liveMorning.steps.length + liveEvening.steps.length;
-    final liveSkincarePresetTitle = planner.title.trim().isEmpty
-        ? null
-        : planner.title.trim();
-    try {
-      final token = await DvAuthService.getDvToken();
-      List<ActionStepTemplate> templates;
-      String source;
-      if (token == null) {
-        templates = _fallbackTemplates();
-        source = 'fallback_no_token';
-      } else {
-        templates = await ActionTemplatesService.listApproved(dvToken: token);
-        source = 'cloud';
-        if (templates.isEmpty) {
-          templates = _fallbackTemplates();
-          source = 'fallback_empty_cloud';
-        } else {
-          // Fill in fallback templates for any UI category not covered by cloud
-          final fallbacks = _fallbackTemplates();
-          final cloudCategories =
-              templates.map(_habitCategoryForTemplate).toSet();
-          for (final fb in fallbacks) {
-            if (!cloudCategories.contains(_habitCategoryForTemplate(fb))) {
-              templates = [...templates, fb];
-            }
-          }
-          source = 'cloud_with_fallback_fill';
-        }
-      }
-      if (!mounted) return;
-      setState(() {
-        _existingHabits = habits;
-        _templates = templates;
-        _liveSkincareGuideStepCount = liveSkincareStepCount;
-        _liveSkincarePresetTitle = liveSkincarePresetTitle;
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _existingHabits = habits;
-        _templates = _fallbackTemplates();
-        _liveSkincareGuideStepCount = liveSkincareStepCount;
-        _liveSkincarePresetTitle = liveSkincarePresetTitle;
-        _loading = false;
-        _error = 'Could not load cloud templates. Showing defaults.';
-      });
-    }
-  }
-
-  String _guideSummaryTextForCategory(
-    String category,
-    ActionStepTemplate? guide,
-  ) {
-    if (category == _challengeGuideCategory) {
-      return 'Unlock this challenge with 20 coins.';
-    }
-    if (guide == null) return 'Try again after refresh.';
-    if (guide.category == ActionTemplateCategory.skincare &&
-        _liveSkincareGuideStepCount != null) {
-      return '${_liveSkincareGuideStepCount!} action steps';
-    }
-    return '${guide.steps.length} action steps';
+    if (!mounted) return;
+    setState(() {
+      _existingHabits = result.habits;
+      _templates = result.templates;
+      _liveSkincarePresetTitle = result.liveSkincarePresetTitle;
+      _loading = false;
+      _error = result.error;
+    });
   }
 
   String _guideTitleTextForCategory(
@@ -1454,14 +1382,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
       case ActionTemplateCategory.health:
       case ActionTemplateCategory.mealPrep:
       case ActionTemplateCategory.recipe:
-      case ActionTemplateCategory.health:
-      case ActionTemplateCategory.weeklyMealPrep:
-      case ActionTemplateCategory.productivity:
-      case ActionTemplateCategory.mindfulness:
-      case ActionTemplateCategory.learning:
-      case ActionTemplateCategory.relationships:
-      case ActionTemplateCategory.finance:
-      case ActionTemplateCategory.creativity:
         return 'Health';
       case ActionTemplateCategory.workout:
       case ActionTemplateCategory.fitness:
@@ -1550,8 +1470,8 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
 
   Future<void> _createHabitFromTemplate(ActionStepTemplate template) async {
     final gate = await PresetHabitCreationService.checkGate();
+    if (!mounted) return;
     if (!gate.canCreate) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -2314,40 +2234,9 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
     return filtered;
   }
 
-  String _categoryDescription(String category) {
-    switch (category) {
-      case 'Health':
-        return 'Build routines for energy, sleep, and wellness.';
-      case 'Fitness':
-        return 'Plan workouts and progressive training sessions.';
-      case 'Productivity':
-        return 'Structure focus blocks and output systems.';
-      case 'Mindfulness':
-        return 'Create calm rituals and emotional resets.';
-      case 'Learning':
-        return 'Break study goals into practical sessions.';
-      case 'Relationships':
-        return 'Nurture connection habits and communication.';
-      case 'Finance':
-        return 'Track spending, saving, and money habits.';
-      case 'Creativity':
-        return 'Turn ideas into repeatable creative flow.';
-      case _challengeGuideCategory:
-        return 'Commit to signature challenge presets.';
-      case _mealPrepGuideCategory:
-        return 'Plan weekly meal prep and connect recipes to habits.';
-      default:
-        return 'Explore category-specific action-step presets.';
-    }
-  }
-
   int _guideCountForPlannerCategory(String category) {
     if (category == _challengeGuideCategory) return 1;
     return _primaryGuideForPlannerCategory(category) == null ? 0 : 1;
-  }
-
-  Future<void> _onPlannerCategoryTap(String category) async {
-    await _onPlannerGuideTap(category);
   }
 
   Future<void> _onPlannerGuideTap(String category) async {
@@ -2441,44 +2330,6 @@ class _PlannerGuideScreenState extends State<PlannerGuideScreen> {
   }
 }
 
-
-class _GuideCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const _GuideCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _CloudSection(
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 4),
-                  Text(subtitle),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Subtle entrance when the filtered list changes (search / order).
 class _StaggeredPresetRow extends StatelessWidget {
@@ -2819,23 +2670,3 @@ class _DoubleBorderSearchFieldState extends State<_DoubleBorderSearchField> {
   }
 }
 
-/// Solid Morning Garden card surface (replaces frosted glass on Presets).
-class _CloudSection extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _CloudSection({
-    required this.child,
-    this.padding = const EdgeInsets.all(12),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: padding,
-      decoration: AppColors.cloudDecoration(isDark: isDark),
-      child: child,
-    );
-  }
-}

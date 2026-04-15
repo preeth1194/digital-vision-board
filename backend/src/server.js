@@ -52,7 +52,7 @@ await ensureSchema();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? "*",
+    origin: process.env.CORS_ORIGIN ?? (process.env.NODE_ENV === 'production' ? false : '*'),
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["content-type", "authorization"],
   }),

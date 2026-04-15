@@ -34,8 +34,6 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
   SharedPreferences? _prefs;
   List<HabitItem> _habits = const [];
   Challenge? _activeChallenge;
-  List<HabitItem> _challengeHabits = const [];
-
   @override
   void initState() {
     super.initState();
@@ -74,15 +72,11 @@ class _HabitProgressCompletionCardState extends State<HabitProgressCompletionCar
 
     final habits = await HabitStorageService.loadAll(prefs: prefs);
     final challenge = await ChallengeStorageService.getActiveChallenge(prefs: prefs);
-    final challengeHabits = (challenge != null && challenge.isActive)
-        ? await HabitStorageService.getHabitsByIds(challenge.habitIds, prefs: prefs)
-        : const <HabitItem>[];
 
     if (!mounted) return;
     setState(() {
       _habits = habits;
       _activeChallenge = (challenge?.isActive ?? false) ? challenge : null;
-      _challengeHabits = challengeHabits;
       _loaded = true;
     });
   }

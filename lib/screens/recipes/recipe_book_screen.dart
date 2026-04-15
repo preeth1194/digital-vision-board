@@ -7,6 +7,7 @@ import '../../models/recipe.dart';
 import '../../services/habit_storage_service.dart';
 import '../../services/recipe_storage_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/app_typography.dart';
 
 // ── Canonical filter values ───────────────────────────────────────────────────
 
@@ -236,8 +237,7 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
                     ),
                     child: Text(
                       '$_activeFilterCount',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppTypography.caption(context).copyWith(
                         color: cs.onError,
                         fontWeight: FontWeight.w700,
                       ),
@@ -579,7 +579,7 @@ class _ChipRow extends StatelessWidget {
             selected: selected.contains(v),
             onSelected: (_) => onToggle(v),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            labelStyle: const TextStyle(fontSize: 12),
+            labelStyle: AppTypography.caption(context),
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             visualDensity: VisualDensity.compact,
           ),
@@ -822,12 +822,12 @@ class _RecipeImage extends StatelessWidget {
       height: height,
       width: double.infinity,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         height: height,
         color: cs.surfaceContainerHighest,
         child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      errorWidget: (_, __, ___) => Container(
+      errorWidget: (_, _, _) => Container(
         height: height,
         color: cs.surfaceContainerHighest,
         child: Icon(
@@ -936,8 +936,7 @@ class _RecipeDetailScreen extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 recipe.title,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: AppTypography.bodySmall(context).copyWith(
                   fontWeight: FontWeight.w700,
                 ),
                 maxLines: 2,
@@ -947,7 +946,7 @@ class _RecipeDetailScreen extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: recipe.imageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (_, _, _) => Container(
                         color: cs.surfaceContainerHighest,
                       ),
                     )
@@ -1254,8 +1253,7 @@ class _MacroTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.caption(context).copyWith(
               color: color,
               fontWeight: FontWeight.w600,
             ),
@@ -1268,8 +1266,7 @@ class _MacroTile extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppTypography.body(context).copyWith(
                   fontWeight: FontWeight.w800,
                   color: color,
                 ),
@@ -1277,8 +1274,7 @@ class _MacroTile extends StatelessWidget {
               const SizedBox(width: 2),
               Text(
                 unit,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppTypography.caption(context).copyWith(
                   color: color.withValues(alpha: 0.7),
                 ),
               ),
@@ -1489,7 +1485,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
                       _showMacros
                           ? 'Nutrition / Macros (per serving)'
                           : 'Add Nutrition / Macros (optional)',
-                      style: TextStyle(
+                      style: AppTypography.body(context).copyWith(
                         color: cs.primary,
                         fontWeight: FontWeight.w600,
                       ),

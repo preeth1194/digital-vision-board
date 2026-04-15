@@ -300,20 +300,6 @@ class PresetTemplateScreen extends StatelessWidget {
     );
   }
 
-  String _sectionLabel(PresetTemplateSection section) {
-    switch (section) {
-      case PresetTemplateSection.routinePreview:
-        return 'Preview';
-      case PresetTemplateSection.weeklyPlanner:
-        return 'Weekly';
-      case PresetTemplateSection.products:
-        return 'Products';
-      case PresetTemplateSection.notes:
-        return 'Notes';
-      case PresetTemplateSection.linkedHabits:
-        return 'Links';
-    }
-  }
 }
 
 /// Full-page preset detail shown via [Navigator.push] with a Hero animation.

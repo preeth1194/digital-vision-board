@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/calorie_entry.dart';
@@ -21,7 +22,8 @@ class CalorieStorageService {
           .whereType<Map<String, dynamic>>()
           .map(CalorieEntry.fromJson)
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[CalorieStorage] Failed to decode calorie data — returning empty. Error: $e\n$st');
       return [];
     }
   }

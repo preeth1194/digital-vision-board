@@ -7,7 +7,7 @@ AI assistant guidance for the **Digital Vision Board** (package: `habitseeding`)
 ## Project Overview
 
 A gamified habit-tracking and personal growth application with:
-- **Flutter app** — iOS, Android, Web, macOS, Windows, Linux (primary codebase, ~253 Dart files)
+- **Flutter app** — iOS, Android, Web, macOS, Windows, Linux (primary codebase, ~277 Dart files, ~85,200 lines)
 - **Node.js backend** — Express REST API with PostgreSQL or JSON-file storage
 - **Next.js webapp** — Admin dashboard and web access
 
@@ -21,10 +21,10 @@ Design metaphor: **"Morning Garden"** — warm, earthy, calm. Opens every mornin
 digital-vision-board/
 ├── lib/                    # Flutter/Dart app source (primary)
 │   ├── main.dart           # App entry point
-│   ├── screens/            # UI screens (11 categories)
-│   ├── widgets/            # Reusable widgets (16 categories)
-│   ├── services/           # Business logic, storage, sync (40+ files)
-│   ├── models/             # Data models (25+ files)
+│   ├── screens/            # UI screens (15+ categories, 70+ routes)
+│   ├── widgets/            # Reusable widgets (17 categories, 115+ classes)
+│   ├── services/           # Business logic, storage, sync (56 files)
+│   ├── models/             # Data models (36 files)
 │   └── utils/              # AppColors, AppSpacing, AppTypography, etc.
 ├── backend/                # Node.js Express API
 │   └── src/
@@ -328,10 +328,34 @@ See `README.md` → Firebase / FlutterFire Setup section.
 
 ---
 
+## Claude Skills (Slash Commands)
+
+Invoke with `/skill-name <description>` in Claude Code. All skills live in `.claude/commands/`.
+
+| Skill | Command | Purpose |
+|---|---|---|
+| `flutter-widget` | `/flutter-widget` | Create a new Flutter widget following Morning Garden design system |
+| `flutter-screen` | `/flutter-screen` | Create a full screen in `lib/screens/` with scaffold pattern |
+| `flutter-service` | `/flutter-service` | Create or extend a service in `lib/services/` |
+| `flutter-model` | `/flutter-model` | Create a Dart data model with `fromJson`, `toJson`, `copyWith` |
+| `flutter-test` | `/flutter-test` | Write unit/widget/integration tests for Flutter code |
+| `ios-native` | `/ios-native` | Add native Swift code via method channels or WidgetKit |
+| `design-review` | `/design-review` | Audit Flutter/webapp/backend against Morning Garden design tokens |
+| `brand` | `/brand` | Apply or verify tone-of-voice and brand identity rules |
+| `ai-guardrails` | `/ai-guardrails` | Review Gemini/Pexels AI integrations for safety and cost |
+| `backend-route` | `/backend-route` | Add an Express route to `backend/src/server.js` |
+| `new-migration` | `/new-migration` | Create a PostgreSQL migration in `backend/src/migrations/` |
+| `webapp-page` | `/webapp-page` | Create a Next.js 14 page in `webapp/src/app/` with Tailwind |
+
+The design guard hook (`.claude/scripts/design-check.sh`) runs automatically on every Edit/Write to enforce color, spacing, and typography rules.
+
+---
+
 ## Additional Documentation
 
 - `.cursorrules` — Full design system rules (colors, spacing, typography, component patterns)
+- `.claude/commands/` — Slash command skills for common development patterns
 - `ENV_SETUP.md` — Complete environment variable reference
-- `AI_CONTEXT.txt` — Comprehensive feature breakdown (updated 2026-02-20)
+- `AI_CONTEXT.txt` — Comprehensive feature breakdown (updated 2026-04-14)
 - `docs/revenuecat_*.md` — RevenueCat integration & webhook docs
 - `README.md` — Firebase setup, CI/CD, platform-specific build notes

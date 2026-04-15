@@ -246,7 +246,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                         child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: widget.allColors.length,
-                                separatorBuilder: (_, __) =>
+                                separatorBuilder: (_, _) =>
                                     const SizedBox(width: 12),
                                 itemBuilder: (ctx, index) => SizedBox(
                                   width: 36,
@@ -353,7 +353,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: kHabitCategories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (ctx, index) {
                           final cat = kHabitCategories[index];
                           final isSelected = widget.selectedCategory == cat;
@@ -400,7 +400,7 @@ class _Step1IdentityWithColorState extends State<Step1IdentityWithColor> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: widget.iconsForCategory.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (ctx, index) {
                           final entry = widget.iconsForCategory[index];
                           final globalIndex = entry.$1;

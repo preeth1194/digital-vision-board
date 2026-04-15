@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/vision_board_info.dart';
 import '../models/goal_metadata.dart';
 import '../models/image_component.dart';
-import '../models/grid_tile_model.dart';
 import 'boards_storage_service.dart';
 import 'vision_board_components_storage_service.dart';
 import 'grid_tiles_storage_service.dart';
@@ -70,10 +69,10 @@ final class PuzzleStateService {
       if (piecePositionsRaw == null || positionPiecesRaw == null) return null;
 
       final piecePositions = piecePositionsRaw
-          .map((v) => (v as num).toInt() == -1 ? null : (v as num).toInt())
+          .map((v) { final n = (v as num).toInt(); return n == -1 ? null : n; })
           .toList();
       final positionPieces = positionPiecesRaw
-          .map((v) => (v as num).toInt() == -1 ? null : (v as num).toInt())
+          .map((v) { final n = (v as num).toInt(); return n == -1 ? null : n; })
           .toList();
 
       return PuzzleState(

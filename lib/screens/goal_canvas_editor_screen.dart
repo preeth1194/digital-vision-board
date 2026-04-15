@@ -101,7 +101,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 120), () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_backgroundColorKey, _backgroundColor.value);
+      await prefs.setInt(_backgroundColorKey, _backgroundColor.toARGB32());
       await VisionBoardComponentsStorageService.saveComponents(widget.boardId, _components, prefs: prefs);
     });
   }
@@ -513,7 +513,7 @@ class _GoalCanvasEditorScreenState extends State<GoalCanvasEditorScreen> {
                     },
                     onPickColor: (c) async {
                       final prefs = await SharedPreferences.getInstance();
-                      await prefs.setInt(_backgroundColorKey, c.value);
+                      await prefs.setInt(_backgroundColorKey, c.toARGB32());
                       if (!mounted) return;
                       setState(() => _backgroundColor = c);
                       _scheduleSave();

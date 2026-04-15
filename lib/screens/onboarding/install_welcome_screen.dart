@@ -278,6 +278,8 @@ class _BrandHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final mist = isDark ? colorScheme.surface : AppColors.mistBackground;
     const double logoDiameter = 120;
+    // Decorative star fill sampled from AppColors.seedGold (icon, not text).
+    final starFill = AppColors.seedGold.withValues(alpha: 0.85);
 
     return SizedBox(
       height: 200,
@@ -291,7 +293,7 @@ class _BrandHero extends StatelessWidget {
             child: Icon(
               Icons.star_rounded,
               size: 28,
-              color: AppColors.honeyText.withValues(alpha: 0.85),
+              color: starFill,
             ),
           ),
           Positioned(
